@@ -57,41 +57,55 @@ trader = AutonomousTrader(paper_broker, risk_engine)
 @app.on_event("startup")
 async def on_startup():
     """Start autonomous background AI trading tick loop and seed active multi-market positions."""
-    daily_sync.run_sync_job()
+    try:
+        daily_sync.run_sync_job()
+    except Exception as e:
+        print(f"[STARTUP] Sync notice: {e}")
+    
     trader.start_autonomous_loop()
     
     # Seed active open positions for immediate live monitoring
-    if len(paper_broker.positions) == 0:
-        size = min(5000.0, max(1.0, paper_broker.virtual_cash * 0.20))
-        paper_broker.execute_order(
-            asset="XAUUSD",
-            action="BUY",
-            amount_usd=size,
-            current_price=2500.00,
-            indicators={"RSI": 38.5, "Volatility": 0.006},
-            sentiment_score=0.68,
-            leverage=10.0
-        )
-        paper_broker.execute_order(
-            asset="BTCUSD",
-            action="BUY",
-            amount_usd=size,
-            current_price=64200.00,
-            indicators={"RSI": 41.2, "Volatility": 0.012},
-            sentiment_score=0.68,
-            leverage=10.0
-        )
+    try:
+        if len(paper_broker.positions) == 0:
+            size = min(5000.0, max(1.0, paper_broker.virtual_cash * 0.20))
+            paper_broker.execute_order(
+                asset="XAUUSD",
+                action="BUY",
+                amount_usd=size,
+                current_price=2500.00,
+                indicators={"RSI": 38.5, "Volatility": 0.006},
+                sentiment_score=0.68,
+                leverage=10.0
+            )
+            paper_broker.execute_order(
+                asset="BTCUSD",
+                action="BUY",
+                amount_usd=size,
+                current_price=64200.00,
+                indicators={"RSI": 41.2, "Volatility": 0.012},
+                sentiment_score=0.68,
+                leverage=10.0
+            )
+    except Exception as e:
+        print(f"[STARTUP] Order seed notice: {e}")
 
 @app.get("/", response_class=HTMLResponse)
 async def read_dashboard(request: Request):
     """Render main web dashboard interface."""
-    state = paper_broker.get_account_summary()
-    vault_summary = profit_vault.get_vault_summary()
+    try:
+        state = paper_broker.get_account_summary()
+        vault_summary = profit_vault.get_vault_summary()
+        vb = f"${vault_summary.get('vault_balance', 0.0):,.2f}"
+        vc = f"${state.get('virtual_cash', 100000.0):,.2f}"
+        pe = f"${state.get('portfolio_equity', 100000.0):,.2f}"
+    except Exception:
+        vb, vc, pe = "$0.00", "$100,000.00", "$100,000.00"
+
     return templates.TemplateResponse("index.html", {
         "request": request,
-        "vault_balance": f"${vault_summary['vault_balance']:,.2f}",
-        "virtual_cash": f"${state['virtual_cash']:,.2f}",
-        "portfolio_equity": f"${state['portfolio_equity']:,.2f}"
+        "vault_balance": vb,
+        "virtual_cash": vc,
+        "portfolio_equity": pe
     })
 
 from sync.economic_calendar import economic_filter
