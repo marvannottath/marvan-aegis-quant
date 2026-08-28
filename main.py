@@ -45,31 +45,7 @@ def run_live_system():
     print("=" * 60)
     print("   Starting Marvan Aegis-Quant Autonomous Trading System")
     print("   Mode: Paper Trading ($100,000 Virtual Capital Default)")
-    print("   Dashboard: http://127.0.0.1:8000")
     print("=" * 60)
-
-    # Execute initial sentiment sync
-    daily_sync.run_sync_job()
-
-    # Seed mock paper trade to initialize AI Forensics Feed
-    loader = DataLoader()
-    quote = loader.get_latest_quote("EURUSD=X")
-    pos = paper_broker.execute_order(
-        asset="EURUSD=X",
-        action="BUY",
-        amount_usd=10000.0,
-        current_price=quote["price"],
-        indicators={"RSI": 42.5, "Volatility": 0.008},
-        sentiment_score=daily_sync.current_alignment_score
-    )
-    if pos:
-        paper_broker.close_position(
-            asset="EURUSD=X",
-            exit_price=quote["price"] * 1.0045,  # +0.45% profit trade
-            current_indicators={"RSI": 68.2, "Volatility": 0.007},
-            sentiment_score=daily_sync.current_alignment_score,
-            reason="TAKE_PROFIT_HIT"
-        )
 
     # Launch FastAPI web server
     import os
