@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en" class="dark h-full bg-gray-950">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marvan's Pool | System Recovery Mode</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+</head>
+<body class="h-full text-gray-100 flex items-center justify-center p-6 font-sans">
+    <div class="max-w-lg w-full bg-gray-900 border border-red-500/40 rounded-3xl p-8 shadow-2xl space-y-6 text-center">
+        <div class="w-16 h-16 bg-red-500/10 border border-red-500/30 rounded-2xl flex items-center justify-center mx-auto text-red-400 text-3xl shadow-lg">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+
+        <div class="space-y-2">
+            <h1 class="text-2xl font-black text-white">Internal System Exception</h1>
+            <p class="text-xs text-gray-400 leading-relaxed">The trading core encountered an unexpected state. Automatic safety shields have protected all vault funds.</p>
+        </div>
+
+        <div class="bg-gray-950 border border-gray-800 rounded-2xl p-4 text-left font-mono text-xs text-red-300 overflow-x-auto max-h-32 shadow-inner">
+            <div class="text-[10px] text-gray-500 font-sans uppercase font-bold mb-1">Diagnostic Log Trace:</div>
+            {{ error_details | default('Internal Processing Error') }}
+        </div>
+
+        <div class="flex flex-col gap-3 pt-2">
+            <a href="/" class="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl transition shadow-xl flex items-center justify-center">
+                <i class="fa-solid fa-rotate mr-2"></i> Reconnect & Return to Dashboard
+            </a>
+            <button onclick="window.location.reload()" class="w-full py-3 bg-gray-950 hover:bg-gray-800 border border-gray-800 text-gray-300 font-bold text-xs rounded-xl transition">
+                <i class="fa-solid fa-arrows-rotate mr-2"></i> Force System Reload
+            </button>
+        </div>
+
+        <div class="text-[10px] text-gray-500 pt-2 border-t border-gray-800/80 flex items-center justify-between">
+            <span>Marvan Aegis-Quant High-Availability Node</span>
+            <span class="text-emerald-400 font-bold"><i class="fa-solid fa-shield-halved mr-1"></i> Funds 100% Secure</span>
+        </div>
+    </div>
+</body>
+</html>

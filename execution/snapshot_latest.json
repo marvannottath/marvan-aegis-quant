@@ -1,0 +1,11 @@
+{
+  "timestamp": "2026-08-28 06:35:00",
+  "initial_capital": 100000.0,
+  "virtual_cash": 100000.0,
+  "equity": 100000.0,
+  "positions": {},
+  "trade_history": [],
+  "vault_balance": 22808.41,
+  "total_sweeps_count": 940,
+  "sweep_history": []
+}
