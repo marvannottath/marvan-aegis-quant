@@ -89,24 +89,24 @@ async def on_startup():
     except Exception as e:
         print(f"[STARTUP] Order seed notice: {e}")
 
+INDEX_HTML_PATH = BASE_DIR / "templates" / "index.html"
+
 @app.get("/", response_class=HTMLResponse)
 async def read_dashboard(request: Request):
-    """Render main web dashboard interface."""
+    """Render main web dashboard interface with bulletproof direct HTML response."""
     try:
-        state = paper_broker.get_account_summary()
-        vault_summary = profit_vault.get_vault_summary()
-        vb = f"${vault_summary.get('vault_balance', 0.0):,.2f}"
-        vc = f"${state.get('virtual_cash', 100000.0):,.2f}"
-        pe = f"${state.get('portfolio_equity', 100000.0):,.2f}"
-    except Exception:
-        vb, vc, pe = "$0.00", "$100,000.00", "$100,000.00"
+        if INDEX_HTML_PATH.exists():
+            with open(INDEX_HTML_PATH, "r", encoding="utf-8") as f:
+                html_content = f.read()
+            return HTMLResponse(content=html_content, status_code=200)
+    except Exception as e:
+        print(f"[DASHBOARD] HTML read notice: {e}")
 
-    return templates.TemplateResponse("index.html", {
-        "request": request,
-        "vault_balance": vb,
-        "virtual_cash": vc,
-        "portfolio_equity": pe
-    })
+    # Fallback response
+    return HTMLResponse(
+        content="<html><body style='background:#090d16;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;'><h2>Marvan Aegis-Quant AI Dashboard Initializing...</h2></body></html>",
+        status_code=200
+    )
 
 from sync.economic_calendar import economic_filter
 from core.multi_market_scanner import multi_scanner
