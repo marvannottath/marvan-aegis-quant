@@ -37,16 +37,17 @@ templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 @app.exception_handler(500)
 async def custom_500_handler(request: Request, exc: Exception):
-    return templates.TemplateResponse("error_500.html", {
-        "request": request,
-        "error_details": str(exc)
-    }, status_code=500)
+    return HTMLResponse(
+        content=f"<html><body style='background:#090d16;color:#fff;font-family:sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;'><h2>System Synchronizing...</h2><p style='color:#9ca3af;'>{str(exc)}</p><a href='/' style='color:#3b82f6;margin-top:12px;'>Refresh Dashboard</a></body></html>",
+        status_code=200
+    )
 
 @app.exception_handler(404)
 async def custom_404_handler(request: Request, exc: Exception):
-    return templates.TemplateResponse("error_404.html", {
-        "request": request
-    }, status_code=404)
+    return HTMLResponse(
+        content="<html><body style='background:#090d16;color:#fff;font-family:sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;'><h2>404 - Not Found</h2><a href='/' style='color:#3b82f6;margin-top:12px;'>Return to Dashboard</a></body></html>",
+        status_code=404
+    )
 
 # Shared Global Application State
 paper_broker = PaperBroker()
