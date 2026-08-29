@@ -910,6 +910,102 @@
     <script>
         let aiActiveState = true;
         let globalVaultHistory = [];
+        let voiceEnabled = true;
+        let currentOrderType = 'MARKET';
+
+        function switchAppTab(tabName) {
+            document.querySelectorAll('.app-tab-btn').forEach(btn => {
+                btn.classList.remove('bg-amber-500', 'text-black', 'shadow');
+                btn.classList.add('text-gray-400');
+            });
+            const activeBtn = document.getElementById('app-tab-' + tabName);
+            if (activeBtn) {
+                activeBtn.classList.remove('text-gray-400');
+                activeBtn.classList.add('bg-amber-500', 'text-black', 'shadow');
+            }
+
+            if (tabName === 'vault') {
+                openVaultModal();
+            } else if (tabName === 'positions') {
+                const posEl = document.getElementById('active-positions-table') || document.getElementById('val-equity');
+                if (posEl) posEl.scrollIntoView({ behavior: 'smooth' });
+            } else if (tabName === 'scanner') {
+                const scanEl = document.getElementById('news-lockout-banner') || document.getElementById('val-equity');
+                if (scanEl) scanEl.scrollIntoView({ behavior: 'smooth' });
+            } else if (tabName === 'quant') {
+                const quantEl = document.getElementById('lbl-cap-subtitle') || document.getElementById('val-equity');
+                if (quantEl) quantEl.scrollIntoView({ behavior: 'smooth' });
+            } else {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        }
+
+        function toggleVoiceAlerts() {
+            voiceEnabled = !voiceEnabled;
+            const btn = document.getElementById('btn-voice-alerts');
+            const lbl = document.getElementById('lbl-voice-status');
+            if (btn && lbl) {
+                if (voiceEnabled) {
+                    btn.className = 'bg-amber-600/20 border border-amber-500/40 text-amber-300 px-3 py-1.5 rounded-lg text-xs font-black transition flex items-center shadow-lg';
+                    lbl.innerText = 'AI VOICE: ON';
+                    speakVoiceAlert('AI Voice Alert System Activated');
+                } else {
+                    btn.className = 'bg-gray-800 border border-gray-700 text-gray-400 px-3 py-1.5 rounded-lg text-xs font-black transition flex items-center shadow-lg';
+                    lbl.innerText = 'AI VOICE: OFF';
+                }
+            }
+        }
+
+        function speakVoiceAlert(text) {
+            if (!voiceEnabled || !('speechSynthesis' in window)) return;
+            try {
+                window.speechSynthesis.cancel();
+                const utter = new SpeechSynthesisUtterance(text);
+                utter.rate = 1.05;
+                window.speechSynthesis.speak(utter);
+            } catch (e) {}
+        }
+
+        function openWithdrawModal() {
+            const modal = document.getElementById('withdraw-modal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                modal.style.display = 'flex';
+            }
+        }
+
+        function closeWithdrawModal() {
+            const modal = document.getElementById('withdraw-modal');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.style.display = 'none';
+            }
+        }
+
+        function setOrderType(type) {
+            currentOrderType = type;
+            ['MARKET', 'LIMIT', 'STOP'].forEach(t => {
+                const btn = document.getElementById(`btn-ordertype-${t.toLowerCase()}`);
+                if (btn) {
+                    if (t === type) {
+                        btn.className = 'flex-1 py-1.5 bg-amber-500 text-black font-black text-xs rounded-lg transition';
+                    } else {
+                        btn.className = 'flex-1 py-1.5 bg-gray-900 text-gray-400 font-bold text-xs rounded-lg hover:text-white transition';
+                    }
+                }
+            });
+        }
+
+        async function resetCircuitBreaker() {
+            try {
+                const res = await fetch('/api/reset-circuit-breaker', { method: 'POST' });
+                const data = await res.json();
+                fetchState();
+                alert('Circuit Breaker Reset Successfully! Trading Operations Resumed.');
+            } catch (e) {
+                console.error(e);
+            }
+        }
 
         function depositCashModal() {
             const modal = document.getElementById('deposit-modal');

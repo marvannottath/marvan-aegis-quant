@@ -116,6 +116,12 @@ async def read_dashboard(request: Request):
         status_code=200
     )
 
+from fastapi.staticfiles import StaticFiles
+
+STATIC_DIR = BASE_DIR / "static"
+STATIC_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
 @app.get("/manifest.json")
 async def get_manifest():
     return FileResponse(BASE_DIR / "templates" / "manifest.json", media_type="application/json")
