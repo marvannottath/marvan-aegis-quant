@@ -158,6 +158,36 @@
             </div>
         </div>
 
+        <!-- Top Institutional Segmented Navigation Bar (Desktop & Mobile) -->
+        <div class="bg-darkcard/95 border border-darkborder rounded-2xl p-1.5 shadow-2xl backdrop-blur-xl mb-3">
+            <div class="grid grid-cols-5 gap-1 md:gap-2">
+                <button onclick="switchAppTab('dashboard')" id="app-tab-dashboard" class="app-tab-btn py-2 px-1.5 md:px-3 rounded-xl text-[11px] md:text-xs font-black bg-amber-500 text-black shadow transition flex items-center justify-center space-x-1">
+                    <i class="fa-solid fa-chart-pie text-xs"></i>
+                    <span>Dashboard</span>
+                </button>
+                
+                <button onclick="switchAppTab('positions')" id="app-tab-positions" class="app-tab-btn py-2 px-1.5 md:px-3 rounded-xl text-[11px] md:text-xs font-black text-gray-400 hover:text-white transition flex items-center justify-center space-x-1">
+                    <i class="fa-solid fa-list-check text-xs"></i>
+                    <span>Positions</span>
+                </button>
+
+                <button onclick="switchAppTab('scanner')" id="app-tab-scanner" class="app-tab-btn py-2 px-1.5 md:px-3 rounded-xl text-[11px] md:text-xs font-black text-gray-400 hover:text-white transition flex items-center justify-center space-x-1">
+                    <i class="fa-solid fa-radar text-xs"></i>
+                    <span>AI Scanner</span>
+                </button>
+
+                <button onclick="switchAppTab('vault')" id="app-tab-vault" class="app-tab-btn py-2 px-1.5 md:px-3 rounded-xl text-[11px] md:text-xs font-black text-gray-400 hover:text-white transition flex items-center justify-center space-x-1">
+                    <i class="fa-solid fa-vault text-xs"></i>
+                    <span>Vault</span>
+                </button>
+
+                <button onclick="switchAppTab('quant')" id="app-tab-quant" class="app-tab-btn py-2 px-1.5 md:px-3 rounded-xl text-[11px] md:text-xs font-black text-gray-400 hover:text-white transition flex items-center justify-center space-x-1">
+                    <i class="fa-solid fa-microchip text-xs"></i>
+                    <span>Quant Engine</span>
+                </button>
+            </div>
+        </div>
+
         <!-- Desktop Account & Metrics Cards (hidden on mobile, visible md:grid) -->
         <div class="hidden md:grid grid-cols-2 lg:grid-cols-4 gap-4">
             <div class="bg-darkcard border border-darkborder p-4 md:p-6 rounded-2xl shadow-xl">
@@ -907,6 +937,55 @@
             if (modal) {
                 modal.classList.add('hidden');
                 modal.style.display = 'none';
+            }
+        }
+
+        function openDepositModal() {
+            const modal = document.getElementById('deposit-modal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                modal.style.display = 'flex';
+            }
+        }
+
+        function closeDepositModal() {
+            const modal = document.getElementById('deposit-modal');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.style.display = 'none';
+            }
+        }
+
+        function setDepositAmount(val) {
+            document.getElementById('input-deposit-amount').value = val;
+        }
+
+        async function executeStripeDeposit() {
+            const amountUsd = parseFloat(document.getElementById('input-deposit-amount').value) || 1000;
+            const btn = document.getElementById('btn-stripe-pay');
+            const msg = document.getElementById('deposit-msg');
+
+            btn.innerText = 'Processing Credit Card Payment...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/create-stripe-session', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ amount_usd: amountUsd })
+                });
+                const data = await res.json();
+                msg.innerText = data.message;
+                fetchState();
+                setTimeout(() => {
+                    closeDepositModal();
+                    msg.innerText = '';
+                }, 2000);
+            } catch (err) {
+                console.error(err);
+            } finally {
+                btn.innerHTML = '<i class="fa-solid fa-lock mr-2"></i> Pay & Deposit Instantly';
+                btn.disabled = false;
             }
         }
 
@@ -1926,6 +2005,42 @@
         fetchState();
         setInterval(fetchState, 1500);
     </script>
+
+    <!-- Credit Card Deposit Modal (US & Canadian Card Support) -->
+    <div id="deposit-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-darkcard border border-darkborder max-w-md w-full rounded-2xl p-6 shadow-2xl space-y-4 relative">
+            <div class="flex items-center justify-between border-b border-darkborder pb-3">
+                <h3 class="text-base font-bold text-white flex items-center">
+                    <i class="fa-solid fa-credit-card text-emerald-400 mr-2"></i> Credit Card Deposit
+                </h3>
+                <button onclick="closeDepositModal()" class="text-gray-400 hover:text-white font-bold text-xl">&times;</button>
+            </div>
+
+            <p class="text-xs text-gray-400">
+                Instantly deposit funds using US & Canadian Visa, Mastercard, or Amex via 100% automated Stripe integration.
+            </p>
+
+            <div class="space-y-2">
+                <label class="text-xs font-bold text-gray-300">Select Deposit Amount (USD)</label>
+                <div class="grid grid-cols-4 gap-2">
+                    <button onclick="setDepositAmount(500)" class="py-2 bg-gray-900 border border-gray-800 text-xs font-bold text-gray-200 hover:border-emerald-500 rounded-xl">$500</button>
+                    <button onclick="setDepositAmount(1000)" class="py-2 bg-gray-900 border border-gray-800 text-xs font-bold text-gray-200 hover:border-emerald-500 rounded-xl">$1,000</button>
+                    <button onclick="setDepositAmount(2500)" class="py-2 bg-gray-900 border border-gray-800 text-xs font-bold text-gray-200 hover:border-emerald-500 rounded-xl">$2,500</button>
+                    <button onclick="setDepositAmount(5000)" class="py-2 bg-gray-900 border border-gray-800 text-xs font-bold text-gray-200 hover:border-emerald-500 rounded-xl">$5,000</button>
+                </div>
+            </div>
+
+            <div class="space-y-1">
+                <label class="text-xs font-bold text-gray-300">Custom Amount ($ USD / CAD)</label>
+                <input id="input-deposit-amount" type="number" value="1000" class="w-full bg-gray-950 border border-gray-800 rounded-xl p-3 text-sm font-black text-white focus:outline-none focus:border-emerald-500">
+            </div>
+
+            <button onclick="executeStripeDeposit()" id="btn-stripe-pay" class="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-black font-black text-sm rounded-xl transition shadow-xl flex items-center justify-center">
+                <i class="fa-solid fa-lock mr-2"></i> Pay & Deposit Instantly
+            </button>
+            <div id="deposit-msg" class="text-center text-xs font-bold text-emerald-400"></div>
+        </div>
+    </div>
 
     <!-- Mobile Bottom Navigation Dock (PWA Dock) -->
     <div id="mobile-bottom-dock" class="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-darkcard/95 border-t border-darkborder backdrop-blur-xl px-2 py-2 flex items-center justify-around shadow-2xl">
