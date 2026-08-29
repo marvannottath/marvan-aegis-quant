@@ -9,8 +9,9 @@ import time
 import json
 import numpy as np
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Any, Optional
+IST_TZ = timezone(timedelta(hours=5, minutes=30))
 from config.settings import INITIAL_VIRTUAL_CAPITAL
 from core.diagnostics import diagnostics
 from core.risk_engine import risk_engine
@@ -177,10 +178,8 @@ class PaperBroker:
             exit_reason=reason
         )
 
-from datetime import datetime, timezone, timedelta
-IST_TZ = timezone(timedelta(hours=5, minutes=30))
-
         record = {
+            "trade_id": pos["trade_id"],
             "trade_id": pos["trade_id"],
             "asset": asset,
             "action": action,
