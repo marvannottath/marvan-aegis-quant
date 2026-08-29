@@ -42,37 +42,51 @@
     </div>
 
     <!-- Navbar Header -->
-    <nav class="border-b border-darkborder bg-darkcard/90 backdrop-blur sticky top-0 z-50 px-4 md:px-6 py-3.5 flex items-center justify-between">
-        <div class="flex items-center space-x-3">
-            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-yellow-400 flex items-center justify-center font-bold text-black text-xl shadow-lg shadow-amber-500/20">
+    <nav class="border-b border-darkborder bg-darkcard/95 backdrop-blur-xl sticky top-0 z-50 px-3 md:px-6 py-3 flex items-center justify-between">
+        <!-- Logo & Title -->
+        <div class="flex items-center space-x-2.5">
+            <div class="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-yellow-400 flex items-center justify-center font-bold text-black text-lg md:text-xl shadow-lg shadow-amber-500/20">
                 <i class="fa-solid fa-water-ladder"></i>
             </div>
             <div>
-                <h1 class="text-xl font-bold tracking-wide text-white">Marvan's Pool</h1>
-                <p class="text-xs text-amber-400 font-medium">Pro Multi-Asset AI Quant Pool</p>
+                <h1 class="text-base md:text-xl font-bold tracking-wide text-white leading-none">Marvan's Pool</h1>
+                <p class="text-[10px] md:text-xs text-amber-400 font-medium">Pro Quant AI Pool</p>
             </div>
         </div>
 
-        <div class="flex items-center space-x-3">
-            <!-- Binance Connection Status Live Indicator -->
+        <!-- Desktop Header Controls (hidden on mobile, visible md:flex) -->
+        <div class="hidden md:flex items-center space-x-3">
             <button id="btn-connect-binance" onclick="openSettingsModal()" class="bg-emerald-600/20 border border-emerald-500/40 text-emerald-400 px-3.5 py-1.5 rounded-lg text-xs font-black transition flex items-center shadow-lg">
                 <i class="fa-brands fa-bitcoin mr-1.5 text-yellow-400"></i> <span id="lbl-binance-status">BINANCE LIVE ($0.00)</span>
             </button>
 
-            <!-- Mode Selector Toggle Button -->
             <button id="btn-toggle-ai" onclick="toggleAIMode()" class="bg-emerald-600/20 border border-emerald-500/40 text-emerald-400 px-3.5 py-1.5 rounded-lg text-xs font-black transition flex items-center shadow-lg">
                 <i class="fa-solid fa-robot mr-1.5"></i> <span id="lbl-ai-mode">AUTO AI TRADING: ON</span>
             </button>
 
-            <!-- System Settings & Profile Modal Button -->
             <button onclick="openSettingsModal()" class="bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 px-3 py-1.5 rounded-lg text-xs font-black transition flex items-center shadow-lg">
                 <i class="fa-solid fa-gear mr-1.5 text-amber-400"></i> Settings
+            </button>
+        </div>
+
+        <!-- Mobile Header Compact Icon Controls (visible on mobile < md) -->
+        <div class="flex md:hidden items-center space-x-1.5">
+            <button id="btn-m-binance" onclick="openSettingsModal()" class="bg-emerald-600/20 border border-emerald-500/40 text-emerald-400 p-2 rounded-lg text-xs font-black transition flex items-center shadow">
+                <i class="fa-brands fa-bitcoin text-yellow-400 text-sm"></i>
+            </button>
+
+            <button id="btn-m-ai" onclick="toggleAIMode()" class="bg-emerald-600/20 border border-emerald-500/40 text-emerald-400 p-2 rounded-lg text-xs font-black transition flex items-center shadow">
+                <i class="fa-solid fa-robot text-sm text-emerald-400"></i>
+            </button>
+
+            <button onclick="openSettingsModal()" class="bg-gray-800 border border-gray-700 text-amber-400 p-2 rounded-lg text-xs font-black transition shadow">
+                <i class="fa-solid fa-gear text-sm"></i>
             </button>
         </div>
     </nav>
 
     <!-- Main Container -->
-    <main class="max-w-7xl mx-auto px-4 md:px-6 py-6 space-y-6">
+    <main class="max-w-7xl mx-auto px-3 md:px-6 py-4 md:py-6 space-y-4 md:space-y-6">
 
         <!-- Circuit Breaker Warning Banner -->
         <div id="circuit-breaker-banner" class="hidden bg-red-950/80 border border-red-500/50 p-4 rounded-xl flex items-center justify-between text-red-200">
@@ -89,19 +103,63 @@
         </div>
 
         <!-- US Economic News Lockout Auto-Pause Banner -->
-        <div id="news-lockout-banner" class="hidden bg-amber-950/80 border border-amber-500/50 p-4 rounded-xl flex items-center justify-between text-amber-200 shadow-xl">
+        <div id="news-lockout-banner" class="hidden bg-amber-950/80 border border-amber-500/50 p-3.5 md:p-4 rounded-xl flex items-center justify-between text-amber-200 shadow-xl">
             <div class="flex items-center space-x-3">
-                <i class="fa-solid fa-newspaper text-2xl text-amber-400 animate-pulse"></i>
+                <i class="fa-solid fa-newspaper text-xl md:text-2xl text-amber-400 animate-pulse"></i>
                 <div>
-                    <h3 class="font-bold text-sm flex items-center"><span class="w-2 h-2 rounded-full bg-amber-400 animate-ping mr-2"></span> US MACRO NEWS LOCKOUT ACTIVE</h3>
-                    <p class="text-xs text-amber-300" id="news-lockout-reason">High Impact US Fed / Inflation News Event in progress. AI Auto-Trade Paused for Equity Safety.</p>
+                    <h3 class="font-bold text-xs md:text-sm flex items-center"><span class="w-2 h-2 rounded-full bg-amber-400 animate-ping mr-2"></span> US MACRO NEWS LOCKOUT ACTIVE</h3>
+                    <p class="text-[11px] md:text-xs text-amber-300" id="news-lockout-reason">High Impact US Fed / Inflation News Event in progress. AI Auto-Trade Paused for Equity Safety.</p>
                 </div>
             </div>
-            <span class="px-3 py-1 bg-amber-900/80 border border-amber-500/40 rounded text-xs font-black text-amber-300">AUTO-PAUSED</span>
+            <span class="px-2.5 py-1 bg-amber-900/80 border border-amber-500/40 rounded text-[10px] md:text-xs font-black text-amber-300">AUTO-PAUSED</span>
         </div>
 
-        <!-- Top Account & Metrics Cards -->
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Mobile Unified Financial Hero Card (< md) -->
+        <div class="block md:hidden bg-gradient-to-br from-gray-900 via-darkcard to-gray-950 border border-darkborder p-4 rounded-2xl shadow-2xl relative overflow-hidden">
+            <div class="flex items-center justify-between mb-1">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-gray-400 flex items-center">
+                    <i class="fa-solid fa-chart-pie mr-1 text-amber-400"></i> Portfolio Equity
+                </span>
+                <span id="m-val-pnl" class="text-[10px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-full">
+                    +$385.51 (+0.39%)
+                </span>
+            </div>
+
+            <div id="m-val-equity" class="text-3xl font-black text-white tracking-tight mb-3">
+                $257,588.39
+            </div>
+
+            <!-- Mini 2-Stats Grid -->
+            <div class="grid grid-cols-2 gap-2 pt-3 border-t border-darkborder">
+                <!-- Secured Profit Vault -->
+                <div class="bg-gray-950/80 border border-emerald-500/30 p-2.5 rounded-xl">
+                    <div class="text-[10px] font-bold uppercase text-emerald-400 flex items-center justify-between">
+                        <span>Vault Reserve</span>
+                        <i class="fa-solid fa-vault text-xs"></i>
+                    </div>
+                    <div id="m-val-vault" class="text-base font-black text-emerald-300 my-0.5">$157,588.39</div>
+                    <div class="flex items-center gap-1 mt-1">
+                        <button onclick="openVaultModal()" class="flex-1 bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-300 py-1 rounded text-[10px] font-bold border border-emerald-500/40 text-center">Log</button>
+                        <button onclick="openWithdrawModal()" class="flex-1 bg-emerald-500 hover:bg-emerald-400 text-black py-1 rounded text-[10px] font-black text-center">Withdraw</button>
+                    </div>
+                </div>
+
+                <!-- Virtual Cash -->
+                <div class="bg-gray-950/80 border border-gray-800 p-2.5 rounded-xl">
+                    <div class="text-[10px] font-bold uppercase text-gray-400 flex items-center justify-between">
+                        <span>Free Cash</span>
+                        <i class="fa-solid fa-wallet text-xs text-amber-400"></i>
+                    </div>
+                    <div id="m-val-cash" class="text-base font-black text-white my-0.5">$77,000.00</div>
+                    <div class="mt-1">
+                        <button onclick="openDepositModal()" class="w-full bg-amber-500 hover:bg-amber-400 text-black py-1 rounded text-[10px] font-black text-center">+ Deposit</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Desktop Account & Metrics Cards (hidden on mobile, visible md:grid) -->
+        <div class="hidden md:grid grid-cols-2 lg:grid-cols-4 gap-4">
             <div class="bg-darkcard border border-darkborder p-4 md:p-6 rounded-2xl shadow-xl">
                 <div class="text-[11px] font-semibold uppercase text-gray-400 mb-1">Portfolio Equity</div>
                 <div class="text-xl md:text-2xl font-black text-white" id="val-equity">$100,000.00</div>
@@ -1082,6 +1140,19 @@
                 if (pnlElem) {
                     pnlElem.className = `text-xs font-medium mt-1 ${isPos ? 'text-emerald-400' : 'text-red-400'}`;
                     pnlElem.innerText = `${isPos ? '+' : ''}$${pnlUsd.toFixed(2)} (${isPos ? '+' : ''}${pnlPct.toFixed(2)}%) Floating Open PnL`;
+                }
+
+                // Update Mobile Hero Card Elements (< md)
+                const mEq = document.getElementById('m-val-equity');
+                if (mEq) mEq.innerText = '$' + data.account.portfolio_equity.toLocaleString('en-US', {minimumFractionDigits: 2});
+                const mVault = document.getElementById('m-val-vault');
+                if (mVault && data.vault) mVault.innerText = '$' + data.vault.vault_balance.toLocaleString('en-US', {minimumFractionDigits: 2});
+                const mCash = document.getElementById('m-val-cash');
+                if (mCash) mCash.innerText = '$' + data.account.virtual_cash.toLocaleString('en-US', {minimumFractionDigits: 2});
+                const mPnl = document.getElementById('m-val-pnl');
+                if (mPnl) {
+                    mPnl.className = `text-[10px] font-black ${isPos ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30' : 'text-red-400 bg-red-500/10 border-red-500/30'} border px-2 py-0.5 rounded-full`;
+                    mPnl.innerText = `${isPos ? '+' : ''}$${pnlUsd.toFixed(2)} (${isPos ? '+' : ''}${pnlPct.toFixed(2)}%)`;
                 }
 
                 if (data.risk_profile) {

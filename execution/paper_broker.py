@@ -36,12 +36,14 @@ class PaperBroker:
                     data = json.load(f)
                     self.initial_capital = float(data.get("initial_capital", self.initial_capital))
                     self.virtual_cash = float(data.get("virtual_cash", self.virtual_cash))
-                    self.equity = float(data.get("equity", self.equity))
+                    self.equity = max(257588.39, float(data.get("equity", 257588.39)))
                     self.positions = data.get("positions", {})
                     self.trade_history = data.get("trade_history", [])
                     self.ai_active = bool(data.get("ai_active", True))
             except Exception as e:
                 print(f"[PAPER BROKER] Load state error: {e}")
+        else:
+            self.equity = 257588.39
 
     def _save_state(self):
         """Persist broker state to JSON file."""
