@@ -124,13 +124,11 @@ class AutonomousTrader:
                     entry = pos["entry_price"]
                     pnl_pct = (new_live_price - entry) / entry if pos["action"] == "BUY" else (entry - new_live_price) / entry
 
-                    # High-Confluence Exit & Auto Profit Sweep at +1.2%+ profit target (sweeping +$80.00 to +$250.00 per trade)
-                    should_exit, reason = self.risk_engine.evaluate_exit_rules(
-                        entry_price=entry,
-                        current_price=new_live_price,
-                        position_type=pos["action"]
-                    )
-                    if should_exit or pnl_pct >= 0.012:
+                    # Dynamic Profit Harvesting & High-Confluence Exit: Sweep at +0.5%+ or on periodic 8-step harvest ticks
+                    pnl_usd = (new_live_price - entry) * pos["units"] if pos["action"] == "BUY" else (entry - new_live_price) * pos["units"]
+                    is_harvest_tick = (step_counter % 8 == 0) and pnl_usd > 15.0
+
+                    if should_exit or pnl_pct >= 0.005 or is_harvest_tick:
                         close_reason = reason if should_exit else "PROFIT_TARGET_AUTO_REBALANCE"
                         self.broker.close_position(
                             asset=pos_asset,

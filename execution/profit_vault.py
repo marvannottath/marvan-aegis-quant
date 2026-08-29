@@ -47,6 +47,12 @@ class ProfitVault:
         except Exception as e:
             print(f"[PROFIT VAULT] Save state error: {e}")
 
+from datetime import datetime, timezone, timedelta
+IST_TZ = timezone(timedelta(hours=5, minutes=30))
+
+def get_ist_time_str() -> str:
+    return datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S")
+
     def sweep_profit(self, trade_pnl: float, asset: str, exit_reason: str) -> float:
         """
         If trade PnL is positive, sweep 100% of realized profit into the untouchable Safe Vault!
@@ -55,7 +61,7 @@ class ProfitVault:
             self.vault_balance += trade_pnl
             self.total_sweeps_count += 1
             record = {
-                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                "timestamp": get_ist_time_str(),
                 "asset": asset,
                 "profit_swept": round(trade_pnl, 2),
                 "vault_total": round(self.vault_balance, 2),

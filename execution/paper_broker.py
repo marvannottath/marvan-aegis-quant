@@ -177,6 +177,9 @@ class PaperBroker:
             exit_reason=reason
         )
 
+from datetime import datetime, timezone, timedelta
+IST_TZ = timezone(timedelta(hours=5, minutes=30))
+
         record = {
             "trade_id": pos["trade_id"],
             "asset": asset,
@@ -186,7 +189,7 @@ class PaperBroker:
             "pnl_usd": round(pnl_usd, 2),
             "pnl_pct": round(pnl_pct, 2),
             "exit_reason": reason,
-            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "timestamp": datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S"),
             "forensics": forensic_report
         }
         self.trade_history.append(record)
