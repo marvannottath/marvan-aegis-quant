@@ -1133,7 +1133,7 @@
                 if (navigator.clipboard && navigator.clipboard.writeText) {
                     await navigator.clipboard.writeText(shareUrl);
                 }
-                if (msg) msg.innerText = `📋 International Payment Link Copied! ($${amountUsd:,.2f} USD) Ready to share via WhatsApp / Email.`;
+                if (msg) msg.innerText = `📋 International Payment Link Copied! ($${amountUsd.toFixed(2)} USD) Ready to share via WhatsApp / Email.`;
             } catch (err) {
                 console.error(err);
             } finally {
