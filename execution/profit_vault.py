@@ -8,8 +8,13 @@ import time
 import json
 from pathlib import Path
 from typing import Dict, Any, List
+from datetime import datetime, timezone, timedelta
 
+IST_TZ = timezone(timedelta(hours=5, minutes=30))
 VAULT_FILE = Path(__file__).resolve().parent / "profit_vault_state.json"
+
+def get_ist_time_str() -> str:
+    return datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S")
 
 class ProfitVault:
     def __init__(self):
@@ -46,12 +51,6 @@ class ProfitVault:
                 }, f, indent=2)
         except Exception as e:
             print(f"[PROFIT VAULT] Save state error: {e}")
-
-from datetime import datetime, timezone, timedelta
-IST_TZ = timezone(timedelta(hours=5, minutes=30))
-
-def get_ist_time_str() -> str:
-    return datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S")
 
     def sweep_profit(self, trade_pnl: float, asset: str, exit_reason: str) -> float:
         """
@@ -90,7 +89,7 @@ def get_ist_time_str() -> str:
     def record_withdrawal(self, source: str, amount: float, destination: str = "Bank Account / Cash Wallet") -> Dict[str, Any]:
         """Record a completed withdrawal transaction with full audit trail."""
         record = {
-            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "timestamp": get_ist_time_str(),
             "source": source,
             "amount": round(amount, 2),
             "destination": destination,
