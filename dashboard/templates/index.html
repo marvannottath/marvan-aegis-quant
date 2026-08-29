@@ -201,7 +201,7 @@
                     <div class="text-[11px] font-black uppercase text-emerald-400 tracking-wider flex items-center mb-1">
                         <i class="fa-solid fa-vault mr-1.5 text-emerald-400"></i> SECURED PROFIT VAULT
                     </div>
-                    <div class="text-xl md:text-2xl font-black text-emerald-400" id="val-vault-balance">{{ vault_balance | default('$32,580.26') }}</div>
+                    <div class="text-xl md:text-2xl font-black text-emerald-400" id="val-vault-balance">$159,579.95</div>
                 </div>
                 
                 <div class="mt-3 pt-2 border-t border-emerald-500/20 flex items-center justify-end gap-1.5">
@@ -987,6 +987,20 @@
                 btn.innerHTML = '<i class="fa-solid fa-lock mr-2"></i> Pay & Deposit Instantly';
                 btn.disabled = false;
             }
+        }
+
+        async function toggleAIMode() {
+            try {
+                const res = await fetch('/api/toggle-ai-mode', { method: 'POST' });
+                const data = await res.json();
+                fetchState();
+            } catch (err) {
+                console.error('Toggle AI error:', err);
+            }
+        }
+
+        function depositCashModal() {
+            openDepositModal();
         }
 
         function openVaultModal() {

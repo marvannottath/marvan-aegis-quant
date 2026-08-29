@@ -99,6 +99,13 @@ async def read_dashboard(request: Request):
         if INDEX_HTML_PATH.exists():
             with open(INDEX_HTML_PATH, "r", encoding="utf-8") as f:
                 html_content = f.read()
+
+            vb = f"${profit_vault.vault_balance:,.2f}"
+            vc = f"${paper_broker.virtual_cash:,.2f}"
+            pe = f"${paper_broker.equity:,.2f}"
+
+            html_content = html_content.replace("{{ vault_balance | default('$32,580.26') }}", vb)
+            html_content = html_content.replace("$100,000.00", pe)
             return HTMLResponse(content=html_content, status_code=200)
     except Exception as e:
         print(f"[DASHBOARD] HTML read notice: {e}")
@@ -260,6 +267,17 @@ async def trigger_backtest(ticker: str = "EURUSD=X"):
     """Trigger backtest simulation on target Forex or Stock asset."""
     result = backtester.run_backtest(ticker=ticker)
     return JSONResponse(result)
+
+@app.post("/api/toggle-ai-mode")
+async def toggle_ai_mode_endpoint():
+    """Toggle Auto AI Trading Mode ON / OFF."""
+    paper_broker.ai_active = not paper_broker.ai_active
+    paper_broker._save_state()
+    if paper_broker.ai_active:
+        trader.start_autonomous_loop()
+    else:
+        trader.stop_autonomous_loop()
+    return JSONResponse({"status": "SUCCESS", "ai_active": paper_broker.ai_active})
 
 @app.post("/api/set-risk-profile")
 async def set_risk_profile_endpoint(data: dict):
