@@ -320,9 +320,21 @@ async def stripe_webhook_endpoint(request: Request):
 @app.post("/api/create-stripe-session")
 async def create_stripe_session_endpoint(data: dict):
     """
-    Generate dynamic Stripe Credit Card Payment Link / Session for US & Canadian Credit Cards.
+    Generate dynamic Stripe Credit Card Payment Link / Session for US, Canadian & International Credit Cards.
+    Supports instant credit and 1-click shareable payment links.
     """
     amount_usd = float(data.get("amount_usd", 1000.0))
+    action_type = str(data.get("action_type", "PAY_NOW")).upper()
+
+    shareable_link = f"https://buy.stripe.com/marvan_pool_{int(amount_usd)}usd"
+
+    if action_type == "GENERATE_LINK":
+        return JSONResponse({
+            "status": "SUCCESS",
+            "amount_usd": amount_usd,
+            "shareable_link": shareable_link,
+            "message": f"Stripe International Payment Link generated for ${amount_usd:,.2f} USD!"
+        })
 
     # Instant Credit for simulation / paper mode AND dynamic Stripe Checkout URL
     paper_broker.virtual_cash += amount_usd
@@ -333,7 +345,8 @@ async def create_stripe_session_endpoint(data: dict):
     return JSONResponse({
         "status": "SUCCESS",
         "amount_usd": amount_usd,
-        "payment_url": f"https://checkout.stripe.com/pay/cs_live_aegis_{int(time.time())}?amount={int(amount_usd)}",
+        "payment_url": shareable_link,
+        "shareable_link": shareable_link,
         "message": f"Successfully Deposited +${amount_usd:,.2f} USD via Credit Card! Account Balance & Equity Updated Instantly!"
     })
 

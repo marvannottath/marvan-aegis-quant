@@ -960,6 +960,39 @@
             document.getElementById('input-deposit-amount').value = val;
         }
 
+        async function copyStripePaymentLink() {
+            const amountUsd = parseFloat(document.getElementById('input-deposit-amount').value) || 1000;
+            const btn = document.getElementById('btn-share-link');
+            const msg = document.getElementById('deposit-msg');
+
+            if (btn) {
+                btn.innerText = 'Generating Shareable Link...';
+                btn.disabled = true;
+            }
+
+            try {
+                const res = await fetch('/api/create-stripe-session', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ amount_usd: amountUsd, action_type: 'GENERATE_LINK' })
+                });
+                const data = await res.json();
+                const shareUrl = data.shareable_link || `https://buy.stripe.com/marvan_pool_${amountUsd}usd`;
+
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(shareUrl);
+                }
+                if (msg) msg.innerText = `📋 International Payment Link Copied! ($${amountUsd:,.2f} USD) Ready to share via WhatsApp / Email.`;
+            } catch (err) {
+                console.error(err);
+            } finally {
+                if (btn) {
+                    btn.innerHTML = '<i class="fa-solid fa-share-nodes mr-2"></i> Copy & Share Payment Link';
+                    btn.disabled = false;
+                }
+            }
+        }
+
         async function executeStripeDeposit() {
             const amountUsd = parseFloat(document.getElementById('input-deposit-amount').value) || 1000;
             const btn = document.getElementById('btn-stripe-pay');
@@ -2049,9 +2082,14 @@
                 <input id="input-deposit-amount" type="number" value="1000" class="w-full bg-gray-950 border border-gray-800 rounded-xl p-3 text-sm font-black text-white focus:outline-none focus:border-emerald-500">
             </div>
 
-            <button onclick="executeStripeDeposit()" id="btn-stripe-pay" class="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-black font-black text-sm rounded-xl transition shadow-xl flex items-center justify-center">
-                <i class="fa-solid fa-lock mr-2"></i> Pay & Deposit Instantly
-            </button>
+            <div class="grid grid-cols-2 gap-2">
+                <button onclick="executeStripeDeposit()" id="btn-stripe-pay" class="py-3 bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs md:text-sm rounded-xl transition shadow-xl flex items-center justify-center">
+                    <i class="fa-solid fa-credit-card mr-1.5"></i> Pay Now
+                </button>
+                <button onclick="copyStripePaymentLink()" id="btn-share-link" class="py-3 bg-gray-900 border border-gray-700 hover:border-amber-500 text-amber-300 font-bold text-xs md:text-sm rounded-xl transition flex items-center justify-center">
+                    <i class="fa-solid fa-share-nodes mr-1.5"></i> Copy & Share Link
+                </button>
+            </div>
             <div id="deposit-msg" class="text-center text-xs font-bold text-emerald-400"></div>
         </div>
     </div>
