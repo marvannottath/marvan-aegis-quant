@@ -24,6 +24,12 @@
     </script>
     <!-- FontAwesome CDN -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- PWA Web App Meta Tags -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#0B0F19">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="MarvanQuant">
     <!-- TradingView Advanced Widget JS -->
     <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
 </head>
@@ -151,14 +157,14 @@
             </div>
 
             <div class="flex items-center gap-2">
-                <button id="btn-prof-con" onclick="setRiskProfile('CONSERVATIVE')" class="px-4 py-2 rounded-xl text-xs font-black border transition bg-gray-900 border-gray-800 text-gray-300 hover:text-white">
-                    🛡️ CONSERVATIVE (Low Risk 2x)
+                <button id="btn-prof-con" onclick="setRiskProfile('CONSERVATIVE')" class="px-4 py-2 rounded-xl text-xs font-black border transition bg-gray-900 border-gray-800 text-gray-300 hover:text-white flex items-center">
+                    <i class="fa-solid fa-shield-halved mr-1.5 text-emerald-400"></i> CONSERVATIVE (Low Risk 2x)
                 </button>
-                <button id="btn-prof-mod" onclick="setRiskProfile('MODERATE')" class="px-4 py-2 rounded-xl text-xs font-black border transition bg-amber-500 text-black border-amber-400 shadow-md">
-                    ⚖️ MODERATE (Standard 10x)
+                <button id="btn-prof-mod" onclick="setRiskProfile('MODERATE')" class="px-4 py-2 rounded-xl text-xs font-black border transition bg-amber-500 text-black border-amber-400 shadow-md flex items-center">
+                    <i class="fa-solid fa-scale-balanced mr-1.5 text-amber-950"></i> MODERATE (Standard 10x)
                 </button>
-                <button id="btn-prof-agg" onclick="setRiskProfile('AGGRESSIVE')" class="px-4 py-2 rounded-xl text-xs font-black border transition bg-gray-900 border-gray-800 text-gray-300 hover:text-white">
-                    🚀 AGGRESSIVE (High Yield 25x)
+                <button id="btn-prof-agg" onclick="setRiskProfile('AGGRESSIVE')" class="px-4 py-2 rounded-xl text-xs font-black border transition bg-gray-900 border-gray-800 text-gray-300 hover:text-white flex items-center">
+                    <i class="fa-solid fa-bolt mr-1.5 text-red-400"></i> AGGRESSIVE (High Yield 25x)
                 </button>
             </div>
         </div>
@@ -1655,11 +1661,11 @@
                     body: JSON.stringify({ episodes: 250 })
                 });
                 const data = await res.json();
-                alert(`👑 World-Best 100-Shield Quantum Guardian AI Master Calibrated!\nVerified Win Rate: ${data.win_rate_pct}%\n100 Safety Check Parameters across 10 Master Modules!\nModel Saved To: ${data.model_path}`);
+                alert(`World-Best 100-Shield Quantum Guardian AI Master Calibrated!\nVerified Win Rate: ${data.win_rate_pct}%\n100 Safety Check Parameters across 10 Master Modules!\nModel Saved To: ${data.model_path}`);
             } catch (err) {
                 console.error(err);
             } finally {
-                btn.innerHTML = '<i class="fa-solid fa-crown mr-1.5 text-amber-900"></i> 👑 WORLD-BEST 100-SHIELD QUANTUM AI';
+                btn.innerHTML = '<i class="fa-solid fa-crown mr-1.5 text-amber-900"></i> WORLD-BEST 100-SHIELD QUANTUM AI';
                 btn.disabled = false;
             }
         }
@@ -1675,11 +1681,11 @@
                     body: JSON.stringify({ episodes: 200 })
                 });
                 const data = await res.json();
-                alert(`👑 World-Best 20-Tier Supreme Shield AI Calibrated!\nVerified Win Rate: ${data.win_rate_pct}%\n20 Supreme Guardian Check Filters:\n${data.consensus_filters.join('\n')}\nMicro-Lot 0.01 Sizing: OPTIMIZED 🟢\nNews Intelligence Reader: ACTIVE 🟢\nModel Saved To: ${data.model_path}`);
+                alert(`World-Best 20-Tier Supreme Shield AI Calibrated!\nVerified Win Rate: ${data.win_rate_pct}%\n20 Supreme Guardian Check Filters:\n${data.consensus_filters.join('\n')}\nMicro-Lot 0.01 Sizing: OPTIMIZED\nNews Intelligence Reader: ACTIVE\nModel Saved To: ${data.model_path}`);
             } catch (err) {
                 console.error(err);
             } finally {
-                btn.innerHTML = '<i class="fa-solid fa-shield-halved mr-1.5"></i> 👑 WORLD-BEST 20-TIER SUPREME SHIELD AI';
+                btn.innerHTML = '<i class="fa-solid fa-shield-halved mr-1.5"></i> WORLD-BEST 20-TIER SUPREME SHIELD AI';
                 btn.disabled = false;
             }
         }
@@ -1695,11 +1701,11 @@
                     body: JSON.stringify({ episodes: 150 })
                 });
                 const data = await res.json();
-                alert(`👑 World-Best 10-Tier Fortress AI Calibrated Successfully!\nVerified Win Rate: ${data.win_rate_pct}%\n10 Supreme Guardian Safety Filters:\n${data.consensus_filters.join('\n')}\nModel Saved To: ${data.model_path}`);
+                alert(`World-Best 10-Tier Fortress AI Calibrated Successfully!\nVerified Win Rate: ${data.win_rate_pct}%\n10 Supreme Guardian Safety Filters:\n${data.consensus_filters.join('\n')}\nModel Saved To: ${data.model_path}`);
             } catch (err) {
                 console.error(err);
             } finally {
-                btn.innerHTML = '<i class="fa-solid fa-shield-halved mr-1.5"></i> 👑 WORLD-BEST 10-TIER FORTRESS AI';
+                btn.innerHTML = '<i class="fa-solid fa-shield-halved mr-1.5"></i> WORLD-BEST 10-TIER FORTRESS AI';
                 btn.disabled = false;
             }
         }
@@ -1715,7 +1721,7 @@
                     body: JSON.stringify({ episodes: 120 })
                 });
                 const data = await res.json();
-                alert(`⚡ Supreme 99.1% Win Rate Ultra-Consensus AI Calibrated!\nVerified Win Rate: ${data.win_rate_pct}%\n6-Tier Ultra Sniper Strategy:\n${data.consensus_filters.join('\n')}\nSaved to: ${data.model_path}`);
+                alert(`Supreme 99.1% Win Rate Ultra-Consensus AI Calibrated!\nVerified Win Rate: ${data.win_rate_pct}%\n6-Tier Ultra Sniper Strategy:\n${data.consensus_filters.join('\n')}\nSaved to: ${data.model_path}`);
             } catch (err) {
                 console.error(err);
             } finally {
@@ -1735,7 +1741,7 @@
                     body: JSON.stringify({ episodes: 100 })
                 });
                 const data = await res.json();
-                alert(`👑 Ultra 95.2% Win Rate Institutional AI Calibrated!\nVerified Win Rate: ${data.win_rate_pct}%\n5-Tier Consensus Strategy:\n${data.consensus_filters.join('\n')}\nSaved to: ${data.model_path}`);
+                alert(`Ultra 95.2% Win Rate Institutional AI Calibrated!\nVerified Win Rate: ${data.win_rate_pct}%\n5-Tier Consensus Strategy:\n${data.consensus_filters.join('\n')}\nSaved to: ${data.model_path}`);
             } catch (err) {
                 console.error(err);
             } finally {
@@ -1755,7 +1761,7 @@
                     body: JSON.stringify({ episodes: 60 })
                 });
                 const data = await res.json();
-                alert(`🚀 Hyper-Ensemble Consensus AI Training Complete!\nVerified Win Rate: ${data.win_rate_pct}%\nEnsemble Policy: ${data.consensus_filters.join(' + ')}\nSaved to: ${data.model_path}`);
+                alert(`Hyper-Ensemble Consensus AI Training Complete!\nVerified Win Rate: ${data.win_rate_pct}%\nEnsemble Policy: ${data.consensus_filters.join(' + ')}\nSaved to: ${data.model_path}`);
             } catch (err) {
                 console.error(err);
             } finally {
@@ -1807,7 +1813,41 @@
         async function triggerSync() {
             await fetch('/api/run-sync');
             await fetchState();
-            alert("🔄 Force System Sync Successful!\nAll Live Exchanges, Portfolio Cash & Vault Ledger State updated instantly!");
+            alert("Force System Sync Successful!\nAll Live Exchanges, Portfolio Cash & Vault Ledger State updated instantly!");
+        }
+
+        // Mobile Tab View Switcher
+        function switchMobileTab(tabName) {
+            document.querySelectorAll('.mobile-nav-btn').forEach(btn => {
+                btn.classList.remove('text-amber-400');
+                btn.classList.add('text-gray-400');
+            });
+            const activeNav = document.getElementById('nav-btn-' + tabName);
+            if (activeNav) {
+                activeNav.classList.remove('text-gray-400');
+                activeNav.classList.add('text-amber-400');
+            }
+
+            if (tabName === 'vault') {
+                openVaultModal();
+            } else if (tabName === 'settings') {
+                openSettingsModal();
+            } else if (tabName === 'positions') {
+                const posEl = document.getElementById('active-positions-table') || document.getElementById('val-equity');
+                if (posEl) posEl.scrollIntoView({ behavior: 'smooth' });
+            } else if (tabName === 'signals') {
+                const sigEl = document.getElementById('news-lockout-banner') || document.getElementById('val-equity');
+                if (sigEl) sigEl.scrollIntoView({ behavior: 'smooth' });
+            } else {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        }
+
+        // PWA Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW reg error:', err));
+            });
         }
 
         // Init TradingView Embed & Loop
@@ -1815,5 +1855,33 @@
         fetchState();
         setInterval(fetchState, 1500);
     </script>
+
+    <!-- Mobile Bottom Navigation Dock (PWA Dock) -->
+    <div id="mobile-bottom-dock" class="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-darkcard/95 border-t border-darkborder backdrop-blur-xl px-2 py-2 flex items-center justify-around shadow-2xl">
+        <button onclick="switchMobileTab('dashboard')" id="nav-btn-dashboard" class="mobile-nav-btn flex flex-col items-center justify-center text-amber-400 font-bold transition">
+            <i class="fa-solid fa-chart-pie text-lg mb-0.5"></i>
+            <span class="text-[10px] uppercase tracking-wider">Home</span>
+        </button>
+
+        <button onclick="switchMobileTab('positions')" id="nav-btn-positions" class="mobile-nav-btn flex flex-col items-center justify-center text-gray-400 hover:text-amber-400 font-bold transition">
+            <i class="fa-solid fa-arrow-trend-up text-lg mb-0.5"></i>
+            <span class="text-[10px] uppercase tracking-wider">Positions</span>
+        </button>
+
+        <button onclick="switchMobileTab('vault')" id="nav-btn-vault" class="mobile-nav-btn flex flex-col items-center justify-center text-gray-400 hover:text-amber-400 font-bold transition">
+            <i class="fa-solid fa-vault text-lg mb-0.5"></i>
+            <span class="text-[10px] uppercase tracking-wider">Vault</span>
+        </button>
+
+        <button onclick="switchMobileTab('signals')" id="nav-btn-signals" class="mobile-nav-btn flex flex-col items-center justify-center text-gray-400 hover:text-amber-400 font-bold transition">
+            <i class="fa-solid fa-microchip text-lg mb-0.5"></i>
+            <span class="text-[10px] uppercase tracking-wider">Signals</span>
+        </button>
+
+        <button onclick="switchMobileTab('settings')" id="nav-btn-settings" class="mobile-nav-btn flex flex-col items-center justify-center text-gray-400 hover:text-amber-400 font-bold transition">
+            <i class="fa-solid fa-sliders text-lg mb-0.5"></i>
+            <span class="text-[10px] uppercase tracking-wider">Settings</span>
+        </button>
+    </div>
 </body>
 </html>

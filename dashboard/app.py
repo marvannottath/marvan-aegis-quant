@@ -9,7 +9,7 @@ import asyncio
 from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from fastapi.templating import Jinja2Templates
 from execution.paper_broker import PaperBroker
 from execution.profit_vault import profit_vault
@@ -108,6 +108,14 @@ async def read_dashboard(request: Request):
         content="<html><body style='background:#090d16;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;'><h2>Marvan Aegis-Quant AI Dashboard Initializing...</h2></body></html>",
         status_code=200
     )
+
+@app.get("/manifest.json")
+async def get_manifest():
+    return FileResponse(BASE_DIR / "templates" / "manifest.json", media_type="application/json")
+
+@app.get("/sw.js")
+async def get_sw():
+    return FileResponse(BASE_DIR / "templates" / "sw.js", media_type="application/javascript")
 
 from sync.economic_calendar import economic_filter
 from core.multi_market_scanner import multi_scanner
