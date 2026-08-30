@@ -1,6 +1,6 @@
 {
-  "vault_balance": 465122.26,
-  "total_sweeps_count": 4484,
+  "vault_balance": 465514.33,
+  "total_sweeps_count": 4488,
   "sweep_history": [
     {
       "timestamp": "2026-08-23 00:00:02",
@@ -31394,6 +31394,34 @@
       "asset": "BANKNIFTY",
       "profit_swept": 120.45,
       "vault_total": 465122.26,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-08-31 02:22:41",
+      "asset": "GBPUSD",
+      "profit_swept": 124.04,
+      "vault_total": 465246.3,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-08-31 02:22:41",
+      "asset": "TSLA",
+      "profit_swept": 121.21,
+      "vault_total": 465367.51,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-08-31 02:22:51",
+      "asset": "XAUUSD",
+      "profit_swept": 122.14,
+      "vault_total": 465489.65,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-08-31 02:23:00",
+      "asset": "USDJPY",
+      "profit_swept": 24.67,
+      "vault_total": 465514.33,
       "reason": "PROFIT_TARGET_AUTO_REBALANCE"
     }
   ],

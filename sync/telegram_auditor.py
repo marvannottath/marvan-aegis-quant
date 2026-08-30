@@ -10,6 +10,12 @@ import re
 import time
 import random
 from typing import Dict, Any, List
+from datetime import datetime, timezone, timedelta
+
+IST_TZ = timezone(timedelta(hours=5, minutes=30))
+
+def get_ist_time():
+    return datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%I:%M:%S %p")
 
 class TelegramAuditor:
     def __init__(self):
