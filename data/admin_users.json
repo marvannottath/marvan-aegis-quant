@@ -1,0 +1,41 @@
+{
+  "marvan": {
+    "username": "marvan",
+    "full_name": "Marvan (Super Admin)",
+    "email": "marvannottath@gmail.com",
+    "role": "SUPER_ADMIN",
+    "password_hash": "7625b8246c36c2fd3979c554b1bc4bd6$475d19c01b5ac035bd57c9975bf652c1bf67bd83241df08a1d04e23a3ffa3067",
+    "totp_secret": "JBSWY3DPEHPK3PXP",
+    "totp_enabled": true,
+    "biometric_enabled": true,
+    "created_at": "30 Aug 2026, 04:00:38 PM",
+    "last_login": "30 Aug 2026, 11:41:11 PM",
+    "status": "ACTIVE"
+  },
+  "quant_trader": {
+    "username": "quant_trader",
+    "full_name": "Lead Quant Desk Trader",
+    "email": "trader@marvanspool.internal",
+    "role": "LEAD_TRADER",
+    "password_hash": "158b6f79ff729594865ecaad86711d8d$3b30880dc1958455a2eb63520c4526f18ab830d67efe180b908ebc9ac023ac8e",
+    "totp_secret": "KRSXG5CTMVRXEZLU",
+    "totp_enabled": false,
+    "biometric_enabled": false,
+    "created_at": "30 Aug 2026, 04:00:38 PM",
+    "last_login": "30 Aug 2026, 11:52:01 PM",
+    "status": "ACTIVE"
+  },
+  "auditor_lead": {
+    "username": "auditor_lead",
+    "full_name": "Chief Compliance Officer",
+    "email": "compliance@marvanspool.internal",
+    "role": "COMPLIANCE_AUDITOR",
+    "password_hash": "3e046c3eaf53b0856e44cbdb94b77ba996c914d0f9541fb243ba88e333f4b58b",
+    "totp_secret": "2C0D3DC6523771C591A9",
+    "totp_enabled": false,
+    "biometric_enabled": false,
+    "created_at": "30 Aug 2026, 04:12:43 PM",
+    "last_login": "Never",
+    "status": "ACTIVE"
+  }
+}

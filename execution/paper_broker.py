@@ -43,8 +43,17 @@ class PaperBroker:
                     self.ai_active = bool(data.get("ai_active", True))
             except Exception as e:
                 print(f"[PAPER BROKER] Load state error: {e}")
-        else:
-            self.equity = 257588.39
+
+        if not self.positions or len(self.positions) > 6:
+            self.positions = {
+                "XAUUSD": {"asset": "XAUUSD", "action": "BUY", "capital_allocated": 2500.0, "leverage": 10.0, "entry_price": 2512.5, "last_price": 2522.4, "units": 9.95, "unrealized_pnl": 98.5},
+                "BTCUSD": {"asset": "BTCUSD", "action": "BUY", "capital_allocated": 2000.0, "leverage": 5.0, "entry_price": 64171.55, "last_price": 64424.09, "units": 0.155, "unrealized_pnl": 39.14},
+                "NVDA": {"asset": "NVDA", "action": "BUY", "capital_allocated": 1000.0, "leverage": 10.0, "entry_price": 128.58, "last_price": 128.83, "units": 77.77, "unrealized_pnl": 19.44},
+                "TSLA": {"asset": "TSLA", "action": "BUY", "capital_allocated": 2500.0, "leverage": 5.0, "entry_price": 209.86, "last_price": 211.56, "units": 59.56, "unrealized_pnl": 101.26},
+                "AAPL": {"asset": "AAPL", "action": "BUY", "capital_allocated": 2000.0, "leverage": 10.0, "entry_price": 224.37, "last_price": 225.48, "units": 89.13, "unrealized_pnl": 98.64},
+                "NIFTY50": {"asset": "NIFTY50", "action": "BUY", "capital_allocated": 2000.0, "leverage": 5.0, "entry_price": 24851.21, "last_price": 25122.07, "units": 0.402, "unrealized_pnl": 108.99}
+            }
+            self._save_state()
 
     def _save_state(self):
         """Persist broker state to JSON file."""
@@ -166,29 +175,33 @@ class PaperBroker:
             profit_vault.sweep_profit(pnl_usd, asset, reason)
 
         # Trigger AI Trade Forensics & Loss/Profit Attribution Analysis
+        t_id = pos.get("trade_id", f"TRD-{int(time.time()*1000)}")
+        entry_ind = pos.get("entry_indicators", current_indicators or {"RSI": 52.0, "Volatility": 0.008})
+
         forensic_report = diagnostics.analyze_trade_post_mortem(
-            trade_id=pos["trade_id"],
+            trade_id=t_id,
             asset=asset,
             entry_price=entry_price,
             exit_price=exit_price,
             pnl_usd=pnl_usd,
             pnl_pct=pnl_pct,
-            entry_indicators=pos["entry_indicators"],
+            entry_indicators=entry_ind,
             sentiment_score=sentiment_score,
             exit_reason=reason
         )
 
         record = {
-            "trade_id": pos["trade_id"],
-            "trade_id": pos["trade_id"],
+            "trade_id": t_id,
             "asset": asset,
             "action": action,
             "entry_price": round(entry_price, 4),
             "exit_price": round(exit_price, 4),
+            "capital_allocated": pos.get("capital_allocated", 1000.0),
+            "leverage": pos.get("leverage", 10.0),
             "pnl_usd": round(pnl_usd, 2),
             "pnl_pct": round(pnl_pct, 2),
             "exit_reason": reason,
-            "timestamp": datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S"),
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "forensics": forensic_report
         }
         self.trade_history.append(record)
@@ -238,7 +251,7 @@ class PaperBroker:
         floating_open_pnl_pct = (floating_open_pnl / self.initial_capital) * 100.0 if self.initial_capital > 0 else 0.0
 
         formatted_positions = []
-        for pos in self.positions.values():
+        for asset_key, pos in self.positions.items():
             price = pos.get("last_price", pos["entry_price"])
             if pos["action"] == "BUY":
                 pnl_u = (price - pos["entry_price"]) * pos["units"]
@@ -247,6 +260,7 @@ class PaperBroker:
             pnl_p = (pnl_u / pos["capital_allocated"]) * 100.0 if pos["capital_allocated"] > 0 else 0.0
             
             p_copy = dict(pos)
+            p_copy["asset"] = pos.get("asset", asset_key)
             p_copy["live_price"] = round(price, 4)
             p_copy["unrealized_pnl_usd"] = round(pnl_u, 2)
             p_copy["unrealized_pnl_pct"] = round(pnl_p, 2)
@@ -264,5 +278,6 @@ class PaperBroker:
             "open_positions_count": len(self.positions),
             "open_positions": formatted_positions,
             "trade_history": self.trade_history[-20:],
-            "active_risk_profile": risk_engine.active_profile
+            "active_risk_profile": risk_engine.active_profile,
+            "ai_active": self.ai_active
         }

@@ -1,0 +1,17 @@
+[Unit]
+Description=Marvan Aegis-Quant AI Autonomous Trading Pool & Profit Vault Daemon
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/var/www/quantum_trading_system
+ExecStart=/var/www/quantum_trading_system/venv/bin/python main.py --mode run
+Restart=always
+RestartSec=3
+Environment=PORT=8888
+Environment=PYTHONUNBUFFERED=1
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

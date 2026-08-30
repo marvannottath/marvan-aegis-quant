@@ -1,0 +1,38 @@
+{
+  "BINANCE": {
+    "broker_name": "BINANCE",
+    "connected": true,
+    "api_key": "vmPU993821049281a8c90",
+    "secret_key": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022",
+    "status": "ONLINE",
+    "account_type": "BINANCE Institutional API Connection",
+    "last_sync": "Just now"
+  },
+  "EXNESS": {
+    "broker_name": "Exness MT5",
+    "connected": true,
+    "api_key": "ex_mt5_8841920",
+    "secret_key": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022",
+    "status": "ONLINE",
+    "account_type": "Exness MT5 Direct STP Gateway",
+    "last_sync": "30 Aug 2026, 07:45 AM"
+  },
+  "ZERODHA": {
+    "broker_name": "Zerodha Kite",
+    "connected": true,
+    "api_key": "kite_in_492019",
+    "secret_key": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022",
+    "status": "ONLINE",
+    "account_type": "Zerodha Kite Connect India API",
+    "last_sync": "30 Aug 2026, 07:45 AM"
+  },
+  "OANDA": {
+    "broker_name": "OANDA Forex",
+    "connected": true,
+    "api_key": "oanda_fx_1029482",
+    "secret_key": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022",
+    "status": "ONLINE",
+    "account_type": "OANDA v20 Institutional Forex API",
+    "last_sync": "30 Aug 2026, 07:45 AM"
+  }
+}

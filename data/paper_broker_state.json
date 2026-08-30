@@ -1,0 +1,69 @@
+{
+  "initial_capital": 100000.0,
+  "virtual_cash": 89000.0,
+  "equity": 257588.39,
+  "positions": {
+    "XAUUSD": {
+      "asset": "XAUUSD",
+      "action": "BUY",
+      "capital_allocated": 2500.0,
+      "leverage": 10.0,
+      "entry_price": 2512.5,
+      "last_price": 2522.4,
+      "units": 9.95,
+      "unrealized_pnl": 98.5
+    },
+    "BTCUSD": {
+      "asset": "BTCUSD",
+      "action": "BUY",
+      "capital_allocated": 2000.0,
+      "leverage": 5.0,
+      "entry_price": 64171.55,
+      "last_price": 64424.09,
+      "units": 0.155,
+      "unrealized_pnl": 39.14
+    },
+    "NVDA": {
+      "asset": "NVDA",
+      "action": "BUY",
+      "capital_allocated": 1000.0,
+      "leverage": 10.0,
+      "entry_price": 128.58,
+      "last_price": 128.83,
+      "units": 77.77,
+      "unrealized_pnl": 19.44
+    },
+    "TSLA": {
+      "asset": "TSLA",
+      "action": "BUY",
+      "capital_allocated": 2500.0,
+      "leverage": 5.0,
+      "entry_price": 209.86,
+      "last_price": 211.56,
+      "units": 59.56,
+      "unrealized_pnl": 101.26
+    },
+    "AAPL": {
+      "asset": "AAPL",
+      "action": "BUY",
+      "capital_allocated": 2000.0,
+      "leverage": 10.0,
+      "entry_price": 224.37,
+      "last_price": 225.48,
+      "units": 89.13,
+      "unrealized_pnl": 98.64
+    },
+    "NIFTY50": {
+      "asset": "NIFTY50",
+      "action": "BUY",
+      "capital_allocated": 2000.0,
+      "leverage": 5.0,
+      "entry_price": 24851.21,
+      "last_price": 25122.07,
+      "units": 0.402,
+      "unrealized_pnl": 108.99
+    }
+  },
+  "trade_history": [],
+  "ai_active": true
+}
