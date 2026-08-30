@@ -466,6 +466,7 @@ async def toggle_ai_mode_endpoint():
     paper_broker._save_state()
     if paper_broker.ai_active:
         trader.start_autonomous_loop()
+        trader.trigger_instant_cycle()
     else:
         trader.stop_autonomous_loop()
     return JSONResponse({"status": "SUCCESS", "ai_active": paper_broker.ai_active})
