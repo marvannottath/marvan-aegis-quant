@@ -58,7 +58,7 @@ class NotificationEngine:
         return self.config
 
     def send_telegram_message(self, text: str, custom_token: str = None, custom_chat_id: str = None):
-        """Send message via Telegram Bot API with detailed error reporting."""
+        """Send message via Telegram Bot API with robust requests library."""
         bot_token = (custom_token or self.config.get("telegram_bot_token", "")).strip()
         chat_id = (custom_chat_id or self.config.get("telegram_chat_id", "")).strip()
 
@@ -68,38 +68,30 @@ class NotificationEngine:
             return False, "Personal Chat ID is missing. Please enter your Chat ID."
 
         try:
+            import requests
             url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
             payload = {
                 "chat_id": chat_id,
                 "text": text,
                 "parse_mode": "Markdown"
             }
-            data = urllib.parse.urlencode(payload).encode("utf-8")
-            req = urllib.request.Request(url, data=data, method="POST")
-            with urllib.request.urlopen(req, timeout=10) as response:
-                res_body = response.read().decode("utf-8")
-                res_json = json.loads(res_body)
-                if res_json.get("ok"):
-                    self.recent_alerts.insert(0, {
-                        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-                        "channel": "Telegram Bot Push",
-                        "message": text,
-                        "status": "DELIVERED 🟢"
-                    })
-                    if len(self.recent_alerts) > 50:
-                        self.recent_alerts.pop()
-                    return True, "Telegram alert delivered successfully to your phone! 📱"
-                else:
-                    return False, res_json.get("description", "Unknown Telegram error.")
-        except urllib.error.HTTPError as e:
-            try:
-                err_resp = json.loads(e.read().decode("utf-8"))
-                desc = err_resp.get("description", str(e))
+            resp = requests.post(url, json=payload, timeout=10)
+            res_json = resp.json()
+            if resp.status_code == 200 and res_json.get("ok"):
+                self.recent_alerts.insert(0, {
+                    "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                    "channel": "Telegram Bot Push",
+                    "message": text,
+                    "status": "DELIVERED 🟢"
+                })
+                if len(self.recent_alerts) > 50:
+                    self.recent_alerts.pop()
+                return True, "Telegram alert delivered successfully to your phone! 📱"
+            else:
+                desc = res_json.get("description", "Unknown Telegram error.")
                 if "chat not found" in desc.lower() or "bot was blocked" in desc.lower() or "bot can't initiate conversation" in desc.lower():
                     return False, f"Telegram: '{desc}'. 👉 Please open your Bot in Telegram and click 'START' first!"
                 return False, f"Telegram API Error: {desc}"
-            except Exception:
-                return False, f"Telegram HTTP Error {e.code}: {e.reason}"
         except Exception as e:
             print(f"[NOTIFICATION] Telegram dispatch error: {e}")
             return False, f"Network/Connection error: {str(e)}"
