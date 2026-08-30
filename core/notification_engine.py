@@ -75,8 +75,11 @@ class NotificationEngine:
                 "text": text,
                 "parse_mode": "Markdown"
             }
-            resp = requests.post(url, json=payload, timeout=10)
-            res_json = resp.json()
+            try:
+                res_json = resp.json()
+            except Exception:
+                res_json = {}
+
             if resp.status_code == 200 and res_json.get("ok"):
                 self.recent_alerts.insert(0, {
                     "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -88,7 +91,7 @@ class NotificationEngine:
                     self.recent_alerts.pop()
                 return True, "Telegram alert delivered successfully to your phone! 📱"
             else:
-                desc = res_json.get("description", "Unknown Telegram error.")
+                desc = res_json.get("description", f"Telegram API returned HTTP {resp.status_code}. Please check Bot Token.")
                 if "chat not found" in desc.lower() or "bot was blocked" in desc.lower() or "bot can't initiate conversation" in desc.lower():
                     return False, f"Telegram: '{desc}'. 👉 Please open your Bot in Telegram and click 'START' first!"
                 return False, f"Telegram API Error: {desc}"
