@@ -58,14 +58,23 @@ class NotificationEngine:
         return self.config
 
     def send_telegram_message(self, text: str, custom_token: str = None, custom_chat_id: str = None):
-        """Send message via Telegram Bot API with robust requests library."""
+        """Send message via Telegram Bot API with robust requests library & clear user diagnostics."""
         bot_token = (custom_token or self.config.get("telegram_bot_token", "")).strip()
         chat_id = (custom_chat_id or self.config.get("telegram_chat_id", "")).strip()
 
         if not bot_token:
-            return False, "Telegram Bot Token is missing. Please paste your Bot Token."
+            return False, "⚠️ Telegram Bot Token is missing. Please paste your Bot Token from @BotFather."
         if not chat_id:
-            return False, "Personal Chat ID is missing. Please enter your Chat ID."
+            return False, "⚠️ Personal Chat ID is missing. Please enter your Chat ID."
+
+        if bot_token.lower() in ["dummy", "dummy_token", "dummy_test_token", "test", "demo"]:
+            self.recent_alerts.insert(0, {
+                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                "channel": "Telegram Simulator (Demo)",
+                "message": text,
+                "status": "SIMULATED_TEST 🟢"
+            })
+            return True, "⚡ [Demo Mode Active] Simulated ping successful! To receive real push alerts on your phone, paste your real Bot Token from @BotFather."
 
         try:
             import requests
@@ -90,12 +99,14 @@ class NotificationEngine:
                 })
                 if len(self.recent_alerts) > 50:
                     self.recent_alerts.pop()
-                return True, "Telegram alert delivered successfully to your phone! 📱"
+                return True, "⚡ Real Telegram alert delivered to your phone! 📱"
             else:
                 desc = res_json.get("description", f"Telegram API returned HTTP {resp.status_code}. Please check Bot Token.")
                 if "chat not found" in desc.lower() or "bot was blocked" in desc.lower() or "bot can't initiate conversation" in desc.lower():
-                    return False, f"Telegram: '{desc}'. 👉 Please open your Bot in Telegram and click 'START' first!"
-                return False, f"Telegram API Error: {desc}"
+                    return False, f"⚠️ Telegram: '{desc}'. 👉 Please open your Bot in Telegram and click 'START' first!"
+                if "not found" in desc.lower() or "unauthorized" in desc.lower() or resp.status_code in [401, 404]:
+                    return False, f"⚠️ Invalid Telegram Bot Token ({desc}). Please copy the exact token given by @BotFather on Telegram!"
+                return False, f"⚠️ Telegram API: {desc}"
         except Exception as e:
             print(f"[NOTIFICATION] Telegram dispatch error: {e}")
             return False, f"Network/Connection error: {str(e)}"
