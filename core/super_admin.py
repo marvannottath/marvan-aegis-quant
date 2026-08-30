@@ -295,6 +295,28 @@ class SuperAdminEngine:
         self._save_users()
         return {"status": "SUCCESS", "message": f"User '{username}' registered with role '{role}'!"}
 
+    def update_user(self, username: str, full_name: str = "", email: str = "", role: str = "", new_password: str = "") -> Dict[str, Any]:
+        """Update existing user credentials, full name, email, role, or password."""
+        u_key = username.lower().strip()
+        if u_key not in self.users:
+            return {"status": "FAILED", "message": f"User '{username}' not found."}
+
+        user = self.users[u_key]
+        if full_name:
+            user["full_name"] = full_name
+        if email:
+            user["email"] = email
+        if role:
+            if u_key == "marvan":
+                user["role"] = "SUPER_ADMIN"
+            else:
+                user["role"] = role.upper()
+        if new_password and len(new_password) >= 6:
+            user["password_hash"] = hash_password_pbkdf2(new_password)
+
+        self._save_users()
+        return {"status": "SUCCESS", "message": f"User '{username}' updated successfully!"}
+
     def delete_user(self, username: str) -> Dict[str, Any]:
         """Delete user account (Super Admin protected)."""
         u_key = username.lower().strip()

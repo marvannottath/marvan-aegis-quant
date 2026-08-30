@@ -70,6 +70,7 @@ class SecurityTelemetryLogger:
             "path": path,
             "status_code": status_code,
             "latency_ms": round(latency_ms, 2),
+            "duration_ms": round(latency_ms, 2),
             "client_ip": client_ip,
             "severity": severity,
             "description": desc
@@ -91,7 +92,8 @@ class SecurityTelemetryLogger:
             "count_500_red": self.count_500,
             "count_threats_blocked": self.count_attacks_blocked,
             "health_score_pct": success_ratio,
-            "recent_logs": self.logs[:60]
+            "recent_logs": self.logs[:100],
+            "recent_requests": self.logs[:100]
         }
 
 telemetry_logger = SecurityTelemetryLogger()

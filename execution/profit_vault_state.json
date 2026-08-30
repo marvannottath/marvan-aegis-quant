@@ -1,6 +1,6 @@
 {
-  "vault_balance": 441231.29,
-  "total_sweeps_count": 4316,
+  "vault_balance": 442665.82,
+  "total_sweeps_count": 4325,
   "sweep_history": [
     {
       "timestamp": "2026-08-23 00:00:02",
@@ -30218,6 +30218,69 @@
       "asset": "USDJPY",
       "profit_swept": 121.85,
       "vault_total": 441231.29,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-08-31 00:59:49",
+      "asset": "RELIANCE",
+      "profit_swept": 153.33,
+      "vault_total": 441384.62,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-08-31 01:00:45",
+      "asset": "ETHUSD",
+      "profit_swept": 156.56,
+      "vault_total": 441541.18,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-08-31 01:01:10",
+      "asset": "NVDA",
+      "profit_swept": 123.02,
+      "vault_total": 441664.2,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-08-31 01:01:44",
+      "asset": "NIFTY50",
+      "profit_swept": 307.71,
+      "vault_total": 441971.91,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-08-31 01:03:02",
+      "asset": "SOLUSD",
+      "profit_swept": 124.3,
+      "vault_total": 442096.21,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-08-31 01:03:04",
+      "asset": "BTCUSD",
+      "profit_swept": 243.5,
+      "vault_total": 442339.71,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-08-31 01:03:36",
+      "asset": "NIFTY50",
+      "profit_swept": 60.44,
+      "vault_total": 442400.16,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-08-31 01:04:01",
+      "asset": "RELIANCE",
+      "profit_swept": 241.0,
+      "vault_total": 442641.15,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-08-31 01:04:29",
+      "asset": "TSLA",
+      "profit_swept": 24.66,
+      "vault_total": 442665.82,
       "reason": "PROFIT_TARGET_AUTO_REBALANCE"
     }
   ],

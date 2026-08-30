@@ -605,9 +605,10 @@
                 if (statThreats) statThreats.innerText = (data.count_threats_blocked || 0).toLocaleString();
 
                 const tbody = document.getElementById('admin-telemetry-tbody');
-                if (!tbody || !data.recent_requests) return;
+                const logs = data.recent_logs || data.recent_requests || [];
+                if (!tbody) return;
 
-                let filtered = data.recent_requests;
+                let filtered = logs;
                 if (telemetryFilter === '200') filtered = filtered.filter(r => r.status_code === 200);
                 else if (telemetryFilter === '404') filtered = filtered.filter(r => r.status_code === 404);
                 else if (telemetryFilter === '500') filtered = filtered.filter(r => r.status_code === 500);
@@ -621,7 +622,7 @@
                 tbody.innerHTML = filtered.map(r => {
                     let badgeClass = 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40';
                     let statusIcon = '<i class="fa-solid fa-circle-check mr-1"></i> 200 OK';
-                    let threatLabel = '<span class="text-emerald-400">CLEARED 🟢</span>';
+                    let threatLabel = '<span class="text-emerald-400 font-bold">CLEARED 🟢</span>';
 
                     if (r.status_code === 404) {
                         badgeClass = 'bg-amber-500/20 text-amber-400 border border-amber-500/40';
@@ -631,17 +632,23 @@
                         badgeClass = 'bg-red-500/20 text-red-400 border border-red-500/40 animate-pulse';
                         statusIcon = '<i class="fa-solid fa-circle-exclamation mr-1"></i> 500 CRITICAL';
                         threatLabel = '<span class="text-red-400 font-bold">INTERNAL SERVER FAULT 🔴</span>';
+                    } else if (r.status_code === 401 || r.status_code === 403) {
+                        badgeClass = 'bg-purple-500/20 text-purple-400 border border-purple-500/40';
+                        statusIcon = `<i class="fa-solid fa-shield-virus mr-1"></i> ${r.status_code} BLOCKED`;
+                        threatLabel = '<span class="text-purple-400 font-bold">UNAUTHORIZED INTERCEPTED 🟣</span>';
                     }
+
+                    const dur = Number(r.duration_ms ?? r.latency_ms ?? 0.85).toFixed(2);
 
                     return `
                     <tr class="hover:bg-gray-900/60 transition">
-                        <td class="py-2 px-3 text-gray-400 text-[10px]">${r.timestamp}</td>
-                        <td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded bg-gray-900 border border-gray-800 text-[10px] text-gray-300">${r.method}</span></td>
-                        <td class="py-2 px-3 font-bold text-white">${r.path}</td>
-                        <td class="py-2 px-3"><span class="px-2 py-0.5 rounded text-[10px] font-black ${badgeClass}">${statusIcon}</span></td>
-                        <td class="py-2 px-3 font-mono text-gray-300">${r.duration_ms.toFixed(2)}ms</td>
-                        <td class="py-2 px-3 text-gray-400 text-[10px] font-mono">${r.client_ip}</td>
-                        <td class="py-2 px-3 text-[10px]">${threatLabel}</td>
+                        <td class="py-2.5 px-3 text-gray-400 text-[10px] font-mono">${r.timestamp}</td>
+                        <td class="py-2.5 px-3"><span class="px-1.5 py-0.5 rounded bg-gray-900 border border-gray-800 text-[10px] text-gray-300 font-bold font-mono">${r.method}</span></td>
+                        <td class="py-2.5 px-3 font-bold text-white font-mono text-xs">${r.path}</td>
+                        <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded text-[10px] font-black font-mono ${badgeClass}">${statusIcon}</span></td>
+                        <td class="py-2.5 px-3 font-mono text-gray-300 text-xs">${dur}ms</td>
+                        <td class="py-2.5 px-3 text-gray-400 text-[10px] font-mono">${r.client_ip || '127.0.0.1'}</td>
+                        <td class="py-2.5 px-3 text-[10px]">${threatLabel}</td>
                     </tr>`;
                 }).join('');
 
@@ -682,20 +689,89 @@
                 const tbody = document.getElementById('admin-users-tbody');
                 if (!tbody || !data.users) return;
 
-                tbody.innerHTML = data.users.map(u => `
+                tbody.innerHTML = data.users.map(u => {
+                    const safeName = (u.full_name || '').replace(/'/g, "\\'");
+                    return `
                     <tr class="hover:bg-gray-900/60 transition">
-                        <td class="py-2.5 px-3 font-bold text-white">${u.username}</td>
-                        <td class="py-2.5 px-3 text-gray-300">${u.full_name}</td>
+                        <td class="py-2.5 px-3 font-bold text-white font-mono">${u.username}</td>
+                        <td class="py-2.5 px-3 text-gray-300 font-bold">${u.full_name}</td>
                         <td class="py-2.5 px-3 font-mono text-amber-300 text-xs">${u.email}</td>
-                        <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded text-[10px] font-black ${u.role === 'SUPER_ADMIN' ? 'bg-red-600 text-white' : 'bg-blue-600/30 text-blue-300 border border-blue-500/40'}">${u.role}</span></td>
-                        <td class="py-2.5 px-3 text-gray-400 text-[10px]">${u.last_login}</td>
+                        <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded text-[10px] font-black font-mono ${u.role === 'SUPER_ADMIN' ? 'bg-red-600 text-white' : 'bg-blue-600/30 text-blue-300 border border-blue-500/40'}">${u.role}</span></td>
+                        <td class="py-2.5 px-3 text-gray-400 text-[10px] font-mono">${u.last_login}</td>
                         <td class="py-2.5 px-3 text-right">
-                            ${u.username !== 'marvan' ? `<button onclick="adminDeleteUser('${u.username}')" class="bg-red-950 hover:bg-red-900 text-red-400 border border-red-500/40 px-2.5 py-1 rounded text-xs font-bold transition">Delete</button>` : '<span class="text-[10px] text-gray-500">MASTER_ROOT</span>'}
+                            <div class="flex items-center justify-end gap-1.5">
+                                <button onclick="adminOpenEditModal('${u.username}', '${safeName}', '${u.email}', '${u.role}')" class="bg-amber-500/20 hover:bg-amber-500/40 text-amber-300 border border-amber-500/40 px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow">
+                                    <i class="fa-solid fa-pen-to-square text-[10px]"></i> Edit
+                                </button>
+                                ${u.username !== 'marvan' ? `<button onclick="adminDeleteUser('${u.username}')" class="bg-red-950 hover:bg-red-900 text-red-400 border border-red-500/40 px-2.5 py-1 rounded-lg text-xs font-bold transition">Delete</button>` : '<span class="text-[10px] text-gray-500 font-mono px-2 py-1">MASTER_ROOT</span>'}
+                            </div>
                         </td>
-                    </tr>
-                `).join('');
+                    </tr>`;
+                }).join('');
             } catch (err) {
                 console.error('Users fetch error:', err);
+            }
+        }
+
+        function adminOpenEditModal(username, fullName, email, role) {
+            const modal = document.getElementById('admin-edit-user-modal');
+            if (!modal) return;
+            document.getElementById('edit-u-username').value = username;
+            document.getElementById('edit-u-fullname').value = fullName;
+            document.getElementById('edit-u-email').value = email;
+            document.getElementById('edit-u-role').value = role || 'LEAD_TRADER';
+            document.getElementById('edit-u-password').value = '';
+            document.getElementById('edit-u-msg').innerText = '';
+            modal.classList.remove('hidden');
+        }
+
+        function adminCloseEditModal() {
+            const modal = document.getElementById('admin-edit-user-modal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        async function adminSubmitUserEdit(event) {
+            event.preventDefault();
+            const msg = document.getElementById('edit-u-msg');
+            const username = document.getElementById('edit-u-username').value.trim();
+            const fullName = document.getElementById('edit-u-fullname').value.trim();
+            const email = document.getElementById('edit-u-email').value.trim();
+            const role = document.getElementById('edit-u-role').value;
+            const password = document.getElementById('edit-u-password').value;
+
+            msg.className = 'text-xs text-center min-h-[16px] font-bold text-amber-400 animate-pulse';
+            msg.innerText = 'Securing & saving user updates...';
+
+            try {
+                const res = await fetch('/api/admin/update-user', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${adminSessionToken}`
+                    },
+                    body: JSON.stringify({
+                        username: username,
+                        full_name: fullName,
+                        email: email,
+                        role: role,
+                        password: password
+                    })
+                });
+                const data = await res.json();
+                if (data.status === 'SUCCESS') {
+                    msg.className = 'text-xs text-center min-h-[16px] font-bold text-emerald-400';
+                    msg.innerText = '✅ User account updated successfully!';
+                    setTimeout(() => {
+                        adminCloseEditModal();
+                        fetchAdminUsers();
+                    }, 1200);
+                } else {
+                    msg.className = 'text-xs text-center min-h-[16px] font-bold text-red-400';
+                    msg.innerText = data.message || 'Failed to update user.';
+                }
+            } catch (err) {
+                msg.className = 'text-xs text-center min-h-[16px] font-bold text-red-400';
+                msg.innerText = 'Request error updating user.';
             }
         }
 
@@ -771,5 +847,55 @@
             }
         }
     </script>
+    <!-- EDIT USER MODAL -->
+    <div id="admin-edit-user-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-darkcard border border-amber-500/40 max-w-lg w-full rounded-3xl p-6 shadow-2xl space-y-4">
+            <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-user-pen text-amber-400 text-lg"></i>
+                    <h3 class="text-sm font-black text-white">Edit System User Account</h3>
+                </div>
+                <button onclick="adminCloseEditModal()" class="text-gray-400 hover:text-white text-xl">&times;</button>
+            </div>
+
+            <form onsubmit="adminSubmitUserEdit(event)" class="space-y-3 text-xs">
+                <div>
+                    <label class="block text-gray-400 uppercase font-bold text-[10px] mb-1">Username (Immutable Key)</label>
+                    <input id="edit-u-username" type="text" readonly class="w-full bg-black/60 border border-gray-800 rounded-xl px-3.5 py-2.5 text-white font-mono text-xs focus:outline-none opacity-80 cursor-not-allowed">
+                </div>
+                <div>
+                    <label class="block text-gray-400 uppercase font-bold text-[10px] mb-1">Full Name</label>
+                    <input id="edit-u-fullname" type="text" required class="w-full bg-black/60 border border-gray-800 rounded-xl px-3.5 py-2.5 text-white text-xs focus:border-amber-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-gray-400 uppercase font-bold text-[10px] mb-1">Email Address</label>
+                    <input id="edit-u-email" type="email" required class="w-full bg-black/60 border border-gray-800 rounded-xl px-3.5 py-2.5 text-amber-300 font-mono text-xs focus:border-amber-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-gray-400 uppercase font-bold text-[10px] mb-1">Role / Authorization Level</label>
+                    <select id="edit-u-role" class="w-full bg-black/60 border border-gray-800 rounded-xl px-3.5 py-2.5 text-white text-xs focus:border-amber-500 focus:outline-none">
+                        <option value="SUPER_ADMIN">SUPER_ADMIN (Full Root SIEM & Parameter Controls)</option>
+                        <option value="LEAD_TRADER">LEAD_TRADER (Order Execution & Trading Desk Only)</option>
+                        <option value="COMPLIANCE_AUDITOR">COMPLIANCE_AUDITOR (Read-Only Forensic Audit Access)</option>
+                        <option value="VIEWER">VIEWER (Read-Only Overview)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-gray-400 uppercase font-bold text-[10px] mb-1">New Password (Leave blank to keep unchanged)</label>
+                    <input id="edit-u-password" type="password" placeholder="Leave blank to keep current password" class="w-full bg-black/60 border border-gray-800 rounded-xl px-3.5 py-2.5 text-white text-xs font-mono focus:border-amber-500 focus:outline-none">
+                </div>
+
+                <div id="edit-u-msg" class="text-xs text-center min-h-[16px] font-bold"></div>
+
+                <div class="grid grid-cols-2 gap-2.5 pt-2">
+                    <button type="button" onclick="adminCloseEditModal()" class="py-2.5 px-4 bg-gray-900 hover:bg-gray-800 text-gray-300 rounded-xl font-bold text-xs border border-gray-700 transition">Cancel</button>
+                    <button type="submit" class="py-2.5 px-4 bg-amber-500 hover:bg-amber-400 text-black rounded-xl font-black text-xs shadow-lg shadow-amber-500/20 transition flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-floppy-disk"></i> Save User Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
 </body>
 </html>

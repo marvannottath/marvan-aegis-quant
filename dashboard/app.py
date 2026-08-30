@@ -933,6 +933,19 @@ async def admin_create_user(data: dict, request: Request):
     res = super_admin.create_user(username, full_name, email, role, password)
     return JSONResponse(res)
 
+@app.post("/api/admin/update-user")
+async def admin_update_user(data: dict, request: Request):
+    """Update user credentials or role (Bearer Token Protected)."""
+    if not check_admin_auth(request):
+        return JSONResponse({"status": "FAILED", "message": "Unauthorized. Bearer session token required."}, status_code=401)
+    username = data.get("username", "")
+    full_name = data.get("full_name", "")
+    email = data.get("email", "")
+    role = data.get("role", "")
+    new_password = data.get("password", "")
+    res = super_admin.update_user(username, full_name, email, role, new_password)
+    return JSONResponse(res)
+
 @app.post("/api/admin/delete-user")
 async def admin_delete_user(data: dict, request: Request):
     """Delete a user account (Bearer Token Protected)."""
