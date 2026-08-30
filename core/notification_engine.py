@@ -1,18 +1,20 @@
 """
 Mobile Push Notification & Alert Engine for Marvan's Pool.
-Supports:
-1. Real-time Telegram Bot API push alerts to Marvan's personal phone.
-2. Webhook / Discord alerts.
-3. Automated triggers on Realized Profit Sweeps, High-Impact News, and Security SIEM events.
+Full Multi-Channel Telegram Push Dispatcher:
+1. Real-time Profit Harvest Sweeps (0 USD minimum cap).
+2. New AI Autonomous Trade Executions.
+3. Vault Withdrawals & Capital Deposits.
+4. Risk Engine Circuit Breaker & Macro News Alerts.
 """
 
 import json
 import time
-import urllib.request
-import urllib.parse
+import requests
 from pathlib import Path
 from typing import Dict, Any, List
+from datetime import datetime, timezone, timedelta
 
+IST_TZ = timezone(timedelta(hours=5, minutes=30))
 CONFIG_FILE = Path(__file__).resolve().parent.parent / "data" / "notification_config.json"
 
 class NotificationEngine:
@@ -23,11 +25,13 @@ class NotificationEngine:
             "telegram_chat_id": "",
             "alert_on_profit_sweep": True,
             "min_sweep_usd_for_alert": 0.0,
+            "alert_on_trade_open": True,
             "alert_on_security_event": True,
             "alert_on_macro_news": True,
             "discord_webhook_url": ""
         }
         self.recent_alerts: List[Dict[str, Any]] = []
+        self.last_sweep_alert_time: float = 0.0
         self._load_config()
 
     def _load_config(self):
@@ -38,7 +42,7 @@ class NotificationEngine:
                     saved = json.load(f)
                     self.config.update(saved)
             except Exception as e:
-                print(f"[NOTIFICATION] Load config error: {e}")
+                print(f"[NOTIFICATION] Load config notice: {e}")
         else:
             self._save_config()
 
@@ -49,7 +53,7 @@ class NotificationEngine:
             with open(CONFIG_FILE, "w") as f:
                 json.dump(self.config, f, indent=2)
         except Exception as e:
-            print(f"[NOTIFICATION] Save config error: {e}")
+            print(f"[NOTIFICATION] Save config notice: {e}")
 
     def update_config(self, new_config: Dict[str, Any]) -> Dict[str, Any]:
         """Update notification settings."""
@@ -58,7 +62,7 @@ class NotificationEngine:
         return self.config
 
     def send_telegram_message(self, text: str, custom_token: str = None, custom_chat_id: str = None):
-        """Send message via Telegram Bot API with robust requests library & clear user diagnostics."""
+        """Send message via Telegram Bot API with robust requests library."""
         bot_token = (custom_token or self.config.get("telegram_bot_token", "")).strip()
         chat_id = (custom_chat_id or self.config.get("telegram_chat_id", "")).strip()
 
@@ -69,7 +73,7 @@ class NotificationEngine:
 
         if bot_token.lower() in ["dummy", "dummy_token", "dummy_test_token", "test", "demo"]:
             self.recent_alerts.insert(0, {
-                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                "timestamp": datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S"),
                 "channel": "Telegram Simulator (Demo)",
                 "message": text,
                 "status": "SIMULATED_TEST 🟢"
@@ -77,14 +81,13 @@ class NotificationEngine:
             return True, "⚡ [Demo Mode Active] Simulated ping successful! To receive real push alerts on your phone, paste your real Bot Token from @BotFather."
 
         try:
-            import requests
             url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
             payload = {
                 "chat_id": chat_id,
                 "text": text,
                 "parse_mode": "Markdown"
             }
-            resp = requests.post(url, json=payload, timeout=10)
+            resp = requests.post(url, json=payload, timeout=8)
             try:
                 res_json = resp.json()
             except Exception:
@@ -92,7 +95,7 @@ class NotificationEngine:
 
             if resp.status_code == 200 and res_json.get("ok"):
                 self.recent_alerts.insert(0, {
-                    "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                    "timestamp": datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S"),
                     "channel": "Telegram Bot Push",
                     "message": text,
                     "status": "DELIVERED 🟢"
@@ -101,7 +104,7 @@ class NotificationEngine:
                     self.recent_alerts.pop()
                 return True, "⚡ Real Telegram alert delivered to your phone! 📱"
             else:
-                desc = res_json.get("description", f"Telegram API returned HTTP {resp.status_code}. Please check Bot Token.")
+                desc = res_json.get("description", f"Telegram API returned HTTP {resp.status_code}")
                 if "chat not found" in desc.lower() or "bot was blocked" in desc.lower() or "bot can't initiate conversation" in desc.lower():
                     return False, f"⚠️ Telegram: '{desc}'. 👉 Please open your Bot in Telegram and click 'START' first!"
                 if "not found" in desc.lower() or "unauthorized" in desc.lower() or resp.status_code in [401, 404]:
@@ -120,18 +123,83 @@ class NotificationEngine:
         if profit_usd < min_amt:
             return
 
-        from datetime import datetime, timezone, timedelta
-        ist_now = datetime.now(timezone.utc).astimezone(timezone(timedelta(hours=5, minutes=30)))
+        # Throttle to max 1 sweep alert every 6 seconds to respect Telegram rate limits
+        now = time.time()
+        if now - self.last_sweep_alert_time < 6.0:
+            return
+        self.last_sweep_alert_time = now
+
+        ist_now = datetime.now(timezone.utc).astimezone(IST_TZ)
         ist_time_str = ist_now.strftime("%d %b %Y, %I:%M:%S %p")
 
         msg = (
-            f"🎉 *MARVAN'S POOL - PROFIT HARVEST ALERT* 💎\n\n"
-            f"💰 *Profit Swept:* `+${profit_usd:,.2f} USD`\n"
-            f"📊 *Asset Ticker:* `{asset}`\n"
-            f"🛡️ *Total Vault Reserve:* `${vault_total:,.2f} USD`\n"
-            f"📌 *Exit Reason:* `{reason}`\n"
-            f"⏰ *Time (IST):* `{ist_time_str}`\n\n"
+            f"🎉 *MARVAN'S POOL - PROFIT HARVEST ALERT* 💎
+
+"
+            f"💰 *Profit Swept:* `+${profit_usd:,.2f} USD`
+"
+            f"📊 *Asset Ticker:* `{asset}`
+"
+            f"🛡️ *Total Vault Reserve:* `${vault_total:,.2f} USD`
+"
+            f"📌 *Exit Reason:* `{reason}`
+"
+            f"⏰ *Time (IST):* `{ist_time_str}`
+
+"
             f"🔒 _100% Realized & Safe in Untouchable Reserve Vault._"
+        )
+        self.send_telegram_message(msg)
+
+    def notify_trade_opened(self, asset: str, action: str, size_usd: float, leverage: float, price: float, opp_score: float = 80.0):
+        """Triggered when a new autonomous trade position is entered."""
+        if not self.config.get("alert_on_trade_open", True):
+            return
+
+        ist_now = datetime.now(timezone.utc).astimezone(IST_TZ)
+        ist_time_str = ist_now.strftime("%d %b %Y, %I:%M:%S %p")
+        act_icon = "🟢 BUY / LONG" if action.upper() == "BUY" else "🔴 SELL / SHORT"
+
+        msg = (
+            f"🚀 *MARVAN'S POOL - NEW AI TRADE OPENED* ⚡
+
+"
+            f"📊 *Asset:* `{asset}`
+"
+            f"🎯 *Action:* `{act_icon}`
+"
+            f"💵 *Margin Allocated:* `${size_usd:,.2f} USD`
+"
+            f"⚡ *Leverage:* `{leverage:.0f}x`
+"
+            f"📈 *Entry Price:* `${price:,.4f}`
+"
+            f"🧠 *AI Opportunity:* `{opp_score:.0f}% Confluence`
+"
+            f"⏰ *Time (IST):* `{ist_time_str}`
+
+"
+            f"🛡️ _Protected with Hard Risk Circuit & Isolated Margin._"
+        )
+        self.send_telegram_message(msg)
+
+    def notify_withdrawal(self, amount_usd: float, method: str, destination: str):
+        """Triggered when a vault withdrawal is dispatched."""
+        ist_now = datetime.now(timezone.utc).astimezone(IST_TZ)
+        msg = (
+            f"💸 *MARVAN'S POOL - VAULT WITHDRAWAL DISPATCHED* 🏦
+
+"
+            f"💵 *Amount:* `${amount_usd:,.2f} USD`
+"
+            f"💳 *Method:* `{method}`
+"
+            f"📍 *Destination:* `{destination}`
+"
+            f"⏰ *Time (IST):* `{ist_now.strftime('%d %b %Y, %I:%M:%S %p')}`
+
+"
+            f"⚡ _Processed instantly via institutional multi-hop escrow._"
         )
         self.send_telegram_message(msg)
 
@@ -142,10 +210,15 @@ class NotificationEngine:
 
         icon = "🚨" if severity == "HIGH" else "🛡️"
         msg = (
-            f"{icon} *MARVAN'S POOL - SECURITY ALERT* [{severity}]\n\n"
-            f"🔐 *Event:* `{event_title}`\n"
-            f"📝 *Details:* `{details}`\n"
-            f"⏰ *Time (IST):* `{time.strftime('%I:%M:%S %p')}`\n"
+            f"{icon} *MARVAN'S POOL - SECURITY ALERT* [{severity}]
+
+"
+            f"🔐 *Event:* `{event_title}`
+"
+            f"📝 *Details:* `{details}`
+"
+            f"⏰ *Time (IST):* `{datetime.now(timezone.utc).astimezone(IST_TZ).strftime('%I:%M:%S %p')}`
+"
             f"🛡️ _Zero-Trust SIEM Sentinel Active._"
         )
         self.send_telegram_message(msg)
@@ -156,9 +229,13 @@ class NotificationEngine:
             return
 
         msg = (
-            f"⚠️ *MACRO CIRCUIT PROTECTION ENGAGED*\n\n"
-            f"🏛️ *Event:* `{event_name}` ({impact})\n"
-            f"🔒 *Action:* Order placement temporarily locked (±30m)\n"
+            f"⚠️ *MACRO CIRCUIT PROTECTION ENGAGED*
+
+"
+            f"🏛️ *Event:* `{event_name}` ({impact})
+"
+            f"🔒 *Action:* Order placement temporarily locked (±30m)
+"
             f"🛡️ *Capital Shield:* 100% drawdown protected against Fed volatility."
         )
         self.send_telegram_message(msg)

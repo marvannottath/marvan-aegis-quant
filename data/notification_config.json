@@ -3,8 +3,9 @@
   "telegram_bot_token": "dummy_test",
   "telegram_chat_id": "895689764",
   "alert_on_profit_sweep": true,
-  "min_sweep_usd_for_alert": 25.0,
+  "min_sweep_usd_for_alert": 0.0,
   "alert_on_security_event": true,
   "alert_on_macro_news": true,
-  "discord_webhook_url": ""
+  "discord_webhook_url": "",
+  "alert_on_trade_open": true
 }

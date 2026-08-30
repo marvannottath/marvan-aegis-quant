@@ -133,6 +133,18 @@ class AutonomousTrader:
                             )
                             if order:
                                 self._log_action(ticker, act, current_price, size_usd, f"Risk-Approved AI Execution ({calc_leverage:.0f}x Lev, Opp {opp_score:.0f}%)")
+                                try:
+                                    from core.notification_engine import notification_engine
+                                    notification_engine.notify_trade_opened(
+                                        asset=ticker,
+                                        action=act,
+                                        size_usd=size_usd,
+                                        leverage=calc_leverage,
+                                        price=current_price,
+                                        opp_score=opp_score
+                                    )
+                                except Exception:
+                                    pass
 
                 # Self-Healing Loss Memory Storage initialization
                 if not hasattr(self, "loss_patterns"):
