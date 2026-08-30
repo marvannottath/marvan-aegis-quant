@@ -123,32 +123,24 @@ class NotificationEngine:
         if profit_usd < min_amt:
             return
 
-        # Throttle to max 1 sweep alert every 6 seconds to respect Telegram rate limits
         now = time.time()
-        if now - self.last_sweep_alert_time < 6.0:
+        if now - self.last_sweep_alert_time < 5.0:
             return
         self.last_sweep_alert_time = now
 
         ist_now = datetime.now(timezone.utc).astimezone(IST_TZ)
         ist_time_str = ist_now.strftime("%d %b %Y, %I:%M:%S %p")
 
-        msg = (
-            f"🎉 *MARVAN'S POOL - PROFIT HARVEST ALERT* 💎
-
-"
-            f"💰 *Profit Swept:* `+${profit_usd:,.2f} USD`
-"
-            f"📊 *Asset Ticker:* `{asset}`
-"
-            f"🛡️ *Total Vault Reserve:* `${vault_total:,.2f} USD`
-"
-            f"📌 *Exit Reason:* `{reason}`
-"
-            f"⏰ *Time (IST):* `{ist_time_str}`
-
-"
-            f"🔒 _100% Realized & Safe in Untouchable Reserve Vault._"
-        )
+        lines = [
+            "🎉 *MARVAN'S POOL - PROFIT HARVEST ALERT* 💎\n",
+            f"💰 *Profit Swept:* `+${profit_usd:,.2f} USD`",
+            f"📊 *Asset Ticker:* `{asset}`",
+            f"🛡️ *Total Vault Reserve:* `${vault_total:,.2f} USD`",
+            f"📌 *Exit Reason:* `{reason}`",
+            f"⏰ *Time (IST):* `{ist_time_str}`\n",
+            "🔒 _100% Realized & Safe in Untouchable Reserve Vault._"
+        ]
+        msg = "\n".join(lines)
         self.send_telegram_message(msg)
 
     def notify_trade_opened(self, asset: str, action: str, size_usd: float, leverage: float, price: float, opp_score: float = 80.0):
@@ -160,47 +152,32 @@ class NotificationEngine:
         ist_time_str = ist_now.strftime("%d %b %Y, %I:%M:%S %p")
         act_icon = "🟢 BUY / LONG" if action.upper() == "BUY" else "🔴 SELL / SHORT"
 
-        msg = (
-            f"🚀 *MARVAN'S POOL - NEW AI TRADE OPENED* ⚡
-
-"
-            f"📊 *Asset:* `{asset}`
-"
-            f"🎯 *Action:* `{act_icon}`
-"
-            f"💵 *Margin Allocated:* `${size_usd:,.2f} USD`
-"
-            f"⚡ *Leverage:* `{leverage:.0f}x`
-"
-            f"📈 *Entry Price:* `${price:,.4f}`
-"
-            f"🧠 *AI Opportunity:* `{opp_score:.0f}% Confluence`
-"
-            f"⏰ *Time (IST):* `{ist_time_str}`
-
-"
-            f"🛡️ _Protected with Hard Risk Circuit & Isolated Margin._"
-        )
+        lines = [
+            "🚀 *MARVAN'S POOL - NEW AI TRADE OPENED* ⚡\n",
+            f"📊 *Asset:* `{asset}`",
+            f"🎯 *Action:* `{act_icon}`",
+            f"💵 *Margin Allocated:* `${size_usd:,.2f} USD`",
+            f"⚡ *Leverage:* `{leverage:.0f}x`",
+            f"📈 *Entry Price:* `${price:,.4f}`",
+            f"🧠 *AI Opportunity:* `{opp_score:.0f}% Confluence`",
+            f"⏰ *Time (IST):* `{ist_time_str}`\n",
+            "🛡️ _Protected with Hard Risk Circuit & Isolated Margin._"
+        ]
+        msg = "\n".join(lines)
         self.send_telegram_message(msg)
 
     def notify_withdrawal(self, amount_usd: float, method: str, destination: str):
         """Triggered when a vault withdrawal is dispatched."""
         ist_now = datetime.now(timezone.utc).astimezone(IST_TZ)
-        msg = (
-            f"💸 *MARVAN'S POOL - VAULT WITHDRAWAL DISPATCHED* 🏦
-
-"
-            f"💵 *Amount:* `${amount_usd:,.2f} USD`
-"
-            f"💳 *Method:* `{method}`
-"
-            f"📍 *Destination:* `{destination}`
-"
-            f"⏰ *Time (IST):* `{ist_now.strftime('%d %b %Y, %I:%M:%S %p')}`
-
-"
-            f"⚡ _Processed instantly via institutional multi-hop escrow._"
-        )
+        lines = [
+            "💸 *MARVAN'S POOL - VAULT WITHDRAWAL DISPATCHED* 🏦\n",
+            f"💵 *Amount:* `${amount_usd:,.2f} USD`",
+            f"💳 *Method:* `{method}`",
+            f"📍 *Destination:* `{destination}`",
+            f"⏰ *Time (IST):* `{ist_now.strftime('%d %b %Y, %I:%M:%S %p')}`\n",
+            "⚡ _Processed instantly via institutional multi-hop escrow._"
+        ]
+        msg = "\n".join(lines)
         self.send_telegram_message(msg)
 
     def notify_security_event(self, event_title: str, details: str, severity: str = "HIGH"):
@@ -209,18 +186,14 @@ class NotificationEngine:
             return
 
         icon = "🚨" if severity == "HIGH" else "🛡️"
-        msg = (
-            f"{icon} *MARVAN'S POOL - SECURITY ALERT* [{severity}]
-
-"
-            f"🔐 *Event:* `{event_title}`
-"
-            f"📝 *Details:* `{details}`
-"
-            f"⏰ *Time (IST):* `{datetime.now(timezone.utc).astimezone(IST_TZ).strftime('%I:%M:%S %p')}`
-"
-            f"🛡️ _Zero-Trust SIEM Sentinel Active._"
-        )
+        lines = [
+            f"{icon} *MARVAN'S POOL - SECURITY ALERT* [{severity}]\n",
+            f"🔐 *Event:* `{event_title}`",
+            f"📝 *Details:* `{details}`",
+            f"⏰ *Time (IST):* `{datetime.now(timezone.utc).astimezone(IST_TZ).strftime('%I:%M:%S %p')}`\n",
+            "🛡️ _Zero-Trust SIEM Sentinel Active._"
+        ]
+        msg = "\n".join(lines)
         self.send_telegram_message(msg)
 
     def notify_macro_lockout(self, event_name: str, impact: str = "HIGH IMPACT"):
@@ -228,16 +201,13 @@ class NotificationEngine:
         if not self.config.get("alert_on_macro_news", True):
             return
 
-        msg = (
-            f"⚠️ *MACRO CIRCUIT PROTECTION ENGAGED*
-
-"
-            f"🏛️ *Event:* `{event_name}` ({impact})
-"
-            f"🔒 *Action:* Order placement temporarily locked (±30m)
-"
-            f"🛡️ *Capital Shield:* 100% drawdown protected against Fed volatility."
-        )
+        lines = [
+            "⚠️ *MACRO CIRCUIT PROTECTION ENGAGED*\n",
+            f"🏛️ *Event:* `{event_name}` ({impact})",
+            "🔒 *Action:* Order placement temporarily locked (±30m)",
+            "🛡️ *Capital Shield:* 100% drawdown protected against Fed volatility."
+        ]
+        msg = "\n".join(lines)
         self.send_telegram_message(msg)
 
     def get_notification_status(self) -> Dict[str, Any]:

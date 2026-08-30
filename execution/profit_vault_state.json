@@ -1,6 +1,6 @@
 {
-  "vault_balance": 480310.14,
-  "total_sweeps_count": 4605,
+  "vault_balance": 480672.2,
+  "total_sweeps_count": 4607,
   "sweep_history": [
     {
       "timestamp": "2026-08-23 00:00:02",
@@ -32241,6 +32241,20 @@
       "asset": "NVDA",
       "profit_swept": 306.01,
       "vault_total": 480310.14,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-08-31 03:19:18",
+      "asset": "NIFTY50",
+      "profit_swept": 302.05,
+      "vault_total": 480612.19,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-08-31 03:20:26",
+      "asset": "TCS",
+      "profit_swept": 60.01,
+      "vault_total": 480672.2,
       "reason": "PROFIT_TARGET_AUTO_REBALANCE"
     }
   ],
