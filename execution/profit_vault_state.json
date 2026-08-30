@@ -1,6 +1,6 @@
 {
-  "vault_balance": 469439.68,
-  "total_sweeps_count": 4519,
+  "vault_balance": 470413.65,
+  "total_sweeps_count": 4524,
   "sweep_history": [
     {
       "timestamp": "2026-08-23 00:00:02",
@@ -31639,6 +31639,41 @@
       "asset": "EURUSD",
       "profit_swept": 305.26,
       "vault_total": 469439.68,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-08-31 02:39:33",
+      "asset": "TSLA",
+      "profit_swept": 309.58,
+      "vault_total": 469749.26,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-08-31 02:40:33",
+      "asset": "GBPUSD",
+      "profit_swept": 300.36,
+      "vault_total": 470049.62,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-08-31 02:40:40",
+      "asset": "ETHUSD",
+      "profit_swept": 243.03,
+      "vault_total": 470292.65,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-08-31 02:41:22",
+      "asset": "NVDA",
+      "profit_swept": 60.66,
+      "vault_total": 470353.31,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-08-31 02:42:04",
+      "asset": "SOLUSD",
+      "profit_swept": 60.34,
+      "vault_total": 470413.65,
       "reason": "PROFIT_TARGET_AUTO_REBALANCE"
     }
   ],

@@ -3083,8 +3083,8 @@
 
         async function testTelegramAlert() {
             const msgElem = document.getElementById('tg-alert-msg');
-            const botToken = (document.getElementById('tg-bot-token').value || '').trim();
-            const chatId = (document.getElementById('tg-chat-id').value || '').trim();
+            const botToken = (document.getElementById('input-tg-bot-token')?.value || document.getElementById('tg-bot-token')?.value || '').trim();
+            const chatId = (document.getElementById('input-tg-chat-id')?.value || document.getElementById('tg-chat-id')?.value || '').trim();
 
             if (!botToken || !chatId) {
                 if (msgElem) {
