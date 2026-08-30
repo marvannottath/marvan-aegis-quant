@@ -75,6 +75,7 @@ class NotificationEngine:
                 "text": text,
                 "parse_mode": "Markdown"
             }
+            resp = requests.post(url, json=payload, timeout=10)
             try:
                 res_json = resp.json()
             except Exception:
