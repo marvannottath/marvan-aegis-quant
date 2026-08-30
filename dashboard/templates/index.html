@@ -1935,7 +1935,7 @@
 
                 if (data.risk_profile) {
                     const prof = data.risk_profile;
-                    const initialCap = data.account.initial_capital || 100000;
+                    const initialCap = (data.account && data.account.initial_capital) ? data.account.initial_capital : 100000;
                     const profElem = document.getElementById('lbl-active-profile');
                     if (profElem) profElem.innerText = `${prof.active_profile} (${prof.default_leverage}x)`;
                     const profDetailElem = document.getElementById('lbl-profile-detail');
@@ -1960,6 +1960,18 @@
                         `).join('');
                     }
 
+                    const btnCon = document.getElementById('btn-prof-con');
+                    const btnMod = document.getElementById('btn-prof-mod');
+                    const btnAgg = document.getElementById('btn-prof-agg');
+
+                    const activeClass = 'px-4 py-2 rounded-xl text-xs font-black border transition bg-amber-500 text-black border-amber-400 shadow-md';
+                    const inactiveClass = 'px-4 py-2 rounded-xl text-xs font-black border transition bg-gray-900 border-gray-800 text-gray-300 hover:text-white';
+
+                    if (btnCon) btnCon.className = prof.active_profile === 'CONSERVATIVE' ? activeClass : inactiveClass;
+                    if (btnMod) btnMod.className = prof.active_profile === 'MODERATE' ? activeClass : inactiveClass;
+                    if (btnAgg) btnAgg.className = prof.active_profile === 'AGGRESSIVE' ? activeClass : inactiveClass;
+                }
+
                 if (data.macro_sentiment) {
                     const macro = data.macro_sentiment;
                     const macroSentElem = document.getElementById('lbl-macro-sentiment');
@@ -1977,18 +1989,6 @@
                     }
                     const macroTimeElem = document.getElementById('lbl-macro-time');
                     if (macroTimeElem) macroTimeElem.innerText = macro.timestamp || 'Live';
-                }
-
-                    const btnCon = document.getElementById('btn-prof-con');
-                    const btnMod = document.getElementById('btn-prof-mod');
-                    const btnAgg = document.getElementById('btn-prof-agg');
-
-                    const activeClass = 'px-4 py-2 rounded-xl text-xs font-black border transition bg-amber-500 text-black border-amber-400 shadow-md';
-                    const inactiveClass = 'px-4 py-2 rounded-xl text-xs font-black border transition bg-gray-900 border-gray-800 text-gray-300 hover:text-white';
-
-                    if (btnCon) btnCon.className = prof.active_profile === 'CONSERVATIVE' ? activeClass : inactiveClass;
-                    if (btnMod) btnMod.className = prof.active_profile === 'MODERATE' ? activeClass : inactiveClass;
-                    if (btnAgg) btnAgg.className = prof.active_profile === 'AGGRESSIVE' ? activeClass : inactiveClass;
                 }
 
                 renderPositions(data.account.open_positions);

@@ -581,6 +581,7 @@ async def get_deposit_history_endpoint():
     return JSONResponse({"status": "SUCCESS", "deposit_history": getattr(profit_vault, "deposit_history", [])})
 
 @app.post("/api/set-max-trade-cap")
+@app.post("/api/set-trade-cap")
 async def set_max_trade_cap_endpoint(data: dict):
     """Set custom maximum USD capital allocation limit per trade."""
     cap = float(data.get("cap_usd", 5000.0))

@@ -110,6 +110,9 @@ class BinanceBroker:
 
         return self.verify_connection()
 
+    def get_account_info(self) -> Dict[str, Any]:
+        return self.get_public_status()
+
     def get_public_status(self) -> Dict[str, Any]:
         """Return safe, secret-masked status for frontend presentation."""
         masked_key = f"{self.api_key[:4]}••••••••{self.api_key[-4:]}" if len(self.api_key) > 8 else "NOT_CONFIGURED"

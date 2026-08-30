@@ -66,6 +66,11 @@ class RiskEngine:
             print(f"[RISK ENGINE] Active Risk Profile set to: {name} (Max Lev: {self.active_profile['max_leverage']}x)")
         return self.active_profile
 
+    def set_max_trade_cap(self, cap_usd: float) -> float:
+        """Set maximum trade capital safety cap."""
+        self.custom_trade_cap_usd = max(100.0, float(cap_usd))
+        return self.custom_trade_cap_usd
+
     def calculate_position_size(self, virtual_cash: float, volatility: float, opportunity_score: float) -> float:
         """
         Calculate strict risk-adjusted position size in USD.
@@ -105,6 +110,37 @@ class RiskEngine:
             return False, f"Proposed capital ${proposed_size_usd} exceeds safety cap of ${self.custom_trade_cap_usd}."
 
         return True, "Risk checks passed."
+
+    def update_portfolio_drawdown(self, current_equity: float) -> bool:
+        """Evaluate portfolio drawdown against peak equity."""
+        if not hasattr(self, "peak_equity"):
+            self.peak_equity = current_equity
+        if current_equity > self.peak_equity:
+            self.peak_equity = current_equity
+        if self.peak_equity > 0:
+            dd_pct = ((self.peak_equity - current_equity) / self.peak_equity) * 100.0
+            if dd_pct >= self.max_drawdown_pct:
+                self.circuit_tripped = True
+                self.trip_reason = f"Max Drawdown of {dd_pct:.1f}% exceeded limit of {self.max_drawdown_pct}%."
+                return True
+        self.trip_reason = "NORMAL_OPERATIONS"
+        return False
+
+    def get_profile_summary(self) -> Dict[str, Any]:
+        """Return full risk profile metadata for dashboard."""
+        return {
+            "active_profile": self.active_profile_name,
+            "description": self.active_profile["description"],
+            "default_leverage": self.active_profile["default_leverage"],
+            "max_leverage": self.active_profile["max_leverage"],
+            "max_risk_per_trade_pct": self.active_profile["max_risk_per_trade_pct"],
+            "max_open_positions": self.active_profile["max_open_positions"],
+            "min_open_positions": self.active_profile["min_open_positions"],
+            "stop_loss_pct": self.active_profile["stop_loss_pct"],
+            "take_profit_pct": self.active_profile["take_profit_target_pct"],
+            "max_trade_cap_usd": self.custom_trade_cap_usd,
+            "circuit_breaker_drawdown_pct": self.max_drawdown_pct
+        }
 
     def check_circuit_breaker(self, current_equity: float, peak_equity: float) -> bool:
         """Evaluate maximum portfolio drawdown circuit breaker."""
