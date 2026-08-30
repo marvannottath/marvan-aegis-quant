@@ -1,1060 +1,190 @@
 {
   "initial_capital": 100000.0,
-  "virtual_cash": 89949.88,
-  "equity": 549280.11,
+  "virtual_cash": 88837.41,
+  "equity": 551530.47,
   "positions": {
     "ETHUSD": {
-      "trade_id": "TRD-1788119689248",
+      "trade_id": "TRD-1788120169707",
       "asset": "ETHUSD",
-      "action": "BUY",
-      "units": 1.686338036267223,
-      "entry_price": 3447.0846739999997,
-      "capital_allocated": 387.53,
-      "leverage": 15.0,
-      "stop_loss_pct": 1.5,
-      "take_profit_pct": 3.5,
-      "timestamp": "2026-08-31 01:24:49",
-      "entry_indicators": {
-        "RSI": 21.5,
-        "Volatility": 0.0249
-      },
-      "entry_sentiment": -0.14,
-      "last_price": 3443.98
-    },
-    "SOLUSD": {
-      "trade_id": "TRD-1788119689254",
-      "asset": "SOLUSD",
       "action": "SELL",
-      "units": 37.46797726949802,
-      "entry_price": 155.144484,
+      "units": 1.6848959688890246,
+      "entry_price": 3450.034962,
       "capital_allocated": 387.53,
       "leverage": 15.0,
       "stop_loss_pct": 1.5,
       "take_profit_pct": 3.5,
-      "timestamp": "2026-08-31 01:24:49",
-      "entry_indicators": {
-        "RSI": 79.6,
-        "Volatility": 0.0249
-      },
-      "entry_sentiment": -0.14,
-      "last_price": 155.01
-    },
-    "BANKNIFTY": {
-      "trade_id": "TRD-1788119689256",
-      "asset": "BANKNIFTY",
-      "action": "SELL",
-      "units": 0.11371973167597144,
-      "entry_price": 51116.458985000005,
-      "capital_allocated": 387.53,
-      "leverage": 15.0,
-      "stop_loss_pct": 1.5,
-      "take_profit_pct": 3.5,
-      "timestamp": "2026-08-31 01:24:49",
+      "timestamp": "2026-08-31 01:32:49",
       "entry_indicators": {
         "RSI": 70.3,
         "Volatility": 0.0249
       },
-      "entry_sentiment": -0.14,
-      "last_price": 51216.4
+      "entry_sentiment": -0.49,
+      "last_price": 3449.11
     },
-    "TCS": {
-      "trade_id": "TRD-1788119689258",
-      "asset": "TCS",
+    "SOLUSD": {
+      "trade_id": "TRD-1788120169713",
+      "asset": "SOLUSD",
       "action": "SELL",
-      "units": 1.3767006026678916,
-      "entry_price": 4222.377755,
+      "units": 37.504234263178596,
+      "entry_price": 154.994499,
       "capital_allocated": 387.53,
       "leverage": 15.0,
       "stop_loss_pct": 1.5,
       "take_profit_pct": 3.5,
-      "timestamp": "2026-08-31 01:24:49",
+      "timestamp": "2026-08-31 01:32:49",
       "entry_indicators": {
-        "RSI": 79.6,
+        "RSI": 61.7,
         "Volatility": 0.0249
       },
-      "entry_sentiment": -0.14,
-      "last_price": 4218.43
+      "entry_sentiment": -0.49,
+      "last_price": 154.97
     },
-    "AAPL": {
-      "trade_id": "TRD-1788119689365",
-      "asset": "AAPL",
+    "EURUSD": {
+      "trade_id": "TRD-1788120169717",
+      "asset": "EURUSD",
       "action": "BUY",
-      "units": 17.84423565945213,
-      "entry_price": 224.162025,
-      "capital_allocated": 2000.0,
-      "leverage": 2.0,
+      "units": 5356.528212260333,
+      "entry_price": 1.08520851,
+      "capital_allocated": 387.53,
+      "leverage": 15.0,
       "stop_loss_pct": 1.5,
       "take_profit_pct": 3.5,
-      "timestamp": "2026-08-31 01:24:49",
+      "timestamp": "2026-08-31 01:32:49",
       "entry_indicators": {
         "RSI": 21.5,
         "Volatility": 0.0249
       },
-      "entry_sentiment": -0.14,
-      "last_price": 224.58
+      "entry_sentiment": -0.49,
+      "last_price": 1.0851
     },
-    "NIFTY50": {
-      "trade_id": "TRD-1788119689393",
-      "asset": "NIFTY50",
+    "USDJPY": {
+      "trade_id": "TRD-1788120169803",
+      "asset": "USDJPY",
       "action": "SELL",
-      "units": 0.08051431372932169,
-      "entry_price": 24840.303635,
-      "capital_allocated": 1000.0,
-      "leverage": 2.0,
-      "stop_loss_pct": 1.5,
-      "take_profit_pct": 3.5,
-      "timestamp": "2026-08-31 01:24:49",
-      "entry_indicators": {
-        "RSI": 79.6,
-        "Volatility": 0.0249
-      },
-      "entry_sentiment": -0.14,
-      "last_price": 24886.55
-    },
-    "EURUSD": {
-      "trade_id": "TRD-1788119691479",
-      "asset": "EURUSD",
-      "action": "SELL",
-      "units": 23018.320981426074,
-      "entry_price": 1.08609138,
-      "capital_allocated": 2500.0,
-      "leverage": 10.0,
-      "stop_loss_pct": 1.5,
-      "take_profit_pct": 3.5,
-      "timestamp": "2026-08-31 01:24:51",
-      "entry_indicators": {
-        "RSI": 71.5,
-        "Volatility": 0.0247
-      },
-      "entry_sentiment": -0.14,
-      "last_price": 1.0874
-    },
-    "XAUUSD": {
-      "trade_id": "TRD-1788119711762",
-      "asset": "XAUUSD",
-      "action": "BUY",
-      "units": 1.9914359888448518,
-      "entry_price": 2510.75105,
-      "capital_allocated": 1000.0,
+      "units": 68.81106440078437,
+      "entry_price": 145.325466,
+      "capital_allocated": 2000.0,
       "leverage": 5.0,
       "stop_loss_pct": 1.5,
       "take_profit_pct": 3.5,
-      "timestamp": "2026-08-31 01:25:11",
+      "timestamp": "2026-08-31 01:32:49",
       "entry_indicators": {
-        "RSI": 20.1,
-        "Volatility": 0.0154
+        "RSI": 70.3,
+        "Volatility": 0.0249
       },
-      "entry_sentiment": -0.14,
-      "last_price": 2509.1
+      "entry_sentiment": -0.49,
+      "last_price": 145.36
     },
-    "USDJPY": {
-      "trade_id": "TRD-1788119711836",
-      "asset": "USDJPY",
-      "action": "BUY",
-      "units": 13.760407486396478,
-      "entry_price": 145.344533,
+    "BANKNIFTY": {
+      "trade_id": "TRD-1788120169831",
+      "asset": "BANKNIFTY",
+      "action": "SELL",
+      "units": 0.39041405932187473,
+      "entry_price": 51227.663355000004,
+      "capital_allocated": 2000.0,
+      "leverage": 10.0,
+      "stop_loss_pct": 1.5,
+      "take_profit_pct": 3.5,
+      "timestamp": "2026-08-31 01:32:49",
+      "entry_indicators": {
+        "RSI": 61.7,
+        "Volatility": 0.0249
+      },
+      "entry_sentiment": -0.49,
+      "last_price": 51236.25
+    },
+    "NIFTY50": {
+      "trade_id": "TRD-1788120169858",
+      "asset": "NIFTY50",
+      "action": "SELL",
+      "units": 0.08059941217023127,
+      "entry_price": 24814.076755000002,
       "capital_allocated": 1000.0,
       "leverage": 2.0,
       "stop_loss_pct": 1.5,
       "take_profit_pct": 3.5,
-      "timestamp": "2026-08-31 01:25:11",
+      "timestamp": "2026-08-31 01:32:49",
       "entry_indicators": {
-        "RSI": 20.1,
-        "Volatility": 0.0154
+        "RSI": 61.7,
+        "Volatility": 0.0249
       },
-      "entry_sentiment": -0.14,
-      "last_price": 145.08
+      "entry_sentiment": -0.49,
+      "last_price": 24818.25
     },
-    "BTCUSD": {
-      "trade_id": "TRD-1788119717907",
-      "asset": "BTCUSD",
+    "TCS": {
+      "trade_id": "TRD-1788120171922",
+      "asset": "TCS",
       "action": "SELL",
-      "units": 0.1554739966985289,
-      "entry_price": 64319.43741300001,
+      "units": 0.4736802174644089,
+      "entry_price": 4222.257815,
       "capital_allocated": 1000.0,
-      "leverage": 10.0,
+      "leverage": 2.0,
       "stop_loss_pct": 1.5,
       "take_profit_pct": 3.5,
-      "timestamp": "2026-08-31 01:25:17",
+      "timestamp": "2026-08-31 01:32:51",
       "entry_indicators": {
-        "RSI": 79.7,
-        "Volatility": 0.0111
+        "RSI": 79.2,
+        "Volatility": 0.0247
       },
-      "entry_sentiment": -0.14,
-      "last_price": 64355.57
+      "entry_sentiment": -0.49,
+      "last_price": 4221.3
+    },
+    "XAUUSD": {
+      "trade_id": "TRD-1788120173990",
+      "asset": "XAUUSD",
+      "action": "SELL",
+      "units": 0.7962579697460193,
+      "entry_price": 2511.7488,
+      "capital_allocated": 1000.0,
+      "leverage": 2.0,
+      "stop_loss_pct": 1.5,
+      "take_profit_pct": 3.5,
+      "timestamp": "2026-08-31 01:32:53",
+      "entry_indicators": {
+        "RSI": 74.3,
+        "Volatility": 0.0243
+      },
+      "entry_sentiment": -0.49,
+      "last_price": 2514.77
+    },
+    "BTCUSD": {
+      "trade_id": "TRD-1788120174023",
+      "asset": "BTCUSD",
+      "action": "SELL",
+      "units": 0.15548729119577515,
+      "entry_price": 64313.937963000004,
+      "capital_allocated": 2000.0,
+      "leverage": 5.0,
+      "stop_loss_pct": 1.5,
+      "take_profit_pct": 3.5,
+      "timestamp": "2026-08-31 01:32:54",
+      "entry_indicators": {
+        "RSI": 74.3,
+        "Volatility": 0.0243
+      },
+      "entry_sentiment": -0.49,
+      "last_price": 64401.94
+    },
+    "NVDA": {
+      "trade_id": "TRD-1788120204255",
+      "asset": "NVDA",
+      "action": "SELL",
+      "units": 15.585329856298193,
+      "entry_price": 128.325805,
+      "capital_allocated": 1000.0,
+      "leverage": 2.0,
+      "stop_loss_pct": 1.5,
+      "take_profit_pct": 3.5,
+      "timestamp": "2026-08-31 01:33:24",
+      "entry_indicators": {
+        "RSI": 78.2,
+        "Volatility": 0.0134
+      },
+      "entry_sentiment": -0.49,
+      "last_price": 128.25
     }
   },
   "trade_history": [
-    {
-      "trade_id": "TRD-1788118964339",
-      "asset": "TCS",
-      "action": "SELL",
-      "entry_price": 4212.8925,
-      "exit_price": 4248.3542,
-      "pnl_usd": -42.09,
-      "pnl_pct": -0.84,
-      "exit_reason": "Stop-Loss Triggered (-0.84%)",
-      "timestamp": "2026-08-31 01:15:05",
-      "forensics": {
-        "trade_id": "TRD-1788118964339",
-        "timestamp": "2026-08-31 01:15:05",
-        "asset": "TCS",
-        "entry_price": 4212.8925,
-        "exit_price": 4248.3542,
-        "pnl_usd": -42.09,
-        "pnl_pct": -0.84,
-        "result": "LOSS",
-        "exit_reason": "Stop-Loss Triggered (-0.84%)",
-        "root_cause_attribution": "Loss (-0.84%) triggered by tight Stop-Loss during high market volatility (2.45%).",
-        "self_learning_update": "RL Agent penalized (-12.63 points). Increased penalty threshold for entering trades during high volatility (2.45%).",
-        "entry_indicators": {
-          "RSI": 55.3,
-          "Volatility": 0.0245,
-          "SentimentScore": 0.6
-        }
-      }
-    },
-    {
-      "trade_id": "TRD-1788118934185",
-      "asset": "SOLUSD",
-      "action": "BUY",
-      "entry_price": 154.8655,
-      "exit_price": 156.7501,
-      "pnl_usd": 60.85,
-      "pnl_pct": 1.22,
-      "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
-      "timestamp": "2026-08-31 01:15:11",
-      "forensics": {
-        "trade_id": "TRD-1788118934185",
-        "timestamp": "2026-08-31 01:15:11",
-        "asset": "SOLUSD",
-        "entry_price": 154.8655,
-        "exit_price": 156.7501,
-        "pnl_usd": 60.85,
-        "pnl_pct": 1.22,
-        "result": "PROFIT",
-        "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
-        "root_cause_attribution": "High Profit (+1.22%) driven by strong bullish sentiment alignment (0.60) and price momentum.",
-        "self_learning_update": "RL Agent rewarded (+12.17 points). Reinforced BUY confidence when RSI=29.5 and Sentiment=0.60.",
-        "entry_indicators": {
-          "RSI": 29.5,
-          "Volatility": 0.0128,
-          "SentimentScore": 0.6
-        }
-      }
-    },
-    {
-      "trade_id": "TRD-1788118994599",
-      "asset": "USDJPY",
-      "action": "SELL",
-      "entry_price": 145.5854,
-      "exit_price": 146.755,
-      "pnl_usd": -100.42,
-      "pnl_pct": -0.8,
-      "exit_reason": "Stop-Loss Triggered (-0.80%)",
-      "timestamp": "2026-08-31 01:15:49",
-      "forensics": {
-        "trade_id": "TRD-1788118994599",
-        "timestamp": "2026-08-31 01:15:49",
-        "asset": "USDJPY",
-        "entry_price": 145.5854,
-        "exit_price": 146.755,
-        "pnl_usd": -100.42,
-        "pnl_pct": -0.8,
-        "result": "LOSS",
-        "exit_reason": "Stop-Loss Triggered (-0.80%)",
-        "root_cause_attribution": "Loss (-0.80%) triggered by tight Stop-Loss during high market volatility (1.49%).",
-        "self_learning_update": "RL Agent penalized (-12.05 points). Increased penalty threshold for entering trades during high volatility (1.49%).",
-        "entry_indicators": {
-          "RSI": 63.3,
-          "Volatility": 0.0149,
-          "SentimentScore": 0.6
-        }
-      }
-    },
-    {
-      "trade_id": "TRD-1788118797355",
-      "asset": "AAPL",
-      "action": "BUY",
-      "entry_price": 224.212,
-      "exit_price": 226.9714,
-      "pnl_usd": 61.54,
-      "pnl_pct": 1.23,
-      "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
-      "timestamp": "2026-08-31 01:15:51",
-      "forensics": {
-        "trade_id": "TRD-1788118797355",
-        "timestamp": "2026-08-31 01:15:51",
-        "asset": "AAPL",
-        "entry_price": 224.212,
-        "exit_price": 226.9714,
-        "pnl_usd": 61.54,
-        "pnl_pct": 1.23,
-        "result": "PROFIT",
-        "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
-        "root_cause_attribution": "High Profit (+1.23%) driven by strong bullish sentiment alignment (0.60) and price momentum.",
-        "self_learning_update": "RL Agent rewarded (+12.31 points). Reinforced BUY confidence when RSI=28.1 and Sentiment=0.60.",
-        "entry_indicators": {
-          "RSI": 28.1,
-          "Volatility": 0.0197,
-          "SentimentScore": 0.6
-        }
-      }
-    },
-    {
-      "trade_id": "TRD-1788118988559",
-      "asset": "NIFTY50",
-      "action": "BUY",
-      "entry_price": 24867.9778,
-      "exit_price": 25175.6351,
-      "pnl_usd": 154.65,
-      "pnl_pct": 1.24,
-      "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
-      "timestamp": "2026-08-31 01:16:01",
-      "forensics": {
-        "trade_id": "TRD-1788118988559",
-        "timestamp": "2026-08-31 01:16:01",
-        "asset": "NIFTY50",
-        "entry_price": 24867.9778,
-        "exit_price": 25175.6351,
-        "pnl_usd": 154.65,
-        "pnl_pct": 1.24,
-        "result": "PROFIT",
-        "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
-        "root_cause_attribution": "High Profit (+1.24%) driven by strong bullish sentiment alignment (0.60) and price momentum.",
-        "self_learning_update": "RL Agent rewarded (+12.37 points). Reinforced BUY confidence when RSI=32.5 and Sentiment=0.60.",
-        "entry_indicators": {
-          "RSI": 32.5,
-          "Volatility": 0.0188,
-          "SentimentScore": 0.6
-        }
-      }
-    },
-    {
-      "trade_id": "TRD-1788119079153",
-      "asset": "BANKNIFTY",
-      "action": "SELL",
-      "entry_price": 51112.9907,
-      "exit_price": 51550.6215,
-      "pnl_usd": -107.03,
-      "pnl_pct": -0.86,
-      "exit_reason": "Stop-Loss Triggered (-0.86%)",
-      "timestamp": "2026-08-31 01:16:13",
-      "forensics": {
-        "trade_id": "TRD-1788119079153",
-        "timestamp": "2026-08-31 01:16:13",
-        "asset": "BANKNIFTY",
-        "entry_price": 51112.9907,
-        "exit_price": 51550.6215,
-        "pnl_usd": -107.03,
-        "pnl_pct": -0.86,
-        "result": "LOSS",
-        "exit_reason": "Stop-Loss Triggered (-0.86%)",
-        "root_cause_attribution": "Loss (-0.86%) triggered by tight Stop-Loss during high market volatility (2.00%).",
-        "self_learning_update": "RL Agent penalized (-12.84 points). Increased penalty threshold for entering trades during high volatility (2.00%).",
-        "entry_indicators": {
-          "RSI": 56.7,
-          "Volatility": 0.02,
-          "SentimentScore": 0.6
-        }
-      }
-    },
-    {
-      "trade_id": "TRD-1788118795264",
-      "asset": "XAUUSD",
-      "action": "BUY",
-      "entry_price": 2511.6711,
-      "exit_price": 2541.9134,
-      "pnl_usd": 24.08,
-      "pnl_pct": 1.2,
-      "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
-      "timestamp": "2026-08-31 01:17:04",
-      "forensics": {
-        "trade_id": "TRD-1788118795264",
-        "timestamp": "2026-08-31 01:17:04",
-        "asset": "XAUUSD",
-        "entry_price": 2511.6711,
-        "exit_price": 2541.9134,
-        "pnl_usd": 24.08,
-        "pnl_pct": 1.2,
-        "result": "PROFIT",
-        "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
-        "root_cause_attribution": "High Profit (+1.20%) driven by strong bullish sentiment alignment (0.60) and price momentum.",
-        "self_learning_update": "RL Agent rewarded (+12.04 points). Reinforced BUY confidence when RSI=26.1 and Sentiment=0.60.",
-        "entry_indicators": {
-          "RSI": 26.1,
-          "Volatility": 0.0208,
-          "SentimentScore": 0.6
-        }
-      }
-    },
-    {
-      "trade_id": "TRD-1788119046892",
-      "asset": "RELIANCE",
-      "action": "BUY",
-      "entry_price": 3007.9732,
-      "exit_price": 3045.4818,
-      "pnl_usd": 62.35,
-      "pnl_pct": 1.25,
-      "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
-      "timestamp": "2026-08-31 01:17:16",
-      "forensics": {
-        "trade_id": "TRD-1788119046892",
-        "timestamp": "2026-08-31 01:17:16",
-        "asset": "RELIANCE",
-        "entry_price": 3007.9732,
-        "exit_price": 3045.4818,
-        "pnl_usd": 62.35,
-        "pnl_pct": 1.25,
-        "result": "PROFIT",
-        "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
-        "root_cause_attribution": "High Profit (+1.25%) driven by strong bullish sentiment alignment (0.60) and price momentum.",
-        "self_learning_update": "RL Agent rewarded (+12.47 points). Reinforced BUY confidence when RSI=20.1 and Sentiment=0.60.",
-        "entry_indicators": {
-          "RSI": 20.1,
-          "Volatility": 0.0215,
-          "SentimentScore": 0.6
-        }
-      }
-    },
-    {
-      "trade_id": "TRD-1788119057011",
-      "asset": "BTCUSD",
-      "action": "BUY",
-      "entry_price": 64254.1948,
-      "exit_price": 65052.1241,
-      "pnl_usd": 62.09,
-      "pnl_pct": 1.24,
-      "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
-      "timestamp": "2026-08-31 01:17:38",
-      "forensics": {
-        "trade_id": "TRD-1788119057011",
-        "timestamp": "2026-08-31 01:17:38",
-        "asset": "BTCUSD",
-        "entry_price": 64254.1948,
-        "exit_price": 65052.1241,
-        "pnl_usd": 62.09,
-        "pnl_pct": 1.24,
-        "result": "PROFIT",
-        "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
-        "root_cause_attribution": "High Profit (+1.24%) driven by strong bullish sentiment alignment (0.60) and price momentum.",
-        "self_learning_update": "RL Agent rewarded (+12.42 points). Reinforced BUY confidence when RSI=36.0 and Sentiment=0.60.",
-        "entry_indicators": {
-          "RSI": 36.0,
-          "Volatility": 0.0154,
-          "SentimentScore": 0.6
-        }
-      }
-    },
-    {
-      "trade_id": "TRD-1788119101288",
-      "asset": "ETHUSD",
-      "action": "SELL",
-      "entry_price": 3449.605,
-      "exit_price": 3478.0901,
-      "pnl_usd": -16.52,
-      "pnl_pct": -0.83,
-      "exit_reason": "Stop-Loss Triggered (-0.83%)",
-      "timestamp": "2026-08-31 01:17:40",
-      "forensics": {
-        "trade_id": "TRD-1788119101288",
-        "timestamp": "2026-08-31 01:17:40",
-        "asset": "ETHUSD",
-        "entry_price": 3449.605,
-        "exit_price": 3478.0901,
-        "pnl_usd": -16.52,
-        "pnl_pct": -0.83,
-        "result": "LOSS",
-        "exit_reason": "Stop-Loss Triggered (-0.83%)",
-        "root_cause_attribution": "Loss (-0.83%) triggered by tight Stop-Loss during high market volatility (2.45%).",
-        "self_learning_update": "RL Agent penalized (-12.39 points). Increased penalty threshold for entering trades during high volatility (2.45%).",
-        "entry_indicators": {
-          "RSI": 76.9,
-          "Volatility": 0.0245,
-          "SentimentScore": 0.6
-        }
-      }
-    },
-    {
-      "trade_id": "TRD-1788119046897",
-      "asset": "TSLA",
-      "action": "SELL",
-      "entry_price": 209.7151,
-      "exit_price": 211.5018,
-      "pnl_usd": -212.99,
-      "pnl_pct": -0.85,
-      "exit_reason": "Stop-Loss Triggered (-0.85%)",
-      "timestamp": "2026-08-31 01:17:54",
-      "forensics": {
-        "trade_id": "TRD-1788119046897",
-        "timestamp": "2026-08-31 01:17:54",
-        "asset": "TSLA",
-        "entry_price": 209.7151,
-        "exit_price": 211.5018,
-        "pnl_usd": -212.99,
-        "pnl_pct": -0.85,
-        "result": "LOSS",
-        "exit_reason": "Stop-Loss Triggered (-0.85%)",
-        "root_cause_attribution": "Loss (-0.85%) triggered by tight Stop-Loss during high market volatility (2.15%).",
-        "self_learning_update": "RL Agent penalized (-12.78 points). Increased penalty threshold for entering trades during high volatility (2.15%).",
-        "entry_indicators": {
-          "RSI": 64.8,
-          "Volatility": 0.0215,
-          "SentimentScore": 0.6
-        }
-      }
-    },
-    {
-      "trade_id": "TRD-1788119101320",
-      "asset": "NVDA",
-      "action": "BUY",
-      "entry_price": 128.7043,
-      "exit_price": 130.3979,
-      "pnl_usd": 164.49,
-      "pnl_pct": 1.32,
-      "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
-      "timestamp": "2026-08-31 01:18:00",
-      "forensics": {
-        "trade_id": "TRD-1788119101320",
-        "timestamp": "2026-08-31 01:18:00",
-        "asset": "NVDA",
-        "entry_price": 128.7043,
-        "exit_price": 130.3979,
-        "pnl_usd": 164.49,
-        "pnl_pct": 1.32,
-        "result": "PROFIT",
-        "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
-        "root_cause_attribution": "High Profit (+1.32%) driven by strong bullish sentiment alignment (0.60) and price momentum.",
-        "self_learning_update": "RL Agent rewarded (+13.16 points). Reinforced BUY confidence when RSI=26.7 and Sentiment=0.60.",
-        "entry_indicators": {
-          "RSI": 26.7,
-          "Volatility": 0.0245,
-          "SentimentScore": 0.6
-        }
-      }
-    },
-    {
-      "trade_id": "TRD-1788119161745",
-      "asset": "NIFTY50",
-      "action": "SELL",
-      "entry_price": 24808.5195,
-      "exit_price": 25022.3317,
-      "pnl_usd": -215.46,
-      "pnl_pct": -0.86,
-      "exit_reason": "Stop-Loss Triggered (-0.86%)",
-      "timestamp": "2026-08-31 01:18:02",
-      "forensics": {
-        "trade_id": "TRD-1788119161745",
-        "timestamp": "2026-08-31 01:18:02",
-        "asset": "NIFTY50",
-        "entry_price": 24808.5195,
-        "exit_price": 25022.3317,
-        "pnl_usd": -215.46,
-        "pnl_pct": -0.86,
-        "result": "LOSS",
-        "exit_reason": "Stop-Loss Triggered (-0.86%)",
-        "root_cause_attribution": "Loss (-0.86%) triggered by tight Stop-Loss during high market volatility (2.49%).",
-        "self_learning_update": "RL Agent penalized (-12.93 points). Increased penalty threshold for entering trades during high volatility (2.49%).",
-        "entry_indicators": {
-          "RSI": 63.5,
-          "Volatility": 0.0249,
-          "SentimentScore": 0.6
-        }
-      }
-    },
-    {
-      "trade_id": "TRD-1788119105354",
-      "asset": "TCS",
-      "action": "BUY",
-      "entry_price": 4226.5122,
-      "exit_price": 4277.5308,
-      "pnl_usd": 120.71,
-      "pnl_pct": 1.21,
-      "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
-      "timestamp": "2026-08-31 01:18:04",
-      "forensics": {
-        "trade_id": "TRD-1788119105354",
-        "timestamp": "2026-08-31 01:18:04",
-        "asset": "TCS",
-        "entry_price": 4226.5122,
-        "exit_price": 4277.5308,
-        "pnl_usd": 120.71,
-        "pnl_pct": 1.21,
-        "result": "PROFIT",
-        "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
-        "root_cause_attribution": "High Profit (+1.21%) driven by strong bullish sentiment alignment (0.60) and price momentum.",
-        "self_learning_update": "RL Agent rewarded (+12.07 points). Reinforced BUY confidence when RSI=36.9 and Sentiment=0.60.",
-        "entry_indicators": {
-          "RSI": 36.9,
-          "Volatility": 0.0235,
-          "SentimentScore": 0.6
-        }
-      }
-    },
-    {
-      "trade_id": "TRD-1788119111452",
-      "asset": "SOLUSD",
-      "action": "SELL",
-      "entry_price": 155.1345,
-      "exit_price": 156.4206,
-      "pnl_usd": -16.58,
-      "pnl_pct": -0.83,
-      "exit_reason": "Stop-Loss Triggered (-0.83%)",
-      "timestamp": "2026-08-31 01:18:54",
-      "forensics": {
-        "trade_id": "TRD-1788119111452",
-        "timestamp": "2026-08-31 01:18:54",
-        "asset": "SOLUSD",
-        "entry_price": 155.1345,
-        "exit_price": 156.4206,
-        "pnl_usd": -16.58,
-        "pnl_pct": -0.83,
-        "result": "LOSS",
-        "exit_reason": "Stop-Loss Triggered (-0.83%)",
-        "root_cause_attribution": "Loss (-0.83%) triggered by tight Stop-Loss during high market volatility (2.09%).",
-        "self_learning_update": "RL Agent penalized (-12.44 points). Increased penalty threshold for entering trades during high volatility (2.09%).",
-        "entry_indicators": {
-          "RSI": 53.3,
-          "Volatility": 0.0209,
-          "SentimentScore": 0.6
-        }
-      }
-    },
-    {
-      "trade_id": "TRD-1788119038821",
-      "asset": "GBPUSD",
-      "action": "BUY",
-      "entry_price": 1.3036,
-      "exit_price": 1.3205,
-      "pnl_usd": 129.76,
-      "pnl_pct": 1.3,
-      "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
-      "timestamp": "2026-08-31 01:18:56",
-      "forensics": {
-        "trade_id": "TRD-1788119038821",
-        "timestamp": "2026-08-31 01:18:56",
-        "asset": "GBPUSD",
-        "entry_price": 1.3036,
-        "exit_price": 1.3205,
-        "pnl_usd": 129.76,
-        "pnl_pct": 1.3,
-        "result": "PROFIT",
-        "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
-        "root_cause_attribution": "High Profit (+1.30%) driven by strong bullish sentiment alignment (0.60) and price momentum.",
-        "self_learning_update": "RL Agent rewarded (+12.98 points). Reinforced BUY confidence when RSI=23.9 and Sentiment=0.60.",
-        "entry_indicators": {
-          "RSI": 23.9,
-          "Volatility": 0.0243,
-          "SentimentScore": 0.6
-        }
-      }
-    },
-    {
-      "trade_id": "TRD-1788119073078",
-      "asset": "EURUSD",
-      "action": "BUY",
-      "entry_price": 1.0842,
-      "exit_price": 1.0977,
-      "pnl_usd": 310.89,
-      "pnl_pct": 1.24,
-      "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
-      "timestamp": "2026-08-31 01:18:56",
-      "forensics": {
-        "trade_id": "TRD-1788119073078",
-        "timestamp": "2026-08-31 01:18:56",
-        "asset": "EURUSD",
-        "entry_price": 1.0842,
-        "exit_price": 1.0977,
-        "pnl_usd": 310.89,
-        "pnl_pct": 1.24,
-        "result": "PROFIT",
-        "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
-        "root_cause_attribution": "High Profit (+1.24%) driven by strong bullish sentiment alignment (0.60) and price momentum.",
-        "self_learning_update": "RL Agent rewarded (+12.44 points). Reinforced BUY confidence when RSI=33.7 and Sentiment=0.60.",
-        "entry_indicators": {
-          "RSI": 33.7,
-          "Volatility": 0.0162,
-          "SentimentScore": 0.6
-        }
-      }
-    },
-    {
-      "trade_id": "TRD-1788119151646",
-      "asset": "AAPL",
-      "action": "SELL",
-      "entry_price": 224.2478,
-      "exit_price": 226.1972,
-      "pnl_usd": -43.46,
-      "pnl_pct": -0.87,
-      "exit_reason": "Stop-Loss Triggered (-0.87%)",
-      "timestamp": "2026-08-31 01:19:00",
-      "forensics": {
-        "trade_id": "TRD-1788119151646",
-        "timestamp": "2026-08-31 01:19:00",
-        "asset": "AAPL",
-        "entry_price": 224.2478,
-        "exit_price": 226.1972,
-        "pnl_usd": -43.46,
-        "pnl_pct": -0.87,
-        "result": "LOSS",
-        "exit_reason": "Stop-Loss Triggered (-0.87%)",
-        "root_cause_attribution": "Loss (-0.87%) triggered by tight Stop-Loss during high market volatility (2.39%).",
-        "self_learning_update": "RL Agent penalized (-13.04 points). Increased penalty threshold for entering trades during high volatility (2.39%).",
-        "entry_indicators": {
-          "RSI": 63.5,
-          "Volatility": 0.0239,
-          "SentimentScore": 0.6
-        }
-      }
-    },
-    {
-      "trade_id": "TRD-1788119258264",
-      "asset": "BTCUSD",
-      "action": "SELL",
-      "entry_price": 64316.8377,
-      "exit_price": 64839.7131,
-      "pnl_usd": -81.3,
-      "pnl_pct": -0.81,
-      "exit_reason": "Stop-Loss Triggered (-0.81%)",
-      "timestamp": "2026-08-31 01:19:02",
-      "forensics": {
-        "trade_id": "TRD-1788119258264",
-        "timestamp": "2026-08-31 01:19:02",
-        "asset": "BTCUSD",
-        "entry_price": 64316.8377,
-        "exit_price": 64839.7131,
-        "pnl_usd": -81.3,
-        "pnl_pct": -0.81,
-        "result": "LOSS",
-        "exit_reason": "Stop-Loss Triggered (-0.81%)",
-        "root_cause_attribution": "Loss (-0.81%) triggered by tight Stop-Loss during high market volatility (1.30%).",
-        "self_learning_update": "RL Agent penalized (-12.19 points). Increased penalty threshold for entering trades during high volatility (1.30%).",
-        "entry_indicators": {
-          "RSI": 79.1,
-          "Volatility": 0.013,
-          "SentimentScore": 0.6
-        }
-      }
-    },
-    {
-      "trade_id": "TRD-1788119149561",
-      "asset": "USDJPY",
-      "action": "SELL",
-      "entry_price": 145.3155,
-      "exit_price": 146.5431,
-      "pnl_usd": -84.48,
-      "pnl_pct": -0.84,
-      "exit_reason": "Stop-Loss Triggered (-0.84%)",
-      "timestamp": "2026-08-31 01:19:06",
-      "forensics": {
-        "trade_id": "TRD-1788119149561",
-        "timestamp": "2026-08-31 01:19:06",
-        "asset": "USDJPY",
-        "entry_price": 145.3155,
-        "exit_price": 146.5431,
-        "pnl_usd": -84.48,
-        "pnl_pct": -0.84,
-        "result": "LOSS",
-        "exit_reason": "Stop-Loss Triggered (-0.84%)",
-        "root_cause_attribution": "Loss (-0.84%) triggered by tight Stop-Loss during high market volatility (2.33%).",
-        "self_learning_update": "RL Agent penalized (-12.67 points). Increased penalty threshold for entering trades during high volatility (2.33%).",
-        "entry_indicators": {
-          "RSI": 76.4,
-          "Volatility": 0.0233,
-          "SentimentScore": 0.6
-        }
-      }
-    },
-    {
-      "trade_id": "TRD-1788119274346",
-      "asset": "TSLA",
-      "action": "SELL",
-      "entry_price": 209.855,
-      "exit_price": 211.5915,
-      "pnl_usd": -16.55,
-      "pnl_pct": -0.83,
-      "exit_reason": "Stop-Loss Triggered (-0.83%)",
-      "timestamp": "2026-08-31 01:19:37",
-      "forensics": {
-        "trade_id": "TRD-1788119274346",
-        "timestamp": "2026-08-31 01:19:37",
-        "asset": "TSLA",
-        "entry_price": 209.855,
-        "exit_price": 211.5915,
-        "pnl_usd": -16.55,
-        "pnl_pct": -0.83,
-        "result": "LOSS",
-        "exit_reason": "Stop-Loss Triggered (-0.83%)",
-        "root_cause_attribution": "Loss (-0.83%) triggered by tight Stop-Loss during high market volatility (2.27%).",
-        "self_learning_update": "RL Agent penalized (-12.41 points). Increased penalty threshold for entering trades during high volatility (2.27%).",
-        "entry_indicators": {
-          "RSI": 79.6,
-          "Volatility": 0.0227,
-          "SentimentScore": 0.6
-        }
-      }
-    },
-    {
-      "trade_id": "TRD-1788119224024",
-      "asset": "XAUUSD",
-      "action": "SELL",
-      "entry_price": 2509.799,
-      "exit_price": 2529.9718,
-      "pnl_usd": -100.47,
-      "pnl_pct": -0.8,
-      "exit_reason": "Stop-Loss Triggered (-0.80%)",
-      "timestamp": "2026-08-31 01:19:45",
-      "forensics": {
-        "trade_id": "TRD-1788119224024",
-        "timestamp": "2026-08-31 01:19:45",
-        "asset": "XAUUSD",
-        "entry_price": 2509.799,
-        "exit_price": 2529.9718,
-        "pnl_usd": -100.47,
-        "pnl_pct": -0.8,
-        "result": "LOSS",
-        "exit_reason": "Stop-Loss Triggered (-0.80%)",
-        "root_cause_attribution": "Loss (-0.80%) triggered by tight Stop-Loss during high market volatility (2.50%).",
-        "self_learning_update": "RL Agent penalized (-12.06 points). Increased penalty threshold for entering trades during high volatility (2.50%).",
-        "entry_indicators": {
-          "RSI": 78.9,
-          "Volatility": 0.025,
-          "SentimentScore": 0.6
-        }
-      }
-    },
-    {
-      "trade_id": "TRD-1788119173799",
-      "asset": "BANKNIFTY",
-      "action": "SELL",
-      "entry_price": 51217.9082,
-      "exit_price": 51651.5648,
-      "pnl_usd": -33.87,
-      "pnl_pct": -0.85,
-      "exit_reason": "Stop-Loss Triggered (-0.85%)",
-      "timestamp": "2026-08-31 01:19:49",
-      "forensics": {
-        "trade_id": "TRD-1788119173799",
-        "timestamp": "2026-08-31 01:19:49",
-        "asset": "BANKNIFTY",
-        "entry_price": 51217.9082,
-        "exit_price": 51651.5648,
-        "pnl_usd": -33.87,
-        "pnl_pct": -0.85,
-        "result": "LOSS",
-        "exit_reason": "Stop-Loss Triggered (-0.85%)",
-        "root_cause_attribution": "Loss (-0.85%) triggered by tight Stop-Loss during high market volatility (2.13%).",
-        "self_learning_update": "RL Agent penalized (-12.70 points). Increased penalty threshold for entering trades during high volatility (2.13%).",
-        "entry_indicators": {
-          "RSI": 58.2,
-          "Volatility": 0.0213,
-          "SentimentScore": 0.6
-        }
-      }
-    },
-    {
-      "trade_id": "TRD-1788119236130",
-      "asset": "RELIANCE",
-      "action": "BUY",
-      "entry_price": 3010.8046,
-      "exit_price": 3047.1282,
-      "pnl_usd": 120.64,
-      "pnl_pct": 1.21,
-      "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
-      "timestamp": "2026-08-31 01:21:03",
-      "forensics": {
-        "trade_id": "TRD-1788119236130",
-        "timestamp": "2026-08-31 01:21:03",
-        "asset": "RELIANCE",
-        "entry_price": 3010.8046,
-        "exit_price": 3047.1282,
-        "pnl_usd": 120.64,
-        "pnl_pct": 1.21,
-        "result": "PROFIT",
-        "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
-        "root_cause_attribution": "High Profit (+1.21%) driven by strong bullish sentiment alignment (0.60) and price momentum.",
-        "self_learning_update": "RL Agent rewarded (+12.06 points). Reinforced BUY confidence when RSI=20.0 and Sentiment=0.60.",
-        "entry_indicators": {
-          "RSI": 20.0,
-          "Volatility": 0.0217,
-          "SentimentScore": 0.6
-        }
-      }
-    },
-    {
-      "trade_id": "TRD-1788119282466",
-      "asset": "NIFTY50",
-      "action": "BUY",
-      "entry_price": 24890.2789,
-      "exit_price": 25193.8686,
-      "pnl_usd": 152.46,
-      "pnl_pct": 1.22,
-      "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
-      "timestamp": "2026-08-31 01:21:23",
-      "forensics": {
-        "trade_id": "TRD-1788119282466",
-        "timestamp": "2026-08-31 01:21:23",
-        "asset": "NIFTY50",
-        "entry_price": 24890.2789,
-        "exit_price": 25193.8686,
-        "pnl_usd": 152.46,
-        "pnl_pct": 1.22,
-        "result": "PROFIT",
-        "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
-        "root_cause_attribution": "High Profit (+1.22%) driven by strong bullish sentiment alignment (0.60) and price momentum.",
-        "self_learning_update": "RL Agent rewarded (+12.20 points). Reinforced BUY confidence when RSI=31.4 and Sentiment=0.60.",
-        "entry_indicators": {
-          "RSI": 31.4,
-          "Volatility": 0.0248,
-          "SentimentScore": 0.6
-        }
-      }
-    },
-    {
-      "trade_id": "TRD-1788119336785",
-      "asset": "GBPUSD",
-      "action": "SELL",
-      "entry_price": 1.3028,
-      "exit_price": 1.3133,
-      "pnl_usd": -161.09,
-      "pnl_pct": -0.81,
-      "exit_reason": "Stop-Loss Triggered (-0.81%)",
-      "timestamp": "2026-08-31 01:21:29",
-      "forensics": {
-        "trade_id": "TRD-1788119336785",
-        "timestamp": "2026-08-31 01:21:29",
-        "asset": "GBPUSD",
-        "entry_price": 1.3028,
-        "exit_price": 1.3133,
-        "pnl_usd": -161.09,
-        "pnl_pct": -0.81,
-        "result": "LOSS",
-        "exit_reason": "Stop-Loss Triggered (-0.81%)",
-        "root_cause_attribution": "Loss (-0.81%) triggered by tight Stop-Loss during high market volatility (2.23%).",
-        "self_learning_update": "RL Agent penalized (-12.08 points). Increased penalty threshold for entering trades during high volatility (2.23%).",
-        "entry_indicators": {
-          "RSI": 66.1,
-          "Volatility": 0.0223,
-          "SentimentScore": 0.6
-        }
-      }
-    },
-    {
-      "trade_id": "TRD-1788119260286",
-      "asset": "ETHUSD",
-      "action": "SELL",
-      "entry_price": 3446.6953,
-      "exit_price": 3475.0872,
-      "pnl_usd": -41.19,
-      "pnl_pct": -0.82,
-      "exit_reason": "Stop-Loss Triggered (-0.82%)",
-      "timestamp": "2026-08-31 01:21:31",
-      "forensics": {
-        "trade_id": "TRD-1788119260286",
-        "timestamp": "2026-08-31 01:21:31",
-        "asset": "ETHUSD",
-        "entry_price": 3446.6953,
-        "exit_price": 3475.0872,
-        "pnl_usd": -41.19,
-        "pnl_pct": -0.82,
-        "result": "LOSS",
-        "exit_reason": "Stop-Loss Triggered (-0.82%)",
-        "root_cause_attribution": "Loss (-0.82%) triggered by tight Stop-Loss during high market volatility (1.45%).",
-        "self_learning_update": "RL Agent penalized (-12.36 points). Increased penalty threshold for entering trades during high volatility (1.45%).",
-        "entry_indicators": {
-          "RSI": 74.0,
-          "Volatility": 0.0145,
-          "SentimentScore": 0.6
-        }
-      }
-    },
-    {
-      "trade_id": "TRD-1788119389151",
-      "asset": "BANKNIFTY",
-      "action": "SELL",
-      "entry_price": 51165.4745,
-      "exit_price": 51583.1806,
-      "pnl_usd": -204.1,
-      "pnl_pct": -0.82,
-      "exit_reason": "Stop-Loss Triggered (-0.82%)",
-      "timestamp": "2026-08-31 01:21:45",
-      "forensics": {
-        "trade_id": "TRD-1788119389151",
-        "timestamp": "2026-08-31 01:21:45",
-        "asset": "BANKNIFTY",
-        "entry_price": 51165.4745,
-        "exit_price": 51583.1806,
-        "pnl_usd": -204.1,
-        "pnl_pct": -0.82,
-        "result": "LOSS",
-        "exit_reason": "Stop-Loss Triggered (-0.82%)",
-        "root_cause_attribution": "Loss (-0.82%) triggered by tight Stop-Loss during high market volatility (1.61%).",
-        "self_learning_update": "RL Agent penalized (-12.25 points). Increased penalty threshold for entering trades during high volatility (1.61%).",
-        "entry_indicators": {
-          "RSI": 79.8,
-          "Volatility": 0.0161,
-          "SentimentScore": 0.6
-        }
-      }
-    },
-    {
-      "trade_id": "TRD-1788119280441",
-      "asset": "NVDA",
-      "action": "SELL",
-      "entry_price": 128.4557,
-      "exit_price": 129.5356,
-      "pnl_usd": -210.15,
-      "pnl_pct": -0.84,
-      "exit_reason": "Stop-Loss Triggered (-0.84%)",
-      "timestamp": "2026-08-31 01:21:57",
-      "forensics": {
-        "trade_id": "TRD-1788119280441",
-        "timestamp": "2026-08-31 01:21:57",
-        "asset": "NVDA",
-        "entry_price": 128.4557,
-        "exit_price": 129.5356,
-        "pnl_usd": -210.15,
-        "pnl_pct": -0.84,
-        "result": "LOSS",
-        "exit_reason": "Stop-Loss Triggered (-0.84%)",
-        "root_cause_attribution": "Loss (-0.84%) triggered by tight Stop-Loss during high market volatility (2.45%).",
-        "self_learning_update": "RL Agent penalized (-12.61 points). Increased penalty threshold for entering trades during high volatility (2.45%).",
-        "entry_indicators": {
-          "RSI": 78.1,
-          "Volatility": 0.0245,
-          "SentimentScore": 0.6
-        }
-      }
-    },
-    {
-      "trade_id": "TRD-1788119342873",
-      "asset": "BTCUSD",
-      "action": "BUY",
-      "entry_price": 64198.7092,
-      "exit_price": 64985.9667,
-      "pnl_usd": 61.31,
-      "pnl_pct": 1.23,
-      "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
-      "timestamp": "2026-08-31 01:22:17",
-      "forensics": {
-        "trade_id": "TRD-1788119342873",
-        "timestamp": "2026-08-31 01:22:17",
-        "asset": "BTCUSD",
-        "entry_price": 64198.7092,
-        "exit_price": 64985.9667,
-        "pnl_usd": 61.31,
-        "pnl_pct": 1.23,
-        "result": "PROFIT",
-        "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
-        "root_cause_attribution": "High Profit (+1.23%) driven by strong bullish sentiment alignment (0.60) and price momentum.",
-        "self_learning_update": "RL Agent rewarded (+12.26 points). Reinforced BUY confidence when RSI=43.0 and Sentiment=0.60.",
-        "entry_indicators": {
-          "RSI": 43.0,
-          "Volatility": 0.0243,
-          "SentimentScore": 0.6
-        }
-      }
-    },
     {
       "trade_id": "TRD-1788119377044",
       "asset": "TSLA",
@@ -1317,7 +447,964 @@
       }
     },
     {
-      "trade_id": "TRD-1788119689293",
+      "trade_id": "TRD-1788119483560",
+      "asset": "NIFTY50",
+      "action": "SELL",
+      "entry_price": 24835.2262,
+      "exit_price": 25042.4108,
+      "pnl_usd": -41.71,
+      "pnl_pct": -0.83,
+      "exit_reason": "Stop-Loss Triggered (-0.83%)",
+      "timestamp": "2026-08-31 01:24:50",
+      "forensics": {
+        "trade_id": "TRD-1788119483560",
+        "timestamp": "2026-08-31 01:24:50",
+        "asset": "NIFTY50",
+        "entry_price": 24835.2262,
+        "exit_price": 25042.4108,
+        "pnl_usd": -41.71,
+        "pnl_pct": -0.83,
+        "result": "LOSS",
+        "exit_reason": "Stop-Loss Triggered (-0.83%)",
+        "root_cause_attribution": "Loss (-0.83%) triggered by tight Stop-Loss during high market volatility (2.38%).",
+        "self_learning_update": "RL Agent penalized (-12.51 points). Increased penalty threshold for entering trades during high volatility (2.38%).",
+        "entry_indicators": {
+          "RSI": 79.9,
+          "Volatility": 0.0238,
+          "SentimentScore": 0.6
+        }
+      }
+    },
+    {
+      "trade_id": "TRD-1788119463427",
+      "asset": "RELIANCE",
+      "action": "BUY",
+      "entry_price": 3013.0358,
+      "exit_price": 3049.6243,
+      "pnl_usd": 303.59,
+      "pnl_pct": 1.21,
+      "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
+      "timestamp": "2026-08-31 01:25:10",
+      "forensics": {
+        "trade_id": "TRD-1788119463427",
+        "timestamp": "2026-08-31 01:25:10",
+        "asset": "RELIANCE",
+        "entry_price": 3013.0358,
+        "exit_price": 3049.6243,
+        "pnl_usd": 303.59,
+        "pnl_pct": 1.21,
+        "result": "PROFIT",
+        "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
+        "root_cause_attribution": "High Profit (+1.21%) driven by strong bullish sentiment alignment (0.60) and price momentum.",
+        "self_learning_update": "RL Agent rewarded (+12.14 points). Reinforced BUY confidence when RSI=39.2 and Sentiment=0.60.",
+        "entry_indicators": {
+          "RSI": 39.2,
+          "Volatility": 0.0225,
+          "SentimentScore": 0.6
+        }
+      }
+    },
+    {
+      "trade_id": "TRD-1788119284555",
+      "asset": "TCS",
+      "action": "BUY",
+      "entry_price": 4223.3806,
+      "exit_price": 4274.1864,
+      "pnl_usd": 300.74,
+      "pnl_pct": 1.2,
+      "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
+      "timestamp": "2026-08-31 01:25:18",
+      "forensics": {
+        "trade_id": "TRD-1788119284555",
+        "timestamp": "2026-08-31 01:25:18",
+        "asset": "TCS",
+        "entry_price": 4223.3806,
+        "exit_price": 4274.1864,
+        "pnl_usd": 300.74,
+        "pnl_pct": 1.2,
+        "result": "PROFIT",
+        "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
+        "root_cause_attribution": "High Profit (+1.20%) driven by strong bullish sentiment alignment (0.60) and price momentum.",
+        "self_learning_update": "RL Agent rewarded (+12.03 points). Reinforced BUY confidence when RSI=33.3 and Sentiment=0.60.",
+        "entry_indicators": {
+          "RSI": 33.3,
+          "Volatility": 0.025,
+          "SentimentScore": 0.6
+        }
+      }
+    },
+    {
+      "trade_id": "TRD-1788119537899",
+      "asset": "TSLA",
+      "action": "BUY",
+      "entry_price": 210.005,
+      "exit_price": 212.5665,
+      "pnl_usd": 243.95,
+      "pnl_pct": 1.22,
+      "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
+      "timestamp": "2026-08-31 01:25:35",
+      "forensics": {
+        "trade_id": "TRD-1788119537899",
+        "timestamp": "2026-08-31 01:25:35",
+        "asset": "TSLA",
+        "entry_price": 210.005,
+        "exit_price": 212.5665,
+        "pnl_usd": 243.95,
+        "pnl_pct": 1.22,
+        "result": "PROFIT",
+        "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
+        "root_cause_attribution": "High Profit (+1.22%) driven by strong bullish sentiment alignment (0.60) and price momentum.",
+        "self_learning_update": "RL Agent rewarded (+12.20 points). Reinforced BUY confidence when RSI=30.1 and Sentiment=0.60.",
+        "entry_indicators": {
+          "RSI": 30.1,
+          "Volatility": 0.025,
+          "SentimentScore": 0.6
+        }
+      }
+    },
+    {
+      "trade_id": "TRD-1788119564044",
+      "asset": "EURUSD",
+      "action": "SELL",
+      "entry_price": 1.0838,
+      "exit_price": 1.0925,
+      "pnl_usd": -200.78,
+      "pnl_pct": -0.8,
+      "exit_reason": "Stop-Loss Triggered (-0.80%)",
+      "timestamp": "2026-08-31 01:25:35",
+      "forensics": {
+        "trade_id": "TRD-1788119564044",
+        "timestamp": "2026-08-31 01:25:35",
+        "asset": "EURUSD",
+        "entry_price": 1.0838,
+        "exit_price": 1.0925,
+        "pnl_usd": -200.78,
+        "pnl_pct": -0.8,
+        "result": "LOSS",
+        "exit_reason": "Stop-Loss Triggered (-0.80%)",
+        "root_cause_attribution": "Loss (-0.80%) triggered by tight Stop-Loss during high market volatility (1.45%).",
+        "self_learning_update": "RL Agent penalized (-12.05 points). Increased penalty threshold for entering trades during high volatility (1.45%).",
+        "entry_indicators": {
+          "RSI": 71.2,
+          "Volatility": 0.0145,
+          "SentimentScore": 0.6
+        }
+      }
+    },
+    {
+      "trade_id": "TRD-1788119517734",
+      "asset": "NVDA",
+      "action": "BUY",
+      "entry_price": 128.5242,
+      "exit_price": 130.1364,
+      "pnl_usd": 25.09,
+      "pnl_pct": 1.25,
+      "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
+      "timestamp": "2026-08-31 01:25:47",
+      "forensics": {
+        "trade_id": "TRD-1788119517734",
+        "timestamp": "2026-08-31 01:25:47",
+        "asset": "NVDA",
+        "entry_price": 128.5242,
+        "exit_price": 130.1364,
+        "pnl_usd": 25.09,
+        "pnl_pct": 1.25,
+        "result": "PROFIT",
+        "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
+        "root_cause_attribution": "High Profit (+1.25%) driven by strong bullish sentiment alignment (0.60) and price momentum.",
+        "self_learning_update": "RL Agent rewarded (+12.54 points). Reinforced BUY confidence when RSI=22.8 and Sentiment=0.60.",
+        "entry_indicators": {
+          "RSI": 22.8,
+          "Volatility": 0.0177,
+          "SentimentScore": 0.6
+        }
+      }
+    },
+    {
+      "trade_id": "TRD-1788119680670",
+      "asset": "SOLUSD",
+      "action": "SELL",
+      "entry_price": 154.8645,
+      "exit_price": 156.1419,
+      "pnl_usd": -164.97,
+      "pnl_pct": -0.82,
+      "exit_reason": "Stop-Loss Triggered (-0.82%)",
+      "timestamp": "2026-08-31 01:26:25",
+      "forensics": {
+        "trade_id": "TRD-1788119680670",
+        "timestamp": "2026-08-31 01:26:25",
+        "asset": "SOLUSD",
+        "entry_price": 154.8645,
+        "exit_price": 156.1419,
+        "pnl_usd": -164.97,
+        "pnl_pct": -0.82,
+        "result": "LOSS",
+        "exit_reason": "Stop-Loss Triggered (-0.82%)",
+        "root_cause_attribution": "Loss (-0.82%) triggered by tight Stop-Loss during high market volatility (2.06%).",
+        "self_learning_update": "RL Agent penalized (-12.37 points). Increased penalty threshold for entering trades during high volatility (2.06%).",
+        "entry_indicators": {
+          "RSI": 50.2,
+          "Volatility": 0.0206,
+          "SentimentScore": 0.6
+        }
+      }
+    },
+    {
+      "trade_id": "TRD-1788119491628",
+      "asset": "ETHUSD",
+      "action": "BUY",
+      "entry_price": 3449.2749,
+      "exit_price": 3491.3054,
+      "pnl_usd": 121.85,
+      "pnl_pct": 1.22,
+      "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
+      "timestamp": "2026-08-31 01:26:41",
+      "forensics": {
+        "trade_id": "TRD-1788119491628",
+        "timestamp": "2026-08-31 01:26:41",
+        "asset": "ETHUSD",
+        "entry_price": 3449.2749,
+        "exit_price": 3491.3054,
+        "pnl_usd": 121.85,
+        "pnl_pct": 1.22,
+        "result": "PROFIT",
+        "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
+        "root_cause_attribution": "High Profit (+1.22%) driven by strong bullish sentiment alignment (0.60) and price momentum.",
+        "self_learning_update": "RL Agent rewarded (+12.19 points). Reinforced BUY confidence when RSI=23.4 and Sentiment=0.60.",
+        "entry_indicators": {
+          "RSI": 23.4,
+          "Volatility": 0.0204,
+          "SentimentScore": 0.6
+        }
+      }
+    },
+    {
+      "trade_id": "TRD-1788119592193",
+      "asset": "USDJPY",
+      "action": "SELL",
+      "entry_price": 145.5254,
+      "exit_price": 146.7332,
+      "pnl_usd": -103.74,
+      "pnl_pct": -0.83,
+      "exit_reason": "Stop-Loss Triggered (-0.83%)",
+      "timestamp": "2026-08-31 01:26:41",
+      "forensics": {
+        "trade_id": "TRD-1788119592193",
+        "timestamp": "2026-08-31 01:26:41",
+        "asset": "USDJPY",
+        "entry_price": 145.5254,
+        "exit_price": 146.7332,
+        "pnl_usd": -103.74,
+        "pnl_pct": -0.83,
+        "result": "LOSS",
+        "exit_reason": "Stop-Loss Triggered (-0.83%)",
+        "root_cause_attribution": "Loss (-0.83%) triggered by tight Stop-Loss during high market volatility (2.33%).",
+        "self_learning_update": "RL Agent penalized (-12.45 points). Increased penalty threshold for entering trades during high volatility (2.33%).",
+        "entry_indicators": {
+          "RSI": 75.9,
+          "Volatility": 0.0233,
+          "SentimentScore": 0.6
+        }
+      }
+    },
+    {
+      "trade_id": "TRD-1788119537906",
+      "asset": "XAUUSD",
+      "action": "SELL",
+      "entry_price": 2510.139,
+      "exit_price": 2530.6097,
+      "pnl_usd": -40.78,
+      "pnl_pct": -0.82,
+      "exit_reason": "Stop-Loss Triggered (-0.82%)",
+      "timestamp": "2026-08-31 01:27:05",
+      "forensics": {
+        "trade_id": "TRD-1788119537906",
+        "timestamp": "2026-08-31 01:27:05",
+        "asset": "XAUUSD",
+        "entry_price": 2510.139,
+        "exit_price": 2530.6097,
+        "pnl_usd": -40.78,
+        "pnl_pct": -0.82,
+        "result": "LOSS",
+        "exit_reason": "Stop-Loss Triggered (-0.82%)",
+        "root_cause_attribution": "Loss (-0.82%) triggered by tight Stop-Loss during high market volatility (2.50%).",
+        "self_learning_update": "RL Agent penalized (-12.23 points). Increased penalty threshold for entering trades during high volatility (2.50%).",
+        "entry_indicators": {
+          "RSI": 72.9,
+          "Volatility": 0.025,
+          "SentimentScore": 0.6
+        }
+      }
+    },
+    {
+      "trade_id": "TRD-1788119680708",
+      "asset": "BANKNIFTY",
+      "action": "SELL",
+      "entry_price": 51219.3375,
+      "exit_price": 51646.3434,
+      "pnl_usd": -166.74,
+      "pnl_pct": -0.83,
+      "exit_reason": "Stop-Loss Triggered (-0.83%)",
+      "timestamp": "2026-08-31 01:27:47",
+      "forensics": {
+        "trade_id": "TRD-1788119680708",
+        "timestamp": "2026-08-31 01:27:47",
+        "asset": "BANKNIFTY",
+        "entry_price": 51219.3375,
+        "exit_price": 51646.3434,
+        "pnl_usd": -166.74,
+        "pnl_pct": -0.83,
+        "result": "LOSS",
+        "exit_reason": "Stop-Loss Triggered (-0.83%)",
+        "root_cause_attribution": "Loss (-0.83%) triggered by tight Stop-Loss during high market volatility (2.06%).",
+        "self_learning_update": "RL Agent penalized (-12.51 points). Increased penalty threshold for entering trades during high volatility (2.06%).",
+        "entry_indicators": {
+          "RSI": 50.2,
+          "Volatility": 0.0206,
+          "SentimentScore": 0.6
+        }
+      }
+    },
+    {
+      "trade_id": "TRD-1788119690778",
+      "asset": "NIFTY50",
+      "action": "BUY",
+      "entry_price": 24834.491,
+      "exit_price": 25141.9021,
+      "pnl_usd": 49.51,
+      "pnl_pct": 1.24,
+      "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
+      "timestamp": "2026-08-31 01:28:07",
+      "forensics": {
+        "trade_id": "TRD-1788119690778",
+        "timestamp": "2026-08-31 01:28:07",
+        "asset": "NIFTY50",
+        "entry_price": 24834.491,
+        "exit_price": 25141.9021,
+        "pnl_usd": 49.51,
+        "pnl_pct": 1.24,
+        "result": "PROFIT",
+        "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
+        "root_cause_attribution": "High Profit (+1.24%) driven by strong bullish sentiment alignment (0.60) and price momentum.",
+        "self_learning_update": "RL Agent rewarded (+12.38 points). Reinforced BUY confidence when RSI=22.6 and Sentiment=0.60.",
+        "entry_indicators": {
+          "RSI": 22.6,
+          "Volatility": 0.0142,
+          "SentimentScore": 0.6
+        }
+      }
+    },
+    {
+      "trade_id": "TRD-1788119735105",
+      "asset": "EURUSD",
+      "action": "BUY",
+      "entry_price": 1.0851,
+      "exit_price": 1.0987,
+      "pnl_usd": 249.84,
+      "pnl_pct": 1.25,
+      "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
+      "timestamp": "2026-08-31 01:28:21",
+      "forensics": {
+        "trade_id": "TRD-1788119735105",
+        "timestamp": "2026-08-31 01:28:21",
+        "asset": "EURUSD",
+        "entry_price": 1.0851,
+        "exit_price": 1.0987,
+        "pnl_usd": 249.84,
+        "pnl_pct": 1.25,
+        "result": "PROFIT",
+        "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
+        "root_cause_attribution": "High Profit (+1.25%) driven by strong bullish sentiment alignment (0.60) and price momentum.",
+        "self_learning_update": "RL Agent rewarded (+12.49 points). Reinforced BUY confidence when RSI=43.3 and Sentiment=0.60.",
+        "entry_indicators": {
+          "RSI": 43.3,
+          "Volatility": 0.0241,
+          "SentimentScore": 0.6
+        }
+      }
+    },
+    {
+      "trade_id": "TRD-1788119652442",
+      "asset": "BTCUSD",
+      "action": "BUY",
+      "entry_price": 64197.0391,
+      "exit_price": 65005.4693,
+      "pnl_usd": 25.19,
+      "pnl_pct": 1.26,
+      "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
+      "timestamp": "2026-08-31 01:29:10",
+      "forensics": {
+        "trade_id": "TRD-1788119652442",
+        "timestamp": "2026-08-31 01:29:10",
+        "asset": "BTCUSD",
+        "entry_price": 64197.0391,
+        "exit_price": 65005.4693,
+        "pnl_usd": 25.19,
+        "pnl_pct": 1.26,
+        "result": "PROFIT",
+        "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
+        "root_cause_attribution": "High Profit (+1.26%) driven by strong bullish sentiment alignment (0.60) and price momentum.",
+        "self_learning_update": "RL Agent rewarded (+12.59 points). Reinforced BUY confidence when RSI=20.2 and Sentiment=0.60.",
+        "entry_indicators": {
+          "RSI": 20.2,
+          "Volatility": 0.0222,
+          "SentimentScore": 0.6
+        }
+      }
+    },
+    {
+      "trade_id": "TRD-1788119618307",
+      "asset": "AAPL",
+      "action": "BUY",
+      "entry_price": 224.2321,
+      "exit_price": 226.9277,
+      "pnl_usd": 300.54,
+      "pnl_pct": 1.2,
+      "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
+      "timestamp": "2026-08-31 01:29:16",
+      "forensics": {
+        "trade_id": "TRD-1788119618307",
+        "timestamp": "2026-08-31 01:29:16",
+        "asset": "AAPL",
+        "entry_price": 224.2321,
+        "exit_price": 226.9277,
+        "pnl_usd": 300.54,
+        "pnl_pct": 1.2,
+        "result": "PROFIT",
+        "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
+        "root_cause_attribution": "High Profit (+1.20%) driven by strong bullish sentiment alignment (0.60) and price momentum.",
+        "self_learning_update": "RL Agent rewarded (+12.02 points). Reinforced BUY confidence when RSI=25.0 and Sentiment=0.60.",
+        "entry_indicators": {
+          "RSI": 25.0,
+          "Volatility": 0.0202,
+          "SentimentScore": 0.6
+        }
+      }
+    },
+    {
+      "trade_id": "TRD-1788119735099",
+      "asset": "TSLA",
+      "action": "BUY",
+      "entry_price": 210.3151,
+      "exit_price": 212.9282,
+      "pnl_usd": 155.31,
+      "pnl_pct": 1.24,
+      "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
+      "timestamp": "2026-08-31 01:29:16",
+      "forensics": {
+        "trade_id": "TRD-1788119735099",
+        "timestamp": "2026-08-31 01:29:16",
+        "asset": "TSLA",
+        "entry_price": 210.3151,
+        "exit_price": 212.9282,
+        "pnl_usd": 155.31,
+        "pnl_pct": 1.24,
+        "result": "PROFIT",
+        "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
+        "root_cause_attribution": "High Profit (+1.24%) driven by strong bullish sentiment alignment (0.60) and price momentum.",
+        "self_learning_update": "RL Agent rewarded (+12.42 points). Reinforced BUY confidence when RSI=26.2 and Sentiment=0.60.",
+        "entry_indicators": {
+          "RSI": 26.2,
+          "Volatility": 0.0241,
+          "SentimentScore": 0.6
+        }
+      }
+    },
+    {
+      "trade_id": "TRD-1788119718969",
+      "asset": "TCS",
+      "action": "SELL",
+      "entry_price": 4212.8325,
+      "exit_price": 4247.1838,
+      "pnl_usd": -81.54,
+      "pnl_pct": -0.82,
+      "exit_reason": "Stop-Loss Triggered (-0.82%)",
+      "timestamp": "2026-08-31 01:29:30",
+      "forensics": {
+        "trade_id": "TRD-1788119718969",
+        "timestamp": "2026-08-31 01:29:30",
+        "asset": "TCS",
+        "entry_price": 4212.8325,
+        "exit_price": 4247.1838,
+        "pnl_usd": -81.54,
+        "pnl_pct": -0.82,
+        "result": "LOSS",
+        "exit_reason": "Stop-Loss Triggered (-0.82%)",
+        "root_cause_attribution": "Loss (-0.82%) triggered by tight Stop-Loss during high market volatility (2.35%).",
+        "self_learning_update": "RL Agent penalized (-12.23 points). Increased penalty threshold for entering trades during high volatility (2.35%).",
+        "entry_indicators": {
+          "RSI": 74.8,
+          "Volatility": 0.0235,
+          "SentimentScore": 0.6
+        }
+      }
+    },
+    {
+      "trade_id": "TRD-1788119801464",
+      "asset": "ETHUSD",
+      "action": "SELL",
+      "entry_price": 3445.5354,
+      "exit_price": 3473.1019,
+      "pnl_usd": -40.0,
+      "pnl_pct": -0.8,
+      "exit_reason": "Stop-Loss Triggered (-0.80%)",
+      "timestamp": "2026-08-31 01:29:40",
+      "forensics": {
+        "trade_id": "TRD-1788119801464",
+        "timestamp": "2026-08-31 01:29:40",
+        "asset": "ETHUSD",
+        "entry_price": 3445.5354,
+        "exit_price": 3473.1019,
+        "pnl_usd": -40.0,
+        "pnl_pct": -0.8,
+        "result": "LOSS",
+        "exit_reason": "Stop-Loss Triggered (-0.80%)",
+        "root_cause_attribution": "Loss (-0.80%) triggered by tight Stop-Loss during high market volatility (2.32%).",
+        "self_learning_update": "RL Agent penalized (-12.00 points). Increased penalty threshold for entering trades during high volatility (2.32%).",
+        "entry_indicators": {
+          "RSI": 54.2,
+          "Volatility": 0.0232,
+          "SentimentScore": 0.6
+        }
+      }
+    },
+    {
+      "trade_id": "TRD-1788119801470",
+      "asset": "USDJPY",
+      "action": "BUY",
+      "entry_price": 145.6846,
+      "exit_price": 147.4372,
+      "pnl_usd": 120.31,
+      "pnl_pct": 1.2,
+      "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
+      "timestamp": "2026-08-31 01:30:02",
+      "forensics": {
+        "trade_id": "TRD-1788119801470",
+        "timestamp": "2026-08-31 01:30:02",
+        "asset": "USDJPY",
+        "entry_price": 145.6846,
+        "exit_price": 147.4372,
+        "pnl_usd": 120.31,
+        "pnl_pct": 1.2,
+        "result": "PROFIT",
+        "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
+        "root_cause_attribution": "High Profit (+1.20%) driven by strong bullish sentiment alignment (0.60) and price momentum.",
+        "self_learning_update": "RL Agent rewarded (+12.03 points). Reinforced BUY confidence when RSI=41.7 and Sentiment=0.60.",
+        "entry_indicators": {
+          "RSI": 41.7,
+          "Volatility": 0.0232,
+          "SentimentScore": 0.6
+        }
+      }
+    },
+    {
+      "trade_id": "TRD-1788119747216",
+      "asset": "NVDA",
+      "action": "SELL",
+      "entry_price": 128.3258,
+      "exit_price": 129.4124,
+      "pnl_usd": -84.67,
+      "pnl_pct": -0.85,
+      "exit_reason": "Stop-Loss Triggered (-0.85%)",
+      "timestamp": "2026-08-31 01:30:04",
+      "forensics": {
+        "trade_id": "TRD-1788119747216",
+        "timestamp": "2026-08-31 01:30:04",
+        "asset": "NVDA",
+        "entry_price": 128.3258,
+        "exit_price": 129.4124,
+        "pnl_usd": -84.67,
+        "pnl_pct": -0.85,
+        "result": "LOSS",
+        "exit_reason": "Stop-Loss Triggered (-0.85%)",
+        "root_cause_attribution": "Loss (-0.85%) triggered by tight Stop-Loss during high market volatility (1.88%).",
+        "self_learning_update": "RL Agent penalized (-12.70 points). Increased penalty threshold for entering trades during high volatility (1.88%).",
+        "entry_indicators": {
+          "RSI": 64.0,
+          "Volatility": 0.0188,
+          "SentimentScore": 0.6
+        }
+      }
+    },
+    {
+      "trade_id": "TRD-1788119670567",
+      "asset": "GBPUSD",
+      "action": "BUY",
+      "entry_price": 1.3006,
+      "exit_price": 1.3163,
+      "pnl_usd": 120.21,
+      "pnl_pct": 1.2,
+      "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
+      "timestamp": "2026-08-31 01:30:22",
+      "forensics": {
+        "trade_id": "TRD-1788119670567",
+        "timestamp": "2026-08-31 01:30:22",
+        "asset": "GBPUSD",
+        "entry_price": 1.3006,
+        "exit_price": 1.3163,
+        "pnl_usd": 120.21,
+        "pnl_pct": 1.2,
+        "result": "PROFIT",
+        "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
+        "root_cause_attribution": "High Profit (+1.20%) driven by strong bullish sentiment alignment (0.60) and price momentum.",
+        "self_learning_update": "RL Agent rewarded (+12.02 points). Reinforced BUY confidence when RSI=24.9 and Sentiment=0.60.",
+        "entry_indicators": {
+          "RSI": 24.9,
+          "Volatility": 0.0244,
+          "SentimentScore": 0.6
+        }
+      }
+    },
+    {
+      "trade_id": "TRD-1788119887852",
+      "asset": "NIFTY50",
+      "action": "SELL",
+      "entry_price": 24822.0927,
+      "exit_price": 25028.8121,
+      "pnl_usd": -83.28,
+      "pnl_pct": -0.83,
+      "exit_reason": "Stop-Loss Triggered (-0.83%)",
+      "timestamp": "2026-08-31 01:30:40",
+      "forensics": {
+        "trade_id": "TRD-1788119887852",
+        "timestamp": "2026-08-31 01:30:40",
+        "asset": "NIFTY50",
+        "entry_price": 24822.0927,
+        "exit_price": 25028.8121,
+        "pnl_usd": -83.28,
+        "pnl_pct": -0.83,
+        "result": "LOSS",
+        "exit_reason": "Stop-Loss Triggered (-0.83%)",
+        "root_cause_attribution": "Loss (-0.83%) triggered by tight Stop-Loss during high market volatility (1.13%).",
+        "self_learning_update": "RL Agent penalized (-12.49 points). Increased penalty threshold for entering trades during high volatility (1.13%).",
+        "entry_indicators": {
+          "RSI": 60.3,
+          "Volatility": 0.0113,
+          "SentimentScore": 0.6
+        }
+      }
+    },
+    {
+      "trade_id": "TRD-1788119901960",
+      "asset": "EURUSD",
+      "action": "BUY",
+      "entry_price": 1.0862,
+      "exit_price": 1.1,
+      "pnl_usd": 25.39,
+      "pnl_pct": 1.27,
+      "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
+      "timestamp": "2026-08-31 01:30:40",
+      "forensics": {
+        "trade_id": "TRD-1788119901960",
+        "timestamp": "2026-08-31 01:30:40",
+        "asset": "EURUSD",
+        "entry_price": 1.0862,
+        "exit_price": 1.1,
+        "pnl_usd": 25.39,
+        "pnl_pct": 1.27,
+        "result": "PROFIT",
+        "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
+        "root_cause_attribution": "High Profit (+1.27%) driven by strong bullish sentiment alignment (0.60) and price momentum.",
+        "self_learning_update": "RL Agent rewarded (+12.69 points). Reinforced BUY confidence when RSI=22.9 and Sentiment=0.60.",
+        "entry_indicators": {
+          "RSI": 22.9,
+          "Volatility": 0.0206,
+          "SentimentScore": 0.6
+        }
+      }
+    },
+    {
+      "trade_id": "TRD-1788119950168",
+      "asset": "BTCUSD",
+      "action": "SELL",
+      "entry_price": 64261.7332,
+      "exit_price": 64777.6331,
+      "pnl_usd": -32.11,
+      "pnl_pct": -0.8,
+      "exit_reason": "Stop-Loss Triggered (-0.80%)",
+      "timestamp": "2026-08-31 01:30:46",
+      "forensics": {
+        "trade_id": "TRD-1788119950168",
+        "timestamp": "2026-08-31 01:30:46",
+        "asset": "BTCUSD",
+        "entry_price": 64261.7332,
+        "exit_price": 64777.6331,
+        "pnl_usd": -32.11,
+        "pnl_pct": -0.8,
+        "result": "LOSS",
+        "exit_reason": "Stop-Loss Triggered (-0.80%)",
+        "root_cause_attribution": "Loss (-0.80%) triggered by tight Stop-Loss during high market volatility (1.07%).",
+        "self_learning_update": "RL Agent penalized (-12.04 points). Increased penalty threshold for entering trades during high volatility (1.07%).",
+        "entry_indicators": {
+          "RSI": 77.8,
+          "Volatility": 0.0107,
+          "SentimentScore": 0.6
+        }
+      }
+    },
+    {
+      "trade_id": "TRD-1788119980391",
+      "asset": "ETHUSD",
+      "action": "SELL",
+      "entry_price": 3450.2849,
+      "exit_price": 3478.8741,
+      "pnl_usd": -165.72,
+      "pnl_pct": -0.83,
+      "exit_reason": "Stop-Loss Triggered (-0.83%)",
+      "timestamp": "2026-08-31 01:31:28",
+      "forensics": {
+        "trade_id": "TRD-1788119980391",
+        "timestamp": "2026-08-31 01:31:28",
+        "asset": "ETHUSD",
+        "entry_price": 3450.2849,
+        "exit_price": 3478.8741,
+        "pnl_usd": -165.72,
+        "pnl_pct": -0.83,
+        "result": "LOSS",
+        "exit_reason": "Stop-Loss Triggered (-0.83%)",
+        "root_cause_attribution": "Loss (-0.83%) triggered by tight Stop-Loss during high market volatility (2.50%).",
+        "self_learning_update": "RL Agent penalized (-12.43 points). Increased penalty threshold for entering trades during high volatility (2.50%).",
+        "entry_indicators": {
+          "RSI": 73.5,
+          "Volatility": 0.025,
+          "SentimentScore": 0.6
+        }
+      }
+    },
+    {
+      "trade_id": "TRD-1788119825569",
+      "asset": "XAUUSD",
+      "action": "SELL",
+      "entry_price": 2512.5587,
+      "exit_price": 2532.8795,
+      "pnl_usd": -32.35,
+      "pnl_pct": -0.81,
+      "exit_reason": "Stop-Loss Triggered (-0.81%)",
+      "timestamp": "2026-08-31 01:31:35",
+      "forensics": {
+        "trade_id": "TRD-1788119825569",
+        "timestamp": "2026-08-31 01:31:34",
+        "asset": "XAUUSD",
+        "entry_price": 2512.5587,
+        "exit_price": 2532.8795,
+        "pnl_usd": -32.35,
+        "pnl_pct": -0.81,
+        "result": "LOSS",
+        "exit_reason": "Stop-Loss Triggered (-0.81%)",
+        "root_cause_attribution": "Loss (-0.81%) triggered by tight Stop-Loss during high market volatility (1.19%).",
+        "self_learning_update": "RL Agent penalized (-12.13 points). Increased penalty threshold for entering trades during high volatility (1.19%).",
+        "entry_indicators": {
+          "RSI": 80.0,
+          "Volatility": 0.0119,
+          "SentimentScore": 0.6
+        }
+      }
+    },
+    {
+      "trade_id": "TRD-1788119867716",
+      "asset": "BANKNIFTY",
+      "action": "SELL",
+      "entry_price": 51129.8323,
+      "exit_price": 51556.3034,
+      "pnl_usd": -83.41,
+      "pnl_pct": -0.83,
+      "exit_reason": "Stop-Loss Triggered (-0.83%)",
+      "timestamp": "2026-08-31 01:31:51",
+      "forensics": {
+        "trade_id": "TRD-1788119867716",
+        "timestamp": "2026-08-31 01:31:51",
+        "asset": "BANKNIFTY",
+        "entry_price": 51129.8323,
+        "exit_price": 51556.3034,
+        "pnl_usd": -83.41,
+        "pnl_pct": -0.83,
+        "result": "LOSS",
+        "exit_reason": "Stop-Loss Triggered (-0.83%)",
+        "root_cause_attribution": "Loss (-0.83%) triggered by tight Stop-Loss during high market volatility (2.19%).",
+        "self_learning_update": "RL Agent penalized (-12.51 points). Increased penalty threshold for entering trades during high volatility (2.19%).",
+        "entry_indicators": {
+          "RSI": 64.6,
+          "Volatility": 0.0219,
+          "SentimentScore": 0.6
+        }
+      }
+    },
+    {
+      "trade_id": "TRD-1788120004554",
+      "asset": "NVDA",
+      "action": "SELL",
+      "entry_price": 128.3358,
+      "exit_price": 129.3774,
+      "pnl_usd": -40.58,
+      "pnl_pct": -0.81,
+      "exit_reason": "Stop-Loss Triggered (-0.81%)",
+      "timestamp": "2026-08-31 01:31:55",
+      "forensics": {
+        "trade_id": "TRD-1788120004554",
+        "timestamp": "2026-08-31 01:31:55",
+        "asset": "NVDA",
+        "entry_price": 128.3358,
+        "exit_price": 129.3774,
+        "pnl_usd": -40.58,
+        "pnl_pct": -0.81,
+        "result": "LOSS",
+        "exit_reason": "Stop-Loss Triggered (-0.81%)",
+        "root_cause_attribution": "Loss (-0.81%) triggered by tight Stop-Loss during high market volatility (1.58%).",
+        "self_learning_update": "RL Agent penalized (-12.17 points). Increased penalty threshold for entering trades during high volatility (1.58%).",
+        "entry_indicators": {
+          "RSI": 79.7,
+          "Volatility": 0.0158,
+          "SentimentScore": 0.6
+        }
+      }
+    },
+    {
+      "trade_id": "TRD-1788119970342",
+      "asset": "TCS",
+      "action": "SELL",
+      "entry_price": 4212.8325,
+      "exit_price": 4249.7014,
+      "pnl_usd": -109.39,
+      "pnl_pct": -0.88,
+      "exit_reason": "Stop-Loss Triggered (-0.88%)",
+      "timestamp": "2026-08-31 01:32:31",
+      "forensics": {
+        "trade_id": "TRD-1788119970342",
+        "timestamp": "2026-08-31 01:32:31",
+        "asset": "TCS",
+        "entry_price": 4212.8325,
+        "exit_price": 4249.7014,
+        "pnl_usd": -109.39,
+        "pnl_pct": -0.88,
+        "result": "LOSS",
+        "exit_reason": "Stop-Loss Triggered (-0.88%)",
+        "root_cause_attribution": "Loss (-0.88%) triggered by tight Stop-Loss during high market volatility (2.30%).",
+        "self_learning_update": "RL Agent penalized (-13.13 points). Increased penalty threshold for entering trades during high volatility (2.30%).",
+        "entry_indicators": {
+          "RSI": 78.4,
+          "Volatility": 0.023,
+          "SentimentScore": 0.6
+        }
+      }
+    },
+    {
+      "trade_id": "TRD-1788120002531",
+      "asset": "USDJPY",
+      "action": "SELL",
+      "entry_price": 145.5754,
+      "exit_price": 146.758,
+      "pnl_usd": -16.25,
+      "pnl_pct": -0.81,
+      "exit_reason": "Stop-Loss Triggered (-0.81%)",
+      "timestamp": "2026-08-31 01:32:35",
+      "forensics": {
+        "trade_id": "TRD-1788120002531",
+        "timestamp": "2026-08-31 01:32:35",
+        "asset": "USDJPY",
+        "entry_price": 145.5754,
+        "exit_price": 146.758,
+        "pnl_usd": -16.25,
+        "pnl_pct": -0.81,
+        "result": "LOSS",
+        "exit_reason": "Stop-Loss Triggered (-0.81%)",
+        "root_cause_attribution": "Loss (-0.81%) triggered by tight Stop-Loss during high market volatility (1.71%).",
+        "self_learning_update": "RL Agent penalized (-12.19 points). Increased penalty threshold for entering trades during high volatility (1.71%).",
+        "entry_indicators": {
+          "RSI": 77.0,
+          "Volatility": 0.0171,
+          "SentimentScore": 0.6
+        }
+      }
+    },
+    {
+      "trade_id": "TRD-1788119956254",
+      "asset": "AAPL",
+      "action": "BUY",
+      "entry_price": 224.6723,
+      "exit_price": 227.4746,
+      "pnl_usd": 62.36,
+      "pnl_pct": 1.25,
+      "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
+      "timestamp": "2026-08-31 01:32:39",
+      "forensics": {
+        "trade_id": "TRD-1788119956254",
+        "timestamp": "2026-08-31 01:32:39",
+        "asset": "AAPL",
+        "entry_price": 224.6723,
+        "exit_price": 227.4746,
+        "pnl_usd": 62.36,
+        "pnl_pct": 1.25,
+        "result": "PROFIT",
+        "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
+        "root_cause_attribution": "High Profit (+1.25%) driven by strong bullish sentiment alignment (0.60) and price momentum.",
+        "self_learning_update": "RL Agent rewarded (+12.47 points). Reinforced BUY confidence when RSI=42.8 and Sentiment=0.60.",
+        "entry_indicators": {
+          "RSI": 42.8,
+          "Volatility": 0.0151,
+          "SentimentScore": 0.6
+        }
+      }
+    },
+    {
+      "trade_id": "TRD-1788119785345",
+      "asset": "SOLUSD",
+      "action": "BUY",
+      "entry_price": 155.0455,
+      "exit_price": 156.9439,
+      "pnl_usd": 61.22,
+      "pnl_pct": 1.22,
+      "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
+      "timestamp": "2026-08-31 01:32:43",
+      "forensics": {
+        "trade_id": "TRD-1788119785345",
+        "timestamp": "2026-08-31 01:32:43",
+        "asset": "SOLUSD",
+        "entry_price": 155.0455,
+        "exit_price": 156.9439,
+        "pnl_usd": 61.22,
+        "pnl_pct": 1.22,
+        "result": "PROFIT",
+        "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
+        "root_cause_attribution": "High Profit (+1.22%) driven by strong bullish sentiment alignment (0.60) and price momentum.",
+        "self_learning_update": "RL Agent rewarded (+12.24 points). Reinforced BUY confidence when RSI=22.1 and Sentiment=0.60.",
+        "entry_indicators": {
+          "RSI": 22.1,
+          "Volatility": 0.0243,
+          "SentimentScore": 0.6
+        }
+      }
+    },
+    {
+      "trade_id": "TRD-1788119710903",
+      "asset": "RELIANCE",
+      "action": "BUY",
+      "entry_price": 3013.456,
+      "exit_price": 3050.168,
+      "pnl_usd": 121.83,
+      "pnl_pct": 1.22,
+      "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
+      "timestamp": "2026-08-31 01:32:45",
+      "forensics": {
+        "trade_id": "TRD-1788119710903",
+        "timestamp": "2026-08-31 01:32:45",
+        "asset": "RELIANCE",
+        "entry_price": 3013.456,
+        "exit_price": 3050.168,
+        "pnl_usd": 121.83,
+        "pnl_pct": 1.22,
+        "result": "PROFIT",
+        "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
+        "root_cause_attribution": "High Profit (+1.22%) driven by strong bullish sentiment alignment (0.60) and price momentum.",
+        "self_learning_update": "RL Agent rewarded (+12.18 points). Reinforced BUY confidence when RSI=20.3 and Sentiment=0.60.",
+        "entry_indicators": {
+          "RSI": 20.3,
+          "Volatility": 0.0198,
+          "SentimentScore": 0.6
+        }
+      }
+    },
+    {
+      "trade_id": "TRD-1788120169767",
       "asset": "BTCUSD",
       "action": "BUY",
       "entry_price": 64171.55,
@@ -1327,10 +1414,10 @@
       "pnl_usd": 36.15,
       "pnl_pct": 0.36,
       "exit_reason": "TAKE_PROFIT_MILESTONE",
-      "timestamp": "2026-08-31 01:24:49",
+      "timestamp": "2026-08-31 01:32:49",
       "forensics": {
-        "trade_id": "TRD-1788119689293",
-        "timestamp": "2026-08-31 01:24:49",
+        "trade_id": "TRD-1788120169767",
+        "timestamp": "2026-08-31 01:32:49",
         "asset": "BTCUSD",
         "entry_price": 64171.55,
         "exit_price": 64404.7628,
@@ -1339,16 +1426,16 @@
         "result": "PROFIT",
         "exit_reason": "TAKE_PROFIT_MILESTONE",
         "root_cause_attribution": "Trade closed in target profit (+0.36%) according to planned exit rule.",
-        "self_learning_update": "RL Agent rewarded (+3.63 points). Reinforced BUY confidence when RSI=52.0 and Sentiment=-0.14.",
+        "self_learning_update": "RL Agent rewarded (+3.63 points). Reinforced BUY confidence when RSI=52.0 and Sentiment=-0.49.",
         "entry_indicators": {
           "RSI": 52.0,
           "Volatility": 0.008,
-          "SentimentScore": -0.14
+          "SentimentScore": -0.49
         }
       }
     },
     {
-      "trade_id": "TRD-1788119689331",
+      "trade_id": "TRD-1788120169800",
       "asset": "TSLA",
       "action": "BUY",
       "entry_price": 209.86,
@@ -1358,10 +1445,10 @@
       "pnl_usd": 110.07,
       "pnl_pct": 0.88,
       "exit_reason": "TAKE_PROFIT_MILESTONE",
-      "timestamp": "2026-08-31 01:24:49",
+      "timestamp": "2026-08-31 01:32:49",
       "forensics": {
-        "trade_id": "TRD-1788119689331",
-        "timestamp": "2026-08-31 01:24:49",
+        "trade_id": "TRD-1788120169800",
+        "timestamp": "2026-08-31 01:32:49",
         "asset": "TSLA",
         "entry_price": 209.86,
         "exit_price": 211.7081,
@@ -1370,16 +1457,16 @@
         "result": "PROFIT",
         "exit_reason": "TAKE_PROFIT_MILESTONE",
         "root_cause_attribution": "Trade closed in target profit (+0.88%) according to planned exit rule.",
-        "self_learning_update": "RL Agent rewarded (+8.81 points). Reinforced BUY confidence when RSI=52.0 and Sentiment=-0.14.",
+        "self_learning_update": "RL Agent rewarded (+8.81 points). Reinforced BUY confidence when RSI=52.0 and Sentiment=-0.49.",
         "entry_indicators": {
           "RSI": 52.0,
           "Volatility": 0.008,
-          "SentimentScore": -0.14
+          "SentimentScore": -0.49
         }
       }
     },
     {
-      "trade_id": "TRD-1788119689361",
+      "trade_id": "TRD-1788120169828",
       "asset": "AAPL",
       "action": "BUY",
       "entry_price": 224.37,
@@ -1389,10 +1476,10 @@
       "pnl_usd": 84.87,
       "pnl_pct": 0.42,
       "exit_reason": "TAKE_PROFIT_MILESTONE",
-      "timestamp": "2026-08-31 01:24:49",
+      "timestamp": "2026-08-31 01:32:49",
       "forensics": {
-        "trade_id": "TRD-1788119689361",
-        "timestamp": "2026-08-31 01:24:49",
+        "trade_id": "TRD-1788120169828",
+        "timestamp": "2026-08-31 01:32:49",
         "asset": "AAPL",
         "entry_price": 224.37,
         "exit_price": 225.3222,
@@ -1401,16 +1488,16 @@
         "result": "PROFIT",
         "exit_reason": "TAKE_PROFIT_MILESTONE",
         "root_cause_attribution": "Trade closed in target profit (+0.42%) according to planned exit rule.",
-        "self_learning_update": "RL Agent rewarded (+4.24 points). Reinforced BUY confidence when RSI=52.0 and Sentiment=-0.14.",
+        "self_learning_update": "RL Agent rewarded (+4.24 points). Reinforced BUY confidence when RSI=52.0 and Sentiment=-0.49.",
         "entry_indicators": {
           "RSI": 52.0,
           "Volatility": 0.008,
-          "SentimentScore": -0.14
+          "SentimentScore": -0.49
         }
       }
     },
     {
-      "trade_id": "TRD-1788119689390",
+      "trade_id": "TRD-1788120169855",
       "asset": "NIFTY50",
       "action": "BUY",
       "entry_price": 24851.21,
@@ -1420,10 +1507,10 @@
       "pnl_usd": 101.82,
       "pnl_pct": 1.02,
       "exit_reason": "TAKE_PROFIT_MILESTONE",
-      "timestamp": "2026-08-31 01:24:49",
+      "timestamp": "2026-08-31 01:32:49",
       "forensics": {
-        "trade_id": "TRD-1788119689390",
-        "timestamp": "2026-08-31 01:24:49",
+        "trade_id": "TRD-1788120169855",
+        "timestamp": "2026-08-31 01:32:49",
         "asset": "NIFTY50",
         "entry_price": 24851.21,
         "exit_price": 25104.4846,
@@ -1432,16 +1519,16 @@
         "result": "PROFIT",
         "exit_reason": "TAKE_PROFIT_MILESTONE",
         "root_cause_attribution": "Trade closed in target profit (+1.02%) according to planned exit rule.",
-        "self_learning_update": "RL Agent rewarded (+10.19 points). Reinforced BUY confidence when RSI=52.0 and Sentiment=-0.14.",
+        "self_learning_update": "RL Agent rewarded (+10.19 points). Reinforced BUY confidence when RSI=52.0 and Sentiment=-0.49.",
         "entry_indicators": {
           "RSI": 52.0,
           "Volatility": 0.008,
-          "SentimentScore": -0.14
+          "SentimentScore": -0.49
         }
       }
     },
     {
-      "trade_id": "TRD-1788119691475",
+      "trade_id": "TRD-1788120171917",
       "asset": "NVDA",
       "action": "BUY",
       "entry_price": 128.58,
@@ -1451,10 +1538,10 @@
       "pnl_usd": 37.8,
       "pnl_pct": 0.38,
       "exit_reason": "TAKE_PROFIT_MILESTONE",
-      "timestamp": "2026-08-31 01:24:51",
+      "timestamp": "2026-08-31 01:32:51",
       "forensics": {
-        "trade_id": "TRD-1788119691475",
-        "timestamp": "2026-08-31 01:24:51",
+        "trade_id": "TRD-1788120171917",
+        "timestamp": "2026-08-31 01:32:51",
         "asset": "NVDA",
         "entry_price": 128.58,
         "exit_price": 129.0661,
@@ -1463,16 +1550,16 @@
         "result": "PROFIT",
         "exit_reason": "TAKE_PROFIT_MILESTONE",
         "root_cause_attribution": "Trade closed in target profit (+0.38%) according to planned exit rule.",
-        "self_learning_update": "RL Agent rewarded (+3.78 points). Reinforced BUY confidence when RSI=52.0 and Sentiment=-0.14.",
+        "self_learning_update": "RL Agent rewarded (+3.78 points). Reinforced BUY confidence when RSI=52.0 and Sentiment=-0.49.",
         "entry_indicators": {
           "RSI": 52.0,
           "Volatility": 0.008,
-          "SentimentScore": -0.14
+          "SentimentScore": -0.49
         }
       }
     },
     {
-      "trade_id": "TRD-1788119693543",
+      "trade_id": "TRD-1788120173985",
       "asset": "XAUUSD",
       "action": "BUY",
       "entry_price": 2512.5,
@@ -1482,10 +1569,10 @@
       "pnl_usd": 73.45,
       "pnl_pct": 0.29,
       "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
-      "timestamp": "2026-08-31 01:24:53",
+      "timestamp": "2026-08-31 01:32:53",
       "forensics": {
-        "trade_id": "TRD-1788119693543",
-        "timestamp": "2026-08-31 01:24:53",
+        "trade_id": "TRD-1788120173985",
+        "timestamp": "2026-08-31 01:32:53",
         "asset": "XAUUSD",
         "entry_price": 2512.5,
         "exit_price": 2519.8816,
@@ -1494,166 +1581,73 @@
         "result": "PROFIT",
         "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
         "root_cause_attribution": "Trade closed in target profit (+0.29%) according to planned exit rule.",
-        "self_learning_update": "RL Agent rewarded (+2.94 points). Reinforced BUY confidence when RSI=52.0 and Sentiment=-0.14.",
+        "self_learning_update": "RL Agent rewarded (+2.94 points). Reinforced BUY confidence when RSI=52.0 and Sentiment=-0.49.",
         "entry_indicators": {
           "RSI": 52.0,
           "Volatility": 0.008,
-          "SentimentScore": -0.14
+          "SentimentScore": -0.49
         }
       }
     },
     {
-      "trade_id": "TRD-1788119689298",
+      "trade_id": "TRD-1788120169772",
       "asset": "BTCUSD",
       "action": "SELL",
       "entry_price": 64310.4483,
       "exit_price": 64194.7427,
-      "capital_allocated": 2500.0,
+      "capital_allocated": 2000.0,
       "leverage": 5.0,
-      "pnl_usd": 22.49,
+      "pnl_usd": 17.99,
       "pnl_pct": 0.18,
       "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
-      "timestamp": "2026-08-31 01:24:53",
+      "timestamp": "2026-08-31 01:32:54",
       "forensics": {
-        "trade_id": "TRD-1788119689298",
-        "timestamp": "2026-08-31 01:24:53",
+        "trade_id": "TRD-1788120169772",
+        "timestamp": "2026-08-31 01:32:54",
         "asset": "BTCUSD",
         "entry_price": 64310.4483,
         "exit_price": 64194.7427,
-        "pnl_usd": 22.49,
+        "pnl_usd": 17.99,
         "pnl_pct": 0.18,
         "result": "PROFIT",
         "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
         "root_cause_attribution": "Trade closed in target profit (+0.18%) according to planned exit rule.",
-        "self_learning_update": "RL Agent rewarded (+1.80 points). Reinforced BUY confidence when RSI=70.3 and Sentiment=-0.14.",
-        "entry_indicators": {
-          "RSI": 70.3,
-          "Volatility": 0.0249,
-          "SentimentScore": -0.14
-        }
-      }
-    },
-    {
-      "trade_id": "TRD-1788119689335",
-      "asset": "TSLA",
-      "action": "SELL",
-      "entry_price": 209.905,
-      "exit_price": 209.6412,
-      "capital_allocated": 2000.0,
-      "leverage": 5.0,
-      "pnl_usd": 12.57,
-      "pnl_pct": 0.13,
-      "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
-      "timestamp": "2026-08-31 01:25:05",
-      "forensics": {
-        "trade_id": "TRD-1788119689335",
-        "timestamp": "2026-08-31 01:25:05",
-        "asset": "TSLA",
-        "entry_price": 209.905,
-        "exit_price": 209.6412,
-        "pnl_usd": 12.57,
-        "pnl_pct": 0.13,
-        "result": "PROFIT",
-        "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
-        "root_cause_attribution": "Trade closed in target profit (+0.13%) according to planned exit rule.",
-        "self_learning_update": "RL Agent rewarded (+1.26 points). Reinforced BUY confidence when RSI=79.6 and Sentiment=-0.14.",
+        "self_learning_update": "RL Agent rewarded (+1.80 points). Reinforced BUY confidence when RSI=79.6 and Sentiment=-0.49.",
         "entry_indicators": {
           "RSI": 79.6,
           "Volatility": 0.0249,
-          "SentimentScore": -0.14
+          "SentimentScore": -0.49
         }
       }
     },
     {
-      "trade_id": "TRD-1788119693549",
-      "asset": "XAUUSD",
-      "action": "SELL",
-      "entry_price": 2509.419,
-      "exit_price": 2507.4047,
-      "capital_allocated": 2500.0,
-      "leverage": 10.0,
-      "pnl_usd": 20.07,
-      "pnl_pct": 0.08,
-      "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
-      "timestamp": "2026-08-31 01:25:11",
-      "forensics": {
-        "trade_id": "TRD-1788119693549",
-        "timestamp": "2026-08-31 01:25:11",
-        "asset": "XAUUSD",
-        "entry_price": 2509.419,
-        "exit_price": 2507.4047,
-        "pnl_usd": 20.07,
-        "pnl_pct": 0.08,
-        "result": "PROFIT",
-        "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
-        "root_cause_attribution": "Trade closed in target profit (+0.08%) according to planned exit rule.",
-        "self_learning_update": "RL Agent rewarded (+0.80 points). Reinforced BUY confidence when RSI=78.0 and Sentiment=-0.14.",
-        "entry_indicators": {
-          "RSI": 78.0,
-          "Volatility": 0.0243,
-          "SentimentScore": -0.14
-        }
-      }
-    },
-    {
-      "trade_id": "TRD-1788119705673",
-      "asset": "NVDA",
-      "action": "BUY",
-      "entry_price": 128.6343,
-      "exit_price": 128.7072,
-      "capital_allocated": 2000.0,
-      "leverage": 10.0,
-      "pnl_usd": 11.33,
-      "pnl_pct": 0.06,
-      "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
-      "timestamp": "2026-08-31 01:25:11",
-      "forensics": {
-        "trade_id": "TRD-1788119705673",
-        "timestamp": "2026-08-31 01:25:11",
-        "asset": "NVDA",
-        "entry_price": 128.6343,
-        "exit_price": 128.7072,
-        "pnl_usd": 11.33,
-        "pnl_pct": 0.06,
-        "result": "PROFIT",
-        "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
-        "root_cause_attribution": "Profitable reversal (+0.06%) executed from oversold RSI level (20.2).",
-        "self_learning_update": "RL Agent rewarded (+0.57 points). Reinforced BUY confidence when RSI=20.2 and Sentiment=-0.14.",
-        "entry_indicators": {
-          "RSI": 20.2,
-          "Volatility": 0.0193,
-          "SentimentScore": -0.14
-        }
-      }
-    },
-    {
-      "trade_id": "TRD-1788119693583",
+      "trade_id": "TRD-1788120169722",
       "asset": "GBPUSD",
-      "action": "SELL",
-      "entry_price": 1.3019,
-      "exit_price": 1.3005,
-      "capital_allocated": 2500.0,
-      "leverage": 10.0,
-      "pnl_usd": 25.76,
-      "pnl_pct": 0.1,
+      "action": "BUY",
+      "entry_price": 1.3017,
+      "exit_price": 1.3042,
+      "capital_allocated": 387.53,
+      "leverage": 15.0,
+      "pnl_usd": 11.22,
+      "pnl_pct": 0.19,
       "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
-      "timestamp": "2026-08-31 01:25:17",
+      "timestamp": "2026-08-31 01:33:24",
       "forensics": {
-        "trade_id": "TRD-1788119693583",
-        "timestamp": "2026-08-31 01:25:17",
+        "trade_id": "TRD-1788120169722",
+        "timestamp": "2026-08-31 01:33:24",
         "asset": "GBPUSD",
-        "entry_price": 1.3019,
-        "exit_price": 1.3005,
-        "pnl_usd": 25.76,
-        "pnl_pct": 0.1,
+        "entry_price": 1.3017,
+        "exit_price": 1.3042,
+        "pnl_usd": 11.22,
+        "pnl_pct": 0.19,
         "result": "PROFIT",
         "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
-        "root_cause_attribution": "Trade closed in target profit (+0.10%) according to planned exit rule.",
-        "self_learning_update": "RL Agent rewarded (+1.03 points). Reinforced BUY confidence when RSI=78.0 and Sentiment=-0.14.",
+        "root_cause_attribution": "Profitable reversal (+0.19%) executed from oversold RSI level (21.5).",
+        "self_learning_update": "RL Agent rewarded (+1.93 points). Reinforced BUY confidence when RSI=21.5 and Sentiment=-0.49.",
         "entry_indicators": {
-          "RSI": 78.0,
-          "Volatility": 0.0243,
-          "SentimentScore": -0.14
+          "RSI": 21.5,
+          "Volatility": 0.0249,
+          "SentimentScore": -0.49
         }
       }
     }

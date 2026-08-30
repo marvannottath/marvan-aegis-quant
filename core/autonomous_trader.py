@@ -38,7 +38,7 @@ class AutonomousTrader:
 
     def start_autonomous_loop(self):
         """Start background AI trading execution thread."""
-        if not self.is_running:
+        if not self.is_running or self._thread is None or not self._thread.is_alive():
             self.is_running = True
             self._thread = threading.Thread(target=self._run_loop, daemon=True)
             self._thread.start()
@@ -46,6 +46,11 @@ class AutonomousTrader:
     def stop_autonomous_loop(self):
         """Stop background AI trading execution loop."""
         self.is_running = False
+
+    def trigger_instant_cycle(self):
+        """Force an instant scan, tick simulation, and profit sweep."""
+        if not self.is_running:
+            self.start_autonomous_loop()
 
     def _run_loop(self):
         """Continuous AI trading loop scanning live tick quotes every 4 seconds."""

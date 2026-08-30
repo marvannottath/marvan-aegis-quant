@@ -820,6 +820,7 @@
                     <div class="flex items-center space-x-2 flex-wrap gap-y-1">
                         <span class="text-xs text-gray-400 font-bold mr-1"><i class="fa-solid fa-clock-rotate-left mr-1.5"></i> Time Filter:</span>
                         <button id="btn-time-all" onclick="setTimePreset('ALL')" class="px-3 py-1.5 text-xs font-black rounded-xl bg-emerald-500 text-black shadow-md transition">All Time</button>
+                        <button id="btn-time-1h" onclick="setTimePreset('1HOUR')" class="px-3 py-1.5 text-xs font-bold rounded-xl bg-gray-950 border border-gray-800 text-gray-300 hover:text-white transition">Past 1 Hr</button>
                         <button id="btn-time-today" onclick="setTimePreset('TODAY')" class="px-3 py-1.5 text-xs font-bold rounded-xl bg-gray-950 border border-gray-800 text-gray-300 hover:text-white transition">Today</button>
                         <button id="btn-time-yest" onclick="setTimePreset('YESTERDAY')" class="px-3 py-1.5 text-xs font-bold rounded-xl bg-gray-950 border border-gray-800 text-gray-300 hover:text-white transition">Yesterday</button>
                         <button id="btn-time-l7" onclick="setTimePreset('LAST7')" class="px-3 py-1.5 text-xs font-bold rounded-xl bg-gray-950 border border-gray-800 text-gray-300 hover:text-white transition">Last 7 Days</button>
@@ -1779,7 +1780,7 @@
 
         function setTimePreset(preset) {
             activeTimePreset = preset;
-            let todayStr = '2026-08-30';
+            let todayStr = new Date().toISOString().split('T')[0];
             if (globalVaultHistory && globalVaultHistory.length > 0) {
                 const latestD = parseDateFromTimestamp(globalVaultHistory[0].timestamp);
                 if (latestD) todayStr = latestD;
@@ -1791,15 +1792,18 @@
                 dateFromInput.value = todayStr;
                 dateToInput.value = todayStr;
             } else if (preset === 'YESTERDAY') {
-                const d = new Date(todayStr);
+                const parts = todayStr.split('-');
+                const d = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
                 d.setDate(d.getDate() - 1);
-                const yestStr = d.toISOString().split('T')[0];
+                const yestStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
                 dateFromInput.value = yestStr;
                 dateToInput.value = yestStr;
             } else if (preset === 'LAST7') {
-                const d = new Date(todayStr);
+                const parts = todayStr.split('-');
+                const d = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
                 d.setDate(d.getDate() - 7);
-                dateFromInput.value = d.toISOString().split('T')[0];
+                const l7Str = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+                dateFromInput.value = l7Str;
                 dateToInput.value = todayStr;
             } else {
                 dateFromInput.value = '';
@@ -1812,6 +1816,7 @@
 
         function updatePresetButtonsUI() {
             const btnAll = document.getElementById('btn-time-all');
+            const btn1h = document.getElementById('btn-time-1h');
             const btnToday = document.getElementById('btn-time-today');
             const btnYest = document.getElementById('btn-time-yest');
             const btnL7 = document.getElementById('btn-time-l7');
@@ -1820,6 +1825,7 @@
             const inactiveClass = 'px-3 py-1.5 text-xs font-bold rounded-xl bg-gray-950 border border-gray-800 text-gray-300 hover:text-white transition';
 
             if (btnAll) btnAll.className = activeTimePreset === 'ALL' ? activeClass : inactiveClass;
+            if (btn1h) btn1h.className = activeTimePreset === '1HOUR' ? activeClass : inactiveClass;
             if (btnToday) btnToday.className = activeTimePreset === 'TODAY' ? activeClass : inactiveClass;
             if (btnYest) btnYest.className = activeTimePreset === 'YESTERDAY' ? activeClass : inactiveClass;
             if (btnL7) btnL7.className = activeTimePreset === 'LAST7' ? activeClass : inactiveClass;
@@ -1832,7 +1838,7 @@
             const tbody = document.getElementById('modal-vault-tbody');
             const countElem = document.getElementById('modal-vault-count');
 
-            const filtered = globalVaultHistory.filter(item => {
+            const filtered = globalVaultHistory.filter((item, idx) => {
                 const asset = (item.asset || '').toUpperCase();
                 const reason = (item.reason || '').toUpperCase();
                 const itemDate = parseDateFromTimestamp(item.timestamp);
@@ -1840,7 +1846,9 @@
                 const matchesQuery = !query || asset.includes(query) || reason.includes(query);
                 
                 let matchesDate = true;
-                if (dateFrom && dateTo) {
+                if (activeTimePreset === '1HOUR') {
+                    matchesDate = (idx < 60);
+                } else if (dateFrom && dateTo) {
                     matchesDate = itemDate >= dateFrom && itemDate <= dateTo;
                 } else if (dateFrom) {
                     matchesDate = itemDate >= dateFrom;

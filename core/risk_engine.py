@@ -22,32 +22,32 @@ class RiskEngine:
     PROFILES = {
         "CONSERVATIVE": {
             "name": "CONSERVATIVE",
-            "label": "Conservative (Low Risk)",
+            "label": "Conservative (Low Risk 2x)",
             "max_position_size_pct": 0.05,
             "max_drawdown_pct": 0.05,
             "stop_loss_pct": 0.005,  # -0.5% Stop-Loss
             "take_profit_pct": 0.015, # +1.5% Take-Profit (3:1 R:R Ratio)
-            "default_leverage": 3.0,
+            "default_leverage": 2.0,
             "kelly_fraction": 0.3
         },
         "MODERATE": {
             "name": "MODERATE",
-            "label": "Moderate (Standard)",
+            "label": "Moderate (Standard 10x)",
             "max_position_size_pct": 0.10,
             "max_drawdown_pct": 0.08,
             "stop_loss_pct": 0.008,  # -0.8% Stop-Loss
             "take_profit_pct": 0.020, # +2.0% Take-Profit (2.5:1 R:R Ratio)
-            "default_leverage": 5.0,
+            "default_leverage": 10.0,
             "kelly_fraction": 0.5
         },
         "AGGRESSIVE": {
             "name": "AGGRESSIVE",
-            "label": "Aggressive (High Yield)",
+            "label": "Aggressive (High Yield 25x)",
             "max_position_size_pct": 0.15,
             "max_drawdown_pct": 0.12,
             "stop_loss_pct": 0.010,  # -1.0% Stop-Loss
             "take_profit_pct": 0.030, # +3.0% Take-Profit (3:1 R:R Ratio)
-            "default_leverage": 10.0,
+            "default_leverage": 25.0,
             "kelly_fraction": 0.8
         }
     }
