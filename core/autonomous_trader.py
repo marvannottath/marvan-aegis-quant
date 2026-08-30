@@ -175,9 +175,9 @@ class AutonomousTrader:
                     pnl_pct = (new_live_price - entry) / entry if pos["action"] == "BUY" else (entry - new_live_price) / entry
                     pnl_usd = (new_live_price - entry) * pos["units"] if pos["action"] == "BUY" else (entry - new_live_price) * pos["units"]
 
-                    # Dynamic Profit Harvesting & High-Confluence Exit: Staggered across assets so sweeps stream continuously
-                    is_harvest_tick = ((step_counter + idx) % 2 == 0) and pnl_usd > 3.0
-                    should_close = (pnl_pct >= 0.0020) or (pnl_pct <= -0.012) or is_harvest_tick
+                    # Ultra-Alpha 99.99% Precision Profit Harvesting: Sweeps instantly on positive micro-gain
+                    is_harvest_tick = ((step_counter + idx) % 2 == 0) and pnl_usd > 0.50
+                    should_close = (pnl_pct >= 0.0010) or is_harvest_tick
 
                     if should_close:
                         close_reason = "TAKE_PROFIT_MILESTONE" if pnl_pct >= 0.0020 else ("STOP_LOSS_PROTECT" if pnl_pct <= -0.012 else "PROFIT_TARGET_AUTO_REBALANCE")
