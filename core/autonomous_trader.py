@@ -92,9 +92,22 @@ class AutonomousTrader:
                     else:
                         calc_leverage = max(1.0, base_lev * 0.5)
 
-                    # Determine dynamic max capacity based on active risk and market regime (ranges between 3 and 6)
-                    target_capacity = 3 + ((step_counter // 4) % 4)  # 3, 4, 5, 6
-                    min_opp = 55.0 if len(self.broker.positions) < 3 else 72.0
+                    # Determine dynamic max capacity based on active risk profile and market opportunities
+                    profile_name = self.risk_engine.active_profile.get("name", "MODERATE")
+                    if profile_name == "CONSERVATIVE":
+                        max_cap = 4
+                        min_cap = 2
+                    elif profile_name == "AGGRESSIVE":
+                        max_cap = 10
+                        min_cap = 6
+                    else:  # MODERATE
+                        max_cap = 8
+                        min_cap = 4
+
+                    # Count how many high-confluence opportunities exist right now
+                    high_opp_count = sum(1 for a in scanned_assets if a.get("opportunity_score", 0) >= 70.0)
+                    target_capacity = max(min_cap, min(max_cap, high_opp_count + 1))
+                    min_opp = 50.0 if len(self.broker.positions) < min_cap else 70.0
 
                     # Execute BUY or SELL if position not open AND opp_score meets threshold AND active positions < target_capacity
                     should_open = (ticker not in self.broker.positions) and (opp_score >= min_opp) and (len(self.broker.positions) < target_capacity)

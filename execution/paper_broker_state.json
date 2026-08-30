@@ -1,7 +1,7 @@
 {
   "initial_capital": 100000.0,
   "virtual_cash": 95073.66,
-  "equity": 542666.54,
+  "equity": 542669.89,
   "positions": {
     "BTCUSD": {
       "trade_id": "TRD-1788117119872",
@@ -19,7 +19,7 @@
         "Volatility": 0.0238
       },
       "entry_sentiment": 0.58,
-      "last_price": 64277.17
+      "last_price": 64231.14
     },
     "SOLUSD": {
       "trade_id": "TRD-1788117140062",
@@ -37,7 +37,7 @@
         "Volatility": 0.0162
       },
       "entry_sentiment": 0.58,
-      "last_price": 155.33
+      "last_price": 155.34
     },
     "GBPUSD": {
       "trade_id": "TRD-1788117172337",
@@ -55,7 +55,7 @@
         "Volatility": 0.0227
       },
       "entry_sentiment": 0.58,
-      "last_price": 1.3037
+      "last_price": 1.3039
     },
     "XAUUSD": {
       "trade_id": "TRD-1788117236833",
@@ -73,7 +73,7 @@
         "Volatility": 0.0191
       },
       "entry_sentiment": 0.58,
-      "last_price": 2516.1
+      "last_price": 2516.35
     },
     "ETHUSD": {
       "trade_id": "TRD-1788117377521",
@@ -91,7 +91,7 @@
         "Volatility": 0.0241
       },
       "entry_sentiment": -0.41,
-      "last_price": 3446.8
+      "last_price": 3447.15
     },
     "EURUSD": {
       "trade_id": "TRD-1788117383629",
@@ -109,7 +109,7 @@
         "Volatility": 0.024
       },
       "entry_sentiment": -0.41,
-      "last_price": 1.0857
+      "last_price": 1.0859
     }
   },
   "trade_history": [
