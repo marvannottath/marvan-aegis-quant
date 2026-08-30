@@ -57,25 +57,15 @@ class NotificationEngine:
         self._save_config()
         return self.config
 
-    def send_telegram_message(self, text: str) -> bool:
-        """Send message via Telegram Bot API."""
-        bot_token = self.config.get("telegram_bot_token", "").strip()
-        chat_id = self.config.get("telegram_chat_id", "").strip()
+    def send_telegram_message(self, text: str, custom_token: str = None, custom_chat_id: str = None):
+        """Send message via Telegram Bot API with detailed error reporting."""
+        bot_token = (custom_token or self.config.get("telegram_bot_token", "")).strip()
+        chat_id = (custom_chat_id or self.config.get("telegram_chat_id", "")).strip()
 
-        # Record into recent alerts feed
-        alert_item = {
-            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-            "channel": "Telegram Bot Push",
-            "message": text,
-            "status": "DISPATCHED" if (bot_token and chat_id) else "SIMULATED_LOCAL"
-        }
-        self.recent_alerts.insert(0, alert_item)
-        if len(self.recent_alerts) > 50:
-            self.recent_alerts.pop()
-
-        if not bot_token or not chat_id:
-            # If no live token configured yet, logged in memory stream
-            return True
+        if not bot_token:
+            return False, "Telegram Bot Token is missing. Please paste your Bot Token."
+        if not chat_id:
+            return False, "Personal Chat ID is missing. Please enter your Chat ID."
 
         try:
             url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
@@ -86,11 +76,33 @@ class NotificationEngine:
             }
             data = urllib.parse.urlencode(payload).encode("utf-8")
             req = urllib.request.Request(url, data=data, method="POST")
-            with urllib.request.urlopen(req, timeout=5) as response:
-                return response.status == 200
+            with urllib.request.urlopen(req, timeout=10) as response:
+                res_body = response.read().decode("utf-8")
+                res_json = json.loads(res_body)
+                if res_json.get("ok"):
+                    self.recent_alerts.insert(0, {
+                        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                        "channel": "Telegram Bot Push",
+                        "message": text,
+                        "status": "DELIVERED 🟢"
+                    })
+                    if len(self.recent_alerts) > 50:
+                        self.recent_alerts.pop()
+                    return True, "Telegram alert delivered successfully to your phone! 📱"
+                else:
+                    return False, res_json.get("description", "Unknown Telegram error.")
+        except urllib.error.HTTPError as e:
+            try:
+                err_resp = json.loads(e.read().decode("utf-8"))
+                desc = err_resp.get("description", str(e))
+                if "chat not found" in desc.lower() or "bot was blocked" in desc.lower() or "bot can't initiate conversation" in desc.lower():
+                    return False, f"Telegram: '{desc}'. 👉 Please open your Bot in Telegram and click 'START' first!"
+                return False, f"Telegram API Error: {desc}"
+            except Exception:
+                return False, f"Telegram HTTP Error {e.code}: {e.reason}"
         except Exception as e:
             print(f"[NOTIFICATION] Telegram dispatch error: {e}")
-            return False
+            return False, f"Network/Connection error: {str(e)}"
 
     def notify_profit_sweep(self, asset: str, profit_usd: float, vault_total: float, reason: str):
         """Triggered automatically when trading profits are swept into the vault."""

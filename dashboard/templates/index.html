@@ -3158,22 +3158,45 @@
 
         async function testTelegramAlert() {
             const msgElem = document.getElementById('tg-alert-msg');
+            const botToken = (document.getElementById('tg-bot-token').value || '').trim();
+            const chatId = (document.getElementById('tg-chat-id').value || '').trim();
+
+            if (!botToken || !chatId) {
+                if (msgElem) {
+                    msgElem.className = 'text-[11px] text-center font-bold text-amber-400';
+                    msgElem.innerText = '⚠️ Please enter both Telegram Bot Token and Chat ID first!';
+                }
+                return;
+            }
+
             if (msgElem) {
                 msgElem.className = 'text-[11px] text-center font-bold text-sky-400 animate-pulse';
-                msgElem.innerText = 'Dispatching test alert to your Telegram...';
+                msgElem.innerText = 'Connecting to Telegram Bot API & sending test ping...';
             }
 
             try {
-                const res = await fetch('/api/notifications/test-telegram', { method: 'POST' });
+                const res = await fetch('/api/notifications/test-telegram', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        telegram_bot_token: botToken,
+                        telegram_chat_id: chatId
+                    })
+                });
                 const data = await res.json();
                 if (msgElem) {
-                    msgElem.className = 'text-[11px] text-center font-bold text-emerald-400';
-                    msgElem.innerText = '⚡ Test alert ping dispatched! Check your phone Telegram!';
+                    if (data.status === 'SUCCESS' && data.sent) {
+                        msgElem.className = 'text-[11px] text-center font-bold text-emerald-400';
+                        msgElem.innerText = '⚡ Test alert ping delivered! Check your phone Telegram!';
+                    } else {
+                        msgElem.className = 'text-[11px] text-center font-bold text-red-400';
+                        msgElem.innerText = data.message || 'Failed to dispatch Telegram message. Make sure you clicked Start on your Bot!';
+                    }
                 }
             } catch (e) {
                 if (msgElem) {
-                    msgElem.className = 'text-[11px] text-center font-bold text-amber-400';
-                    msgElem.innerText = 'Test alert logged to system sentinel feed.';
+                    msgElem.className = 'text-[11px] text-center font-bold text-red-400';
+                    msgElem.innerText = 'Network error connecting to notification server.';
                 }
             }
         }

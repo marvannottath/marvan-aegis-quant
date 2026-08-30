@@ -306,14 +306,33 @@ async def save_notifications_config_endpoint(data: dict):
     return JSONResponse({"status": "SUCCESS", "config": updated})
 
 @app.post("/api/notifications/test-telegram")
-async def test_telegram_alert_endpoint():
+async def test_telegram_alert_endpoint(request: Request):
     """Dispatch a live test alert to Marvan's configured Telegram."""
-    success = notification_engine.send_telegram_message(
+    try:
+        data = await request.json()
+    except Exception:
+        data = {}
+    
+    bot_token = (data.get("telegram_bot_token") or data.get("bot_token") or "").strip()
+    chat_id = (data.get("telegram_chat_id") or data.get("chat_id") or "").strip()
+    if bot_token or chat_id:
+        cfg_update = {}
+        if bot_token: cfg_update["telegram_bot_token"] = bot_token
+        if chat_id: cfg_update["telegram_chat_id"] = chat_id
+        notification_engine.update_config(cfg_update)
+
+    success, message = notification_engine.send_telegram_message(
         "⚡ *MARVAN'S POOL - TEST NOTIFICATION PING* 💎\n\n"
         "✅ Push Alert System is 100% OPERATIONAL on your phone!\n"
-        "⏰ Time: " + time.strftime("%I:%M:%S %p")
+        "⏰ Time: " + time.strftime("%I:%M:%S %p"),
+        custom_token=bot_token if bot_token else None,
+        custom_chat_id=chat_id if chat_id else None
     )
-    return JSONResponse({"status": "SUCCESS" if success else "ERROR", "sent": success})
+    return JSONResponse({
+        "status": "SUCCESS" if success else "ERROR",
+        "sent": success,
+        "message": message
+    })
 
 @app.get("/api/multi-market-scanner")
 async def get_multi_market_scanner():
