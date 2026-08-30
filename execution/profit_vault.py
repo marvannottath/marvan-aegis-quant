@@ -193,14 +193,7 @@ class ProfitVault:
                 month_swept += amt
                 month_count += 1
 
-        # If today has only a few sweeps right after midnight, include the active session volume
-        if today_count < 5:
-            for s in self.sweep_history:
-                ts = s.get("timestamp", "")
-                amt = float(s.get("profit_swept", 0.0))
-                if ts.startswith("2026-08-30"):
-                    today_swept += amt
-                    today_count += 1
+
 
         return {
             "vault_balance": round(self.vault_balance, 2),

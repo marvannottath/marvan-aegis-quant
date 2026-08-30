@@ -663,42 +663,7 @@
             </div>
         </div>
 
-        <!-- Telegram Signal AI Verification & Audit Panel -->
-        <div class="bg-darkcard border border-darkborder p-4 md:p-6 rounded-2xl shadow-xl space-y-4">
-            <div class="flex items-center justify-between flex-wrap gap-2">
-                <div class="flex items-center space-x-2">
-                    <i class="fa-brands fa-telegram text-sky-400 text-xl"></i>
-                    <div>
-                        <h2 class="text-lg font-bold text-white">Telegram Signal AI Verifier & Auto-Listener</h2>
-                        <p class="text-xs text-gray-400">AI auto-listens to your Telegram groups, filters scams, & cross-examines signals</p>
-                    </div>
-                </div>
 
-                <div class="flex items-center space-x-2">
-                    <span class="px-3 py-1.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 rounded-xl text-xs font-black flex items-center shadow">
-                        <span class="w-2 h-2 rounded-full bg-emerald-400 mr-1.5 animate-ping"></span> 100% Autonomous Ingestion Active
-                    </span>
-                    <button onclick="addTelegramChannelPrompt()" class="px-3 py-1.5 bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 font-bold text-xs rounded-xl border border-sky-500/40 transition flex items-center gap-1.5 shadow">
-                        <i class="fa-solid fa-plus text-xs"></i> Connect Channel (@handle)
-                    </button>
-                </div>
-            </div>
-
-            <!-- Monitored Telegram Channels Bar -->
-            <div class="p-3 bg-gray-950/80 border border-gray-800/80 rounded-xl space-y-2">
-                <div class="text-[11px] font-bold text-gray-400 uppercase flex items-center justify-between">
-                    <span>📡 Monitored Telegram Channels (Auto-Listener Active)</span>
-                    <span class="text-sky-400 font-mono text-[10px]">REAL-TIME SCANNING</span>
-                </div>
-                <div class="flex flex-wrap gap-2" id="telegram-channels-bar">
-                    <!-- Dynamic Channel Pills Rendered Here -->
-                </div>
-            </div>
-
-            <div class="space-y-2.5 max-h-[300px] overflow-y-auto pr-1" id="telegram-audit-container">
-                <!-- Dynamic Telegram Audit Cards Rendered Here -->
-            </div>
-        </div>
 
         <!-- Section: Active Positions Table -->
         <div class="bg-darkcard border border-darkborder p-4 md:p-6 rounded-2xl shadow-xl space-y-4">
@@ -2998,7 +2963,7 @@
                 if (elYtd) elYtd.innerText = '+4.18% (Today)';
 
                 if (equityChart && equityChart.data) {
-                    equityChart.data.labels = ['09:00', '11:00', '13:00', '15:00', '17:00', '19:00', '21:00', 'Live Now'];
+                    equityChart.data.labels = ['12:00 AM (00:00)', '00:30 AM', '01:00 AM', '01:30 AM', '02:00 AM', '02:15 AM', 'Live Now (IST)'];
                     const baseEq = eq - todaySwept;
                     equityChart.data.datasets[0].data = [
                         baseEq,

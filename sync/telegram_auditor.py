@@ -16,7 +16,7 @@ class TelegramAuditor:
         self.last_auto_tick = time.time()
         self.signal_history: List[Dict[str, Any]] = [
             {
-                "timestamp": time.strftime("%H:%M:%S"),
+                "timestamp": get_ist_time(),
                 "channel": "Gold VIP Signals Official (@gold_vip_signals)",
                 "raw_text": "BUY XAUUSD @ 2512.50 SL: 2508.00 TP: 2522.00",
                 "asset": "XAUUSD",
@@ -29,7 +29,7 @@ class TelegramAuditor:
                 "reason": "100% Matches AI 5-Tier Trend + RSI Safety Zone"
             },
             {
-                "timestamp": time.strftime("%H:%M:%S"),
+                "timestamp": get_ist_time(),
                 "channel": "Forex Scalper Alerts (@forex_crypto_scalpers)",
                 "raw_text": "BUY EURUSD @ 1.0850 SL: 1.0820 TP: 1.0910",
                 "asset": "EURUSD",
@@ -42,7 +42,7 @@ class TelegramAuditor:
                 "reason": "Confluence with ECB Dovish Spread & Macro Tailwinds"
             },
             {
-                "timestamp": time.strftime("%H:%M:%S"),
+                "timestamp": get_ist_time(),
                 "channel": "99% Guaranteed Profit Signals (@guaranteed_99_gold)",
                 "raw_text": "SELL XAUUSD @ 2505.00 SL: 2520.00 TP: 2480.00",
                 "asset": "XAUUSD",
@@ -92,7 +92,7 @@ class TelegramAuditor:
         reason = "Signal aligns with AI 5-Tier Consensus & positive R:R" if trust_score >= 75 else "SCAM ALERT: Signal violates EMA Trend Alignment & High Risk"
 
         audit_record = {
-            "timestamp": time.strftime("%H:%M:%S"),
+            "timestamp": get_ist_time(),
             "channel": channel_name,
             "raw_text": text,
             "asset": "XAUUSD",
