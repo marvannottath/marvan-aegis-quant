@@ -412,7 +412,8 @@ async def get_system_state():
     macro_data = macro_engine.scan_macro_news()
     
     # Live market price snapshot for XAUUSD & major assets
-    xau_pos = account.get("open_positions", {}).get("XAUUSD", {})
+    open_pos_list = account.get("open_positions", [])
+    xau_pos = next((p for p in open_pos_list if isinstance(p, dict) and p.get("asset") == "XAUUSD"), None)
     xau_price = float(xau_pos.get("last_price", 2514.80)) if xau_pos else 2514.80
     market_data = {
         "XAUUSD": {"price": round(xau_price, 2), "change_pct": 0.35},
