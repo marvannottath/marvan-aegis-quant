@@ -22,7 +22,7 @@ class NotificationEngine:
             "telegram_bot_token": "",
             "telegram_chat_id": "",
             "alert_on_profit_sweep": True,
-            "min_sweep_usd_for_alert": 25.0,
+            "min_sweep_usd_for_alert": 0.0,
             "alert_on_security_event": True,
             "alert_on_macro_news": True,
             "discord_webhook_url": ""
@@ -109,9 +109,13 @@ class NotificationEngine:
         if not self.config.get("alert_on_profit_sweep", True):
             return
 
-        min_amt = self.config.get("min_sweep_usd_for_alert", 25.0)
+        min_amt = float(self.config.get("min_sweep_usd_for_alert", 0.0))
         if profit_usd < min_amt:
             return
+
+        from datetime import datetime, timezone, timedelta
+        ist_now = datetime.now(timezone.utc).astimezone(timezone(timedelta(hours=5, minutes=30)))
+        ist_time_str = ist_now.strftime("%d %b %Y, %I:%M:%S %p")
 
         msg = (
             f"🎉 *MARVAN'S POOL - PROFIT HARVEST ALERT* 💎\n\n"
@@ -119,7 +123,7 @@ class NotificationEngine:
             f"📊 *Asset Ticker:* `{asset}`\n"
             f"🛡️ *Total Vault Reserve:* `${vault_total:,.2f} USD`\n"
             f"📌 *Exit Reason:* `{reason}`\n"
-            f"⏰ *Time (IST):* `{time.strftime('%I:%M:%S %p')}`\n\n"
+            f"⏰ *Time (IST):* `{ist_time_str}`\n\n"
             f"🔒 _100% Realized & Safe in Untouchable Reserve Vault._"
         )
         self.send_telegram_message(msg)

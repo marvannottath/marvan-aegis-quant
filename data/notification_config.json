@@ -1,7 +1,7 @@
 {
   "telegram_enabled": true,
-  "telegram_bot_token": "",
-  "telegram_chat_id": "",
+  "telegram_bot_token": "test",
+  "telegram_chat_id": "895689764",
   "alert_on_profit_sweep": true,
   "min_sweep_usd_for_alert": 25.0,
   "alert_on_security_event": true,

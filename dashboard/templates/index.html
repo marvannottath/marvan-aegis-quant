@@ -5,7 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Marvan's Pool | Pro AI Trading Console</title>
     <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.tailwindcss.com">
+        function openInfrastructureModal() {
+            const m = document.getElementById('modal-infrastructure');
+            if (m) m.classList.remove('hidden');
+        }
+        function closeInfrastructureModal() {
+            const m = document.getElementById('modal-infrastructure');
+            if (m) m.classList.add('hidden');
+        }
+        function openTelegramAuditModal() {
+            const m = document.getElementById('modal-telegram-audit');
+            if (m) m.classList.remove('hidden');
+        }
+        function closeTelegramAuditModal() {
+            const m = document.getElementById('modal-telegram-audit');
+            if (m) m.classList.add('hidden');
+        }
+
+</script>
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -21,7 +39,25 @@
                 }
             }
         }
-    </script>
+    
+        function openInfrastructureModal() {
+            const m = document.getElementById('modal-infrastructure');
+            if (m) m.classList.remove('hidden');
+        }
+        function closeInfrastructureModal() {
+            const m = document.getElementById('modal-infrastructure');
+            if (m) m.classList.add('hidden');
+        }
+        function openTelegramAuditModal() {
+            const m = document.getElementById('modal-telegram-audit');
+            if (m) m.classList.remove('hidden');
+        }
+        function closeTelegramAuditModal() {
+            const m = document.getElementById('modal-telegram-audit');
+            if (m) m.classList.add('hidden');
+        }
+
+</script>
     <!-- FontAwesome CDN -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- PWA Web App Meta Tags -->
@@ -134,7 +170,17 @@
                         </button>
 
                         <button onclick="closeProfileDropdown(); openVaultModal();" class="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold text-gray-300 hover:text-white hover:bg-gray-900 transition">
-                            <span class="flex items-center gap-2"><i class="fa-solid fa-vault text-emerald-400"></i> Secured Profit Vault Log</span>
+                            <span class="flex items-center gap-2"><i class="fa-solid fa-vault text-yellow-400"></i> Secured Profit Vault Log</span>
+                            <i class="fa-solid fa-chevron-right text-[10px] text-gray-500"></i>
+                        </button>
+
+                        <button onclick="closeProfileDropdown(); openInfrastructureModal();" class="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold text-gray-300 hover:text-white hover:bg-gray-900 transition">
+                            <span class="flex items-center gap-2"><i class="fa-solid fa-building-columns text-blue-400"></i> Institutional 8 Pillars</span>
+                            <i class="fa-solid fa-chevron-right text-[10px] text-gray-500"></i>
+                        </button>
+
+                        <button onclick="closeProfileDropdown(); openTelegramAuditModal();" class="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold text-gray-300 hover:text-white hover:bg-gray-900 transition">
+                            <span class="flex items-center gap-2"><i class="fa-brands fa-telegram text-sky-400"></i> Telegram Signal Verifier</span>
                             <i class="fa-solid fa-chevron-right text-[10px] text-gray-500"></i>
                         </button>
                     </div>
@@ -425,105 +471,7 @@
             </div>
         </div>
 
-        <!-- Wall-Street Institutional 8 Pillars Control Grid -->
-        <div id="wallstreet-quant-hub" class="bg-darkcard border border-darkborder p-5 md:p-6 rounded-2xl shadow-xl space-y-4">
-            <div class="flex items-center justify-between border-b border-gray-800 pb-3">
-                <div class="flex items-center space-x-3">
-                    <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white font-black text-lg shadow-lg">
-                        <i class="fa-solid fa-building-columns"></i>
-                    </div>
-                    <div>
-                        <h3 class="text-sm md:text-base font-black text-white">Wall-Street Institutional Core Infrastructure (8 Pillars)</h3>
-                        <p class="text-xs text-blue-400">Direct FIX Protocol, C++/Rust Kernel, Level 3 MBO, & Monte Carlo VaR 99% Engine</p>
-                    </div>
-                </div>
-                <span class="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-black uppercase flex items-center">
-                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5 animate-ping"></span> 100% OPERATIONAL
-                </span>
-            </div>
 
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <!-- 1. FIX Protocol -->
-                <div class="bg-gray-950 border border-gray-800 p-3 rounded-xl space-y-1">
-                    <div class="text-[10px] font-bold text-gray-400 uppercase flex items-center justify-between">
-                        <span>FIX 4.4 / 5.0 Protocol</span>
-                        <i class="fa-solid fa-bolt text-amber-400"></i>
-                    </div>
-                    <div class="text-xs font-black text-emerald-400 font-mono">ONLINE (0.42ms)</div>
-                    <div class="text-[9px] text-gray-500">Direct Exchange Gateway</div>
-                </div>
-
-                <!-- 2. Server Colocation -->
-                <div class="bg-gray-950 border border-gray-800 p-3 rounded-xl space-y-1">
-                    <div class="text-[10px] font-bold text-gray-400 uppercase flex items-center justify-between">
-                        <span>Server Colocation</span>
-                        <i class="fa-solid fa-server text-blue-400"></i>
-                    </div>
-                    <div class="text-xs font-black text-blue-400 font-mono">NSE BKC & NY4</div>
-                    <div class="text-[9px] text-gray-500">Zero Internet Latency</div>
-                </div>
-
-                <!-- 3. C++ / Rust Kernel -->
-                <div class="bg-gray-950 border border-gray-800 p-3 rounded-xl space-y-1">
-                    <div class="text-[10px] font-bold text-gray-400 uppercase flex items-center justify-between">
-                        <span>C++20 / Rust Kernel</span>
-                        <i class="fa-solid fa-microchip text-teal-400"></i>
-                    </div>
-                    <div class="text-xs font-black text-teal-400 font-mono">AVX-512 SIMD</div>
-                    <div class="text-[9px] text-gray-500">Microsecond Execution</div>
-                </div>
-
-                <!-- 4. Level 3 Order Book MBO -->
-                <div class="bg-gray-950 border border-gray-800 p-3 rounded-xl space-y-1">
-                    <div class="text-[10px] font-bold text-gray-400 uppercase flex items-center justify-between">
-                        <span>Level 3 Order Book (MBO)</span>
-                        <i class="fa-solid fa-layer-group text-purple-400"></i>
-                    </div>
-                    <div class="text-xs font-black text-purple-400 font-mono">STREAMING</div>
-                    <div class="text-[9px] text-gray-500">10,000 Depth Queue</div>
-                </div>
-
-                <!-- 5. Alternative Data -->
-                <div class="bg-gray-950 border border-gray-800 p-3 rounded-xl space-y-1">
-                    <div class="text-[10px] font-bold text-gray-400 uppercase flex items-center justify-between">
-                        <span>Alternative Data Feeds</span>
-                        <i class="fa-solid fa-satellite text-yellow-400"></i>
-                    </div>
-                    <div class="text-xs font-black text-yellow-400 font-mono">SAR Satellite & Supply</div>
-                    <div class="text-[9px] text-gray-500">Container Telemetry</div>
-                </div>
-
-                <!-- 6. Smart Order Routing -->
-                <div class="bg-gray-950 border border-gray-800 p-3 rounded-xl space-y-1">
-                    <div class="text-[10px] font-bold text-gray-400 uppercase flex items-center justify-between">
-                        <span>Smart Order Router (SOR)</span>
-                        <i class="fa-solid fa-route text-sky-400"></i>
-                    </div>
-                    <div class="text-xs font-black text-sky-400 font-mono">DARK POOL ROUTING</div>
-                    <div class="text-[9px] text-gray-500">Best Fill Guarantee</div>
-                </div>
-
-                <!-- 7. VWAP / TWAP Algos -->
-                <div class="bg-gray-950 border border-gray-800 p-3 rounded-xl space-y-1">
-                    <div class="text-[10px] font-bold text-gray-400 uppercase flex items-center justify-between">
-                        <span>VWAP / Iceberg Algos</span>
-                        <i class="fa-solid fa-filter text-indigo-400"></i>
-                    </div>
-                    <div class="text-xs font-black text-indigo-400 font-mono">BLOCK SLICING</div>
-                    <div class="text-[9px] text-gray-500">Zero Price Slippage</div>
-                </div>
-
-                <!-- 8. Monte Carlo & VaR 99% -->
-                <div class="bg-gray-950 border border-gray-800 p-3 rounded-xl space-y-1">
-                    <div class="text-[10px] font-bold text-gray-400 uppercase flex items-center justify-between">
-                        <span>Monte Carlo VaR 99%</span>
-                        <i class="fa-solid fa-shield-halved text-emerald-400"></i>
-                    </div>
-                    <div class="text-xs font-black text-emerald-400 font-mono">10,000 PATH SAFE</div>
-                    <div class="text-[9px] text-gray-500">24h VaR = $564.34</div>
-                </div>
-            </div>
-        </div>
 
         <!-- Custom Capital Allocation Limit per Trade Control Bar -->
         <div class="bg-darkcard border border-darkborder p-4 rounded-2xl shadow-xl flex flex-wrap items-center justify-between gap-4">
@@ -3293,7 +3241,25 @@
         setTimeout(initAnalyticsCharts, 500);
         fetchState();
         setInterval(fetchState, 1500);
-    </script>
+    
+        function openInfrastructureModal() {
+            const m = document.getElementById('modal-infrastructure');
+            if (m) m.classList.remove('hidden');
+        }
+        function closeInfrastructureModal() {
+            const m = document.getElementById('modal-infrastructure');
+            if (m) m.classList.add('hidden');
+        }
+        function openTelegramAuditModal() {
+            const m = document.getElementById('modal-telegram-audit');
+            if (m) m.classList.remove('hidden');
+        }
+        function closeTelegramAuditModal() {
+            const m = document.getElementById('modal-telegram-audit');
+            if (m) m.classList.add('hidden');
+        }
+
+</script>
 
     <!-- Ultimate Banking, Credit Cards & Deposit Hub Modal -->
     <div id="deposit-modal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
@@ -3491,5 +3457,125 @@
             <span class="text-[10px] uppercase tracking-wider">Settings</span>
         </button>
     </div>
+
+    <!-- INSTITUTIONAL INFRASTRUCTURE MODAL -->
+    <div id="modal-infrastructure" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-darkcard border border-blue-500/40 max-w-4xl w-full rounded-3xl p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+                <div class="flex items-center space-x-3">
+                    <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white font-black text-lg shadow-lg">
+                        <i class="fa-solid fa-building-columns"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-black text-white">Wall-Street Institutional Core Infrastructure (8 Pillars)</h3>
+                        <p class="text-xs text-blue-400">Direct FIX Protocol, C++/Rust Kernel, Level 3 MBO, & Monte Carlo VaR 99% Engine</p>
+                    </div>
+                </div>
+                <button onclick="closeInfrastructureModal()" class="text-gray-400 hover:text-white text-2xl font-bold">&times;</button>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 pt-2">
+                <div class="bg-gray-950 border border-gray-800 p-3.5 rounded-xl space-y-1">
+                    <div class="text-[10px] font-bold text-gray-400 uppercase flex items-center justify-between">
+                        <span>FIX 4.4 / 5.0 Protocol</span>
+                        <i class="fa-solid fa-bolt text-amber-400"></i>
+                    </div>
+                    <div class="text-xs font-black text-emerald-400 font-mono">ONLINE (0.42ms)</div>
+                    <div class="text-[9px] text-gray-500">Direct Exchange Gateway</div>
+                </div>
+                <div class="bg-gray-950 border border-gray-800 p-3.5 rounded-xl space-y-1">
+                    <div class="text-[10px] font-bold text-gray-400 uppercase flex items-center justify-between">
+                        <span>Server Colocation</span>
+                        <i class="fa-solid fa-server text-blue-400"></i>
+                    </div>
+                    <div class="text-xs font-black text-blue-400 font-mono">NSE BKC & NY4</div>
+                    <div class="text-[9px] text-gray-500">Zero Internet Latency</div>
+                </div>
+                <div class="bg-gray-950 border border-gray-800 p-3.5 rounded-xl space-y-1">
+                    <div class="text-[10px] font-bold text-gray-400 uppercase flex items-center justify-between">
+                        <span>C++20 / Rust Kernel</span>
+                        <i class="fa-solid fa-microchip text-teal-400"></i>
+                    </div>
+                    <div class="text-xs font-black text-teal-400 font-mono">AVX-512 SIMD</div>
+                    <div class="text-[9px] text-gray-500">Microsecond Execution</div>
+                </div>
+                <div class="bg-gray-950 border border-gray-800 p-3.5 rounded-xl space-y-1">
+                    <div class="text-[10px] font-bold text-gray-400 uppercase flex items-center justify-between">
+                        <span>Level 3 Order Book (MBO)</span>
+                        <i class="fa-solid fa-layer-group text-purple-400"></i>
+                    </div>
+                    <div class="text-xs font-black text-purple-400 font-mono">STREAMING</div>
+                    <div class="text-[9px] text-gray-500">10,000 Depth Queue</div>
+                </div>
+                <div class="bg-gray-950 border border-gray-800 p-3.5 rounded-xl space-y-1">
+                    <div class="text-[10px] font-bold text-gray-400 uppercase flex items-center justify-between">
+                        <span>Alternative Data Feeds</span>
+                        <i class="fa-solid fa-satellite text-yellow-400"></i>
+                    </div>
+                    <div class="text-xs font-black text-yellow-400 font-mono">SAR Satellite & Supply</div>
+                    <div class="text-[9px] text-gray-500">Container Telemetry</div>
+                </div>
+                <div class="bg-gray-950 border border-gray-800 p-3.5 rounded-xl space-y-1">
+                    <div class="text-[10px] font-bold text-gray-400 uppercase flex items-center justify-between">
+                        <span>Smart Order Router (SOR)</span>
+                        <i class="fa-solid fa-route text-sky-400"></i>
+                    </div>
+                    <div class="text-xs font-black text-sky-400 font-mono">DARK POOL ROUTING</div>
+                    <div class="text-[9px] text-gray-500">Best Fill Guarantee</div>
+                </div>
+                <div class="bg-gray-950 border border-gray-800 p-3.5 rounded-xl space-y-1">
+                    <div class="text-[10px] font-bold text-gray-400 uppercase flex items-center justify-between">
+                        <span>VWAP / Iceberg Algos</span>
+                        <i class="fa-solid fa-filter text-indigo-400"></i>
+                    </div>
+                    <div class="text-xs font-black text-indigo-400 font-mono">BLOCK SLICING</div>
+                    <div class="text-[9px] text-gray-500">Zero Price Slippage</div>
+                </div>
+                <div class="bg-gray-950 border border-gray-800 p-3.5 rounded-xl space-y-1">
+                    <div class="text-[10px] font-bold text-gray-400 uppercase flex items-center justify-between">
+                        <span>Monte Carlo VaR 99%</span>
+                        <i class="fa-solid fa-shield-halved text-emerald-400"></i>
+                    </div>
+                    <div class="text-xs font-black text-emerald-400 font-mono">10,000 PATH SAFE</div>
+                    <div class="text-[9px] text-gray-500">24h VaR = $564.34</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TELEGRAM SIGNAL AUDITOR MODAL -->
+    <div id="modal-telegram-audit" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-darkcard border border-sky-500/40 max-w-4xl w-full rounded-3xl p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between border-b border-gray-800 pb-3 flex-wrap gap-2">
+                <div class="flex items-center space-x-3">
+                    <i class="fa-brands fa-telegram text-sky-400 text-2xl"></i>
+                    <div>
+                        <h2 class="text-base font-black text-white">Telegram Signal AI Verifier & Auto-Listener</h2>
+                        <p class="text-xs text-gray-400">AI auto-listens to Telegram groups, filters scams, & cross-examines signals</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button onclick="auditTelegramSignal()" class="px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 font-bold text-xs rounded-xl border border-emerald-500/40 transition flex items-center gap-1.5 shadow">
+                        <i class="fa-solid fa-robot"></i> Manual AI Audit
+                    </button>
+                    <button onclick="addTelegramChannelPrompt()" class="px-3 py-1.5 bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 font-bold text-xs rounded-xl border border-sky-500/40 transition flex items-center gap-1.5 shadow">
+                        <i class="fa-solid fa-plus"></i> Add Channel
+                    </button>
+                    <button onclick="closeTelegramAuditModal()" class="text-gray-400 hover:text-white text-2xl font-bold ml-2">&times;</button>
+                </div>
+            </div>
+
+            <div class="space-y-1.5">
+                <div class="text-xs font-bold text-gray-300 flex items-center justify-between">
+                    <span>📡 Monitored Telegram Channels (Auto-Listener Active)</span>
+                    <span class="text-[10px] text-gray-500">Live Polling Every 3s</span>
+                </div>
+                <div class="flex flex-wrap gap-2" id="telegram-channels-bar"></div>
+            </div>
+
+            <div class="space-y-2.5 max-h-[400px] overflow-y-auto pr-1" id="telegram-audit-container"></div>
+        </div>
+    </div>
+
 </body>
 </html>

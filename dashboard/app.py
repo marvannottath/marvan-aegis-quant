@@ -840,7 +840,11 @@ async def get_candlestick_klines(ticker: str = "XAUUSD"):
 @app.get("/admin", response_class=HTMLResponse)
 async def serve_admin_portal(request: Request):
     """Serve isolated Zero-Trust Super Admin Command & SIEM Portal."""
-    return templates.TemplateResponse("admin.html", {"request": request})
+    admin_html_path = BASE_DIR / "templates" / "admin.html"
+    if admin_html_path.exists():
+        with open(admin_html_path, "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read(), status_code=200)
+    return HTMLResponse(content="<h2>Admin portal not found</h2>", status_code=404)
 
 # --- TRADER DESK AUTHENTICATION ENDPOINT ---
 
