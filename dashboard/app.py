@@ -125,18 +125,25 @@ INDEX_HTML_PATH = BASE_DIR / "templates" / "index.html"
 
 @app.get("/", response_class=HTMLResponse)
 async def read_dashboard(request: Request):
-    """Render main web dashboard interface with bulletproof direct HTML response."""
+    """Render main web dashboard interface with exact targeted element replacements."""
     try:
         if INDEX_HTML_PATH.exists():
             with open(INDEX_HTML_PATH, "r", encoding="utf-8") as f:
                 html_content = f.read()
 
+            paper_broker._update_equity()
             vb = f"${profit_vault.vault_balance:,.2f}"
             vc = f"${paper_broker.virtual_cash:,.2f}"
             pe = f"${paper_broker.equity:,.2f}"
 
-            html_content = html_content.replace("{{ vault_balance | default('$32,580.26') }}", vb)
-            html_content = html_content.replace("$100,000.00", pe)
+            # Exact ID targeted string replacements
+            html_content = html_content.replace('id="val-equity">$100,000.00<', f'id="val-equity">{pe}<')
+            html_content = html_content.replace('id="val-cash">$100,000.00<', f'id="val-cash">{vc}<')
+            html_content = html_content.replace('id="val-vault-balance">$159,579.95<', f'id="val-vault-balance">{vb}<')
+            html_content = html_content.replace('id="m-val-equity">$257,588.39<', f'id="m-val-equity">{pe}<')
+            html_content = html_content.replace('id="m-val-vault">$157,588.39<', f'id="m-val-vault">{vb}<')
+            html_content = html_content.replace('id="m-val-cash">$77,000.00<', f'id="m-val-cash">{vc}<')
+
             return HTMLResponse(content=html_content, status_code=200)
     except Exception as e:
         print(f"[DASHBOARD] HTML read notice: {e}")
