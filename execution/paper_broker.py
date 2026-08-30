@@ -272,7 +272,7 @@ class PaperBroker:
         self.equity = max(0.0, self.initial_capital + vault_reserve + unrealized)
 
     def get_account_summary(self) -> Dict[str, Any]:
-        """Return dynamically computed virtual account state summary."""
+        """Return dynamically computed virtual account state summary with pure data-driven ledger metrics."""
         self._update_equity()
         total_pnl = self.equity - self.initial_capital
         total_pnl_pct = (total_pnl / self.initial_capital) * 100.0 if self.initial_capital > 0 else 0.0
@@ -300,15 +300,39 @@ class PaperBroker:
 
         floating_open_pnl_pct = (floating_open_pnl / self.initial_capital) * 100.0 if self.initial_capital > 0 else 0.0
 
-        # Dynamic Ledger Analytics
+        # Pure Data-Driven Ledger Analytics
         closed = self.trade_history
-        total_closed = len(closed)
-        wins = sum(1 for t in closed if float(t.get("pnl_usd", 0.0)) > 0)
-        gross_profit = sum(float(t.get("pnl_usd", 0.0)) for t in closed if float(t.get("pnl_usd", 0.0)) > 0)
-        gross_loss = abs(sum(float(t.get("pnl_usd", 0.0)) for t in closed if float(t.get("pnl_usd", 0.0)) < 0))
+        today_str = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d")
+        month_str = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m")
 
-        win_rate = round((wins / total_closed * 100.0), 1) if total_closed > 0 else 100.0
-        profit_factor = round(gross_profit / max(1.0, gross_loss), 2) if gross_loss > 0 else (round(gross_profit, 2) if gross_profit > 0 else 0.0)
+        # 1. All-Time Ledger Metrics
+        total_closed = len(closed)
+        all_wins = sum(1 for t in closed if float(t.get("pnl_usd", 0.0)) > 0)
+        all_losses = sum(1 for t in closed if float(t.get("pnl_usd", 0.0)) < 0)
+        all_gross_profit = sum(float(t.get("pnl_usd", 0.0)) for t in closed if float(t.get("pnl_usd", 0.0)) > 0)
+        all_gross_loss = abs(sum(float(t.get("pnl_usd", 0.0)) for t in closed if float(t.get("pnl_usd", 0.0)) < 0))
+        all_win_rate = round((all_wins / total_closed * 100.0), 1) if total_closed > 0 else 0.0
+        all_profit_factor = round(all_gross_profit / max(1.0, all_gross_loss), 2) if all_gross_loss > 0 else (round(all_gross_profit, 2) if all_gross_profit > 0 else 0.0)
+
+        # 2. Today Ledger Metrics
+        today_trades = [t for t in closed if str(t.get("timestamp", "")).startswith(today_str)]
+        t_count = len(today_trades)
+        t_wins = sum(1 for t in today_trades if float(t.get("pnl_usd", 0.0)) > 0)
+        t_losses = sum(1 for t in today_trades if float(t.get("pnl_usd", 0.0)) < 0)
+        t_gross_profit = sum(float(t.get("pnl_usd", 0.0)) for t in today_trades if float(t.get("pnl_usd", 0.0)) > 0)
+        t_gross_loss = abs(sum(float(t.get("pnl_usd", 0.0)) for t in today_trades if float(t.get("pnl_usd", 0.0)) < 0))
+        t_win_rate = round((t_wins / t_count * 100.0), 1) if t_count > 0 else 100.0
+        t_profit_factor = round(t_gross_profit / max(1.0, t_gross_loss), 2) if t_gross_loss > 0 else (round(t_gross_profit, 2) if t_gross_profit > 0 else 0.0)
+
+        # 3. Month Ledger Metrics
+        month_trades = [t for t in closed if str(t.get("timestamp", "")).startswith(month_str)]
+        m_count = len(month_trades)
+        m_wins = sum(1 for t in month_trades if float(t.get("pnl_usd", 0.0)) > 0)
+        m_losses = sum(1 for t in month_trades if float(t.get("pnl_usd", 0.0)) < 0)
+        m_gross_profit = sum(float(t.get("pnl_usd", 0.0)) for t in month_trades if float(t.get("pnl_usd", 0.0)) > 0)
+        m_gross_loss = abs(sum(float(t.get("pnl_usd", 0.0)) for t in month_trades if float(t.get("pnl_usd", 0.0)) < 0))
+        m_win_rate = round((m_wins / m_count * 100.0), 1) if m_count > 0 else 100.0
+        m_profit_factor = round(m_gross_profit / max(1.0, m_gross_loss), 2) if m_gross_loss > 0 else (round(m_gross_profit, 2) if m_gross_profit > 0 else 0.0)
 
         return {
             "virtual_cash": round(self.virtual_cash, 2),
@@ -325,14 +349,36 @@ class PaperBroker:
             "active_risk_profile": risk_engine.active_profile,
             "ai_active": self.ai_active,
             "ledger_metrics": {
-                "total_trades": total_closed,
-                "winning_trades": wins,
-                "win_rate_pct": win_rate,
-                "profit_factor": profit_factor,
-                "gross_profit_usd": round(gross_profit, 2),
-                "gross_loss_usd": round(gross_loss, 2)
+                "all_time": {
+                    "total_trades": total_closed,
+                    "winning_trades": all_wins,
+                    "losing_trades": all_losses,
+                    "win_rate_pct": all_win_rate,
+                    "profit_factor": all_profit_factor,
+                    "gross_profit_usd": round(all_gross_profit, 2),
+                    "gross_loss_usd": round(all_gross_loss, 2)
+                },
+                "today": {
+                    "total_trades": t_count,
+                    "winning_trades": t_wins,
+                    "losing_trades": t_losses,
+                    "win_rate_pct": t_win_rate,
+                    "profit_factor": t_profit_factor,
+                    "gross_profit_usd": round(t_gross_profit, 2),
+                    "gross_loss_usd": round(t_gross_loss, 2)
+                },
+                "month": {
+                    "total_trades": m_count,
+                    "winning_trades": m_wins,
+                    "losing_trades": m_losses,
+                    "win_rate_pct": m_win_rate,
+                    "profit_factor": m_profit_factor,
+                    "gross_profit_usd": round(m_gross_profit, 2),
+                    "gross_loss_usd": round(m_gross_loss, 2)
+                }
             }
         }
+
 
 # Global Singleton Paper Broker Instance
 paper_broker = PaperBroker()

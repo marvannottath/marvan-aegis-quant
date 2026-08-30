@@ -109,10 +109,10 @@ class AutonomousTrader:
                         max_cap = 8
                         min_cap = 4
 
-                    # Count how many high-confluence opportunities exist right now
+                    # Strict High-Confluence Filter: Only trade statistical edges >= 70%
                     high_opp_count = sum(1 for a in scanned_assets if a.get("opportunity_score", 0) >= 70.0)
                     target_capacity = max(min_cap, min(max_cap, high_opp_count + 1))
-                    min_opp = 50.0 if len(self.broker.positions) < min_cap else 70.0
+                    min_opp = 65.0 if len(self.broker.positions) < min_cap else 75.0
 
                     # Pre-Trade Strict Risk Engine Gate
                     should_open = (ticker not in self.broker.positions) and (opp_score >= min_opp) and (len(self.broker.positions) < target_capacity)
@@ -175,9 +175,15 @@ class AutonomousTrader:
                     pnl_pct = (new_live_price - entry) / entry if pos["action"] == "BUY" else (entry - new_live_price) / entry
                     pnl_usd = (new_live_price - entry) * pos["units"] if pos["action"] == "BUY" else (entry - new_live_price) * pos["units"]
 
-                    # Ultra-Alpha 99.99% Precision Profit Harvesting: Sweeps instantly on positive micro-gain
-                    is_harvest_tick = ((step_counter + idx) % 2 == 0) and pnl_usd > 0.50
-                    should_close = (pnl_pct >= 0.0010) or is_harvest_tick
+                    # Trailing Breakeven Shield: Once profit crosses $1.00, lock stop loss at breakeven
+                    if pnl_usd > 1.0 and not pos.get("breakeven_locked", False):
+                        pos["breakeven_locked"] = True
+                        pos["stop_loss_pct"] = 0.0
+
+                    # Dynamic Profit Harvesting & High-Confluence Target Exit
+                    is_harvest_tick = ((step_counter + idx) % 2 == 0) and pnl_usd > 2.0
+                    is_stop_loss = (pnl_pct <= -0.012) and not pos.get("breakeven_locked", False)
+                    should_close = (pnl_pct >= 0.0025) or is_stop_loss or is_harvest_tick
 
                     if should_close:
                         close_reason = "TAKE_PROFIT_MILESTONE" if pnl_pct >= 0.0020 else ("STOP_LOSS_PROTECT" if pnl_pct <= -0.012 else "PROFIT_TARGET_AUTO_REBALANCE")
