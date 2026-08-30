@@ -114,12 +114,14 @@ class AutonomousTrader:
                     target_capacity = max(min_cap, min(max_cap, high_opp_count + 1))
                     min_opp = 50.0 if len(self.broker.positions) < min_cap else 70.0
 
-                    # Execute BUY or SELL if position not open AND opp_score meets threshold AND active positions < target_capacity
+                    # Pre-Trade Strict Risk Engine Gate
                     should_open = (ticker not in self.broker.positions) and (opp_score >= min_opp) and (len(self.broker.positions) < target_capacity)
                     if should_open:
                         act = "BUY" if action_signal != "SELL" else "SELL"
                         size_usd = self.risk_engine.calculate_position_size(self.broker.virtual_cash, volatility, max(60.0, opp_score))
-                        if size_usd > 10.0:
+                        is_risk_valid, risk_reason = self.risk_engine.validate_order(size_usd, calc_leverage, len(self.broker.positions))
+                        
+                        if is_risk_valid and size_usd > 10.0:
                             order = self.broker.execute_order(
                                 asset=ticker,
                                 action=act,
@@ -130,7 +132,7 @@ class AutonomousTrader:
                                 leverage=calc_leverage
                             )
                             if order:
-                                self._log_action(ticker, act, current_price, size_usd, f"Autonomous AI Execution ({calc_leverage:.0f}x Lev, Opp {opp_score:.0f}%)")
+                                self._log_action(ticker, act, current_price, size_usd, f"Risk-Approved AI Execution ({calc_leverage:.0f}x Lev, Opp {opp_score:.0f}%)")
 
                 # Self-Healing Loss Memory Storage initialization
                 if not hasattr(self, "loss_patterns"):

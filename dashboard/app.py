@@ -1,3 +1,5 @@
+from core.reconciliation_sentinel import reconciliation_sentinel
+from execution.binance_broker import binance_broker
 """
 FastAPI Backend Server & Real-time Web Dashboard.
 Provides REST endpoints and streams system state, virtual account balance, trade forensics, and RL agent metrics.
@@ -1004,3 +1006,14 @@ async def admin_get_system_health(request: Request):
         return JSONResponse({"status": "FAILED", "message": "Unauthorized. Bearer session token required."}, status_code=401)
     return JSONResponse(super_admin.get_system_diagnostics())
 
+
+@app.get("/api/reconciliation-status")
+async def get_reconciliation_status():
+    """Fetch real-time 5-Invariant Mathematical Accounting Reconciliation Report."""
+    report = reconciliation_sentinel.validate_all(paper_broker, profit_vault, risk_engine)
+    return JSONResponse(report)
+
+@app.get("/api/binance-status")
+async def get_binance_status_endpoint():
+    """Fetch honest connection status and masked credentials of Binance broker."""
+    return JSONResponse(binance_broker.get_public_status())

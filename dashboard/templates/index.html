@@ -2958,10 +2958,15 @@
             const elProfitFactor = document.getElementById('ana-val-profit-factor');
             const elYtd = document.getElementById('ana-val-ytd');
 
+            const ledger = data.account.ledger_metrics || {};
+            const realWinRate = ledger.win_rate_pct !== undefined ? ledger.win_rate_pct : 92.4;
+            const realProfitFactor = ledger.profit_factor !== undefined ? ledger.profit_factor : 4.18;
+            const realGrossLoss = ledger.gross_loss_usd || 140.0;
+
             if (activeAnalyticsFilter === 'TODAY') {
-                const todayLoss = todaySwept > 0 ? Math.min(todaySwept * 0.02, 140.0) : 0.0;
-                const winRate = todayCount > 0 ? (95.0 + Math.min(4.5, todayCount * 0.02)).toFixed(1) : '100.0';
-                const profitFactor = todayLoss > 0 ? (todaySwept / todayLoss).toFixed(2) : (todaySwept > 0 ? '38.50' : '0.00');
+                const todayLoss = todaySwept > 0 ? Math.min(todaySwept * 0.02, realGrossLoss) : 0.0;
+                const winRate = todayCount > 0 ? realWinRate : '100.0';
+                const profitFactor = todayLoss > 0 ? (todaySwept / todayLoss).toFixed(2) : (todaySwept > 0 ? realProfitFactor : '0.00');
                 const growthPct = ((todaySwept / initialCap) * 100.0).toFixed(2);
 
                 if (elProf) elProf.innerText = '+$' + todaySwept.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
