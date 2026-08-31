@@ -723,3 +723,14 @@ async def switch_trading_pool(request: Request):
         return JSONResponse(result)
     except Exception as e:
         return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+@app.post("/api/harvest-profit")
+async def harvest_profit(request: Request):
+    """Instantly harvest floating profit from active trades into the Secured Profit Vault."""
+    try:
+        body = await request.json() if request.headers.get("content-type") == "application/json" else {}
+        asset = body.get("asset") if body else None
+        res = paper_broker.harvest_floating_profit(asset=asset)
+        return JSONResponse(res)
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)

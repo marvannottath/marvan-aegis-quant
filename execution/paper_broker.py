@@ -326,6 +326,37 @@ class PaperBroker:
         self._save_state()
         return {"status": "FILLED", "order": pos_obj}
 
+    
+    def harvest_floating_profit(self, asset: Optional[str] = None) -> Dict[str, Any]:
+        """Instantly harvest/sweep floating unrealized profits directly into the Secured Profit Vault."""
+        harvested_total = 0.0
+        closed_count = 0
+        
+        targets = [asset] if asset and asset in self.positions else list(self.positions.keys())
+        
+        for sym in targets:
+            pos = self.positions.get(sym)
+            if not pos: continue
+            price = pos.get("last_price", pos["entry_price"])
+            if pos["action"] == "BUY":
+                pnl = (price - pos["entry_price"]) * pos["units"]
+            else:
+                pnl = (pos["entry_price"] - price) * pos["units"]
+            
+            if pnl > 0:
+                # Realize and sweep
+                res = self.close_position(sym, exit_reason="MANUAL_INSTANT_VAULT_HARVEST", current_price=price)
+                if res.get("status") == "SUCCESS":
+                    harvested_total += pnl
+                    closed_count += 1
+
+        return {
+            "status": "SUCCESS",
+            "harvested_usd": round(harvested_total, 2),
+            "closed_positions_count": closed_count,
+            "vault_balance": self.pools[self.active_pool_name].get("vault_reserve", 0.0) if self.active_pool_name == "BINANCE_DEMO" else profit_vault.vault_balance
+        }
+
     def close_position(self, asset: str, exit_reason: str = "MANUAL_CLOSE", current_price: Optional[float] = None) -> Dict[str, Any]:
         """Close an active position and realize profit/loss."""
         if asset not in self.positions:

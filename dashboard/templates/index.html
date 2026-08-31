@@ -362,10 +362,13 @@
                 </div>
                 
                 <div class="mt-3 pt-2 border-t border-emerald-500/20 flex items-center justify-end gap-1.5">
-                    <button onclick="event.stopPropagation(); openVaultModal()" class="px-3 py-1 bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-300 border border-emerald-500/40 text-xs font-bold rounded-lg transition">
+                    <button onclick="event.stopPropagation(); triggerInstantHarvest()" class="px-3 py-1 bg-amber-500/20 hover:bg-amber-500/40 text-amber-300 border border-amber-500/40 text-xs font-black rounded-lg transition flex items-center shadow">
+                        <i class="fa-solid fa-bolt mr-1 text-amber-400"></i> Sweep Profit Now
+                    </button>
+                    <button onclick="event.stopPropagation(); openVaultModal()" class="px-2.5 py-1 bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-300 border border-emerald-500/40 text-xs font-bold rounded-lg transition">
                         <i class="fa-solid fa-list-check mr-1"></i> Log
                     </button>
-                    <button onclick="event.stopPropagation(); withdrawVaultProfit()" class="px-3 py-1 bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-300 border border-emerald-500/40 text-xs font-bold rounded-lg transition">
+                    <button onclick="event.stopPropagation(); withdrawVaultProfit()" class="px-2.5 py-1 bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-300 border border-emerald-500/40 text-xs font-bold rounded-lg transition">
                         <i class="fa-solid fa-money-bill-transfer mr-1"></i> Withdraw
                     </button>
                 </div>
@@ -2003,6 +2006,28 @@
                 }
             } catch (err) {
                 console.error('Pool switch error:', err);
+            }
+        }
+
+        
+        async function triggerInstantHarvest(asset = null) {
+            try {
+                const res = await fetch('/api/harvest-profit', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({asset: asset})
+                });
+                const data = await res.json();
+                if (data.status === 'SUCCESS') {
+                    if (data.harvested_usd > 0) {
+                        alert(`💎 Successfully Swept +$${data.harvested_usd.toFixed(2)} Profit directly into your Secured Vault Reserve!`);
+                    } else {
+                        alert(`ℹ️ All current positions are optimizing for higher take-profit targets. New profit will auto-sweep upon target hit!`);
+                    }
+                    fetchState();
+                }
+            } catch (err) {
+                console.error('Harvest error:', err);
             }
         }
 
