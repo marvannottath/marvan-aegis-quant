@@ -196,7 +196,9 @@ async def get_system_state():
             "status": "SYNCHRONIZED"
         },
         "diagnostics": recent_forensics,
+        "trade_forensics": recent_forensics,
         "live_stream": live_orders,
+        "live_order_stream": live_orders,
         "vault": profit_vault.get_vault_summary()
     })
 

@@ -2065,8 +2065,8 @@
                 if (elBidBar) elBidBar.style.width = buyerPct + '%';
                 if (elAskBar) elAskBar.style.width = sellerPct + '%';
 
-                renderLiveOrders(data.live_order_stream);
-                renderForensics(data.trade_forensics);
+                renderLiveOrders(data.live_order_stream || data.live_stream || []);
+                renderForensics(data.trade_forensics || data.diagnostics || []);
                 if (data.multi_market_opportunities) {
                     renderScannerFeed(data.multi_market_opportunities);
                 }
