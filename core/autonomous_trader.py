@@ -48,6 +48,16 @@ class AutonomousTrader:
         """Stop background AI trading execution loop."""
         self.is_running = False
 
+    def toggle_autonomous(self) -> bool:
+        """Toggle autonomous AI trading execution loop on/off."""
+        if self.is_running:
+            self.stop_autonomous_loop()
+            self.broker.ai_active = False
+        else:
+            self.start_autonomous_loop()
+            self.broker.ai_active = True
+        return self.is_running
+
     def trigger_instant_cycle(self):
         """Force an instant scan, tick simulation, and profit sweep."""
         if not self.is_running:
