@@ -586,3 +586,16 @@ async def admin_get_system_health(request: Request):
 async def serve_service_worker():
     """Serve lightweight Service Worker for offline capability & zero console errors."""
     return HTMLResponse(content="// Service Worker registered successfully\nself.addEventListener('install', e => self.skipWaiting());\nself.addEventListener('activate', e => clients.claim());", media_type="application/javascript")
+
+@app.get("/api/vault/history")
+async def get_vault_history():
+    """Fetch complete immutable ledger of all historical vault sweeps."""
+    summary = profit_vault.get_vault_summary()
+    return JSONResponse({
+        "vault_balance": summary["vault_balance"],
+        "total_sweeps_count": summary["total_sweeps_count"],
+        "today_swept_usd": summary.get("today_swept_usd", 0.0),
+        "today_sweeps_count": summary.get("today_sweeps_count", 0),
+        "sweeps": summary["recent_sweeps"],
+        "withdrawals": summary["withdrawal_history"]
+    })

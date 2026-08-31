@@ -357,7 +357,7 @@ class PaperBroker:
             "floating_open_pnl_usd": round(floating_open_pnl, 2),
             "floating_open_pnl_pct": round(floating_open_pnl_pct, 2),
             "profit_vault": vault_data,
-            "open_positions_count": len(self.positions),
+            "open_positions_count": len(formatted_positions),
             "open_positions": formatted_positions,
             "trade_history": self.trade_history[-30:][::-1],
             "active_risk_profile": risk_engine.active_profile,
