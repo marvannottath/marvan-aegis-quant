@@ -299,12 +299,16 @@ class PaperBroker:
             "ai_active": self.ai_active
         }
 
-    def place_order(self, asset: str, action: str, margin_usd: float, leverage: float = 10.0, entry_price: Optional[float] = None) -> Dict[str, Any]:
+    def place_order(self, asset: str, action: str, margin_usd: float, leverage: float = 10.0, entry_price: Optional[float] = None, **kwargs) -> Dict[str, Any]:
         """Place an automated order in the current active pool."""
         if margin_usd <= 0 or margin_usd > self.virtual_cash:
-            return {"status": "REJECTED", "reason": f"Insufficient Cash (Available: ${self.virtual_cash:.2f})"}
+            # Auto-adjust to remaining cash if possible
+            if self.virtual_cash > 100.0:
+                margin_usd = min(margin_usd, self.virtual_cash * 0.9)
+            else:
+                return {"status": "REJECTED", "reason": f"Insufficient Cash (Available: ${self.virtual_cash:.2f})"}
 
-        p = entry_price if entry_price else 2514.80
+        p = entry_price if entry_price else kwargs.get("current_price", 2514.80)
         notional = margin_usd * leverage
         units = notional / p
 
@@ -325,6 +329,9 @@ class PaperBroker:
         self._update_equity()
         self._save_state()
         return {"status": "FILLED", "order": pos_obj}
+
+    def execute_order(self, asset: str, action: str, amount_usd: float, current_price: float, leverage: float = 10.0, **kwargs) -> Dict[str, Any]:
+        return self.place_order(asset=asset, action=action, margin_usd=amount_usd, leverage=leverage, entry_price=current_price, **kwargs)
 
     
     def harvest_floating_profit(self, asset: Optional[str] = None) -> Dict[str, Any]:
@@ -357,13 +364,15 @@ class PaperBroker:
             "vault_balance": self.pools[self.active_pool_name].get("vault_reserve", 0.0) if self.active_pool_name == "BINANCE_DEMO" else profit_vault.vault_balance
         }
 
-    def close_position(self, asset: str, exit_reason: str = "MANUAL_CLOSE", current_price: Optional[float] = None) -> Dict[str, Any]:
+    def close_position(self, asset: str, exit_reason: str = "MANUAL_CLOSE", current_price: Optional[float] = None, **kwargs) -> Dict[str, Any]:
+        p_override = current_price or kwargs.get("exit_price")
+        reason_override = kwargs.get("reason") or exit_reason
         """Close an active position and realize profit/loss."""
         if asset not in self.positions:
             return {"status": "ERROR", "message": f"No open position for {asset}"}
 
         pos = self.positions.pop(asset)
-        p = current_price if current_price else pos.get("last_price", pos["entry_price"])
+        p = p_override if p_override else pos.get("last_price", pos["entry_price"])
         cap = pos["capital_allocated"]
 
         if pos["action"] == "BUY":
@@ -374,6 +383,7 @@ class PaperBroker:
         pnl_usd = max(-cap, pnl_usd)
         pnl_pct = (pnl_usd / cap) * 100.0 if cap > 0 else 0.0
 
+        exit_reason = reason_override
         if pnl_usd > 0:
             if self.active_pool_name == "BINANCE_DEMO":
                 self.pools["BINANCE_DEMO"]["vault_reserve"] = round(self.pools["BINANCE_DEMO"].get("vault_reserve", 0.0) + pnl_usd, 2)
