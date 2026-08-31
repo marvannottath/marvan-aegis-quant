@@ -350,15 +350,20 @@ async def get_reconciliation_status():
     return JSONResponse(report)
 
 @app.get("/api/backtest/15year-results")
-async def get_15year_backtest_results():
+async def get_15year_backtest_results(mode: str = "AGGRESSIVE"):
     """Fetch cached 15-Year Institutional Backtest Report (2010-2026)."""
-    report = institutional_backtester.run_full_15year_backtest(force_refresh=False)
+    report = institutional_backtester.run_full_15year_backtest(mode=mode, force_refresh=False)
     return JSONResponse(report)
 
 @app.post("/api/backtest/run-15year")
-async def trigger_15year_backtest():
+async def trigger_15year_backtest(request: Request):
     """Force re-run and recalculate 15-Year Quantitative Backtest."""
-    report = institutional_backtester.run_full_15year_backtest(force_refresh=True)
+    try:
+        data = await request.json()
+    except Exception:
+        data = {}
+    mode = data.get("mode", "AGGRESSIVE") if isinstance(data, dict) else "AGGRESSIVE"
+    report = institutional_backtester.run_full_15year_backtest(mode=mode, force_refresh=True)
     return JSONResponse(report)
 
 @app.get("/api/security-status")
