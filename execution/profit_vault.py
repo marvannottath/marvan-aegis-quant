@@ -177,6 +177,13 @@ class ProfitVault:
                 "record": record
             }
 
+    
+    def get_active_vault_balance(self, pool_name: str = "MASTER_SIMULATION") -> float:
+        """Return pool-specific vault balance."""
+        if pool_name == "BINANCE_DEMO":
+            return getattr(self, "binance_vault_balance", 0.0)
+        return self.vault_balance
+
     def get_vault_summary(self) -> Dict[str, Any]:
         """Fetch current profit vault metrics with pre-calculated period aggregations."""
         now_dt = datetime.now(timezone.utc).astimezone(IST_TZ)
