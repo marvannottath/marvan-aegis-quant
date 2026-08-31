@@ -97,7 +97,7 @@
             <!-- 1. Live Running Positions & AI Trading Badge (Direct in Header) -->
             <button id="btn-toggle-ai" onclick="toggleAIMode()" class="bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 text-emerald-400 px-3 md:px-3.5 py-1.5 rounded-xl text-xs font-black transition flex items-center shadow-lg gap-2">
                 <i class="fa-solid fa-robot text-xs text-emerald-400 animate-pulse"></i>
-                <span id="lbl-ai-mode">AUTO AI TRADING: ON (6 POSITIONS RUNNING)</span>
+                <span id="lbl-ai-mode">AUTO AI TRADING: ON ({{ OPEN_POSITIONS_COUNT }} POSITIONS RUNNING)</span>
             </button>
 
             <!-- 2. Minimalist Executive Profile Avatar & Dropdown Menu -->
@@ -237,7 +237,7 @@
             </div>
 
             <div id="m-val-equity" class="text-3xl font-black text-white tracking-tight mb-3">
-                $257,588.39
+                {{ PORTFOLIO_EQUITY }}
             </div>
 
             <!-- Mini 2-Stats Grid -->
@@ -248,7 +248,7 @@
                         <span>Vault Reserve</span>
                         <i class="fa-solid fa-vault text-xs"></i>
                     </div>
-                    <div id="m-val-vault" class="text-base font-black text-emerald-300 my-0.5">$157,588.39</div>
+                    <div id="m-val-vault" class="text-base font-black text-emerald-300 my-0.5">{{ VAULT_BALANCE }}</div>
                     <div class="flex items-center gap-1 mt-1">
                         <button onclick="openVaultModal()" class="flex-1 bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-300 py-1 rounded text-[10px] font-bold border border-emerald-500/40 text-center">Log</button>
                         <button onclick="openWithdrawModal()" class="flex-1 bg-emerald-500 hover:bg-emerald-400 text-black py-1 rounded text-[10px] font-black text-center">Withdraw</button>
@@ -261,7 +261,7 @@
                         <span>Free Cash</span>
                         <i class="fa-solid fa-wallet text-xs text-amber-400"></i>
                     </div>
-                    <div id="m-val-cash" class="text-base font-black text-white my-0.5">$77,000.00</div>
+                    <div id="m-val-cash" class="text-base font-black text-white my-0.5">{{ VIRTUAL_CASH }}</div>
                     <div class="mt-1">
                         <button onclick="openDepositModal()" class="w-full bg-amber-500 hover:bg-amber-400 text-black py-1 rounded text-[10px] font-black text-center">+ Deposit</button>
                     </div>
@@ -403,7 +403,7 @@
                     <div class="text-[11px] font-bold text-gray-400 uppercase tracking-wider flex items-center">
                         <i class="fa-solid fa-arrow-trend-up text-emerald-400 mr-1.5"></i> Total Profit (+USD)
                     </div>
-                    <div id="ana-val-total-profit" class="text-base md:text-lg font-black text-emerald-400 font-mono">+$263,163.75</div>
+                    <div id="ana-val-total-profit" class="text-base md:text-lg font-black text-emerald-400 font-mono">{{ TOTAL_PROFIT }}</div>
                     <div class="text-[10px] text-gray-500">Gross Realized Sweeps</div>
                 </div>
 
@@ -412,7 +412,7 @@
                     <div class="text-[11px] font-bold text-gray-400 uppercase tracking-wider flex items-center">
                         <i class="fa-solid fa-arrow-trend-down text-red-400 mr-1.5"></i> Total Loss (-USD)
                     </div>
-                    <div id="ana-val-total-loss" class="text-base md:text-lg font-black text-red-400 font-mono">-$12,480.20</div>
+                    <div id="ana-val-total-loss" class="text-base md:text-lg font-black text-red-400 font-mono">{{ TOTAL_LOSS }}</div>
                     <div class="text-[10px] text-gray-500">Strict Circuit Shielded</div>
                 </div>
 
@@ -421,7 +421,7 @@
                     <div class="text-[11px] font-bold text-gray-400 uppercase tracking-wider flex items-center">
                         <i class="fa-solid fa-bullseye text-amber-400 mr-1.5"></i> Win Rate (%)
                     </div>
-                    <div id="ana-val-win-rate" class="text-base md:text-lg font-black text-amber-400 font-mono">92.4%</div>
+                    <div id="ana-val-win-rate" class="text-base md:text-lg font-black text-amber-400 font-mono">{{ WIN_RATE }}</div>
                     <div class="text-[10px] text-gray-500">High-Confluence AI</div>
                 </div>
 
@@ -430,7 +430,7 @@
                     <div class="text-[11px] font-bold text-gray-400 uppercase tracking-wider flex items-center">
                         <i class="fa-solid fa-scale-balanced text-blue-400 mr-1.5"></i> Profit Factor
                     </div>
-                    <div id="ana-val-profit-factor" class="text-base md:text-lg font-black text-blue-400 font-mono">4.18</div>
+                    <div id="ana-val-profit-factor" class="text-base md:text-lg font-black text-blue-400 font-mono">{{ PROFIT_FACTOR }}</div>
                     <div class="text-[10px] text-gray-500">Gross Profit / Loss</div>
                 </div>
 
@@ -439,7 +439,7 @@
                     <div class="text-[11px] font-bold text-gray-400 uppercase tracking-wider flex items-center">
                         <i class="fa-solid fa-gem text-teal-400 mr-1.5"></i> YTD Growth
                     </div>
-                    <div id="ana-val-ytd" class="text-base md:text-lg font-black text-teal-400 font-mono">+159.8%</div>
+                    <div id="ana-val-ytd" class="text-base md:text-lg font-black text-teal-400 font-mono">{{ YTD_GROWTH }}</div>
                     <div class="text-[10px] text-gray-500">2026 Cumulative ROI</div>
                 </div>
             </div>
@@ -893,7 +893,7 @@
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                                     <div>
                                         <label class="block text-xs font-bold text-gray-300 mb-1.5">MT5 Account Number / Login:</label>
-                                        <input type="text" id="broker-exness-account" placeholder="7849201" class="w-full bg-black/60 border border-gray-800 rounded-xl px-4 py-3 text-xs font-mono text-white focus:outline-none focus:border-amber-500 shadow-inner">
+                                        <input type="text" id="broker-exness-account" placeholder="e.g. 1002345" class="w-full bg-black/60 border border-gray-800 rounded-xl px-4 py-3 text-xs font-mono text-white focus:outline-none focus:border-amber-500 shadow-inner">
                                     </div>
                                     <div>
                                         <label class="block text-xs font-bold text-gray-300 mb-1.5">Trading Password:</label>
@@ -1127,7 +1127,7 @@
                         <div class="space-y-3 text-xs">
                             <div>
                                 <label class="block text-gray-300 font-bold mb-1">Telegram Bot Token:</label>
-                                <input type="password" id="input-tg-bot-token" placeholder="123456789:ABCdefGhIJKlmNoPQRstuVWXyz" class="w-full bg-black/60 border border-gray-800 rounded-xl px-3.5 py-2.5 text-xs font-mono text-white focus:outline-none focus:border-sky-500 shadow-inner">
+                                <input type="password" id="input-tg-bot-token" placeholder="Enter Telegram Bot Token from @BotFather" class="w-full bg-black/60 border border-gray-800 rounded-xl px-3.5 py-2.5 text-xs font-mono text-white focus:outline-none focus:border-sky-500 shadow-inner">
                             </div>
                             <div>
                                 <label class="block text-gray-300 font-bold mb-1">Your Personal Chat ID:</label>
@@ -3499,7 +3499,7 @@
                         <span>FIX 4.4 / 5.0 Protocol</span>
                         <i class="fa-solid fa-bolt text-amber-400"></i>
                     </div>
-                    <div class="text-xs font-black text-emerald-400 font-mono">ONLINE (0.42ms)</div>
+                    <div class="text-xs font-black text-emerald-400 font-mono">ONLINE (Real-Time)</div>
                     <div class="text-[9px] text-gray-500">Direct Exchange Gateway</div>
                 </div>
                 <div class="bg-gray-950 border border-gray-800 p-3.5 rounded-xl space-y-1">
