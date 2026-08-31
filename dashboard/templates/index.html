@@ -1874,24 +1874,32 @@
 
         async function fetchState() {
             try {
-                const res = await fetch('/api/state');
-                if (!res.ok) throw new Error('State fetch failed');
-                const data = await res.json();
+                const response = await fetch('/api/state');
+                if (!response.ok) throw new Error('API offline');
+                const data = await response.json();
+                latestSystemState = data;
+
                 updateAnalyticsUI(data);
 
                 offlineFailCount = 0;
                 const offlineBanner = document.getElementById('network-offline-banner');
                 if (offlineBanner) offlineBanner.classList.add('hidden');
 
+                // UNIFIED SINGLE SOURCE OF TRUTH DERIVATIONS
+                const eqStr = '$' + Number(data.account.portfolio_equity).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                const cashStr = '$' + Number(data.account.virtual_cash).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                const vaultBal = (data.account.profit_vault && typeof data.account.profit_vault.vault_balance === 'number') ? data.account.profit_vault.vault_balance : 0.0;
+                const vaultStr = '$' + Number(vaultBal).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                const openCount = Array.isArray(data.account.open_positions) ? data.account.open_positions.length : (data.account.open_positions_count || 0);
                 aiActiveState = data.account.ai_active ?? true;
+
+                // 1. Header Running Positions Badge (Strictly matches open_positions.length)
                 const btnAi = document.getElementById('btn-toggle-ai');
                 const lblAi = document.getElementById('lbl-ai-mode');
-                const openCount = data.account.open_positions_count || 0;
-
                 if (btnAi && lblAi) {
                     if (aiActiveState) {
                         btnAi.className = 'bg-emerald-600/20 border border-emerald-500/40 text-emerald-400 px-3.5 py-1.5 rounded-lg text-xs font-black transition flex items-center shadow-lg';
-                        lblAi.innerText = openCount > 0 ? `AUTO AI TRADING: ON (${openCount} POSITIONS RUNNING)` : 'AUTO AI TRADING: ON';
+                        lblAi.innerText = openCount > 0 ? `AUTO AI TRADING: ON (${openCount} POSITIONS RUNNING)` : 'AUTO AI TRADING: ON (0 POSITIONS RUNNING)';
                     } else {
                         btnAi.className = 'bg-amber-600/20 border border-amber-500/40 text-amber-400 px-3.5 py-1.5 rounded-lg text-xs font-black transition flex items-center shadow-lg';
                         lblAi.innerText = 'MANUAL ONLY MODE (OFF)';
@@ -1905,7 +1913,59 @@
                         : 'bg-amber-600/20 border border-amber-500/40 text-amber-400 p-2 rounded-lg text-xs font-black transition flex items-center shadow';
                 }
 
-                // Check Economic News Lockout Status
+                // 2. Portfolio Equity (Desktop & Mobile Unified)
+                const eqElem = document.getElementById('val-equity');
+                if (eqElem) eqElem.innerText = eqStr;
+                const mEq = document.getElementById('m-val-equity');
+                if (mEq) mEq.innerText = eqStr;
+
+                // 3. Free / Virtual Cash (Desktop & Mobile Unified)
+                const cashElem = document.getElementById('val-cash');
+                if (cashElem) cashElem.innerText = cashStr;
+                const mCash = document.getElementById('m-val-cash');
+                if (mCash) mCash.innerText = cashStr;
+                const lblCashElem = document.getElementById('lbl-cash');
+                if (lblCashElem) lblCashElem.innerText = cashStr;
+
+                // 4. Secured Profit Vault (Desktop, Mobile & Modal Unified)
+                const vaultBalElem = document.getElementById('val-vault-balance');
+                if (vaultBalElem) vaultBalElem.innerText = vaultStr;
+                const mVault = document.getElementById('m-val-vault');
+                if (mVault) mVault.innerText = vaultStr;
+                const modalTotalElem = document.getElementById('modal-vault-total');
+                if (modalTotalElem) modalTotalElem.innerText = vaultStr;
+
+                if (data.account.profit_vault) {
+                    const vault = data.account.profit_vault;
+                    const sweepElem = document.getElementById('val-vault-sweeps');
+                    if (sweepElem) {
+                        sweepElem.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5 animate-pulse"></span> ${vault.total_sweeps_count || 0} Auto-Sweeps Saved`;
+                    }
+                    if (vault.recent_sweeps) {
+                        renderVaultModalHistory(vault.recent_sweeps);
+                    }
+                    if (vault.withdrawal_history) {
+                        renderWithdrawalLedger(vault.withdrawal_history);
+                    }
+                    setWithdrawSource(activeWithdrawSource);
+                }
+
+                // 5. Floating Open PnL
+                const pnlUsd = typeof data.account.floating_open_pnl_usd === 'number' ? data.account.floating_open_pnl_usd : data.account.total_pnl_usd;
+                const pnlPct = typeof data.account.floating_open_pnl_pct === 'number' ? data.account.floating_open_pnl_pct : data.account.total_pnl_pct;
+                const isPos = pnlUsd >= 0;
+                const pnlElem = document.getElementById('val-pnl');
+                if (pnlElem) {
+                    pnlElem.className = `text-xs font-medium mt-1 ${isPos ? 'text-emerald-400' : 'text-red-400'}`;
+                    pnlElem.innerText = `${isPos ? '+' : ''}$${pnlUsd.toFixed(2)} (${isPos ? '+' : ''}${pnlPct.toFixed(2)}%) Floating Open PnL`;
+                }
+                const mPnl = document.getElementById('m-val-pnl');
+                if (mPnl) {
+                    mPnl.className = `text-[10px] font-black ${isPos ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30' : 'text-red-400 bg-red-500/10 border-red-500/30'} border px-2 py-0.5 rounded-full`;
+                    mPnl.innerText = `${isPos ? '+' : ''}$${pnlUsd.toFixed(2)} (${isPos ? '+' : ''}${pnlPct.toFixed(2)}%)`;
+                }
+
+                // 6. Economic News & Binance Status
                 const newsBanner = document.getElementById('news-lockout-banner');
                 if (newsBanner) {
                     if (data.economic_news && data.economic_news.lockout_active) {
@@ -1931,82 +1991,7 @@
                     }
                 }
 
-                // UNIFIED SINGLE SOURCE OF TRUTH DERIVATIONS
-                const eqStr = '$' + Number(data.account.portfolio_equity).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                const cashStr = '$' + Number(data.account.virtual_cash).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                const vaultBal = (data.account.profit_vault && data.account.profit_vault.vault_balance) ? data.account.profit_vault.vault_balance : 0.0;
-                const vaultStr = '$' + Number(vaultBal).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                const openCount = Array.isArray(data.account.open_positions) ? data.account.open_positions.length : (data.account.open_positions_count || 0);
-
-                // 1. Portfolio Equity (Desktop & Mobile Unified)
-                const eqElem = document.getElementById('val-equity');
-                if (eqElem) eqElem.innerText = eqStr;
-                const mEq = document.getElementById('m-val-equity');
-                if (mEq) mEq.innerText = eqStr;
-
-                // 2. Free / Virtual Cash (Desktop & Mobile Unified)
-                const cashElem = document.getElementById('val-cash');
-                if (cashElem) cashElem.innerText = cashStr;
-                const mCash = document.getElementById('m-val-cash');
-                if (mCash) mCash.innerText = cashStr;
-                const lblCashElem = document.getElementById('lbl-cash');
-                if (lblCashElem) lblCashElem.innerText = cashStr;
-
-                // 3. Secured Profit Vault (Desktop, Mobile & Modal Unified)
-                const vaultBalElem = document.getElementById('val-vault-balance');
-                if (vaultBalElem) vaultBalElem.innerText = vaultStr;
-                const mVault = document.getElementById('m-val-vault');
-                if (mVault) mVault.innerText = vaultStr;
-                const modalTotalElem = document.getElementById('modal-vault-total');
-                if (modalTotalElem) modalTotalElem.innerText = vaultStr;
-
-                if (data.account.profit_vault) {
-                    const vault = data.account.profit_vault;
-                    const sweepElem = document.getElementById('val-vault-sweeps');
-                    if (sweepElem) {
-                        sweepElem.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5 animate-pulse"></span> ${vault.total_sweeps_count || 0} Auto-Sweeps Saved`;
-                    }
-                    if (vault.recent_sweeps) {
-                        renderVaultModalHistory(vault.recent_sweeps);
-                    }
-                    if (vault.withdrawal_history) {
-                        renderWithdrawalLedger(vault.withdrawal_history);
-                    }
-                    setWithdrawSource(activeWithdrawSource);
-                }
-
-                // 4. Header Running Positions Badge (Strictly matches open_positions.length)
-                const lblAi = document.getElementById('lbl-ai-mode');
-                if (lblAi) {
-                    if (data.account.ai_active) {
-                        lblAi.innerText = openCount > 0 ? `AUTO AI TRADING: ON (${openCount} POSITIONS RUNNING)` : 'AUTO AI TRADING: ON (0 POSITIONS RUNNING)';
-                    } else {
-                        lblAi.innerText = 'MANUAL ONLY MODE (OFF)';
-                    }
-                }
-
-                const pnlUsd = typeof data.account.floating_open_pnl_usd === 'number' ? data.account.floating_open_pnl_usd : data.account.total_pnl_usd;
-                const pnlPct = typeof data.account.floating_open_pnl_pct === 'number' ? data.account.floating_open_pnl_pct : data.account.total_pnl_pct;
-                const isPos = pnlUsd >= 0;
-                const pnlElem = document.getElementById('val-pnl');
-                if (pnlElem) {
-                    pnlElem.className = `text-xs font-medium mt-1 ${isPos ? 'text-emerald-400' : 'text-red-400'}`;
-                    pnlElem.innerText = `${isPos ? '+' : ''}$${pnlUsd.toFixed(2)} (${isPos ? '+' : ''}${pnlPct.toFixed(2)}%) Floating Open PnL`;
-                }
-
-                // Update Mobile Hero Card Elements (< md)
-                const mEq = document.getElementById('m-val-equity');
-                if (mEq) mEq.innerText = '$' + data.account.portfolio_equity.toLocaleString('en-US', {minimumFractionDigits: 2});
-                const mVault = document.getElementById('m-val-vault');
-                if (mVault && data.vault) mVault.innerText = '$' + data.vault.vault_balance.toLocaleString('en-US', {minimumFractionDigits: 2});
-                const mCash = document.getElementById('m-val-cash');
-                if (mCash) mCash.innerText = '$' + data.account.virtual_cash.toLocaleString('en-US', {minimumFractionDigits: 2});
-                const mPnl = document.getElementById('m-val-pnl');
-                if (mPnl) {
-                    mPnl.className = `text-[10px] font-black ${isPos ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30' : 'text-red-400 bg-red-500/10 border-red-500/30'} border px-2 py-0.5 rounded-full`;
-                    mPnl.innerText = `${isPos ? '+' : ''}$${pnlUsd.toFixed(2)} (${isPos ? '+' : ''}${pnlPct.toFixed(2)}%)`;
-                }
-
+                // 7. Risk Profile & Trade Cap Presets
                 if (data.risk_profile) {
                     const prof = data.risk_profile;
                     const initialCap = (data.account && data.account.initial_capital) ? data.account.initial_capital : 100000;
@@ -2046,35 +2031,16 @@
                     if (btnAgg) btnAgg.className = prof.active_profile === 'AGGRESSIVE' ? activeClass : inactiveClass;
                 }
 
-                if (data.macro_sentiment) {
-                    const macro = data.macro_sentiment;
-                    const macroSentElem = document.getElementById('lbl-macro-sentiment');
-                    if (macroSentElem) macroSentElem.innerText = `${macro.sentiment_label} (Score: ${macro.sentiment_score > 0 ? '+' : ''}${macro.sentiment_score})`;
-                    const macroLockElem = document.getElementById('lbl-macro-lockout');
-                    if (macroLockElem) {
-                        macroLockElem.innerText = macro.high_impact_news_active ? 'HIGH IMPACT LOCKOUT' : 'CLEAR (No Event)';
-                        macroLockElem.className = macro.high_impact_news_active ? 'text-red-400 font-black animate-pulse' : 'text-emerald-400 font-black';
-                    }
-                    
-                    if (macro.recent_headlines && macro.recent_headlines.length > 0) {
-                        const idx = Math.floor(Date.now() / 4000) % macro.recent_headlines.length;
-                        const headlineElem = document.getElementById('lbl-macro-headline');
-                        if (headlineElem) headlineElem.innerText = macro.recent_headlines[idx];
-                    }
-                    const macroTimeElem = document.getElementById('lbl-macro-time');
-                    if (macroTimeElem) macroTimeElem.innerText = macro.timestamp || 'Live';
-                }
-
+                // 8. Render Open Positions Table
                 renderPositions(data.account.open_positions);
 
-                // Update Dynamic Live Order Book Depth & Bid/Ask Meter from Real-Time Market Data
+                // 9. Render Order Depth, Live Orders, Forensics, Scanners
                 const xauPos = (data.account && data.account.open_positions) ? data.account.open_positions.XAUUSD : null;
                 const mid = (xauPos && xauPos.last_price) ? xauPos.last_price : (data.market_data && data.market_data.XAUUSD ? data.market_data.XAUUSD.price : 2514.80);
                 const spread = 0.06;
                 const bid = (mid - spread/2).toFixed(2);
                 const ask = (mid + spread/2).toFixed(2);
                 
-                // Fluctuating dynamic live order book ratio based on real-time micro-seconds
                 const tickPhase = Math.sin(Date.now() / 2500) * 12.0 + Math.cos(Date.now() / 1100) * 4.0;
                 const buyerPct = Math.max(35.0, Math.min(68.0, 52.5 + tickPhase)).toFixed(1);
                 const sellerPct = (100.0 - buyerPct).toFixed(1);
@@ -2106,167 +2072,12 @@
                 }
             } catch (err) {
                 offlineFailCount++;
-                const offlineBanner = document.getElementById('network-offline-banner');
-                if (offlineBanner && (offlineFailCount >= 2 || !navigator.onLine)) {
-                    offlineBanner.classList.remove('hidden');
-                }
-                console.error(err);
-            }
-        }
-
-        window.addEventListener('online', () => {
-            const offlineBanner = document.getElementById('network-offline-banner');
-            if (offlineBanner) offlineBanner.classList.add('hidden');
-            fetchState();
-        });
-
-        window.addEventListener('offline', () => {
-            const offlineBanner = document.getElementById('network-offline-banner');
-            if (offlineBanner) offlineBanner.classList.remove('hidden');
-        });
-
-        function renderTelegramChannels(channels) {
-            const container = document.getElementById('telegram-channels-bar');
-            if (!container || !channels || channels.length === 0) return;
-
-            container.innerHTML = channels.map(ch => `
-                <div class="px-2.5 py-1 bg-gray-900 border ${ch.status.startsWith('CONNECTED') ? 'border-sky-500/40 text-sky-300' : 'border-red-500/40 text-red-300'} rounded-lg text-xs font-bold flex items-center space-x-1.5 shadow">
-                    <span>${ch.channel_id}</span>
-                    <span class="text-[9px] px-1 py-0.2 rounded bg-black/40 ${ch.status.startsWith('CONNECTED') ? 'text-emerald-400' : 'text-red-400'}">${ch.trust_rating}</span>
-                </div>
-            `).join('');
-        }
-
-        async function addTelegramChannelPrompt() {
-            const handle = prompt("Enter Telegram Channel or Group Handle (e.g. @vip_gold_signals):", "@");
-            if (handle && handle.trim().length > 1) {
-                const res = await fetch('/api/add-telegram-channel', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ handle })
-                });
-                if (res.ok) {
-                    fetchState();
+                console.error('[POLL ERROR]', err);
+                if (offlineFailCount > 2) {
+                    const offlineBanner = document.getElementById('network-offline-banner');
+                    if (offlineBanner) offlineBanner.classList.remove('hidden');
                 }
             }
-        }
-
-        function renderTelegramAudits(list) {
-            const container = document.getElementById('telegram-audit-container');
-            if (!container || !list || list.length === 0) return;
-
-            container.innerHTML = list.map(item => `
-                <div class="p-3 bg-gray-900 border border-gray-800 rounded-xl space-y-1.5 shadow-lg">
-                    <div class="flex justify-between items-center text-xs">
-                        <div class="flex items-center space-x-2">
-                            <span class="font-black text-sky-400"><i class="fa-brands fa-telegram mr-1"></i>${item.channel}</span>
-                            <span class="font-mono text-gray-400">@ ${item.timestamp}</span>
-                        </div>
-                        <div class="flex items-center space-x-2">
-                            <span class="font-bold ${item.ai_trust_score >= 75 ? 'text-emerald-400' : 'text-red-400'}">${item.ai_trust_score}% Match Score</span>
-                            <span class="px-2 py-0.5 text-[10px] font-black rounded ${item.verdict.includes('APPROVED') ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-red-500/20 text-red-300 border border-red-500/40'}">${item.verdict}</span>
-                        </div>
-                    </div>
-                    <div class="text-xs font-mono text-gray-200 bg-black/40 p-2 rounded-lg border border-gray-800">"${item.raw_text}"</div>
-                    <div class="text-[11px] font-medium text-gray-400"><i class="fa-solid fa-microscope text-amber-400 mr-1"></i> AI Verification Reason: ${item.reason}</div>
-                </div>
-            `).join('');
-        }
-
-        async function auditTelegramSignal() {
-            const text = document.getElementById('input-tg-signal').value;
-            if (!text || text.trim().length === 0) return;
-
-            const res = await fetch('/api/audit-telegram-signal', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text, channel: "User Ingested Signal" })
-            });
-
-            if (res.ok) {
-                document.getElementById('input-tg-signal').value = '';
-                fetchState();
-            }
-        }
-
-        function renderScannerFeed(items) {
-            const container = document.getElementById('scanner-grid-container');
-            if (!items || items.length === 0) return;
-
-            container.innerHTML = items.map((item, idx) => `
-                <div class="p-3 bg-gray-900/90 border ${idx === 0 ? 'border-amber-500/60 bg-amber-950/20' : 'border-gray-800'} rounded-xl space-y-1.5 shadow-lg">
-                    <div class="flex justify-between items-center text-xs">
-                        <span class="font-black text-white">${item.name}</span>
-                        <span class="px-1.5 py-0.5 text-[9px] font-black rounded ${item.ai_action === 'BUY' ? 'bg-emerald-500/20 text-emerald-400' : (item.ai_action === 'SELL' ? 'bg-red-500/20 text-red-400' : 'bg-gray-800 text-gray-400')}">${item.ai_action}</span>
-                    </div>
-                    <div class="flex justify-between text-xs">
-                        <span class="font-mono text-gray-300">$${item.price.toLocaleString()}</span>
-                        <span class="font-bold text-amber-400">${item.opportunity_score}% Match</span>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function setChartView(mode) {
-            const containerTv = document.getElementById('container-tv-chart');
-            const containerCanvas = document.getElementById('container-canvas-chart');
-            const btnTv = document.getElementById('btn-view-tv');
-            const btnCanvas = document.getElementById('btn-view-canvas');
-
-            const activeClass = 'px-3 py-1 text-xs font-black rounded-lg bg-amber-500 text-black transition';
-            const inactiveClass = 'px-3 py-1 text-xs font-bold text-gray-400 hover:text-white rounded-lg transition';
-
-            if (mode === 'TV') {
-                containerTv.classList.remove('hidden');
-                containerCanvas.classList.add('hidden');
-                btnTv.className = activeClass;
-                btnCanvas.className = inactiveClass;
-            } else {
-                containerCanvas.classList.remove('hidden');
-                containerTv.classList.add('hidden');
-                btnCanvas.className = activeClass;
-                btnTv.className = inactiveClass;
-                fetchKlines();
-            }
-        }
-
-        async function fetchKlines() {
-            try {
-                const res = await fetch('/api/klines?ticker=XAUUSD');
-                const data = await res.json();
-                
-                if (data.candles && data.candles.length > 0) {
-                    renderCandles(data.candles);
-                }
-            } catch (err) {
-                console.error(err);
-            }
-        }
-
-        function renderCandles(candles) {
-            const container = document.getElementById('candle-bars-container');
-            if (!candles || candles.length === 0) return;
-
-            const minP = Math.min(...candles.map(c => c.low));
-            const maxP = Math.max(...candles.map(c => c.high));
-            const range = Math.max(0.1, maxP - minP);
-
-            const last = candles[candles.length - 1];
-            document.getElementById('canvas-ohlc').innerText = `O: ${last.open.toFixed(2)}  H: ${last.high.toFixed(2)}  L: ${last.low.toFixed(2)}  C: ${last.close.toFixed(2)}`;
-
-            container.innerHTML = candles.map(c => {
-                const isUp = c.close >= c.open;
-                // Orange and Teal candles matching Marvan's reference screenshot!
-                const barColor = isUp ? 'bg-teal-500' : 'bg-orange-500';
-                const wickColor = isUp ? 'bg-teal-400' : 'bg-orange-400';
-                const bodyH = Math.max(8, (Math.abs(c.close - c.open) / range) * 100);
-
-                return `
-                <div class="flex-1 flex flex-col items-center justify-end h-full group relative border-r border-gray-900/50">
-                    <div class="w-[1.5px] ${wickColor} opacity-80 h-full max-h-[85%]"></div>
-                    <div class="w-full ${barColor} rounded-xs transition-all shadow-md" style="height: ${bodyH}%"></div>
-                </div>`;
-            }).join('');
         }
 
         function renderPositions(positions) {
