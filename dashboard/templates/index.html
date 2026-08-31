@@ -1309,6 +1309,8 @@
 
             if (tabName === 'vault') {
                 openVaultModal();
+            } else if (tabName === 'backtest') {
+                open15YearBacktestModal();
             } else if (tabName === 'positions') {
                 const posEl = document.getElementById('active-positions-table') || document.getElementById('val-equity');
                 if (posEl) posEl.scrollIntoView({ behavior: 'smooth' });
@@ -2884,6 +2886,8 @@
 
             if (tabName === 'vault') {
                 openVaultModal();
+            } else if (tabName === 'backtest') {
+                open15YearBacktestModal();
             } else if (tabName === 'settings') {
                 openSettingsModal();
             } else if (tabName === 'positions') {
@@ -3282,6 +3286,169 @@
             localStorage.removeItem('trader_username');
             checkTraderAuth();
         }
+
+        
+        // ==================== 15-YEAR INSTITUTIONAL BACKTESTING LAB JS ====================
+        let backtest15Chart = null;
+        let cached15YearReport = null;
+
+        async function open15YearBacktestModal() {
+            const m = document.getElementById('modal-15y-backtest');
+            if (m) {
+                m.classList.remove('hidden');
+                m.style.display = 'flex';
+            }
+            if (cached15YearReport) {
+                render15YearBacktestUI(cached15YearReport);
+            }
+            await load15YearBacktestResults();
+        }
+
+        function close15YearBacktestModal() {
+            const m = document.getElementById('modal-15y-backtest');
+            if (m) {
+                m.classList.add('hidden');
+                m.style.display = 'none';
+            }
+        }
+
+        async function load15YearBacktestResults() {
+            try {
+                const res = await fetch('/api/backtest/15year-results');
+                if (res.ok) {
+                    const data = await res.json();
+                    cached15YearReport = data;
+                    render15YearBacktestUI(data);
+                }
+            } catch (e) {
+                console.error('Error loading 15-year backtest:', e);
+            }
+        }
+
+        async function rerun15YearBacktest() {
+            const btn = document.getElementById('btn-rerun-15y');
+            if (btn) btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Calculating 15 Years...';
+            try {
+                const res = await fetch('/api/backtest/run-15year', { method: 'POST' });
+                if (res.ok) {
+                    const data = await res.json();
+                    cached15YearReport = data;
+                    render15YearBacktestUI(data);
+                }
+            } catch (e) {
+                console.error(e);
+            } finally {
+                if (btn) btn.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> Re-Calculate';
+            }
+        }
+
+        function render15YearBacktestUI(report) {
+            if (!report) return;
+
+            const elInit = document.getElementById('bt15-initial-cap');
+            const elFinal = document.getElementById('bt15-final-equity');
+            const elVault = document.getElementById('bt15-vault-reserve');
+            const elCagr = document.getElementById('bt15-cagr');
+            const elSharpe = document.getElementById('bt15-sharpe');
+            const elMaxDD = document.getElementById('bt15-max-dd');
+
+            if (elInit) elInit.innerText = '$' + Number(report.initial_capital_usd).toLocaleString();
+            if (elFinal) elFinal.innerText = '$' + Number(report.final_equity_usd).toLocaleString('en-US', {minimumFractionDigits: 2});
+            if (elVault) elVault.innerText = '+$' + Number(report.total_vault_reserve_usd).toLocaleString('en-US', {minimumFractionDigits: 2});
+            if (elCagr) elCagr.innerText = '+' + report.cagr_pct + '%';
+            if (elSharpe) elSharpe.innerText = report.sharpe_ratio + ' / ' + report.sortino_ratio;
+            if (elMaxDD) elMaxDD.innerText = report.max_drawdown_pct + '%';
+
+            // Stress Tests Matrix
+            const stressCont = document.getElementById('bt15-stress-tests-container');
+            if (stressCont && report.stress_tests) {
+                stressCont.innerHTML = report.stress_tests.map(st => `
+                    <div class="bg-gray-900/90 border border-gray-800 p-3 rounded-xl space-y-1.5 shadow">
+                        <div class="text-[11px] font-black text-amber-300 flex items-center justify-between">
+                            <span>${st.crisis_name}</span>
+                            <span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono">${st.status}</span>
+                        </div>
+                        <div class="text-[10px] text-red-400 font-mono">Market Shock: ${st.market_drop}</div>
+                        <div class="text-[10px] text-emerald-400 font-mono font-bold">Aegis Shield: ${st.aegis_result}</div>
+                    </div>
+                `).join('');
+            }
+
+            // Year-by-Year Table
+            const tbody = document.getElementById('bt15-yearly-table-body');
+            if (tbody && report.yearly_breakdown) {
+                tbody.innerHTML = report.yearly_breakdown.map(y => `
+                    <tr class="hover:bg-gray-900/60 transition border-b border-gray-800/40">
+                        <td class="p-2.5 font-black text-white">${y.year}</td>
+                        <td class="p-2.5 text-gray-400">$${Number(y.start_equity).toLocaleString()}</td>
+                        <td class="p-2.5 font-black text-emerald-400">$${Number(y.end_equity).toLocaleString()}</td>
+                        <td class="p-2.5 text-amber-300">+$${Number(y.vault_reserve_added).toLocaleString()}</td>
+                        <td class="p-2.5 text-gray-300">${y.total_trades}</td>
+                        <td class="p-2.5 text-sky-400 font-bold">${y.win_rate_pct}%</td>
+                        <td class="p-2.5 text-emerald-400 font-black">+${y.annual_return_pct}%</td>
+                        <td class="p-2.5 text-gray-400">${y.max_drawdown_pct}%</td>
+                        <td class="p-2.5"><span class="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-[10px] font-black">${y.status}</span></td>
+                    </tr>
+                `).join('');
+            }
+
+            // Equity Curve Chart
+            const canvas = document.getElementById('backtest15YearChart');
+            if (canvas && typeof Chart !== 'undefined' && report.equity_curve) {
+                const labels = report.equity_curve.map((item, idx) => idx % 8 === 0 ? item.date : '');
+                const eqData = report.equity_curve.map(item => item.total_equity);
+                const vaultData = report.equity_curve.map(item => item.vault_reserve);
+
+                if (backtest15Chart) {
+                    backtest15Chart.data.labels = labels;
+                    backtest15Chart.data.datasets[0].data = eqData;
+                    backtest15Chart.data.datasets[1].data = vaultData;
+                    backtest15Chart.update('none');
+                } else {
+                    const ctx = canvas.getContext('2d');
+                    backtest15Chart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [
+                                {
+                                    label: 'Total Portfolio Equity ($)',
+                                    data: eqData,
+                                    borderColor: '#10b981',
+                                    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                                    borderWidth: 2,
+                                    fill: true,
+                                    tension: 0.2,
+                                    pointRadius: 0
+                                },
+                                {
+                                    label: 'Untouchable Vault Reserve ($)',
+                                    data: vaultData,
+                                    borderColor: '#f59e0b',
+                                    borderWidth: 2,
+                                    borderDash: [4, 4],
+                                    fill: false,
+                                    tension: 0.2,
+                                    pointRadius: 0
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { position: 'top', labels: { color: '#9ca3af', font: { size: 11, weight: 'bold' } } }
+                            },
+                            scales: {
+                                x: { grid: { display: false }, ticks: { color: '#6b7280', font: { size: 9 } } },
+                                y: { grid: { color: 'rgba(75, 85, 99, 0.15)' }, ticks: { color: '#6b7280', font: { size: 9 } } }
+                            }
+                        }
+                    });
+                }
+            }
+        }
+
 
         document.addEventListener('DOMContentLoaded', () => {
             loadNotificationConfig();
