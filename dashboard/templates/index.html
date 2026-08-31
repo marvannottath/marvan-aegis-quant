@@ -1132,11 +1132,11 @@
                         <div class="space-y-3 text-xs">
                             <div>
                                 <label class="block text-gray-300 font-bold mb-1">Telegram Bot Token:</label>
-                                <input type="password" id="input-tg-bot-token" placeholder="Enter Telegram Bot Token from @BotFather" class="w-full bg-black/60 border border-gray-800 rounded-xl px-3.5 py-2.5 text-xs font-mono text-white focus:outline-none focus:border-sky-500 shadow-inner">
+                                <input type="text" id="input-tg-bot-token" oninput="localStorage.setItem('marvan_tg_token', this.value.trim());" placeholder="Enter Telegram Bot Token from @BotFather" class="w-full bg-black/60 border border-gray-800 rounded-xl px-3.5 py-2.5 text-xs font-mono text-white focus:outline-none focus:border-sky-500 shadow-inner">
                             </div>
                             <div>
                                 <label class="block text-gray-300 font-bold mb-1">Your Personal Chat ID:</label>
-                                <input type="text" id="input-tg-chat-id" placeholder="e.g. 987654321" class="w-full bg-black/60 border border-gray-800 rounded-xl px-3.5 py-2.5 text-xs font-mono text-white focus:outline-none focus:border-sky-500 shadow-inner">
+                                <input type="text" id="input-tg-chat-id" oninput="localStorage.setItem('marvan_tg_chat_id', this.value.trim());" placeholder="e.g. 987654321" class="w-full bg-black/60 border border-gray-800 rounded-xl px-3.5 py-2.5 text-xs font-mono text-white focus:outline-none focus:border-sky-500 shadow-inner">
                             </div>
 
                             <div class="grid grid-cols-2 gap-2 pt-1">
