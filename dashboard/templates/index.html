@@ -319,7 +319,7 @@
                         </span>
                     </div>
                     <p class="text-xs text-gray-400 font-mono mt-1">
-                        API Key: <span class="text-amber-400 font-bold">yldL••••••••paM5</span> | Engine: <span class="text-emerald-400">demo-fapi.binance.com</span> | Mode: <span class="text-sky-400 font-bold">Futures USDT-M</span>
+                        API Key: <span class="text-amber-400 font-bold"><span id="banner-binance-key">{{ BINANCE_MASKED_KEY }}</span></span> | Engine: <span class="text-emerald-400">demo-fapi.binance.com</span> | Mode: <span class="text-sky-400 font-bold">Futures USDT-M</span>
                     </p>
                 </div>
             </div>
@@ -2149,6 +2149,8 @@
                         if (lblB) lblB.innerText = labelText;
                         const headerPill = document.getElementById('header-binance-pill');
                         if (headerPill) headerPill.innerText = labelText;
+                        const bannerKey = document.getElementById('banner-binance-key');
+                        if (bannerKey && data.binance_status.masked_api_key) bannerKey.innerText = data.binance_status.masked_api_key;
                         const cardB = document.getElementById('card-binance-balance');
                         if (cardB) cardB.innerText = '$' + Number(freeAmt).toLocaleString('en-US', {minimumFractionDigits: 2}) + ' USDT';
                     } else {

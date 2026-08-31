@@ -246,6 +246,8 @@ async def read_dashboard(request: Request):
     else:
         binance_txt = "SIMULATED MULTI-ASSET BROKER (ACTIVE)"
     content = content.replace("{{ BINANCE_STATUS_TEXT }}", binance_txt)
+    b_masked = binance_broker.get_status().get("masked_api_key", "l9hq••••••••jQEt")
+    content = content.replace("{{ BINANCE_MASKED_KEY }}", b_masked)
     
     # HTML Table Pre-Render Placeholders
     content = content.replace("<!-- PRERENDER_POSITIONS_ROWS -->", pos_rows_html)
@@ -743,6 +745,39 @@ async def harvest_profit(request: Request):
         body = await request.json() if request.headers.get("content-type") == "application/json" else {}
         asset = body.get("asset") if body else None
         res = paper_broker.harvest_floating_profit(asset=asset)
+        return JSONResponse(res)
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+@app.get("/api/broker-connections")
+async def get_broker_connections():
+    """Fetch truthful broker connection states for settings modal."""
+    b_stat = binance_broker.get_status()
+    return JSONResponse({
+        "status": "SUCCESS",
+        "binance": b_stat,
+        "brokers": [
+            {
+                "id": "binance",
+                "name": "Binance Official Exchange",
+                "status": b_stat["status"],
+                "connected": b_stat.get("connected", False),
+                "masked_api_key": b_stat.get("masked_api_key", ""),
+                "balance_usd": b_stat.get("usdt_free", 0.0),
+                "is_testnet": b_stat.get("is_testnet", False)
+            }
+        ]
+    })
+
+@app.post("/api/save-broker-connection")
+async def save_broker_connection(request: Request):
+    """Save and authenticate broker API credentials."""
+    try:
+        body = await request.json()
+        api_k = body.get("api_key", "").strip()
+        sec_k = body.get("secret_key", "").strip()
+        is_testnet = bool(body.get("testnet", False))
+        res = binance_broker.save_credentials(api_k, sec_k, testnet=is_testnet)
         return JSONResponse(res)
     except Exception as e:
         return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
