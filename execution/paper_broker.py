@@ -41,6 +41,15 @@ class PaperBroker:
                 "trade_history": [],
                 "vault_reserve": 0.0,
                 "ai_active": True
+            },
+            "BINANCE_LIVE_REAL": {
+                "initial_capital": 100.0,
+                "virtual_cash": 100.0,
+                "equity": 100.0,
+                "positions": {},
+                "trade_history": [],
+                "vault_reserve": 0.0,
+                "ai_active": True
             }
         }
         
@@ -315,7 +324,10 @@ class PaperBroker:
 
         # If Binance Demo pool is active, execute authentic order on Binance Futures API
         binance_order_id = None
-        if self.active_pool_name == "BINANCE_DEMO" and binance_broker.api_key:
+        if (self.active_pool_name in ["BINANCE_DEMO", "BINANCE_LIVE_REAL"]) and binance_broker.api_key:
+            if self.active_pool_name == "BINANCE_LIVE_REAL":
+                binance_broker.place_spot_market_order(symbol=b_sym, side=action, quote_order_qty=min(margin_usd, 50.0))
+
             try:
                 # Convert asset symbol to Binance standard (e.g. BTCUSDT)
                 b_sym = asset if "USDT" in asset else f"{asset.replace('USD', '')}USDT"

@@ -13,7 +13,7 @@ import time
 import requests
 import json
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 
 BINANCE_CONFIG_FILE = Path(__file__).resolve().parent / "binance_config.json"
 
@@ -224,6 +224,73 @@ class BinanceBroker:
         """Close an open position on Binance Futures with opposite MARKET order."""
         close_side = "SELL" if original_side.upper() == "BUY" else "BUY"
         return self.place_futures_order(symbol, close_side, quantity)
+
+
+    def place_spot_market_order(self, symbol: str, side: str, quote_order_qty: float = 10.0) -> Dict[str, Any]:
+        """Send authenticated Real Market Order directly to Binance Live Spot API."""
+        if not self.api_key or not self.secret_key:
+            return {"status": "ERROR", "message": "Binance API keys not configured."}
+
+        url = "https://api.binance.com/api/v3/order"
+        headers = {"X-MBX-APIKEY": self.api_key}
+
+        try:
+            st = int(time.time() * 1000)
+            try:
+                tres = requests.get("https://api.binance.com/api/v3/time", timeout=3)
+                st = tres.json().get("serverTime", st)
+            except Exception:
+                pass
+
+            params = {
+                "symbol": symbol.upper(),
+                "side": side.upper(),
+                "type": "MARKET",
+                "quoteOrderQty": round(quote_order_qty, 2),
+                "timestamp": st,
+                "recvWindow": 60000
+            }
+            query = "&".join(f"{k}={v}" for k, v in params.items())
+            signature = hmac.new(
+                self.secret_key.encode("utf-8"),
+                query.encode("utf-8"),
+                hashlib.sha256
+            ).hexdigest()
+
+            resp = requests.post(f"{url}?{query}&signature={signature}", headers=headers, timeout=5)
+            if resp.status_code == 200:
+                data = resp.json()
+                print(f"[BINANCE LIVE SPOT] REAL Trade Executed on Binance: {symbol} {side} ${quote_order_qty} (Order ID: {data.get('orderId')})")
+                return {"status": "SUCCESS", "order_id": data.get("orderId"), "data": data}
+            else:
+                print(f"[BINANCE LIVE SPOT] Order Error {resp.status_code}: {resp.text}")
+                return {"status": "ERROR", "code": resp.status_code, "message": resp.text}
+        except Exception as e:
+            return {"status": "ERROR", "message": str(e)}
+
+    def get_live_my_trades(self, symbol: str = "BTCUSDT", limit: int = 10) -> List[Dict[str, Any]]:
+        """Fetch real executed trade fills directly from Binance Spot account."""
+        if not self.api_key or not self.secret_key:
+            return []
+
+        url = "https://api.binance.com/api/v3/myTrades"
+        headers = {"X-MBX-APIKEY": self.api_key}
+
+        try:
+            st = int(time.time() * 1000)
+            query = f"symbol={symbol.upper()}&limit={limit}&timestamp={st}&recvWindow=60000"
+            signature = hmac.new(
+                self.secret_key.encode("utf-8"),
+                query.encode("utf-8"),
+                hashlib.sha256
+            ).hexdigest()
+
+            resp = requests.get(f"{url}?{query}&signature={signature}", headers=headers, timeout=5)
+            if resp.status_code == 200:
+                return resp.json()
+        except Exception:
+            pass
+        return []
 
 # Singleton instance
 binance_broker = BinanceBroker()

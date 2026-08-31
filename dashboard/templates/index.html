@@ -331,12 +331,16 @@
                 </div>
 
                 <!-- Capital Pool Switcher Action Buttons -->
-                <button id="btn-switch-binance-pool" onclick="switchTradingPool('BINANCE_DEMO')" class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-black text-xs shadow-lg shadow-amber-500/20 flex items-center transition transform active:scale-95">
-                    <i class="fa-solid fa-bolt mr-2"></i> Use Binance $5,000 Capital
+                <button id="btn-switch-binance-pool" onclick="switchTradingPool('BINANCE_DEMO')" class="px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-black text-xs shadow flex items-center transition">
+                    <i class="fa-solid fa-bolt mr-1.5"></i> Binance $5,000 Demo Pool
                 </button>
 
-                <button id="btn-switch-master-pool" onclick="switchTradingPool('MASTER_SIMULATION')" class="hidden px-4 py-2.5 rounded-xl bg-gray-900 hover:bg-gray-800 border border-gray-700 text-gray-200 text-xs font-bold transition flex items-center shadow">
-                    <i class="fa-solid fa-rotate-left mr-2 text-amber-400"></i> Back to $100k Pool
+                <button id="btn-switch-live-spot" onclick="switchTradingPool('BINANCE_LIVE_REAL')" class="px-3.5 py-2 rounded-xl bg-red-600/20 hover:bg-red-600/40 border border-red-500/50 text-red-300 hover:text-white font-black text-xs shadow flex items-center transition">
+                    <i class="fa-solid fa-satellite-dish mr-1.5 text-red-400 animate-pulse"></i> Connect Real Binance Spot
+                </button>
+
+                <button id="btn-switch-master-pool" onclick="switchTradingPool('MASTER_SIMULATION')" class="hidden px-3.5 py-2 rounded-xl bg-gray-900 hover:bg-gray-800 border border-gray-700 text-gray-200 text-xs font-bold transition flex items-center shadow">
+                    <i class="fa-solid fa-rotate-left mr-1.5 text-amber-400"></i> $100k Master Pool
                 </button>
 
                 <button onclick="directOpenSettingsModal()" class="px-3.5 py-2.5 rounded-xl bg-gray-900 hover:bg-gray-800 text-gray-200 hover:text-white border border-gray-800 text-xs font-bold transition flex items-center shadow">
