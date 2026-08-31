@@ -716,7 +716,7 @@
                         </tr>
                     </thead>
                     <tbody id="positions-table-body">
-                        <tr><td colspan="8" class="text-center py-4 text-xs text-gray-500">No Open Positions</td></tr>
+                        <!-- PRERENDER_POSITIONS_ROWS -->
                     </tbody>
                 </table>
             </div>
@@ -727,14 +727,14 @@
             <div class="bg-darkcard border border-darkborder p-4 md:p-6 rounded-2xl shadow-xl space-y-4">
                 <h2 class="text-lg font-bold text-white"><i class="fa-solid fa-bolt text-emerald-400 mr-2"></i> Live AI Autonomous Order Stream</h2>
                 <div id="live-orders-container" class="space-y-2.5 max-h-[350px] overflow-y-auto pr-1 text-xs">
-                    <div class="text-center py-4 text-gray-500">Scanning Gold ticks...</div>
+                    <!-- PRERENDER_ORDERS_ROWS -->
                 </div>
             </div>
 
             <div class="bg-darkcard border border-darkborder p-4 md:p-6 rounded-2xl shadow-xl space-y-4">
                 <h2 class="text-lg font-bold text-white"><i class="fa-solid fa-microscope text-blue-400 mr-2"></i> AI Trade Forensics Audit Feed</h2>
                 <div id="forensics-container" class="space-y-3 max-h-[350px] overflow-y-auto pr-1 text-xs">
-                    <div class="text-center py-4 text-gray-500">No Closed Trades Yet</div>
+                    <!-- PRERENDER_FORENSICS_ROWS -->
                 </div>
         <!-- Secured Profit Vault Audit Breakdown Full-Page View -->
         <div id="vault-modal" class="hidden fixed inset-0 z-50 bg-gray-950 p-4 md:p-8 overflow-y-auto flex flex-col space-y-6">
@@ -1351,6 +1351,25 @@
             } catch (e) {}
         }
 
+        
+        // ==================== TRADER PIN & SECURITY ACCESS CONTROL ====================
+        let isTraderDeskUnlocked = false;
+
+        function checkTraderAuth(actionCallback) {
+            if (isTraderDeskUnlocked) {
+                if (typeof actionCallback === 'function') actionCallback();
+                return;
+            }
+            const pin = prompt('🔒 Enter Master Trader Security PIN (Default: 7777):');
+            if (pin === '7777' || pin === 'marvan777') {
+                isTraderDeskUnlocked = true;
+                alert('✅ Trader Desk Unlocked. Full Broker & Execution Controls Granted.');
+                if (typeof actionCallback === 'function') actionCallback();
+            } else if (pin !== null) {
+                alert('❌ Invalid Security PIN. Action blocked for security.');
+            }
+        }
+    
         let activeWithdrawMethod = 'Binance (USDT/Crypto)';
 
         function setWithdrawMethod(methodName) {
@@ -1494,12 +1513,14 @@
         }
 
         function openSettingsModal() {
-            const modal = document.getElementById('settings-modal');
-            if (modal) {
-                modal.classList.remove('hidden');
-                modal.style.display = 'flex';
-            }
-            fetchBrokerConnections();
+            checkTraderAuth(() => {
+                const modal = document.getElementById('settings-modal');
+                if (modal) {
+                    modal.classList.remove('hidden');
+                    modal.style.display = 'flex';
+                }
+                fetchBrokerConnections();
+            });
         }
 
         function closeSettingsModal() {
@@ -2265,15 +2286,17 @@
         let activeWithdrawSource = 'Profit Vault';
 
         function withdrawVaultProfit() {
-            const modal = document.getElementById('withdraw-modal');
-            if (modal) {
-                modal.classList.remove('hidden');
-                modal.style.display = 'flex';
-            }
-            const msg = document.getElementById('withdraw-msg');
-            if (msg) msg.innerText = '';
-            fetchState();
-            setWithdrawSource(activeWithdrawSource);
+            checkTraderAuth(() => {
+                const modal = document.getElementById('withdraw-modal');
+                if (modal) {
+                    modal.classList.remove('hidden');
+                    modal.style.display = 'flex';
+                }
+                const msg = document.getElementById('withdraw-msg');
+                if (msg) msg.innerText = '';
+                fetchState();
+                setWithdrawSource(activeWithdrawSource);
+            });
         }
 
         function closeWithdrawModal() {

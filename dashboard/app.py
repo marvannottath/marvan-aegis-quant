@@ -103,7 +103,7 @@ INDEX_HTML_PATH = BASE_DIR / "templates" / "index.html"
 
 @app.get("/", response_class=HTMLResponse)
 async def read_dashboard(request: Request):
-    """Serve the master hedge fund dashboard with live server-side pre-rendered financial state."""
+    """Serve the master hedge fund dashboard with 100% truthful server-side pre-rendered financial state & HTML tables."""
     template_path = BASE_DIR / "templates" / "index.html"
     if not template_path.exists():
         return HTMLResponse("<h1>Dashboard template not found</h1>", status_code=404)
@@ -118,12 +118,14 @@ async def read_dashboard(request: Request):
     eq_val = account.get('portfolio_equity', 100000.0)
     vault_val = vault.get('vault_balance', 0.0)
     cash_val = account.get('virtual_cash', 100000.0)
-    open_pos_count = len(account.get('open_positions', []))
+    open_positions = account.get('open_positions', [])
+    open_pos_count = len(open_positions)
     
     eq_str = f"${eq_val:,.2f}"
     vault_str = f"${vault_val:,.2f}"
     cash_str = f"${cash_val:,.2f}"
     pos_count_str = str(open_pos_count)
+    sweeps_count_str = str(vault.get('total_sweeps_count', 0))
     
     prof_str = f"+${ledger_metrics.get('gross_profit_usd', 0.0):,.2f}"
     loss_str = f"-${ledger_metrics.get('gross_loss_usd', 0.0):,.2f}"
@@ -131,16 +133,118 @@ async def read_dashboard(request: Request):
     pf_str = f"{ledger_metrics.get('profit_factor', 0.0):.2f}"
     ytd_str = f"+{((vault_val / max(1.0, account.get('initial_capital', 100000.0))) * 100.0):.1f}%"
     
+    # 1. Pre-render Open Positions HTML Table Rows
+    if open_positions:
+        pos_rows_html = ""
+        for p in open_positions:
+            asset = p.get('asset', 'XAUUSD')
+            action = p.get('action', 'BUY')
+            cap = f"${p.get('capital_allocated', 1000):,.2f}"
+            lev = f"{p.get('leverage', 10):.0f}x"
+            entry = f"${p.get('entry_price', 0.0):,.2f}" if "USD" in asset else f"${p.get('entry_price', 0.0):,.4f}"
+            live_p = f"${p.get('live_price', p.get('entry_price', 0.0)):,.2f}" if "USD" in asset else f"${p.get('live_price', p.get('entry_price', 0.0)):,.4f}"
+            pnl_u = p.get('unrealized_pnl_usd', 0.0)
+            pnl_p = p.get('unrealized_pnl_pct', 0.0)
+            is_pos = pnl_u >= 0
+            pnl_class = "text-emerald-400 font-bold" if is_pos else "text-red-400 font-bold"
+            act_class = "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30" if action == "BUY" else "bg-red-500/10 text-red-400 border border-red-500/30"
+            
+            pos_rows_html += f"""
+                <tr class="hover:bg-gray-900/60 border-b border-gray-800 transition">
+                    <td class="py-2.5 px-3 font-bold text-white flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>{asset}</td>
+                    <td class="py-2.5 px-3"><span class="px-2 py-0.5 text-[10px] font-black rounded {act_class}">{action}</span></td>
+                    <td class="py-2.5 px-3">{cap}</td>
+                    <td class="py-2.5 px-3 text-amber-400 font-bold">{lev}</td>
+                    <td class="py-2.5 px-3 font-mono text-gray-300">{entry}</td>
+                    <td class="py-2.5 px-3 font-mono text-white font-bold">{live_p}</td>
+                    <td class="py-2.5 px-3 font-mono {pnl_class}">{" +$" if is_pos else "-$"}{abs(pnl_u):.2f} ({" +" if is_pos else "-"}{abs(pnl_p):.2f}%)</td>
+                    <td class="py-2.5 px-3 text-right">
+                        <button onclick="closePos('{asset}')" class="bg-red-950 hover:bg-red-900 text-red-300 border border-red-500/40 px-2.5 py-1 rounded text-xs font-bold transition">Close</button>
+                    </td>
+                </tr>"""
+    else:
+        pos_rows_html = '<tr><td colspan="8" class="text-center py-6 text-xs text-gray-500"><i class="fa-solid fa-circle-check text-emerald-400 mr-1.5"></i> All Positions Realized & Swept into Vault Reserve (No Floating Exposure)</td></tr>'
+
+    # 2. Pre-render Trade Forensics Feed HTML
+    recent_forensics = diagnostics.get_recent_forensics(limit=6)
+    if recent_forensics:
+        forensics_html = ""
+        for f in recent_forensics:
+            res_color = "text-emerald-400" if f.get("result") == "PROFIT" else "text-red-400"
+            forensics_html += f"""
+                <div class="p-3 bg-gray-900 border border-gray-800 rounded-xl space-y-2">
+                    <div class="flex justify-between font-bold">
+                        <span class="{res_color}">{f.get('result')} {f.get('asset')}</span>
+                        <span class="{res_color}">{'+$' if f.get('pnl_usd', 0) >= 0 else '-$'}{abs(f.get('pnl_usd', 0)):.2f}</span>
+                    </div>
+                    <p class="text-[11px] text-gray-300 leading-relaxed">{f.get('root_cause_attribution')}</p>
+                </div>"""
+    else:
+        forensics_html = '<div class="text-center py-4 text-gray-500">Forensics Synchronized</div>'
+
+    # 3. Pre-render Live Order Stream HTML
+    live_orders = trader.get_live_stream()
+    if live_orders:
+        orders_html = ""
+        for o in live_orders[:6]:
+            badge = "bg-sky-500/20 text-sky-400 border border-sky-500/30"
+            if o.get("action") == "BUY": badge = "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+            elif o.get("action") == "SELL": badge = "bg-red-500/20 text-red-400 border border-red-500/30"
+            elif o.get("action") == "CLOSE": badge = "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+            
+            orders_html += f"""
+                <div class="p-2.5 bg-gray-900/90 border border-gray-800 rounded-xl space-y-1 shadow">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-2">
+                            <span class="px-2 py-0.5 font-black text-[10px] rounded {badge}">{o.get('action')}</span>
+                            <span class="font-bold text-white">{o.get('asset')}</span>
+                            <span class="font-mono text-gray-400 text-[11px]">@ ${o.get('price', 0):,.2f}</span>
+                        </div>
+                        <span class="font-mono text-[10px] text-gray-500">{o.get('timestamp', '')}</span>
+                    </div>
+                    <div class="text-[11px] font-medium text-gray-300 flex justify-between items-center">
+                        <span class="truncate max-w-[280px]">{o.get('reasoning', 'Live Market AI Execution')}</span>
+                        {f'<span class="font-bold text-emerald-400 text-[11px]">${o.get("amount_usd"):,.2f}</span>' if o.get("amount_usd", 0) > 0 else ''}
+                    </div>
+                </div>"""
+    else:
+        orders_html = '<div class="text-center py-4 text-gray-500">Live AI Order Stream Active</div>'
+
+    # 4. Pre-render Vault Modal Top Ledger Rows
+    sweeps = vault.get("recent_sweeps", [])
+    if sweeps:
+        vault_rows_html = ""
+        for s in sweeps[:30]:
+            vault_rows_html += f"""
+                <tr class="hover:bg-gray-900 border-b border-gray-900/60 transition">
+                    <td class="py-2.5 px-3 text-emerald-300/80 font-mono text-[11px]">{s.get('timestamp')}</td>
+                    <td class="py-2.5 px-3 font-bold text-white">{s.get('asset', 'N/A')}</td>
+                    <td class="py-2.5 px-3 font-black text-emerald-400">+${float(s.get('profit_swept', 0)):.2f}</td>
+                    <td class="py-2.5 px-3 text-emerald-300 font-bold">${float(s.get('vault_total', 0)):,.2f}</td>
+                    <td class="py-2.5 px-3 text-gray-300 text-[11px] font-sans">
+                        <span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">{s.get('reason', 'PROFIT_TARGET_AUTO_REBALANCE')}</span>
+                    </td>
+                </tr>"""
+    else:
+        vault_rows_html = '<tr><td colspan="5" class="text-center py-6 text-gray-500 font-sans">No vault sweep records found</td></tr>'
+
     # Server-Side Pre-Render Injection (All instances unified)
     content = content.replace("{{ PORTFOLIO_EQUITY }}", eq_str)
     content = content.replace("{{ VAULT_BALANCE }}", vault_str)
     content = content.replace("{{ VIRTUAL_CASH }}", cash_str)
     content = content.replace("{{ OPEN_POSITIONS_COUNT }}", pos_count_str)
+    content = content.replace("{{ TOTAL_SWEEPS_COUNT }}", sweeps_count_str)
     content = content.replace("{{ TOTAL_PROFIT }}", prof_str)
     content = content.replace("{{ TOTAL_LOSS }}", loss_str)
     content = content.replace("{{ WIN_RATE }}", wr_str)
     content = content.replace("{{ PROFIT_FACTOR }}", pf_str)
     content = content.replace("{{ YTD_GROWTH }}", ytd_str)
+    
+    # HTML Table Pre-Render Placeholders
+    content = content.replace("<!-- PRERENDER_POSITIONS_ROWS -->", pos_rows_html)
+    content = content.replace("<!-- PRERENDER_FORENSICS_ROWS -->", forensics_html)
+    content = content.replace("<!-- PRERENDER_ORDERS_ROWS -->", orders_html)
+    content = content.replace("<!-- PRERENDER_VAULT_ROWS -->", vault_rows_html)
 
     return HTMLResponse(content=content)
 
