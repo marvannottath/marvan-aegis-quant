@@ -14,7 +14,8 @@ TEST 10: broker_disconnected => cannot show LIVE TRADING
 """
 
 import sys
-sys.path.insert(0, '/Users/marvan/.gemini/antigravity/scratch/quantum_trading_system')
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from execution.paper_broker import PaperBroker
 from execution.profit_vault import ProfitVault
