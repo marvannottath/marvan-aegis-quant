@@ -1,7 +1,7 @@
 {
   "initial_capital": 100000.0,
-  "virtual_cash": 80742.19,
-  "equity": 582653.82,
+  "virtual_cash": 80812.5,
+  "equity": 584400.75,
   "positions": {
     "RELIANCE": {
       "trade_id": "TRD-1788126401449",
@@ -19,7 +19,7 @@
         "Volatility": 0.0101
       },
       "entry_sentiment": 0.6,
-      "last_price": 3029.32
+      "last_price": 3029.47
     },
     "AAPL": {
       "trade_id": "TRD-1788126437615",
@@ -37,7 +37,7 @@
         "Volatility": 0.0246
       },
       "entry_sentiment": 0.6,
-      "last_price": 225.29
+      "last_price": 225.34
     },
     "USDJPY": {
       "trade_id": "TRD-1788126512184",
@@ -55,7 +55,7 @@
         "Volatility": 0.0205
       },
       "entry_sentiment": 0.6,
-      "last_price": 146.53
+      "last_price": 146.56
     },
     "GBPUSD": {
       "trade_id": "TRD-1788126540324",
@@ -73,7 +73,7 @@
         "Volatility": 0.0187
       },
       "entry_sentiment": 0.6,
-      "last_price": 1.2982
+      "last_price": 1.298
     },
     "TSLA": {
       "trade_id": "TRD-1788126646841",
@@ -91,7 +91,7 @@
         "Volatility": 0.0153
       },
       "entry_sentiment": 0.6,
-      "last_price": 209.92
+      "last_price": 209.96
     },
     "ETHUSD": {
       "trade_id": "TRD-1788126662948",
@@ -109,7 +109,7 @@
         "Volatility": 0.0164
       },
       "entry_sentiment": 0.6,
-      "last_price": 3459.04
+      "last_price": 3460.31
     },
     "SOLUSD": {
       "trade_id": "TRD-1788127381088-SOLUSD",
@@ -117,7 +117,7 @@
       "action": "SELL",
       "units": 352.8123,
       "entry_price": 155.0045,
-      "last_price": 155.22,
+      "last_price": 155.3,
       "capital_allocated": 2187.5,
       "leverage": 25.0,
       "stop_loss_pct": 1.5,
@@ -135,7 +135,7 @@
       "action": "BUY",
       "units": 0.4026,
       "entry_price": 24838.9032,
-      "last_price": 24837.74,
+      "last_price": 24829.13,
       "capital_allocated": 1000.0,
       "leverage": 10.0,
       "stop_loss_pct": 1.5,
@@ -153,7 +153,7 @@
       "action": "SELL",
       "units": 0.4885,
       "entry_price": 51180.5269,
-      "last_price": 51265.12,
+      "last_price": 51248.52,
       "capital_allocated": 2500.0,
       "leverage": 10.0,
       "stop_loss_pct": 1.5,
@@ -165,23 +165,24 @@
       },
       "entry_sentiment": 0.64
     },
-    "XAUUSD": {
-      "trade_id": "TRD-1788127509310-XAUUSD",
-      "asset": "XAUUSD",
-      "action": "SELL",
-      "units": 20.5975,
-      "entry_price": 2512.8187,
-      "last_price": 2511.56,
-      "capital_allocated": 2070.31,
-      "leverage": 25.0,
-      "stop_loss_pct": 1.5,
+    "BTCUSD": {
+      "trade_id": "TRD-1788127904723-BTCUSD",
+      "asset": "BTCUSD",
+      "action": "BUY",
+      "units": 0.1558,
+      "entry_price": 64180.3274,
+      "last_price": 64185.04,
+      "capital_allocated": 2000.0,
+      "leverage": 5.0,
+      "stop_loss_pct": 0.0,
       "take_profit_pct": 3.5,
-      "timestamp": "2026-08-31 03:35:09",
+      "timestamp": "2026-08-31 03:41:44",
       "entry_indicators": {
-        "RSI": 68.7,
-        "Volatility": 0.0249
+        "RSI": 26.8,
+        "Volatility": 0.0168
       },
-      "entry_sentiment": 0.64
+      "entry_sentiment": -0.06,
+      "breakeven_locked": true
     }
   },
   "trade_history": [
@@ -2593,6 +2594,68 @@
           "RSI": 79.5,
           "Volatility": 0.0128,
           "SentimentScore": 0.64
+        }
+      }
+    },
+    {
+      "trade_id": "TRD-1788127509310-XAUUSD",
+      "asset": "XAUUSD",
+      "action": "SELL",
+      "entry_price": 2512.8187,
+      "exit_price": 2512.0634,
+      "capital_allocated": 2070.31,
+      "leverage": 25.0,
+      "pnl_usd": 15.56,
+      "pnl_pct": 0.03,
+      "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
+      "timestamp": "2026-08-31 03:41:36",
+      "forensics": {
+        "trade_id": "TRD-1788127509310-XAUUSD",
+        "timestamp": "2026-08-31 03:41:36",
+        "asset": "XAUUSD",
+        "entry_price": 2512.8187,
+        "exit_price": 2512.0634,
+        "pnl_usd": 15.56,
+        "pnl_pct": 0.03,
+        "result": "PROFIT",
+        "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
+        "root_cause_attribution": "Trade closed in target profit (+0.03%) according to planned exit rule.",
+        "self_learning_update": "RL Agent rewarded (+0.30 points). Reinforced BUY confidence when RSI=68.7 and Sentiment=-0.06.",
+        "entry_indicators": {
+          "RSI": 68.7,
+          "Volatility": 0.0249,
+          "SentimentScore": -0.06
+        }
+      }
+    },
+    {
+      "trade_id": "TRD-1788127896598-XAUUSD",
+      "asset": "XAUUSD",
+      "action": "BUY",
+      "entry_price": 2513.6813,
+      "exit_price": 2514.1887,
+      "capital_allocated": 1000.0,
+      "leverage": 10.0,
+      "pnl_usd": 2.02,
+      "pnl_pct": 0.02,
+      "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
+      "timestamp": "2026-08-31 03:41:44",
+      "forensics": {
+        "trade_id": "TRD-1788127896598-XAUUSD",
+        "timestamp": "2026-08-31 03:41:44",
+        "asset": "XAUUSD",
+        "entry_price": 2513.6813,
+        "exit_price": 2514.1887,
+        "pnl_usd": 2.02,
+        "pnl_pct": 0.02,
+        "result": "PROFIT",
+        "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
+        "root_cause_attribution": "Profitable reversal (+0.02%) executed from oversold RSI level (20.1).",
+        "self_learning_update": "RL Agent rewarded (+0.20 points). Reinforced BUY confidence when RSI=20.1 and Sentiment=-0.06.",
+        "entry_indicators": {
+          "RSI": 20.1,
+          "Volatility": 0.0215,
+          "SentimentScore": -0.06
         }
       }
     }
