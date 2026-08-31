@@ -166,6 +166,9 @@ class BinanceBroker:
     def get_connection_status(self) -> Dict[str, Any]:
         return self.get_status()
 
+    def get_account_info(self) -> Dict[str, Any]:
+        return self.get_status()
+
     def get_status(self) -> Dict[str, Any]:
         """Return truthful connection state and masked API key."""
         masked_key = ""
