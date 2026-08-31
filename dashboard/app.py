@@ -34,6 +34,7 @@ from core.notification_engine import notification_engine
 from core.statement_generator import statement_generator
 from core.reconciliation_sentinel import reconciliation_sentinel
 from backtest.backtest_engine import BacktestEngine
+from backtest.institutional_backtester import institutional_backtester
 from sync.economic_calendar import economic_filter
 from core.multi_market_scanner import multi_scanner
 from sync.telegram_auditor import telegram_auditor
@@ -344,6 +345,18 @@ async def connect_binance_endpoint(data: dict):
 async def get_reconciliation_status():
     """Fetch real-time 5-Invariant Mathematical Accounting Reconciliation Report."""
     report = reconciliation_sentinel.validate_all(paper_broker, profit_vault, risk_engine)
+    return JSONResponse(report)
+
+@app.get("/api/backtest/15year-results")
+async def get_15year_backtest_results():
+    """Fetch cached 15-Year Institutional Backtest Report (2010-2026)."""
+    report = institutional_backtester.run_full_15year_backtest(force_refresh=False)
+    return JSONResponse(report)
+
+@app.post("/api/backtest/run-15year")
+async def trigger_15year_backtest():
+    """Force re-run and recalculate 15-Year Quantitative Backtest."""
+    report = institutional_backtester.run_full_15year_backtest(force_refresh=True)
     return JSONResponse(report)
 
 @app.get("/api/security-status")
