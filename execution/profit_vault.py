@@ -55,9 +55,10 @@ class ProfitVault:
             ]
 
     def _save_state(self):
-        """Persist vault state to JSON file."""
+        """Persist vault state to JSON file atomically."""
         try:
-            with open(VAULT_FILE, "w") as f:
+            temp_file = VAULT_FILE.with_suffix(".tmp")
+            with open(temp_file, "w") as f:
                 json.dump({
                     "vault_balance": round(self.vault_balance, 2),
                     "total_sweeps_count": self.total_sweeps_count,
@@ -65,6 +66,7 @@ class ProfitVault:
                     "withdrawal_history": self.withdrawal_history,
                     "deposit_history": self.deposit_history
                 }, f, indent=2)
+            temp_file.replace(VAULT_FILE)
         except Exception as e:
             print(f"[PROFIT VAULT] Save state error: {e}")
 

@@ -1,6 +1,8 @@
 {
-  "api_key": "OjnMf14QXkdIr8chKlq0SHWjloRSL6lr3fKKC73PYE5FJtTizsxcO3fcZeHWDVmv",
-  "secret_key": "EGPwaJgmC6dG5jleav6SG3gQ20Yf0TGQDgIJ1kfvU8VBozbkHRVKRxAyvkbYfk9H",
-  "testnet": false,
-  "updated_at": "2026-08-29 01:20:52"
+    "api_key": "yldL51UoCyoMYYNZKIPvxtj5e2TpRN4jdFSCRyJqysDx5HSMsG5sZvXJScW1paM5",
+    "secret_key": "bSaqrgTDIRxVhvHpkIROXVelwnthubXN8hnHWVax4nwdsmmijMVrpngkBmFHlKTN",
+    "testnet": true,
+    "is_demo": true,
+    "market_type": "FUTURES",
+    "saved_at": "2026-08-31 23:04:41"
 }
