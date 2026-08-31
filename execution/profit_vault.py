@@ -34,15 +34,18 @@ class ProfitVault:
             try:
                 with open(VAULT_FILE, "r") as f:
                     data = json.load(f)
-                    self.vault_balance = max(157588.39, float(data.get("vault_balance", 157588.39)))
-                    self.total_sweeps_count = int(data.get("total_sweeps_count", 2102))
                     self.sweep_history = data.get("sweep_history", [])
                     self.withdrawal_history = data.get("withdrawal_history", [])
                     self.deposit_history = data.get("deposit_history", [])
+                    sweeps_sum = sum(float(s.get("profit_swept", 0.0)) for s in self.sweep_history)
+                    withdrawals_sum = sum(float(w.get("amount", 0.0)) for w in self.withdrawal_history)
+                    self.vault_balance = round(sweeps_sum - withdrawals_sum, 2)
+                    self.total_sweeps_count = len(self.sweep_history)
             except Exception as e:
                 print(f"[PROFIT VAULT] Load state error: {e}")
         else:
-            self.vault_balance = 157588.39
+            self.vault_balance = 0.0
+            self.total_sweeps_count = 0
 
         if not self.deposit_history:
             self.deposit_history = [
