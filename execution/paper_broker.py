@@ -306,7 +306,7 @@ class PaperBroker:
 
         # 1. All-Time Unified Ledger
         all_vault_wins = len(profit_vault.sweep_history)
-        all_vault_gross_profit = sum(float(s.get("profit_swept", 0.0)) for s in profit_vault.sweep_history)
+        all_vault_gross_profit = sum(float(s.get("profit_swept", s.get("amount", 0.0))) for s in profit_vault.sweep_history)
         
         all_loss_trades = [t for t in self.trade_history if float(t.get("pnl_usd", 0.0)) < 0]
         all_losses_count = len(all_loss_trades)

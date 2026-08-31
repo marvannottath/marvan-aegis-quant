@@ -700,6 +700,6 @@ async def get_vault_history():
         "total_sweeps_count": summary["total_sweeps_count"],
         "today_swept_usd": summary.get("today_swept_usd", 0.0),
         "today_sweeps_count": summary.get("today_sweeps_count", 0),
-        "sweeps": summary["recent_sweeps"],
+        "sweeps": profit_vault.get_full_sweep_history(),
         "withdrawals": summary["withdrawal_history"]
     })
