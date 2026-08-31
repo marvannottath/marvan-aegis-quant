@@ -240,6 +240,13 @@ async def read_dashboard(request: Request):
     content = content.replace("{{ PROFIT_FACTOR }}", pf_str)
     content = content.replace("{{ YTD_GROWTH }}", ytd_str)
     
+    b_status = binance_broker.get_status()
+    if b_status.get("connected"):
+        binance_txt = f"BINANCE DEMO (${b_status.get('usdt_free', 5000.0):,.2f})" if b_status.get("is_testnet") else f"BINANCE LIVE (${b_status.get('usdt_free', 0.0):,.2f})"
+    else:
+        binance_txt = "SIMULATED MULTI-ASSET BROKER (ACTIVE)"
+    content = content.replace("{{ BINANCE_STATUS_TEXT }}", binance_txt)
+    
     # HTML Table Pre-Render Placeholders
     content = content.replace("<!-- PRERENDER_POSITIONS_ROWS -->", pos_rows_html)
     content = content.replace("<!-- PRERENDER_FORENSICS_ROWS -->", forensics_html)

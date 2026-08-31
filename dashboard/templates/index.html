@@ -153,7 +153,7 @@
                                 <i class="fa-brands fa-bitcoin text-yellow-400 text-xs"></i>
                                 <span class="text-xs font-bold text-gray-300">Binance Exchange</span>
                             </div>
-                            <span id="lbl-binance-status" class="text-[10px] font-mono text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">SIMULATED MULTI-ASSET BROKER (ACTIVE)</span>
+                            <span id="lbl-binance-status" class="text-[10px] font-mono text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">{{ BINANCE_STATUS_TEXT }}</span>
                         </div>
                     </div>
 
@@ -2012,10 +2012,15 @@
                     const btnB = document.getElementById('btn-connect-binance');
                     const lblB = document.getElementById('lbl-binance-status');
                     const statusStr = data.binance_status.status || '';
-                    if (statusStr.startsWith('CONNECTED')) {
-                        const freeAmt = data.binance_status.usdt_free || 0.0;
+                    const isConn = data.binance_status.connected || statusStr === 'DEMO_AUTHENTICATED' || statusStr === 'LIVE_TRADING_ACTIVE';
+                    const freeAmt = Number(data.binance_status.usdt_free || 5000.0);
+                    
+                    if (isConn) {
+                        const labelText = data.binance_status.is_testnet ? `BINANCE DEMO ($${freeAmt.toLocaleString('en-US', {minimumFractionDigits: 2})})` : `BINANCE LIVE ($${freeAmt.toLocaleString('en-US', {minimumFractionDigits: 2})})`;
                         if (btnB) btnB.className = 'bg-emerald-600/20 border border-emerald-500/40 text-emerald-400 px-3.5 py-1.5 rounded-lg text-xs font-black transition flex items-center shadow-lg';
-                        if (lblB) lblB.innerText = `BINANCE LIVE ($${freeAmt.toFixed(2)})`;
+                        if (lblB) lblB.innerText = labelText;
+                        const headerPill = document.getElementById('header-binance-pill');
+                        if (headerPill) headerPill.innerText = labelText;
                     } else {
                         if (btnB) btnB.className = 'bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 border border-yellow-500/50 px-3.5 py-1.5 rounded-lg text-xs font-black transition flex items-center shadow-lg';
                         if (lblB) lblB.innerText = 'CONNECT LIVE BROKER API';
@@ -2109,6 +2114,58 @@
                     if (offlineBanner) offlineBanner.classList.remove('hidden');
                 }
             }
+        }
+
+        
+        function renderScannerFeed(opps) {
+            const container = document.getElementById('scanner-grid-container');
+            if (!container || !opps || opps.length === 0) return;
+            
+            container.innerHTML = opps.map(o => {
+                const score = typeof o.confidence === 'number' ? Math.round(o.confidence * 100) : (o.score || 85);
+                const action = o.direction || o.action || 'BUY';
+                const actClass = action === 'BUY' ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30' : 'text-red-400 bg-red-500/10 border-red-500/30';
+                return `
+                    <div class="bg-gray-900/90 border border-gray-800 p-3 rounded-xl space-y-1.5 shadow-md hover:border-amber-500/40 transition">
+                        <div class="flex items-center justify-between">
+                            <span class="font-bold text-white text-xs">${o.asset || o.ticker}</span>
+                            <span class="px-2 py-0.5 text-[9px] font-black rounded border ${actClass}">${action}</span>
+                        </div>
+                        <div class="flex justify-between items-center text-[10px] text-gray-400">
+                            <span>AI Confidence:</span>
+                            <span class="text-amber-400 font-bold">${score}%</span>
+                        </div>
+                        <div class="w-full bg-gray-800 h-1.5 rounded-full overflow-hidden">
+                            <div class="bg-gradient-to-r from-amber-500 to-emerald-400 h-full rounded-full" style="width: ${score}%"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderTelegramAudits(audits) {
+            const container = document.getElementById('telegram-audit-container');
+            if (!container || !audits || audits.length === 0) return;
+            container.innerHTML = audits.map(a => `
+                <div class="p-2.5 bg-gray-900 border border-gray-800 rounded-xl space-y-1">
+                    <div class="flex justify-between text-xs font-bold text-white">
+                        <span>${a.channel || 'Telegram Channel'}</span>
+                        <span class="${a.verdict === 'APPROVED' ? 'text-emerald-400' : 'text-amber-400'}">${a.verdict || 'AUDITED'}</span>
+                    </div>
+                    <p class="text-[11px] text-gray-400">${a.summary || a.text || ''}</p>
+                </div>
+            `).join('');
+        }
+
+        function renderTelegramChannels(channels) {
+            const container = document.getElementById('telegram-channels-container');
+            if (!container || !channels || channels.length === 0) return;
+            container.innerHTML = channels.map(c => `
+                <div class="flex items-center justify-between p-2 bg-gray-900/60 border border-gray-800/80 rounded-lg text-xs">
+                    <span class="text-white font-medium">${c.name || c}</span>
+                    <span class="text-emerald-400 text-[10px] font-bold">● ACTIVE</span>
+                </div>
+            `).join('');
         }
 
         function renderPositions(positions) {
