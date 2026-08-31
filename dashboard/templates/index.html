@@ -304,6 +304,37 @@
             </div>
         </div>
 
+        
+        <!-- Dedicated Binance Demo Live Account Banner -->
+        <div class="bg-gradient-to-r from-amber-500/10 via-emerald-500/10 to-transparent border border-emerald-500/40 p-4 md:p-5 rounded-2xl shadow-xl flex items-center justify-between flex-wrap gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 text-2xl font-black shadow-lg">
+                    <i class="fa-brands fa-bitcoin"></i>
+                </div>
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <h3 class="text-base font-black text-white">BINANCE FUTURES DEMO ACCOUNT</h3>
+                        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5 animate-pulse"></span> CONNECTED & LIVE
+                        </span>
+                    </div>
+                    <p class="text-xs text-gray-400 font-mono mt-1">
+                        API Key: <span class="text-amber-400 font-bold">yldL••••••••paM5</span> | Matching Engine: <span class="text-emerald-400">demo-fapi.binance.com</span> | Mode: <span class="text-sky-400 font-bold">Futures USDT-M</span>
+                    </p>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-6">
+                <div class="text-right">
+                    <div class="text-[11px] uppercase font-bold text-gray-400">Binance Demo Balance</div>
+                    <div class="text-2xl font-black text-emerald-400" id="card-binance-balance">$5,000.00 USDT</div>
+                </div>
+                <button onclick="openSettingsModal()" class="px-4 py-2 rounded-xl bg-gray-900 hover:bg-gray-800 text-gray-200 hover:text-white border border-gray-800 text-xs font-bold transition flex items-center shadow-lg">
+                    <i class="fa-solid fa-gear mr-2 text-amber-400"></i> Settings
+                </button>
+            </div>
+        </div>
+
         <!-- Desktop Account & Metrics Cards (hidden on mobile, visible md:grid) -->
         <div class="hidden md:grid grid-cols-2 lg:grid-cols-4 gap-4">
             <div class="bg-darkcard border border-darkborder p-4 md:p-6 rounded-2xl shadow-xl">
@@ -2021,6 +2052,8 @@
                         if (lblB) lblB.innerText = labelText;
                         const headerPill = document.getElementById('header-binance-pill');
                         if (headerPill) headerPill.innerText = labelText;
+                        const cardB = document.getElementById('card-binance-balance');
+                        if (cardB) cardB.innerText = '$' + Number(freeAmt).toLocaleString('en-US', {minimumFractionDigits: 2}) + ' USDT';
                     } else {
                         if (btnB) btnB.className = 'bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 border border-yellow-500/50 px-3.5 py-1.5 rounded-lg text-xs font-black transition flex items-center shadow-lg';
                         if (lblB) lblB.innerText = 'CONNECT LIVE BROKER API';
