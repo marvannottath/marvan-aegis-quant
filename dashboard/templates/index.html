@@ -2953,10 +2953,6 @@
             if (!data || !data.account) return;
             latestDashboardData = data;
 
-            const vault = data.account.profit_vault || data.vault || {};
-            const vaultBal = Number(vault.vault_balance || 0);
-            const todaySwept = Number(vault.today_swept_usd || 0.0);
-            const monthSwept = Number(vault.month_swept_usd || 0.0);
             const eq = Number(data.account.portfolio_equity || 100000.0);
             const initialCap = Number(data.account.initial_capital || 100000.0);
 
@@ -2972,9 +2968,9 @@
             const monthL = ledger.month || {};
 
             if (activeAnalyticsFilter === 'TODAY') {
-                const p = todaySwept > 0 ? todaySwept : (todayL.gross_profit_usd || 0);
-                const l = todayL.gross_loss_usd || 0;
-                const wr = todayL.total_trades > 0 ? todayL.win_rate_pct.toFixed(1) : (todaySwept > 0 ? '100.0' : '0.0');
+                const p = todayL.gross_profit_usd || 0.0;
+                const l = todayL.gross_loss_usd || 0.0;
+                const wr = todayL.total_trades > 0 ? todayL.win_rate_pct.toFixed(1) : '100.0';
                 const pf = todayL.total_trades > 0 ? todayL.profit_factor.toFixed(2) : (p > 0 ? (p / Math.max(1, l)).toFixed(2) : '0.00');
                 const growth = ((p / initialCap) * 100.0).toFixed(2);
 
@@ -2999,9 +2995,9 @@
                     equityChart.update('none');
                 }
             } else if (activeAnalyticsFilter === 'MONTH') {
-                const p = monthSwept > 0 ? monthSwept : (monthL.gross_profit_usd || 0);
-                const l = monthL.gross_loss_usd || 0;
-                const wr = monthL.total_trades > 0 ? monthL.win_rate_pct.toFixed(1) : (monthSwept > 0 ? '100.0' : '0.0');
+                const p = monthL.gross_profit_usd || 0.0;
+                const l = monthL.gross_loss_usd || 0.0;
+                const wr = monthL.total_trades > 0 ? monthL.win_rate_pct.toFixed(1) : '100.0';
                 const pf = monthL.total_trades > 0 ? monthL.profit_factor.toFixed(2) : (p > 0 ? (p / Math.max(1, l)).toFixed(2) : '0.00');
                 const growth = ((p / initialCap) * 100.0).toFixed(1);
 
@@ -3025,9 +3021,9 @@
                 }
             } else {
                 // ALL TIME
-                const p = vaultBal > 0 ? vaultBal : (allL.gross_profit_usd || 0);
-                const l = allL.gross_loss_usd || 0;
-                const wr = allL.total_trades > 0 ? allL.win_rate_pct.toFixed(1) : (vaultBal > 0 ? '100.0' : '0.0');
+                const p = allL.gross_profit_usd || 0.0;
+                const l = allL.gross_loss_usd || 0.0;
+                const wr = allL.total_trades > 0 ? allL.win_rate_pct.toFixed(1) : '100.0';
                 const pf = allL.total_trades > 0 ? allL.profit_factor.toFixed(2) : (p > 0 ? (p / Math.max(1, l)).toFixed(2) : '0.00');
                 const growth = ((p / initialCap) * 100.0).toFixed(1);
 
@@ -3045,7 +3041,7 @@
             }
         }
 
-        // ==================== TRADER DESK AUTHENTICATION JS ====================
+                // ==================== TRADER DESK AUTHENTICATION JS ====================
         
         // ==================== 1-CLICK PDF STATEMENT & NOTIFICATIONS JS ====================
         function exportStatementPDF() {

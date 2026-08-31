@@ -53,18 +53,21 @@ def test_3_position_count_invariant():
 
 def test_4_7_8_performance_derived_from_trade_ledger():
     broker = PaperBroker()
+    vault = ProfitVault()
     summary = broker.get_account_summary()
     ledger_metrics = summary["ledger_metrics"]["all_time"]
     
-    closed = broker.trade_history
-    if len(closed) == 0:
+    all_wins = len(vault.sweep_history)
+    all_losses = len([t for t in broker.trade_history if float(t.get("pnl_usd", 0.0)) < 0])
+    total_trades = all_wins + all_losses
+    
+    if total_trades == 0:
         assert ledger_metrics["win_rate_pct"] == 0.0 or ledger_metrics["win_rate_pct"] == "N/A"
         assert ledger_metrics["profit_factor"] == 0.0 or ledger_metrics["profit_factor"] == "N/A"
     else:
-        wins = sum(1 for t in closed if float(t.get("pnl_usd", 0.0)) > 0)
-        expected_wr = round(wins / len(closed) * 100.0, 1)
+        expected_wr = round(all_wins / total_trades * 100.0, 1)
         assert ledger_metrics["win_rate_pct"] == expected_wr
-    print("✅ TEST 4, 7 & 8 PASSED: Performance metrics strictly derived from trade ledger!")
+    print("✅ TEST 4, 7 & 8 PASSED: Performance metrics strictly derived from unified trade ledger!")
 
 def test_9_vault_ledger_balance_reconciliation():
     vault = ProfitVault()

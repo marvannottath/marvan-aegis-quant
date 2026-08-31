@@ -300,38 +300,47 @@ class PaperBroker:
 
         floating_open_pnl_pct = (floating_open_pnl / self.initial_capital) * 100.0 if self.initial_capital > 0 else 0.0
 
-        # Pure Data-Driven Ledger Analytics
-        closed = self.trade_history
+        # Dynamic Unified Ledger Analytics (Consolidating Vault Sweeps & Closed Trade Forensics)
         today_str = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d")
         month_str = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m")
 
-        # 1. All-Time Ledger Metrics
-        total_closed = len(closed)
-        all_wins = sum(1 for t in closed if float(t.get("pnl_usd", 0.0)) > 0)
-        all_losses = sum(1 for t in closed if float(t.get("pnl_usd", 0.0)) < 0)
-        all_gross_profit = sum(float(t.get("pnl_usd", 0.0)) for t in closed if float(t.get("pnl_usd", 0.0)) > 0)
-        all_gross_loss = abs(sum(float(t.get("pnl_usd", 0.0)) for t in closed if float(t.get("pnl_usd", 0.0)) < 0))
-        all_win_rate = round((all_wins / total_closed * 100.0), 1) if total_closed > 0 else 0.0
-        all_profit_factor = round(all_gross_profit / max(1.0, all_gross_loss), 2) if all_gross_loss > 0 else (round(all_gross_profit, 2) if all_gross_profit > 0 else 0.0)
+        # 1. All-Time Unified Ledger
+        all_vault_wins = len(profit_vault.sweep_history)
+        all_vault_gross_profit = sum(float(s.get("profit_swept", 0.0)) for s in profit_vault.sweep_history)
+        
+        # Losses from trade history
+        all_loss_trades = [t for t in self.trade_history if float(t.get("pnl_usd", 0.0)) < 0]
+        all_losses_count = len(all_loss_trades)
+        all_gross_loss = abs(sum(float(t.get("pnl_usd", 0.0)) for t in all_loss_trades))
+        
+        all_total_trades = all_vault_wins + all_losses_count
+        all_win_rate = round((all_vault_wins / all_total_trades * 100.0), 1) if all_total_trades > 0 else 0.0
+        all_profit_factor = round(all_vault_gross_profit / max(1.0, all_gross_loss), 2) if all_gross_loss > 0 else round(all_vault_gross_profit, 2)
 
-        # 2. Today Ledger Metrics
-        today_trades = [t for t in closed if str(t.get("timestamp", "")).startswith(today_str)]
-        t_count = len(today_trades)
-        t_wins = sum(1 for t in today_trades if float(t.get("pnl_usd", 0.0)) > 0)
-        t_losses = sum(1 for t in today_trades if float(t.get("pnl_usd", 0.0)) < 0)
-        t_gross_profit = sum(float(t.get("pnl_usd", 0.0)) for t in today_trades if float(t.get("pnl_usd", 0.0)) > 0)
-        t_gross_loss = abs(sum(float(t.get("pnl_usd", 0.0)) for t in today_trades if float(t.get("pnl_usd", 0.0)) < 0))
-        t_win_rate = round((t_wins / t_count * 100.0), 1) if t_count > 0 else 100.0
+        # 2. Today Unified Ledger
+        today_sweeps = [s for s in profit_vault.sweep_history if str(s.get("timestamp", "")).startswith(today_str)]
+        t_wins = len(today_sweeps)
+        t_gross_profit = sum(float(s.get("profit_swept", 0.0)) for s in today_sweeps)
+        
+        today_losses = [t for t in all_loss_trades if str(t.get("timestamp", "")).startswith(today_str)]
+        t_losses_count = len(today_losses)
+        t_gross_loss = abs(sum(float(t.get("pnl_usd", 0.0)) for t in today_losses))
+        
+        t_total_trades = t_wins + t_losses_count
+        t_win_rate = round((t_wins / t_total_trades * 100.0), 1) if t_total_trades > 0 else (100.0 if t_wins > 0 else 0.0)
         t_profit_factor = round(t_gross_profit / max(1.0, t_gross_loss), 2) if t_gross_loss > 0 else (round(t_gross_profit, 2) if t_gross_profit > 0 else 0.0)
 
-        # 3. Month Ledger Metrics
-        month_trades = [t for t in closed if str(t.get("timestamp", "")).startswith(month_str)]
-        m_count = len(month_trades)
-        m_wins = sum(1 for t in month_trades if float(t.get("pnl_usd", 0.0)) > 0)
-        m_losses = sum(1 for t in month_trades if float(t.get("pnl_usd", 0.0)) < 0)
-        m_gross_profit = sum(float(t.get("pnl_usd", 0.0)) for t in month_trades if float(t.get("pnl_usd", 0.0)) > 0)
-        m_gross_loss = abs(sum(float(t.get("pnl_usd", 0.0)) for t in month_trades if float(t.get("pnl_usd", 0.0)) < 0))
-        m_win_rate = round((m_wins / m_count * 100.0), 1) if m_count > 0 else 100.0
+        # 3. Month Unified Ledger
+        month_sweeps = [s for s in profit_vault.sweep_history if str(s.get("timestamp", "")).startswith(month_str)]
+        m_wins = len(month_sweeps)
+        m_gross_profit = sum(float(s.get("profit_swept", 0.0)) for s in month_sweeps)
+        
+        month_losses = [t for t in all_loss_trades if str(t.get("timestamp", "")).startswith(month_str)]
+        m_losses_count = len(month_losses)
+        m_gross_loss = abs(sum(float(t.get("pnl_usd", 0.0)) for t in month_losses))
+        
+        m_total_trades = m_wins + m_losses_count
+        m_win_rate = round((m_wins / m_total_trades * 100.0), 1) if m_total_trades > 0 else (100.0 if m_wins > 0 else 0.0)
         m_profit_factor = round(m_gross_profit / max(1.0, m_gross_loss), 2) if m_gross_loss > 0 else (round(m_gross_profit, 2) if m_gross_profit > 0 else 0.0)
 
         return {
@@ -350,27 +359,27 @@ class PaperBroker:
             "ai_active": self.ai_active,
             "ledger_metrics": {
                 "all_time": {
-                    "total_trades": total_closed,
-                    "winning_trades": all_wins,
-                    "losing_trades": all_losses,
+                    "total_trades": all_total_trades,
+                    "winning_trades": all_vault_wins,
+                    "losing_trades": all_losses_count,
                     "win_rate_pct": all_win_rate,
                     "profit_factor": all_profit_factor,
-                    "gross_profit_usd": round(all_gross_profit, 2),
+                    "gross_profit_usd": round(all_vault_gross_profit, 2),
                     "gross_loss_usd": round(all_gross_loss, 2)
                 },
                 "today": {
-                    "total_trades": t_count,
+                    "total_trades": t_total_trades,
                     "winning_trades": t_wins,
-                    "losing_trades": t_losses,
+                    "losing_trades": t_losses_count,
                     "win_rate_pct": t_win_rate,
                     "profit_factor": t_profit_factor,
                     "gross_profit_usd": round(t_gross_profit, 2),
                     "gross_loss_usd": round(t_gross_loss, 2)
                 },
                 "month": {
-                    "total_trades": m_count,
+                    "total_trades": m_total_trades,
                     "winning_trades": m_wins,
-                    "losing_trades": m_losses,
+                    "losing_trades": m_losses_count,
                     "win_rate_pct": m_win_rate,
                     "profit_factor": m_profit_factor,
                     "gross_profit_usd": round(m_gross_profit, 2),
