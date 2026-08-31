@@ -202,7 +202,7 @@ class ProfitVault:
             "today_sweeps_count": today_count,
             "month_swept_usd": round(month_swept, 2),
             "month_sweeps_count": month_count,
-            "recent_sweeps": self.sweep_history[-300:][::-1],
+            "recent_sweeps": self.sweep_history[-1500:][::-1],
             "withdrawal_history": self.withdrawal_history
         }
 

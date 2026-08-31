@@ -1774,7 +1774,18 @@
 
             const totalSweptSum = filtered.reduce((acc, cur) => acc + (cur.profit_swept || 0), 0);
             if (countElem) {
-                countElem.innerText = `${filtered.length.toLocaleString()} Sweeps | +$${totalSweptSum.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} Swept`;
+                const v = (latestDashboardData && latestDashboardData.account && latestDashboardData.account.profit_vault) ? latestDashboardData.account.profit_vault : {};
+                if (activeTimePreset === 'ALL' && !query && !dateFrom && !dateTo) {
+                    const totalCnt = v.total_sweeps_count || filtered.length;
+                    const totalBal = v.vault_balance || totalSweptSum;
+                    countElem.innerText = `${totalCnt.toLocaleString()} Total Sweeps | +$${totalBal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} Swept`;
+                } else if (activeTimePreset === 'TODAY' && !query) {
+                    const tCnt = v.today_sweeps_count || filtered.length;
+                    const tBal = v.today_swept_usd || totalSweptSum;
+                    countElem.innerText = `${tCnt.toLocaleString()} Sweeps Today | +$${tBal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} Swept`;
+                } else {
+                    countElem.innerText = `${filtered.length.toLocaleString()} Filtered Sweeps | +$${totalSweptSum.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} Swept`;
+                }
             }
 
             if (!tbody) return;
