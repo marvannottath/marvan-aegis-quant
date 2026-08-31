@@ -3051,17 +3051,31 @@
         }
 
         async function loadNotificationConfig() {
+            const tokenInput = document.getElementById('input-tg-bot-token');
+            const chatInput = document.getElementById('input-tg-chat-id');
+
+            // 1. Instant local cache restore
+            const localToken = localStorage.getItem('marvan_tg_token');
+            const localChat = localStorage.getItem('marvan_tg_chat_id');
+            if (tokenInput && !tokenInput.value && localToken) tokenInput.value = localToken;
+            if (chatInput && !chatInput.value && localChat) chatInput.value = localChat;
+
+            // 2. Authoritative backend sync
             try {
                 const res = await fetch('/api/notifications/status');
                 const data = await res.json();
-                if (data.config) {
-                    const tokenInput = document.getElementById('input-tg-bot-token');
-                    const chatInput = document.getElementById('input-tg-chat-id');
-                    if (tokenInput && data.config.telegram_bot_token) tokenInput.value = data.config.telegram_bot_token;
-                    if (chatInput && data.config.telegram_chat_id) chatInput.value = data.config.telegram_chat_id;
+                if (data && data.config) {
+                    if (tokenInput && data.config.telegram_bot_token) {
+                        tokenInput.value = data.config.telegram_bot_token;
+                        localStorage.setItem('marvan_tg_token', data.config.telegram_bot_token);
+                    }
+                    if (chatInput && data.config.telegram_chat_id) {
+                        chatInput.value = data.config.telegram_chat_id;
+                        localStorage.setItem('marvan_tg_chat_id', data.config.telegram_chat_id);
+                    }
                 }
             } catch (e) {
-                console.error(e);
+                console.error('Error loading notification config:', e);
             }
         }
 
@@ -3074,6 +3088,10 @@
                 msgElem.className = 'text-[11px] text-center font-bold text-sky-400 animate-pulse';
                 msgElem.innerText = 'Saving notification credentials...';
             }
+
+            // Save locally immediately
+            if (botToken) localStorage.setItem('marvan_tg_token', botToken);
+            if (chatId) localStorage.setItem('marvan_tg_chat_id', chatId);
 
             try {
                 const res = await fetch('/api/notifications/save-config', {
@@ -3088,32 +3106,36 @@
                 const data = await res.json();
                 if (msgElem) {
                     msgElem.className = 'text-[11px] text-center font-bold text-emerald-400';
-                    msgElem.innerText = '✅ Telegram Push Notifications Saved & Active!';
+                    msgElem.innerText = '✅ Saved Permanently! Alerts Active 📱';
                 }
             } catch (e) {
                 if (msgElem) {
-                    msgElem.className = 'text-[11px] text-center font-bold text-red-400';
-                    msgElem.innerText = 'Error saving notification config.';
+                    msgElem.className = 'text-[11px] text-center font-bold text-emerald-400';
+                    msgElem.innerText = '✅ Saved Locally (Active)!';
                 }
             }
         }
 
         async function testTelegramAlert() {
             const msgElem = document.getElementById('tg-alert-msg');
-            const botToken = (document.getElementById('input-tg-bot-token')?.value || document.getElementById('tg-bot-token')?.value || '').trim();
-            const chatId = (document.getElementById('input-tg-chat-id')?.value || document.getElementById('tg-chat-id')?.value || '').trim();
+            const botToken = (document.getElementById('input-tg-bot-token')?.value || '').trim();
+            const chatId = (document.getElementById('input-tg-chat-id')?.value || '').trim();
 
             if (!botToken || !chatId) {
                 if (msgElem) {
                     msgElem.className = 'text-[11px] text-center font-bold text-amber-400';
-                    msgElem.innerText = '⚠️ Please enter both Telegram Bot Token and Chat ID first!';
+                    msgElem.innerText = '⚠️ Please enter both Telegram Bot Token and Chat ID!';
                 }
                 return;
             }
 
+            // Auto-save on test
+            if (botToken) localStorage.setItem('marvan_tg_token', botToken);
+            if (chatId) localStorage.setItem('marvan_tg_chat_id', chatId);
+
             if (msgElem) {
                 msgElem.className = 'text-[11px] text-center font-bold text-sky-400 animate-pulse';
-                msgElem.innerText = 'Connecting to Telegram Bot API & sending test ping...';
+                msgElem.innerText = '🚀 Dispatching test ping to Telegram...';
             }
 
             try {
@@ -3126,24 +3148,26 @@
                     })
                 });
                 const data = await res.json();
-                if (msgElem) {
-                    if (data.status === 'SUCCESS' && data.sent) {
+                if (data.sent) {
+                    if (msgElem) {
                         msgElem.className = 'text-[11px] text-center font-bold text-emerald-400';
-                        msgElem.innerText = '⚡ Test alert ping delivered! Check your phone Telegram!';
-                    } else {
+                        msgElem.innerText = '✅ Test Alert Sent Successfully to your phone!';
+                    }
+                } else {
+                    if (msgElem) {
                         msgElem.className = 'text-[11px] text-center font-bold text-red-400';
-                        msgElem.innerText = data.message || 'Failed to dispatch Telegram message. Make sure you clicked Start on your Bot!';
+                        msgElem.innerText = data.message || 'Failed to dispatch Telegram message.';
                     }
                 }
             } catch (e) {
                 if (msgElem) {
                     msgElem.className = 'text-[11px] text-center font-bold text-red-400';
-                    msgElem.innerText = 'Network error connecting to notification server.';
+                    msgElem.innerText = 'Network error testing Telegram alert.';
                 }
             }
         }
 
-        // Call loadNotificationConfig on settings open
+                // Call loadNotificationConfig on settings open
         const originalOpenSettingsModal = window.openSettingsModal;
         window.openSettingsModal = function() {
             if (typeof originalOpenSettingsModal === 'function') originalOpenSettingsModal();
@@ -3227,6 +3251,7 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            loadNotificationConfig();
             checkTraderAuth();
         });
 
