@@ -1,69 +1,15 @@
 {
   "initial_capital": 100000.0,
-  "virtual_cash": 92500.0,
-  "equity": 677228.89,
+  "virtual_cash": 92000.0,
+  "equity": 677746.03,
   "positions": {
-    "ETHUSD": {
-      "trade_id": "TRD-1788181826491",
-      "asset": "ETHUSD",
-      "action": "SELL",
-      "units": 5.801784508469759,
-      "entry_price": 3447.215244,
-      "capital_allocated": 2000.0,
-      "leverage": 10.0,
-      "stop_loss_pct": 1.5,
-      "take_profit_pct": 3.5,
-      "timestamp": "2026-08-31 18:40:26",
-      "entry_indicators": {
-        "RSI": 73.2,
-        "Volatility": 0.0104
-      },
-      "entry_sentiment": 0.6,
-      "last_price": 3490.24
-    },
-    "EURUSD": {
-      "trade_id": "TRD-1788181830582",
-      "asset": "EURUSD",
-      "action": "SELL",
-      "units": 4612.581911267411,
-      "entry_price": 1.0839915900000001,
-      "capital_allocated": 2500.0,
-      "leverage": 2.0,
-      "stop_loss_pct": 1.5,
-      "take_profit_pct": 3.5,
-      "timestamp": "2026-08-31 18:40:30",
-      "entry_indicators": {
-        "RSI": 63.3,
-        "Volatility": 0.0125
-      },
-      "entry_sentiment": 0.6,
-      "last_price": 1.0967
-    },
-    "XAUUSD": {
-      "trade_id": "TRD-1788181834675",
-      "asset": "XAUUSD",
-      "action": "SELL",
-      "units": 7.970543895381134,
-      "entry_price": 2509.239051,
-      "capital_allocated": 2000.0,
-      "leverage": 10.0,
-      "stop_loss_pct": 1.5,
-      "take_profit_pct": 3.5,
-      "timestamp": "2026-08-31 18:40:34",
-      "entry_indicators": {
-        "RSI": 68.4,
-        "Volatility": 0.0154
-      },
-      "entry_sentiment": 0.6,
-      "last_price": 2541.61
-    },
     "BTCUSD": {
       "trade_id": "TRD-1788181932513-BTCUSD",
       "asset": "BTCUSD",
       "action": "SELL",
       "units": 0.0311,
       "entry_price": 64206.0488,
-      "last_price": 64540.49,
+      "last_price": 64928.42,
       "capital_allocated": 1000.0,
       "leverage": 2.0,
       "stop_loss_pct": 1.5,
@@ -72,6 +18,60 @@
       "entry_indicators": {
         "RSI": 67.8,
         "Volatility": 0.0248
+      },
+      "entry_sentiment": -0.52
+    },
+    "GBPUSD": {
+      "trade_id": "TRD-1788181977757-GBPUSD",
+      "asset": "GBPUSD",
+      "action": "SELL",
+      "units": 3074.8655,
+      "entry_price": 1.3009,
+      "last_price": 1.3029,
+      "capital_allocated": 2000.0,
+      "leverage": 2.0,
+      "stop_loss_pct": 1.5,
+      "take_profit_pct": 3.5,
+      "timestamp": "2026-08-31 18:42:57",
+      "entry_indicators": {
+        "RSI": 77.9,
+        "Volatility": 0.017
+      },
+      "entry_sentiment": -0.52
+    },
+    "NIFTY50": {
+      "trade_id": "TRD-1788181987830-NIFTY50",
+      "asset": "NIFTY50",
+      "action": "SELL",
+      "units": 0.2014,
+      "entry_price": 24823.7319,
+      "last_price": 24898.21,
+      "capital_allocated": 2500.0,
+      "leverage": 2.0,
+      "stop_loss_pct": 1.5,
+      "take_profit_pct": 3.5,
+      "timestamp": "2026-08-31 18:43:07",
+      "entry_indicators": {
+        "RSI": 78.6,
+        "Volatility": 0.0216
+      },
+      "entry_sentiment": -0.52
+    },
+    "USDJPY": {
+      "trade_id": "TRD-1788181987901-USDJPY",
+      "asset": "USDJPY",
+      "action": "SELL",
+      "units": 51.5799,
+      "entry_price": 145.4055,
+      "last_price": 145.83,
+      "capital_allocated": 2500.0,
+      "leverage": 3.0,
+      "stop_loss_pct": 1.5,
+      "take_profit_pct": 3.5,
+      "timestamp": "2026-08-31 18:43:07",
+      "entry_indicators": {
+        "RSI": 78.6,
+        "Volatility": 0.0216
       },
       "entry_sentiment": -0.52
     }
@@ -1864,6 +1864,130 @@
         "entry_indicators": {
           "RSI": 78.7,
           "Volatility": 0.0229,
+          "SentimentScore": -0.52
+        }
+      }
+    },
+    {
+      "trade_id": "TRD-1788181834675",
+      "asset": "XAUUSD",
+      "action": "SELL",
+      "entry_price": 2509.2391,
+      "exit_price": 2547.2061,
+      "capital_allocated": 2000.0,
+      "leverage": 10.0,
+      "pnl_usd": -302.62,
+      "pnl_pct": -1.51,
+      "exit_reason": "STOP_LOSS_PROTECT",
+      "timestamp": "2026-08-31 18:42:57",
+      "forensics": {
+        "trade_id": "TRD-1788181834675",
+        "timestamp": "2026-08-31 18:42:57",
+        "asset": "XAUUSD",
+        "entry_price": 2509.2391,
+        "exit_price": 2547.2061,
+        "pnl_usd": -302.62,
+        "pnl_pct": -1.51,
+        "result": "LOSS",
+        "exit_reason": "STOP_LOSS_PROTECT",
+        "root_cause_attribution": "Loss (-1.51%) caused by sudden negative sentiment news shock (-0.52).",
+        "self_learning_update": "RL Agent penalized (-22.70 points). Increased penalty threshold for entering trades during high volatility (1.54%).",
+        "entry_indicators": {
+          "RSI": 68.4,
+          "Volatility": 0.0154,
+          "SentimentScore": -0.52
+        }
+      }
+    },
+    {
+      "trade_id": "TRD-1788181826491",
+      "asset": "ETHUSD",
+      "action": "SELL",
+      "entry_price": 3447.2152,
+      "exit_price": 3500.0194,
+      "capital_allocated": 2000.0,
+      "leverage": 10.0,
+      "pnl_usd": -306.36,
+      "pnl_pct": -1.53,
+      "exit_reason": "STOP_LOSS_PROTECT",
+      "timestamp": "2026-08-31 18:43:05",
+      "forensics": {
+        "trade_id": "TRD-1788181826491",
+        "timestamp": "2026-08-31 18:43:05",
+        "asset": "ETHUSD",
+        "entry_price": 3447.2152,
+        "exit_price": 3500.0194,
+        "pnl_usd": -306.36,
+        "pnl_pct": -1.53,
+        "result": "LOSS",
+        "exit_reason": "STOP_LOSS_PROTECT",
+        "root_cause_attribution": "Loss (-1.53%) caused by sudden negative sentiment news shock (-0.52).",
+        "self_learning_update": "RL Agent penalized (-22.98 points). Increased penalty threshold for entering trades during high volatility (1.04%).",
+        "entry_indicators": {
+          "RSI": 73.2,
+          "Volatility": 0.0104,
+          "SentimentScore": -0.52
+        }
+      }
+    },
+    {
+      "trade_id": "TRD-1788181830582",
+      "asset": "EURUSD",
+      "action": "SELL",
+      "entry_price": 1.084,
+      "exit_price": 1.101,
+      "capital_allocated": 2500.0,
+      "leverage": 2.0,
+      "pnl_usd": -78.36,
+      "pnl_pct": -1.57,
+      "exit_reason": "STOP_LOSS_PROTECT",
+      "timestamp": "2026-08-31 18:43:07",
+      "forensics": {
+        "trade_id": "TRD-1788181830582",
+        "timestamp": "2026-08-31 18:43:07",
+        "asset": "EURUSD",
+        "entry_price": 1.084,
+        "exit_price": 1.101,
+        "pnl_usd": -78.36,
+        "pnl_pct": -1.57,
+        "result": "LOSS",
+        "exit_reason": "STOP_LOSS_PROTECT",
+        "root_cause_attribution": "Loss (-1.57%) caused by sudden negative sentiment news shock (-0.52).",
+        "self_learning_update": "RL Agent penalized (-23.51 points). Increased penalty threshold for entering trades during high volatility (1.25%).",
+        "entry_indicators": {
+          "RSI": 63.3,
+          "Volatility": 0.0125,
+          "SentimentScore": -0.52
+        }
+      }
+    },
+    {
+      "trade_id": "TRD-1788181985302-USDJPY",
+      "asset": "USDJPY",
+      "action": "SELL",
+      "entry_price": 145.3955,
+      "exit_price": 145.2792,
+      "capital_allocated": 2500.0,
+      "leverage": 3.0,
+      "pnl_usd": 6.0,
+      "pnl_pct": 0.08,
+      "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
+      "timestamp": "2026-08-31 18:43:07",
+      "forensics": {
+        "trade_id": "TRD-1788181985302-USDJPY",
+        "timestamp": "2026-08-31 18:43:07",
+        "asset": "USDJPY",
+        "entry_price": 145.3955,
+        "exit_price": 145.2792,
+        "pnl_usd": 6.0,
+        "pnl_pct": 0.08,
+        "result": "PROFIT",
+        "exit_reason": "PROFIT_TARGET_AUTO_REBALANCE",
+        "root_cause_attribution": "Trade closed in target profit (+0.08%) according to planned exit rule.",
+        "self_learning_update": "RL Agent rewarded (+0.80 points). Reinforced BUY confidence when RSI=72.9 and Sentiment=-0.52.",
+        "entry_indicators": {
+          "RSI": 72.9,
+          "Volatility": 0.0206,
           "SentimentScore": -0.52
         }
       }
