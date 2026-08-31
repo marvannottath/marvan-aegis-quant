@@ -1,3 +1,4 @@
+from execution.binance_broker import binance_broker
 """
 PaperBroker with Full Dual-Pool Isolation:
 1. MASTER_SIMULATION ($100,000 Virtual Capital, 12 Cross-Asset Markets, $630k+ Historical Vault)
@@ -312,8 +313,21 @@ class PaperBroker:
         notional = margin_usd * leverage
         units = notional / p
 
+        # If Binance Demo pool is active, execute authentic order on Binance Futures API
+        binance_order_id = None
+        if self.active_pool_name == "BINANCE_DEMO" and binance_broker.api_key:
+            try:
+                # Convert asset symbol to Binance standard (e.g. BTCUSDT)
+                b_sym = asset if "USDT" in asset else f"{asset.replace('USD', '')}USDT"
+                b_res = binance_broker.place_futures_order(symbol=b_sym, side=action, quantity=units, leverage=int(leverage))
+                if b_res.get("status") == "SUCCESS":
+                    binance_order_id = b_res.get("order_id")
+            except Exception as e:
+                print(f"[BINANCE SYNC] Order dispatch notice: {e}")
+
         pos_obj = {
             "trade_id": f"TRD-{self.active_pool_name[:3]}-{int(time.time()*1000)}-{asset}",
+            "binance_order_id": binance_order_id,
             "asset": asset,
             "action": action,
             "units": round(units, 4),
@@ -386,7 +400,24 @@ class PaperBroker:
         exit_reason = reason_override
         if pnl_usd > 0:
             if self.active_pool_name == "BINANCE_DEMO":
-                self.pools["BINANCE_DEMO"]["vault_reserve"] = round(self.pools["BINANCE_DEMO"].get("vault_reserve", 0.0) + pnl_usd, 2)
+                cur_v = round(self.pools["BINANCE_DEMO"].get("vault_reserve", 0.0) + pnl_usd, 2)
+                self.pools["BINANCE_DEMO"]["vault_reserve"] = cur_v
+                if "sweep_history" not in self.pools["BINANCE_DEMO"]:
+                    self.pools["BINANCE_DEMO"]["sweep_history"] = []
+                self.pools["BINANCE_DEMO"]["sweep_history"].insert(0, {
+                    "timestamp": datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%d %b %Y, %I:%M:%S %p").lower(),
+                    "asset": asset,
+                    "profit_swept": round(pnl_usd, 2),
+                    "accumulated_reserve": cur_v,
+                    "exit_reason": exit_reason
+                })
+                # If Binance API active, close position on exchange
+                if binance_broker.api_key:
+                    try:
+                        b_sym = asset if "USDT" in asset else f"{asset.replace('USD', '')}USDT"
+                        binance_broker.close_futures_position(symbol=b_sym, quantity=pos["units"], original_side=pos["action"])
+                    except Exception as e:
+                        print(f"[BINANCE SYNC] Close order notice: {e}")
             else:
                 profit_vault.sweep_profit(pnl_usd, asset, exit_reason)
 

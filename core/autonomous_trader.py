@@ -104,9 +104,12 @@ class AutonomousTrader:
                     target_capacity = 10
                     base_lev = 25.0
 
-                # 3. New Position Entry Evaluation
-                if len(self.broker.positions) < target_capacity and scanned_assets:
-                    for item in scanned_assets:
+                # 3. New Position Entry Evaluation (Pool-Aware Asset Filtering)
+                is_binance_pool = (self.broker.active_pool_name == "BINANCE_DEMO")
+                filtered_scanned = [c for c in scanned_assets if ("USDT" in c["ticker"] or "USD" in c["ticker"]) and c["category"] == "Crypto"] if is_binance_pool else scanned_assets
+
+                if len(self.broker.positions) < target_capacity and filtered_scanned:
+                    for item in filtered_scanned:
                         ticker = item["ticker"]
                         if ticker in self.broker.positions:
                             continue
@@ -204,7 +207,9 @@ class AutonomousTrader:
 
                         # Immediate Replenishment with next candidate
                         if len(self.broker.positions) < target_capacity and scanned_assets:
-                            candidates = [c for c in scanned_assets if c["ticker"] not in self.broker.positions]
+                            is_binance_pool = (self.broker.active_pool_name == "BINANCE_DEMO")
+                            cand_pool = [c for c in scanned_assets if ("USDT" in c["ticker"] or "USD" in c["ticker"]) and c["category"] == "Crypto"] if is_binance_pool else scanned_assets
+                            candidates = [c for c in cand_pool if c["ticker"] not in self.broker.positions]
                             if candidates:
                                 top_c = candidates[0]
                                 c_act = "BUY" if top_c["ai_action"] != "SELL" else "SELL"

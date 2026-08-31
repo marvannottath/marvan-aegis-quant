@@ -700,16 +700,28 @@ async def serve_service_worker():
 
 @app.get("/api/vault/history")
 async def get_vault_history():
-    """Fetch complete immutable ledger of all historical vault sweeps."""
-    summary = profit_vault.get_vault_summary()
-    return JSONResponse({
-        "vault_balance": summary["vault_balance"],
-        "total_sweeps_count": summary["total_sweeps_count"],
-        "today_swept_usd": summary.get("today_swept_usd", 0.0),
-        "today_sweeps_count": summary.get("today_sweeps_count", 0),
-        "sweeps": profit_vault.get_full_sweep_history(),
-        "withdrawals": summary["withdrawal_history"]
-    })
+    """Fetch complete immutable ledger of all historical vault sweeps for the active pool."""
+    if paper_broker.active_pool_name == "BINANCE_DEMO":
+        b_sweeps = paper_broker.pools["BINANCE_DEMO"].get("sweep_history", [])
+        v_bal = paper_broker.pools["BINANCE_DEMO"].get("vault_reserve", 0.0)
+        return JSONResponse({
+            "vault_balance": v_bal,
+            "total_sweeps_count": len(b_sweeps),
+            "today_swept_usd": sum(float(s.get("profit_swept", 0.0)) for s in b_sweeps),
+            "today_sweeps_count": len(b_sweeps),
+            "sweeps": b_sweeps,
+            "withdrawals": []
+        })
+    else:
+        summary = profit_vault.get_vault_summary()
+        return JSONResponse({
+            "vault_balance": summary["vault_balance"],
+            "total_sweeps_count": summary["total_sweeps_count"],
+            "today_swept_usd": summary.get("today_swept_usd", 0.0),
+            "today_sweeps_count": summary.get("today_sweeps_count", 0),
+            "sweeps": profit_vault.get_full_sweep_history(),
+            "withdrawals": summary["withdrawal_history"]
+        })
 
 @app.post("/api/switch-trading-pool")
 async def switch_trading_pool(request: Request):
