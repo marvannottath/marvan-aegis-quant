@@ -184,5 +184,46 @@ class BinanceBroker:
             "latency_ms": 12.4
         }
 
+
+    def place_futures_order(self, symbol: str, side: str, quantity: float, leverage: int = 10) -> Dict[str, Any]:
+        """Send authenticated Market Order directly to Binance Futures API."""
+        if not self.api_key or not self.secret_key:
+            return {"status": "ERROR", "message": "Binance API keys not configured."}
+
+        url = "https://demo-fapi.binance.com/fapi/v1/order" if self.testnet else "https://fapi.binance.com/fapi/v1/order"
+        headers = {"X-MBX-APIKEY": self.api_key}
+
+        try:
+            st = int(time.time() * 1000)
+            params = {
+                "symbol": symbol.upper(),
+                "side": side.upper(),
+                "type": "MARKET",
+                "quantity": round(quantity, 3),
+                "timestamp": st,
+                "recvWindow": 60000
+            }
+            query = "&".join(f"{k}={v}" for k, v in params.items())
+            signature = hmac.new(
+                self.secret_key.encode("utf-8"),
+                query.encode("utf-8"),
+                hashlib.sha256
+            ).hexdigest()
+
+            resp = requests.post(f"{url}?{query}&signature={signature}", headers=headers, timeout=5)
+            if resp.status_code == 200:
+                data = resp.json()
+                print(f"[BINANCE API] Order FILLED on Binance: {symbol} {side} {quantity} (Order ID: {data.get('orderId')})")
+                return {"status": "SUCCESS", "order_id": data.get("orderId"), "data": data}
+            else:
+                return {"status": "ERROR", "code": resp.status_code, "message": resp.text}
+        except Exception as e:
+            return {"status": "ERROR", "message": str(e)}
+
+    def close_futures_position(self, symbol: str, quantity: float, original_side: str) -> Dict[str, Any]:
+        """Close an open position on Binance Futures with opposite MARKET order."""
+        close_side = "SELL" if original_side.upper() == "BUY" else "BUY"
+        return self.place_futures_order(symbol, close_side, quantity)
+
 # Singleton instance
 binance_broker = BinanceBroker()
