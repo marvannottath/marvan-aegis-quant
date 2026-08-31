@@ -271,6 +271,20 @@ class PaperBroker:
         # Net Portfolio Equity = Base Capital + Vault Reserve + Active Floating PnL
         self.equity = max(0.0, self.initial_capital + vault_reserve + unrealized)
 
+    
+    def set_active_capital_pool(self, pool_name: str, initial_capital: float = 5000.0) -> Dict[str, Any]:
+        """Switch active trading pool between MASTER_SIMULATION ($100k) and BINANCE_DEMO ($5k)."""
+        self.active_pool_name = pool_name
+        if pool_name == "BINANCE_DEMO":
+            self.initial_capital = initial_capital
+            self.virtual_cash = initial_capital
+        else:
+            self.initial_capital = 100000.0
+            self.virtual_cash = 92000.0
+        self._update_equity()
+        self._save_state()
+        return {"status": "SUCCESS", "active_pool": pool_name, "initial_capital": self.initial_capital}
+
     def get_account_summary(self) -> Dict[str, Any]:
         """Return dynamically computed virtual account state summary with pure data-driven ledger metrics."""
         self._update_equity()

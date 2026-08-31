@@ -710,3 +710,16 @@ async def get_vault_history():
         "sweeps": profit_vault.get_full_sweep_history(),
         "withdrawals": summary["withdrawal_history"]
     })
+
+@app.post("/api/switch-trading-pool")
+async def switch_trading_pool(request: Request):
+    """Switch active capital pool between MASTER ($100k) and BINANCE ($5k)."""
+    try:
+        body = await request.json()
+        target_pool = body.get("pool", "BINANCE_DEMO")
+        cap = float(body.get("capital", 5000.0))
+        
+        result = paper_broker.set_active_capital_pool(target_pool, initial_capital=cap)
+        return JSONResponse(result)
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
