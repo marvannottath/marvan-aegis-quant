@@ -308,8 +308,8 @@
         <div class="hidden md:grid grid-cols-2 lg:grid-cols-4 gap-4">
             <div class="bg-darkcard border border-darkborder p-4 md:p-6 rounded-2xl shadow-xl">
                 <div class="text-[11px] font-semibold uppercase text-gray-400 mb-1">Portfolio Equity</div>
-                <div class="text-xl md:text-2xl font-black text-white" id="val-equity">$100,000.00</div>
-                <div class="text-xs font-medium mt-1 text-emerald-400" id="val-pnl">+$0.00 (+0.00%)</div>
+                <div class="text-xl md:text-2xl font-black text-white" id="val-equity">{{ PORTFOLIO_EQUITY }}</div>
+                <div class="text-xs font-medium mt-1 text-emerald-400" id="val-pnl">+$0.00 (+0.00%) Floating Open PnL</div>
             </div>
 
             <div onclick="openVaultModal()" class="bg-darkcard border border-darkborder p-4 md:p-5 rounded-2xl shadow-xl border-emerald-500/40 hover:border-emerald-400 cursor-pointer transition flex flex-col justify-between group overflow-hidden">
@@ -317,7 +317,7 @@
                     <div class="text-[11px] font-black uppercase text-emerald-400 tracking-wider flex items-center mb-1">
                         <i class="fa-solid fa-vault mr-1.5 text-emerald-400"></i> SECURED PROFIT VAULT
                     </div>
-                    <div class="text-xl md:text-2xl font-black text-emerald-400" id="val-vault-balance">$159,579.95</div>
+                    <div class="text-xl md:text-2xl font-black text-emerald-400" id="val-vault-balance">{{ VAULT_BALANCE }}</div>
                 </div>
                 
                 <div class="mt-3 pt-2 border-t border-emerald-500/20 flex items-center justify-end gap-1.5">
@@ -333,7 +333,7 @@
             <div class="bg-darkcard border border-darkborder p-4 md:p-6 rounded-2xl shadow-xl flex flex-col justify-between">
                 <div>
                     <div class="text-[11px] font-semibold uppercase text-gray-400 mb-1">Virtual Cash</div>
-                    <div class="text-xl md:text-2xl font-black text-white" id="val-cash">$100,000.00</div>
+                    <div class="text-xl md:text-2xl font-black text-white" id="val-cash">{{ VIRTUAL_CASH }}</div>
                     <div class="text-[11px] text-gray-400 mt-1">Allocated Capital</div>
                 </div>
                 <div class="mt-3 pt-2 border-t border-gray-800 flex items-center justify-end">
@@ -1931,23 +1931,41 @@
                     }
                 }
 
+                // UNIFIED SINGLE SOURCE OF TRUTH DERIVATIONS
+                const eqStr = '$' + Number(data.account.portfolio_equity).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                const cashStr = '$' + Number(data.account.virtual_cash).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                const vaultBal = (data.account.profit_vault && data.account.profit_vault.vault_balance) ? data.account.profit_vault.vault_balance : 0.0;
+                const vaultStr = '$' + Number(vaultBal).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                const openCount = Array.isArray(data.account.open_positions) ? data.account.open_positions.length : (data.account.open_positions_count || 0);
+
+                // 1. Portfolio Equity (Desktop & Mobile Unified)
                 const eqElem = document.getElementById('val-equity');
-                if (eqElem) eqElem.innerText = '$' + data.account.portfolio_equity.toLocaleString('en-US', {minimumFractionDigits: 2});
+                if (eqElem) eqElem.innerText = eqStr;
+                const mEq = document.getElementById('m-val-equity');
+                if (mEq) mEq.innerText = eqStr;
+
+                // 2. Free / Virtual Cash (Desktop & Mobile Unified)
                 const cashElem = document.getElementById('val-cash');
-                if (cashElem) cashElem.innerText = '$' + data.account.virtual_cash.toLocaleString('en-US', {minimumFractionDigits: 2});
+                if (cashElem) cashElem.innerText = cashStr;
+                const mCash = document.getElementById('m-val-cash');
+                if (mCash) mCash.innerText = cashStr;
                 const lblCashElem = document.getElementById('lbl-cash');
-                if (lblCashElem) lblCashElem.innerText = '$' + data.account.virtual_cash.toLocaleString();
-                
+                if (lblCashElem) lblCashElem.innerText = cashStr;
+
+                // 3. Secured Profit Vault (Desktop, Mobile & Modal Unified)
+                const vaultBalElem = document.getElementById('val-vault-balance');
+                if (vaultBalElem) vaultBalElem.innerText = vaultStr;
+                const mVault = document.getElementById('m-val-vault');
+                if (mVault) mVault.innerText = vaultStr;
+                const modalTotalElem = document.getElementById('modal-vault-total');
+                if (modalTotalElem) modalTotalElem.innerText = vaultStr;
+
                 if (data.account.profit_vault) {
                     const vault = data.account.profit_vault;
-                    const vaultBalElem = document.getElementById('val-vault-balance');
-                    if (vaultBalElem) vaultBalElem.innerText = '$' + vault.vault_balance.toLocaleString('en-US', {minimumFractionDigits: 2});
                     const sweepElem = document.getElementById('val-vault-sweeps');
                     if (sweepElem) {
-                        sweepElem.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5 animate-pulse"></span> ${vault.total_sweeps_count} Auto-Sweeps Saved`;
+                        sweepElem.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5 animate-pulse"></span> ${vault.total_sweeps_count || 0} Auto-Sweeps Saved`;
                     }
-                    const modalTotalElem = document.getElementById('modal-vault-total');
-                    if (modalTotalElem) modalTotalElem.innerText = '$' + vault.vault_balance.toLocaleString('en-US', {minimumFractionDigits: 2});
                     if (vault.recent_sweeps) {
                         renderVaultModalHistory(vault.recent_sweeps);
                     }
@@ -1955,6 +1973,16 @@
                         renderWithdrawalLedger(vault.withdrawal_history);
                     }
                     setWithdrawSource(activeWithdrawSource);
+                }
+
+                // 4. Header Running Positions Badge (Strictly matches open_positions.length)
+                const lblAi = document.getElementById('lbl-ai-mode');
+                if (lblAi) {
+                    if (data.account.ai_active) {
+                        lblAi.innerText = openCount > 0 ? `AUTO AI TRADING: ON (${openCount} POSITIONS RUNNING)` : 'AUTO AI TRADING: ON (0 POSITIONS RUNNING)';
+                    } else {
+                        lblAi.innerText = 'MANUAL ONLY MODE (OFF)';
+                    }
                 }
 
                 const pnlUsd = typeof data.account.floating_open_pnl_usd === 'number' ? data.account.floating_open_pnl_usd : data.account.total_pnl_usd;

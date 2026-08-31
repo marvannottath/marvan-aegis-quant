@@ -21,8 +21,8 @@ def get_ist_time_str() -> str:
 
 class ProfitVault:
     def __init__(self):
-        self.vault_balance: float = 157588.39
-        self.total_sweeps_count: int = 2102
+        self.vault_balance: float = 0.0
+        self.total_sweeps_count: int = 0
         self.sweep_history: List[Dict[str, Any]] = []
         self.withdrawal_history: List[Dict[str, Any]] = []
         self.deposit_history: List[Dict[str, Any]] = []

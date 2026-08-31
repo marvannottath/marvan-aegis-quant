@@ -110,23 +110,28 @@ async def read_dashboard(request: Request):
 
     content = template_path.read_text(encoding="utf-8")
     
-    # Authoritative Backend State
+    # Authoritative Single-Source-of-Truth Backend State
     account = paper_broker.get_account_summary()
     vault = profit_vault.get_vault_summary()
     ledger_metrics = account.get("ledger_metrics", {}).get("all_time", {})
     
-    eq_str = f"${account.get('portfolio_equity', 100000.0):,.2f}"
-    vault_str = f"${vault.get('vault_balance', 0.0):,.2f}"
-    cash_str = f"${account.get('virtual_cash', 100000.0):,.2f}"
-    pos_count_str = str(len(paper_broker.positions))
+    eq_val = account.get('portfolio_equity', 100000.0)
+    vault_val = vault.get('vault_balance', 0.0)
+    cash_val = account.get('virtual_cash', 100000.0)
+    open_pos_count = len(account.get('open_positions', []))
+    
+    eq_str = f"${eq_val:,.2f}"
+    vault_str = f"${vault_val:,.2f}"
+    cash_str = f"${cash_val:,.2f}"
+    pos_count_str = str(open_pos_count)
     
     prof_str = f"+${ledger_metrics.get('gross_profit_usd', 0.0):,.2f}"
     loss_str = f"-${ledger_metrics.get('gross_loss_usd', 0.0):,.2f}"
     wr_str = f"{ledger_metrics.get('win_rate_pct', 0.0):.1f}%"
     pf_str = f"{ledger_metrics.get('profit_factor', 0.0):.2f}"
-    ytd_str = f"+{((vault.get('vault_balance', 0.0) / max(1.0, account.get('initial_capital', 100000.0))) * 100.0):.1f}%"
+    ytd_str = f"+{((vault_val / max(1.0, account.get('initial_capital', 100000.0))) * 100.0):.1f}%"
     
-    # Server-Side Pre-Render Injection
+    # Server-Side Pre-Render Injection (All instances unified)
     content = content.replace("{{ PORTFOLIO_EQUITY }}", eq_str)
     content = content.replace("{{ VAULT_BALANCE }}", vault_str)
     content = content.replace("{{ VIRTUAL_CASH }}", cash_str)
