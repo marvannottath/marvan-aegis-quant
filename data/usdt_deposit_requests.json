@@ -1,6 +1,22 @@
 {
   "requests": [
     {
+      "deposit_id": "DEP-TRC20-1788293188172-983C80",
+      "timestamp": "2026-09-02 01:36:28",
+      "environment": "AEGIS_QUANT_MASTER",
+      "asset": "USDT",
+      "network": "TRC20",
+      "network_name": "TRON (TRC20)",
+      "deposit_address": "TQn9Y2khEsLJW1ChV8m3N9K7xPnR2J4vLm",
+      "expected_amount": 150.0,
+      "actual_received_amount": 150.0,
+      "tx_hash": "0xreplay_1788293188173",
+      "confirmations": 19,
+      "required_confirmations": 19,
+      "status": "CREDITED",
+      "warning": "Send ONLY USDT via TRON (TRC20) network. Sending any other currency or using wrong network will result in permanent loss."
+    },
+    {
       "deposit_id": "DEP-TRC20-1788293093754-FEDAAB",
       "timestamp": "2026-09-02 01:34:53",
       "environment": "AEGIS_QUANT_MASTER",
@@ -442,6 +458,7 @@
     "0xreplay_1788289275155_TRC20_USDT": "DEP-TRC20-1788289275153-33F289",
     "0xredteam_1788289776276_TRC20_USDT": "DEP-TRC20-1788289776276-2F9A29",
     "0xredteam_1788289969598_TRC20_USDT": "DEP-TRC20-1788289969598-5EA3CD",
-    "0xreplay_1788293093756_TRC20_USDT": "DEP-TRC20-1788293093754-FEDAAB"
+    "0xreplay_1788293093756_TRC20_USDT": "DEP-TRC20-1788293093754-FEDAAB",
+    "0xreplay_1788293188173_TRC20_USDT": "DEP-TRC20-1788293188172-983C80"
   }
 }

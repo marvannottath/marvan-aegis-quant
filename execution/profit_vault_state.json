@@ -1,6 +1,6 @@
 {
-  "vault_balance": 665352.91,
-  "total_sweeps_count": 12556,
+  "vault_balance": 665395.86,
+  "total_sweeps_count": 12565,
   "sweep_history": [
     {
       "timestamp": "2026-08-23 00:00:02",
@@ -87891,6 +87891,69 @@
       "asset": "BTCUSD",
       "profit_swept": 1.8,
       "vault_total": 665352.91,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-02 01:35:01",
+      "asset": "ETHUSD",
+      "profit_swept": 9.58,
+      "vault_total": 665362.49,
+      "reason": "TAKE_PROFIT_MILESTONE"
+    },
+    {
+      "timestamp": "2026-09-02 01:35:09",
+      "asset": "BTCUSD",
+      "profit_swept": 2.39,
+      "vault_total": 665364.88,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-02 01:35:12",
+      "asset": "NIFTY50",
+      "profit_swept": 3.0,
+      "vault_total": 665367.88,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-02 01:35:17",
+      "asset": "NIFTY50",
+      "profit_swept": 2.4,
+      "vault_total": 665370.28,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-02 01:35:33",
+      "asset": "SOLUSD",
+      "profit_swept": 3.16,
+      "vault_total": 665373.45,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-02 01:35:38",
+      "asset": "SOLUSD",
+      "profit_swept": 8.46,
+      "vault_total": 665381.91,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-02 01:35:48",
+      "asset": "BTCUSD",
+      "profit_swept": 5.0,
+      "vault_total": 665386.91,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-02 01:35:53",
+      "asset": "BTCUSD",
+      "profit_swept": 4.2,
+      "vault_total": 665391.11,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-02 01:35:58",
+      "asset": "SOLUSD",
+      "profit_swept": 4.75,
+      "vault_total": 665395.86,
       "reason": "PROFIT_TARGET_AUTO_REBALANCE"
     }
   ],
