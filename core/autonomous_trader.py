@@ -79,6 +79,23 @@ class AutonomousTrader:
             try:
                 time.sleep(2.5)  # Fast 2.5-second institutional tick cycle
                 step_counter += 1
+
+                # 0. US Macro News Lockout Halt Check
+                is_news_locked, lock_reason = economic_filter.is_news_lockout_active()
+                if is_news_locked:
+                    self.broker.ai_active = False
+                    if step_counter % 4 == 0:
+                        self._log_action(
+                            asset="MACRO_NEWS",
+                            action="PAUSED",
+                            price=0.0,
+                            amount_usd=0.0,
+                            reasoning=f"AUTO-PAUSED: {lock_reason}"
+                        )
+                    continue  # Strict halt: no trading ticks during news lockout
+                else:
+                    self.broker.ai_active = True
+                step_counter += 1
                 sentiment_score = daily_sync.current_alignment_score
 
                 # 1. Scan Cross-Market Opportunities across all 12 global assets

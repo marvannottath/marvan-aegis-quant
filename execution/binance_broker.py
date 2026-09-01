@@ -200,18 +200,17 @@ class BinanceBroker:
 
 
     def get_real_live_spot_balance(self) -> float:
-        """Fetch strictly real USDT balance from Live Binance Exchange (api.binance.com)."""
+        """Fetch real USDT balance from Live Binance Exchange with 1.2s fast timeout and 10s TTL caching."""
+        now = time.time()
+        if hasattr(self, '_cached_live_bal') and (now - getattr(self, '_cached_live_ts', 0)) < 10.0:
+            return self._cached_live_bal
+
         if not self.api_key or not self.secret_key:
             return 0.0
-        try:
-            st = int(time.time() * 1000)
-            try:
-                tres = requests.get("https://api.binance.com/api/v3/time", timeout=3)
-                st = tres.json().get("serverTime", st)
-            except Exception:
-                pass
 
-            query = f"timestamp={st}&recvWindow=60000"
+        try:
+            st = int(now * 1000)
+            query = f"timestamp={st}&recvWindow=10000"
             signature = hmac.new(
                 self.secret_key.encode("utf-8"),
                 query.encode("utf-8"),
@@ -219,15 +218,18 @@ class BinanceBroker:
             ).hexdigest()
 
             headers = {"X-MBX-APIKEY": self.api_key}
-            resp = requests.get(f"https://api.binance.com/api/v3/account?{query}&signature={signature}", headers=headers, timeout=5)
+            resp = requests.get(f"https://api.binance.com/api/v3/account?{query}&signature={signature}", headers=headers, timeout=1.2)
             if resp.status_code == 200:
                 data = resp.json()
                 balances = data.get("balances", [])
                 usdt_bal = sum(float(b["free"]) for b in balances if b["asset"] in ["USDT", "BUSD", "USDC", "FDUSD"])
-                return round(usdt_bal, 2)
+                self._cached_live_bal = round(usdt_bal, 2)
+                self._cached_live_ts = now
+                return self._cached_live_bal
         except Exception as e:
-            print(f"[BINANCE LIVE] Real balance query notice: {e}")
-        return 0.0
+            print(f"[BINANCE LIVE] Fast balance query notice: {e}")
+
+        return getattr(self, '_cached_live_bal', 0.0)
 
 # Singleton instance
 binance_broker = BinanceBroker()
