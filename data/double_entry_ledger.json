@@ -1,6 +1,38 @@
 {
   "entries": [
     {
+      "entry_id": "DEL-DEP-1788278639920-A72120",
+      "timestamp": "2026-09-01 21:33:59",
+      "ledger_type": "DEPOSIT_LEDGER",
+      "environment": "AEGIS_QUANT_MASTER",
+      "debit_account": "BANK_GATEWAY_TRC20",
+      "credit_account": "CUSTOMER_ACCOUNT_AEGIS_QUANT_MASTER",
+      "amount": 100.0,
+      "asset": "USDT",
+      "reference_id": "DEP-TRC20-1788278639920-0A8042",
+      "metadata": {
+        "tx_hash": "0xcert_1788278639920",
+        "network": "TRC20"
+      },
+      "status": "POSTED"
+    },
+    {
+      "entry_id": "DEL-DEP-1788278620668-EACC79",
+      "timestamp": "2026-09-01 21:33:40",
+      "ledger_type": "DEPOSIT_LEDGER",
+      "environment": "AEGIS_QUANT_MASTER",
+      "debit_account": "BANK_GATEWAY_TRC20",
+      "credit_account": "CUSTOMER_ACCOUNT_AEGIS_QUANT_MASTER",
+      "amount": 150.0,
+      "asset": "USDT",
+      "reference_id": "DEP-TRC20-1788278620667-625097",
+      "metadata": {
+        "tx_hash": "0xreplay_1788278620667",
+        "network": "TRC20"
+      },
+      "status": "POSTED"
+    },
+    {
       "entry_id": "DEL-DEP-1788277281073-4CE420",
       "timestamp": "2026-09-01 21:11:21",
       "ledger_type": "DEPOSIT_LEDGER",
