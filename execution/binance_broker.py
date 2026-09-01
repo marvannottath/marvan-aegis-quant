@@ -198,5 +198,36 @@ class BinanceBroker:
             "latency_ms": 12.4
         }
 
+
+    def get_real_live_spot_balance(self) -> float:
+        """Fetch strictly real USDT balance from Live Binance Exchange (api.binance.com)."""
+        if not self.api_key or not self.secret_key:
+            return 0.0
+        try:
+            st = int(time.time() * 1000)
+            try:
+                tres = requests.get("https://api.binance.com/api/v3/time", timeout=3)
+                st = tres.json().get("serverTime", st)
+            except Exception:
+                pass
+
+            query = f"timestamp={st}&recvWindow=60000"
+            signature = hmac.new(
+                self.secret_key.encode("utf-8"),
+                query.encode("utf-8"),
+                hashlib.sha256
+            ).hexdigest()
+
+            headers = {"X-MBX-APIKEY": self.api_key}
+            resp = requests.get(f"https://api.binance.com/api/v3/account?{query}&signature={signature}", headers=headers, timeout=5)
+            if resp.status_code == 200:
+                data = resp.json()
+                balances = data.get("balances", [])
+                usdt_bal = sum(float(b["free"]) for b in balances if b["asset"] in ["USDT", "BUSD", "USDC", "FDUSD"])
+                return round(usdt_bal, 2)
+        except Exception as e:
+            print(f"[BINANCE LIVE] Real balance query notice: {e}")
+        return 0.0
+
 # Singleton instance
 binance_broker = BinanceBroker()

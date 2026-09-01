@@ -108,7 +108,7 @@ class AutonomousTrader:
                     base_lev = 25.0
 
                 # 3. New Position Entry Evaluation (Pool-Aware Asset Filtering)
-                is_binance_pool = (self.broker.active_pool_name == "BINANCE_DEMO")
+                is_binance_pool = (self.broker.active_pool_name in ["BINANCE_TESTNET_DEMO", "BINANCE_LIVE_REAL", "BINANCE_DEMO"])
                 if is_binance_pool:
                     crypto_pool = [
                         {"ticker": "BTCUSDT", "price": 79050.0, "category": "Crypto", "rsi": 54.2, "volatility": 0.015, "ai_action": "BUY", "opportunity_score": 94.0},
@@ -219,7 +219,7 @@ class AutonomousTrader:
 
                         # Immediate Replenishment with next candidate
                         if len(self.broker.positions) < target_capacity and scanned_assets:
-                            is_binance_pool = (self.broker.active_pool_name == "BINANCE_DEMO")
+                            is_binance_pool = (self.broker.active_pool_name in ["BINANCE_TESTNET_DEMO", "BINANCE_LIVE_REAL", "BINANCE_DEMO"])
                             if is_binance_pool:
                                 cand_pool = [
                                     {"ticker": "BTCUSDT", "price": 79050.0, "rsi": 54.2, "volatility": 0.015, "ai_action": "BUY"},

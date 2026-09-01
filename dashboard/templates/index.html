@@ -71,7 +71,7 @@
     <!-- Chart.js CDN for Quant Analytics Graphs & Donut Charts -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body class="bg-darkbg text-gray-100 font-sans min-h-screen pb-12">
+<body style="overflow-y: auto !important; min-height: 100vh;" class="bg-darkbg text-gray-100 font-sans min-h-screen pb-12">
     <!-- Network Disconnected / Fallback Banner -->
     <div id="network-offline-banner" class="hidden fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-amber-500 text-black border border-amber-300 font-black px-6 py-2.5 rounded-2xl shadow-2xl backdrop-blur-md text-xs flex items-center space-x-3">
         <i class="fa-solid fa-wifi text-base animate-pulse"></i>
@@ -1453,11 +1453,17 @@
             }
         }
 
+        
+        function ensureBodyScrollable() {
+            document.body.style.overflowY = 'auto';
+            document.documentElement.style.overflowY = 'auto';
+        }
+
         function closeWithdrawModal() {
             const modal = document.getElementById('withdraw-modal');
             if (modal) {
                 modal.classList.add('hidden');
-                modal.style.display = 'none';
+                modal.style.display = 'none'; ensureBodyScrollable();
             }
         }
 
@@ -1503,7 +1509,7 @@
             const modal = document.getElementById('deposit-modal');
             if (modal) {
                 modal.classList.add('hidden');
-                modal.style.display = 'none';
+                modal.style.display = 'none'; ensureBodyScrollable();
             }
         }
 
@@ -1569,7 +1575,7 @@
             const modal = document.getElementById('settings-modal');
             if (modal) {
                 modal.classList.add('hidden');
-                modal.style.display = 'none';
+                modal.style.display = 'none'; ensureBodyScrollable();
             }
         }
 
@@ -1613,7 +1619,7 @@
             const modal = document.getElementById('deposit-modal');
             if (modal) {
                 modal.classList.add('hidden');
-                modal.style.display = 'none';
+                modal.style.display = 'none'; ensureBodyScrollable();
             }
         }
 
@@ -1770,7 +1776,7 @@
             const modal = document.getElementById('vault-modal');
             if (modal) {
                 modal.classList.add('hidden');
-                modal.style.display = 'none';
+                modal.style.display = 'none'; ensureBodyScrollable();
             }
         }
 
@@ -2085,7 +2091,7 @@
             const modal = document.getElementById('binance-trades-modal');
             if (modal) {
                 modal.classList.add('hidden');
-                modal.style.display = 'none';
+                modal.style.display = 'none'; ensureBodyScrollable();
             }
         }
 
@@ -2582,7 +2588,7 @@
             const modal = document.getElementById('withdraw-modal');
             if (modal) {
                 modal.classList.add('hidden');
-                modal.style.display = 'none';
+                modal.style.display = 'none'; ensureBodyScrollable();
             }
         }
 

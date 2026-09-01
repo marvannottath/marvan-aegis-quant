@@ -49,9 +49,9 @@ class PaperBroker:
                 "forensics": []
             },
             "BINANCE_LIVE_REAL": {
-                "initial_capital": 50.0,
-                "virtual_cash": 50.0,
-                "equity": 50.0,
+                "initial_capital": 0.0,
+                "virtual_cash": 0.0,
+                "equity": 0.0,
                 "positions": {},
                 "trade_history": [],
                 "vault_reserve": 0.0,
@@ -193,6 +193,11 @@ class PaperBroker:
             }
 
         self.active_pool_name = target_name
+        if target_name == "BINANCE_LIVE_REAL":
+            real_b = binance_broker.get_real_live_spot_balance()
+            self.pools["BINANCE_LIVE_REAL"]["initial_capital"] = real_b
+            self.pools["BINANCE_LIVE_REAL"]["virtual_cash"] = real_b
+            self.pools["BINANCE_LIVE_REAL"]["equity"] = real_b
         self._sync_active_pool_refs()
         self._update_equity()
         self._save_state()
