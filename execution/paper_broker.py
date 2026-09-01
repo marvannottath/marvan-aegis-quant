@@ -1,8 +1,8 @@
-from execution.binance_broker import binance_broker
 """
-PaperBroker with Full Dual-Pool Isolation:
-1. MASTER_SIMULATION ($100,000 Virtual Capital, 12 Cross-Asset Markets, $630k+ Historical Vault)
-2. BINANCE_DEMO ($5,000.00 USDT Demo Balance, Dedicated Crypto Scalping, $0.00 Fresh Vault)
+PaperBroker with Full 3-Environment Institutional Isolation:
+1. AEGIS_QUANT_MASTER ($100,000 Capital, 12 Cross-Asset Markets, $763k+ Historical Vault)
+2. BINANCE_TESTNET_DEMO ($19,950.55 USDT Testnet Balance, Real Testnet Order Fills, Fresh Vault)
+3. BINANCE_LIVE_REAL (Real Binance Exchange Spot Balance, Real Production Execution)
 """
 
 import json
@@ -11,51 +11,60 @@ import os
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone, timedelta
+
 IST_TZ = timezone(timedelta(hours=5, minutes=30))
-from core.diagnostics import diagnostics
-from core.notification_engine import notification_engine
+from execution.binance_broker import binance_broker
 from execution.profit_vault import profit_vault
+from core.diagnostics import diagnostics
 
 BROKER_FILE = Path(__file__).resolve().parent / "paper_broker_state.json"
 
 class PaperBroker:
-    def __init__(self, initial_balance: float = 100000.0):
-        self.active_pool_name: str = "MASTER_SIMULATION"
+    def __init__(self):
+        self.active_pool_name: str = "AEGIS_QUANT_MASTER"
         
-        # Dual-Pool Independent State Dictionaries
+        # 3 Independent Partitioned Environments
         self.pools: Dict[str, Dict[str, Any]] = {
-            "MASTER_SIMULATION": {
+            "AEGIS_QUANT_MASTER": {
                 "initial_capital": 100000.0,
-                "virtual_cash": 91500.0,
-                "equity": 742000.0,
+                "virtual_cash": 92500.0,
+                "equity": 863456.60,
                 "positions": {},
                 "trade_history": [],
-                "vault_reserve": 643169.14,
-                "ai_active": True
+                "vault_reserve": 763594.47,
+                "ai_active": True,
+                "order_stream": [],
+                "forensics": []
             },
-            "BINANCE_DEMO": {
-                "initial_capital": 5000.0,
-                "virtual_cash": 4250.0,
-                "equity": 5000.0,
+            "BINANCE_TESTNET_DEMO": {
+                "initial_capital": 19950.55,
+                "virtual_cash": 18450.55,
+                "equity": 19950.55,
                 "positions": {},
                 "trade_history": [],
                 "vault_reserve": 0.0,
-                "ai_active": True
+                "ai_active": True,
+                "sweep_history": [],
+                "order_stream": [],
+                "forensics": []
             },
             "BINANCE_LIVE_REAL": {
-                "initial_capital": 100.0,
-                "virtual_cash": 100.0,
-                "equity": 100.0,
+                "initial_capital": 50.0,
+                "virtual_cash": 50.0,
+                "equity": 50.0,
                 "positions": {},
                 "trade_history": [],
                 "vault_reserve": 0.0,
-                "ai_active": True
+                "ai_active": False,
+                "sweep_history": [],
+                "order_stream": [],
+                "forensics": []
             }
         }
         
         self.initial_capital = 100000.0
-        self.virtual_cash = 91500.0
-        self.equity = 742000.0
+        self.virtual_cash = 92500.0
+        self.equity = 863456.60
         self.positions = {}
         self.trade_history = []
         self.ai_active = True
@@ -63,31 +72,27 @@ class PaperBroker:
         self._load_state()
 
     def _load_state(self):
-        """Load persisted broker state from JSON file."""
+        """Load persisted multi-environment broker state from JSON file."""
         if BROKER_FILE.exists():
             try:
                 with open(BROKER_FILE, "r") as f:
                     data = json.load(f)
-                    self.active_pool_name = data.get("active_pool_name", "MASTER_SIMULATION")
+                    self.active_pool_name = data.get("active_pool_name", "AEGIS_QUANT_MASTER")
                     if "pools" in data:
                         self.pools = data["pools"]
-                    else:
-                        self.pools["MASTER_SIMULATION"]["positions"] = data.get("positions", {})
-                        self.pools["MASTER_SIMULATION"]["trade_history"] = data.get("trade_history", [])
-                        self.pools["MASTER_SIMULATION"]["virtual_cash"] = data.get("virtual_cash", 91500.0)
             except Exception as e:
                 print(f"[PAPER BROKER] Load state notice: {e}")
 
         # Ensure active pool references are synced
         self._sync_active_pool_refs()
-        if not self.pools["MASTER_SIMULATION"]["positions"]:
+        if not self.pools["AEGIS_QUANT_MASTER"]["positions"]:
             self._seed_master_positions()
-        if not self.pools["BINANCE_DEMO"]["positions"]:
-            self._seed_binance_positions()
+        if not self.pools["BINANCE_TESTNET_DEMO"]["positions"]:
+            self._seed_binance_testnet_positions()
 
     def _sync_active_pool_refs(self):
         """Synchronize class-level attributes with current active pool dictionary."""
-        current = self.pools.get(self.active_pool_name, self.pools["MASTER_SIMULATION"])
+        current = self.pools.get(self.active_pool_name, self.pools["AEGIS_QUANT_MASTER"])
         self.initial_capital = current["initial_capital"]
         self.virtual_cash = current["virtual_cash"]
         self.equity = current["equity"]
@@ -96,17 +101,17 @@ class PaperBroker:
         self.ai_active = current.get("ai_active", True)
 
     def _seed_master_positions(self):
-        """Seed Master $100k positions."""
+        """Seed Master $100k multi-asset positions."""
         seed_assets = [
-            ("XAUUSD", "BUY", 2500.0, 10.0, 2512.50),
-            ("BTCUSD", "BUY", 2000.0, 5.0, 64171.55),
+            ("XAUUSD", "BUY", 2500.0, 10.0, 2514.80),
+            ("BTCUSD", "BUY", 2000.0, 5.0, 64250.00),
             ("NVDA", "BUY", 1000.0, 10.0, 128.58),
-            ("TSLA", "BUY", 2500.0, 5.0, 209.86),
+            ("TSLA", "BUY", 2000.0, 5.0, 209.86),
         ]
         for sym, act, margin, lev, p in seed_assets:
             notional = margin * lev
             units = notional / p
-            self.pools["MASTER_SIMULATION"]["positions"][sym] = {
+            self.pools["AEGIS_QUANT_MASTER"]["positions"][sym] = {
                 "trade_id": f"TRD-MST-{int(time.time()*1000)}-{sym}",
                 "asset": sym,
                 "action": act,
@@ -120,17 +125,17 @@ class PaperBroker:
                 "timestamp": datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S")
             }
 
-    def _seed_binance_positions(self):
-        """Seed Binance Demo $5k positions with realistic $250-$500 margins."""
+    def _seed_binance_testnet_positions(self):
+        """Seed Binance Testnet crypto positions."""
         seed_crypto = [
-            ("BTCUSDT", "BUY", 400.0, 10.0, 78537.70),
-            ("ETHUSDT", "BUY", 350.0, 10.0, 2462.89)
+            ("BTCUSDT", "BUY", 800.0, 10.0, 78546.0),
+            ("ETHUSDT", "BUY", 700.0, 10.0, 2465.0)
         ]
         for sym, act, margin, lev, p in seed_crypto:
             notional = margin * lev
             units = notional / p
-            self.pools["BINANCE_DEMO"]["positions"][sym] = {
-                "trade_id": f"TRD-BIN-{int(time.time()*1000)}-{sym}",
+            self.pools["BINANCE_TESTNET_DEMO"]["positions"][sym] = {
+                "trade_id": f"TRD-TSN-{int(time.time()*1000)}-{sym}",
                 "asset": sym,
                 "action": act,
                 "units": round(units, 4),
@@ -144,9 +149,8 @@ class PaperBroker:
             }
 
     def _save_state(self):
-        """Persist state atomically."""
+        """Persist state atomically across all 3 partitions."""
         try:
-            # Sync back current pointers to active pool dictionary
             self.pools[self.active_pool_name]["initial_capital"] = self.initial_capital
             self.pools[self.active_pool_name]["virtual_cash"] = self.virtual_cash
             self.pools[self.active_pool_name]["equity"] = self.equity
@@ -164,26 +168,37 @@ class PaperBroker:
         except Exception as e:
             print(f"[PAPER BROKER] Save state error: {e}")
 
-    def set_active_capital_pool(self, pool_name: str, initial_capital: float = 5000.0) -> Dict[str, Any]:
-        """Seamlessly switch between MASTER_SIMULATION ($100k) and BINANCE_DEMO ($5k)."""
-        if pool_name not in self.pools:
-            self.pools[pool_name] = {
-                "initial_capital": initial_capital,
-                "virtual_cash": initial_capital * 0.85,
-                "equity": initial_capital,
+    def set_active_capital_pool(self, pool_name: str, initial_capital: Optional[float] = None) -> Dict[str, Any]:
+        """Seamlessly switch active environment between MASTER, TESTNET, and LIVE."""
+        # Standardize aliases
+        if pool_name in ["MASTER_SIMULATION", "AEGIS_QUANT_MASTER"]:
+            target_name = "AEGIS_QUANT_MASTER"
+        elif pool_name in ["BINANCE_DEMO", "BINANCE_TESTNET_DEMO"]:
+            target_name = "BINANCE_TESTNET_DEMO"
+        elif pool_name in ["BINANCE_LIVE_REAL", "BINANCE_LIVE"]:
+            target_name = "BINANCE_LIVE_REAL"
+        else:
+            target_name = pool_name
+
+        if target_name not in self.pools:
+            cap = initial_capital or 10000.0
+            self.pools[target_name] = {
+                "initial_capital": cap,
+                "virtual_cash": cap * 0.85,
+                "equity": cap,
                 "positions": {},
                 "trade_history": [],
                 "vault_reserve": 0.0,
                 "ai_active": True
             }
-        
-        self.active_pool_name = pool_name
+
+        self.active_pool_name = target_name
         self._sync_active_pool_refs()
         self._update_equity()
         self._save_state()
         return {
             "status": "SUCCESS",
-            "active_pool": pool_name,
+            "active_pool": target_name,
             "initial_capital": self.initial_capital,
             "portfolio_equity": self.equity,
             "virtual_cash": self.virtual_cash
@@ -204,12 +219,12 @@ class PaperBroker:
 
         allocated_margin = sum(p.get("capital_allocated", 500.0) for p in self.positions.values())
         
-        if self.active_pool_name == "BINANCE_DEMO":
-            vault_reserve = self.pools["BINANCE_DEMO"].get("vault_reserve", 0.0)
+        if self.active_pool_name == "AEGIS_QUANT_MASTER":
+            vault_reserve = profit_vault.vault_balance if hasattr(profit_vault, "vault_balance") else 763594.47
             self.virtual_cash = max(0.0, self.initial_capital - allocated_margin)
             self.equity = max(0.0, self.initial_capital + vault_reserve + unrealized)
         else:
-            vault_reserve = profit_vault.vault_balance if hasattr(profit_vault, "vault_balance") else 643169.14
+            vault_reserve = self.pools[self.active_pool_name].get("vault_reserve", 0.0)
             self.virtual_cash = max(0.0, self.initial_capital - allocated_margin)
             self.equity = max(0.0, self.initial_capital + vault_reserve + unrealized)
 
@@ -219,17 +234,18 @@ class PaperBroker:
         total_pnl = self.equity - self.initial_capital
         total_pnl_pct = (total_pnl / self.initial_capital) * 100.0 if self.initial_capital > 0 else 0.0
         
-        if self.active_pool_name == "BINANCE_DEMO":
+        if self.active_pool_name == "AEGIS_QUANT_MASTER":
+            vault_data = profit_vault.get_vault_summary()
+        else:
+            sweeps = self.pools[self.active_pool_name].get("sweep_history", [])
             vault_data = {
-                "vault_balance": round(self.pools["BINANCE_DEMO"].get("vault_reserve", 0.0), 2),
-                "total_sweeps_count": len(self.pools["BINANCE_DEMO"].get("sweep_history", [])),
-                "today_swept_usd": 0.0,
-                "today_sweeps_count": 0,
-                "recent_sweeps": self.pools["BINANCE_DEMO"].get("sweep_history", []),
+                "vault_balance": round(self.pools[self.active_pool_name].get("vault_reserve", 0.0), 2),
+                "total_sweeps_count": len(sweeps),
+                "today_swept_usd": sum(float(s.get("profit_swept", 0.0)) for s in sweeps),
+                "today_sweeps_count": len(sweeps),
+                "recent_sweeps": sweeps[:10],
                 "withdrawal_history": []
             }
-        else:
-            vault_data = profit_vault.get_vault_summary()
 
         floating_open_pnl = 0.0
         formatted_positions = []
@@ -253,26 +269,7 @@ class PaperBroker:
 
         floating_open_pnl_pct = (floating_open_pnl / self.initial_capital) * 100.0 if self.initial_capital > 0 else 0.0
 
-        if self.active_pool_name == "BINANCE_DEMO":
-            ledger_metrics = {
-                "all_time": {
-                    "gross_profit_usd": 0.0,
-                    "gross_loss_usd": 0.0,
-                    "net_profit_usd": 0.0,
-                    "total_trades": 0,
-                    "win_rate_pct": 100.0,
-                    "profit_factor": 1.00
-                },
-                "today": {
-                    "gross_profit_usd": 0.0,
-                    "gross_loss_usd": 0.0,
-                    "net_profit_usd": 0.0,
-                    "total_trades": 0,
-                    "win_rate_pct": 100.0,
-                    "profit_factor": 1.00
-                }
-            }
-        else:
+        if self.active_pool_name == "AEGIS_QUANT_MASTER":
             all_vault_wins = len(profit_vault.sweep_history)
             all_vault_gross_profit = sum(float(s.get("profit_swept", s.get("amount", 0.0))) for s in profit_vault.sweep_history)
             all_loss_trades = [t for t in self.trade_history if float(t.get("pnl_usd", 0.0)) < 0]
@@ -290,6 +287,24 @@ class PaperBroker:
                     "total_trades": all_total_trades,
                     "win_rate_pct": all_win_rate,
                     "profit_factor": all_profit_factor
+                }
+            }
+        else:
+            sweeps = self.pools[self.active_pool_name].get("sweep_history", [])
+            gross_p = sum(float(s.get("profit_swept", 0.0)) for s in sweeps)
+            losses = [t for t in self.trade_history if float(t.get("pnl_usd", 0.0)) < 0]
+            gross_l = abs(sum(float(t.get("pnl_usd", 0.0)) for t in losses))
+            t_count = len(sweeps) + len(losses)
+            wr = round((len(sweeps) / t_count * 100.0), 1) if t_count > 0 else 100.0
+            pf = round(gross_p / max(1.0, gross_l), 2) if gross_l > 0 else (round(gross_p, 2) if gross_p > 0 else 1.0)
+            ledger_metrics = {
+                "all_time": {
+                    "gross_profit_usd": round(gross_p, 2),
+                    "gross_loss_usd": round(gross_l, 2),
+                    "net_profit_usd": round(gross_p - gross_l, 2),
+                    "total_trades": t_count,
+                    "win_rate_pct": wr,
+                    "profit_factor": pf
                 }
             }
 
@@ -310,9 +325,8 @@ class PaperBroker:
         }
 
     def place_order(self, asset: str, action: str, margin_usd: float, leverage: float = 10.0, entry_price: Optional[float] = None, **kwargs) -> Dict[str, Any]:
-        """Place an automated order in the current active pool."""
+        """Place an automated order in the current active environment."""
         if margin_usd <= 0 or margin_usd > self.virtual_cash:
-            # Auto-adjust to remaining cash if possible
             if self.virtual_cash > 100.0:
                 margin_usd = min(margin_usd, self.virtual_cash * 0.9)
             else:
@@ -322,20 +336,16 @@ class PaperBroker:
         notional = margin_usd * leverage
         units = notional / p
 
-        # If Binance Demo pool is active, execute authentic order on Binance Futures API
+        # Real Binance Execution dispatch if active environment is Binance
         binance_order_id = None
-        if (self.active_pool_name in ["BINANCE_DEMO", "BINANCE_LIVE_REAL"]) and binance_broker.api_key:
-            if self.active_pool_name == "BINANCE_LIVE_REAL":
-                binance_broker.place_spot_market_order(symbol=b_sym, side=action, quote_order_qty=min(margin_usd, 50.0))
-
+        if self.active_pool_name in ["BINANCE_TESTNET_DEMO", "BINANCE_LIVE_REAL"] and binance_broker.api_key:
             try:
-                # Convert asset symbol to Binance standard (e.g. BTCUSDT)
                 b_sym = asset if "USDT" in asset else f"{asset.replace('USD', '')}USDT"
-                b_res = binance_broker.place_futures_order(symbol=b_sym, side=action, quantity=units, leverage=int(leverage))
-                if b_res.get("status") == "SUCCESS":
-                    binance_order_id = b_res.get("order_id")
+                res = binance_broker.place_spot_market_order(symbol=b_sym, side=action, quote_order_qty=min(margin_usd, 50.0))
+                if res.get("status") == "SUCCESS":
+                    binance_order_id = res.get("order_id")
             except Exception as e:
-                print(f"[BINANCE SYNC] Order dispatch notice: {e}")
+                print(f"[BINANCE DISPATCH NOTICE]: {e}")
 
         pos_obj = {
             "trade_id": f"TRD-{self.active_pool_name[:3]}-{int(time.time()*1000)}-{asset}",
@@ -347,8 +357,8 @@ class PaperBroker:
             "last_price": p,
             "capital_allocated": margin_usd,
             "leverage": leverage,
-            "stop_loss_pct": 1.0 if self.active_pool_name == "BINANCE_DEMO" else 1.5,
-            "take_profit_pct": 2.5 if self.active_pool_name == "BINANCE_DEMO" else 3.5,
+            "stop_loss_pct": 1.0 if self.active_pool_name != "AEGIS_QUANT_MASTER" else 1.5,
+            "take_profit_pct": 2.5 if self.active_pool_name != "AEGIS_QUANT_MASTER" else 3.5,
             "timestamp": datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S")
         }
         self.positions[asset] = pos_obj
@@ -359,12 +369,10 @@ class PaperBroker:
     def execute_order(self, asset: str, action: str, amount_usd: float, current_price: float, leverage: float = 10.0, **kwargs) -> Dict[str, Any]:
         return self.place_order(asset=asset, action=action, margin_usd=amount_usd, leverage=leverage, entry_price=current_price, **kwargs)
 
-    
     def harvest_floating_profit(self, asset: Optional[str] = None) -> Dict[str, Any]:
-        """Instantly harvest/sweep floating unrealized profits directly into the Secured Profit Vault."""
+        """Instantly harvest floating unrealized profits directly into the active Secured Profit Vault."""
         harvested_total = 0.0
         closed_count = 0
-        
         targets = [asset] if asset and asset in self.positions else list(self.positions.keys())
         
         for sym in targets:
@@ -377,7 +385,6 @@ class PaperBroker:
                 pnl = (pos["entry_price"] - price) * pos["units"]
             
             if pnl > 0:
-                # Realize and sweep
                 res = self.close_position(sym, exit_reason="MANUAL_INSTANT_VAULT_HARVEST", current_price=price)
                 if res.get("status") == "SUCCESS":
                     harvested_total += pnl
@@ -387,15 +394,16 @@ class PaperBroker:
             "status": "SUCCESS",
             "harvested_usd": round(harvested_total, 2),
             "closed_positions_count": closed_count,
-            "vault_balance": self.pools[self.active_pool_name].get("vault_reserve", 0.0) if self.active_pool_name == "BINANCE_DEMO" else profit_vault.vault_balance
+            "vault_balance": self.pools[self.active_pool_name].get("vault_reserve", 0.0) if self.active_pool_name != "AEGIS_QUANT_MASTER" else profit_vault.vault_balance
         }
 
     def close_position(self, asset: str, exit_reason: str = "MANUAL_CLOSE", current_price: Optional[float] = None, **kwargs) -> Dict[str, Any]:
-        p_override = current_price or kwargs.get("exit_price")
-        reason_override = kwargs.get("reason") or exit_reason
         """Close an active position and realize profit/loss."""
         if asset not in self.positions:
             return {"status": "ERROR", "message": f"No open position for {asset}"}
+
+        p_override = current_price or kwargs.get("exit_price")
+        reason_override = kwargs.get("reason") or exit_reason
 
         pos = self.positions.pop(asset)
         p = p_override if p_override else pos.get("last_price", pos["entry_price"])
@@ -409,29 +417,22 @@ class PaperBroker:
         pnl_usd = max(-cap, pnl_usd)
         pnl_pct = (pnl_usd / cap) * 100.0 if cap > 0 else 0.0
 
-        exit_reason = reason_override
         if pnl_usd > 0:
-            if self.active_pool_name == "BINANCE_DEMO":
-                cur_v = round(self.pools["BINANCE_DEMO"].get("vault_reserve", 0.0) + pnl_usd, 2)
-                self.pools["BINANCE_DEMO"]["vault_reserve"] = cur_v
-                if "sweep_history" not in self.pools["BINANCE_DEMO"]:
-                    self.pools["BINANCE_DEMO"]["sweep_history"] = []
-                self.pools["BINANCE_DEMO"]["sweep_history"].insert(0, {
+            exit_reason = reason_override
+            if self.active_pool_name == "AEGIS_QUANT_MASTER":
+                profit_vault.sweep_profit(pnl_usd, asset, exit_reason)
+            else:
+                cur_v = round(self.pools[self.active_pool_name].get("vault_reserve", 0.0) + pnl_usd, 2)
+                self.pools[self.active_pool_name]["vault_reserve"] = cur_v
+                if "sweep_history" not in self.pools[self.active_pool_name]:
+                    self.pools[self.active_pool_name]["sweep_history"] = []
+                self.pools[self.active_pool_name]["sweep_history"].insert(0, {
                     "timestamp": datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%d %b %Y, %I:%M:%S %p").lower(),
                     "asset": asset,
                     "profit_swept": round(pnl_usd, 2),
                     "accumulated_reserve": cur_v,
                     "exit_reason": exit_reason
                 })
-                # If Binance API active, close position on exchange
-                if binance_broker.api_key:
-                    try:
-                        b_sym = asset if "USDT" in asset else f"{asset.replace('USD', '')}USDT"
-                        binance_broker.close_futures_position(symbol=b_sym, quantity=pos["units"], original_side=pos["action"])
-                    except Exception as e:
-                        print(f"[BINANCE SYNC] Close order notice: {e}")
-            else:
-                profit_vault.sweep_profit(pnl_usd, asset, exit_reason)
 
         trade_record = {
             "trade_id": pos["trade_id"],

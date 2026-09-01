@@ -305,46 +305,36 @@
         </div>
 
         
-        <!-- Interactive Binance Demo Live Account & Capital Switcher Banner -->
-        <div class="bg-gradient-to-r from-amber-500/15 via-emerald-500/10 to-gray-900 border border-emerald-500/50 p-4 md:p-5 rounded-2xl shadow-2xl flex items-center justify-between flex-wrap gap-4">
-            <div class="flex items-center space-x-3.5">
-                <div class="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 text-2xl font-black shadow-lg">
-                    <i class="fa-brands fa-bitcoin"></i>
+        
+        <!-- ==================== INSTITUTIONAL 3-ENVIRONMENT SELECTOR BAR ==================== -->
+        <div class="bg-gray-900/95 border border-gray-800 p-2.5 md:p-3 rounded-2xl shadow-2xl flex items-center justify-between flex-wrap gap-3">
+            <div class="flex items-center space-x-2.5 px-2">
+                <div class="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 font-black">
+                    <i class="fa-solid fa-layer-group text-sm"></i>
                 </div>
                 <div>
-                    <div class="flex items-center space-x-2.5">
-                        <h3 class="text-base font-black text-white">BINANCE SPOT OFFICIAL TESTNET</h3>
-                        <span id="badge-binance-live" class="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center shadow">
-                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5 animate-pulse"></span> CONNECTED & LIVE
-                        </span>
-                    </div>
-                    <p class="text-xs text-gray-400 font-mono mt-1">
-                        API Key: <span class="text-amber-400 font-bold"><span id="banner-binance-key">{{ BINANCE_MASKED_KEY }}</span></span> | Engine: <span class="text-emerald-400">testnet.binance.vision</span> | Mode: <span class="text-sky-400 font-bold">Futures USDT-M</span>
-                    </p>
+                    <h3 class="text-xs font-black text-white uppercase tracking-wider">Trading Environment:</h3>
+                    <p class="text-[10px] text-gray-400">1-Click Environment Switcher (Isolated Data & Ledgers)</p>
                 </div>
             </div>
 
-            <div class="flex items-center space-x-4 flex-wrap gap-y-2">
-                <div class="text-right mr-2">
-                    <div class="text-[10px] uppercase font-bold text-gray-400">Binance Demo Balance</div>
-                    <div class="text-2xl font-black text-emerald-400" id="card-binance-balance">$5,000.00 USDT</div>
-                </div>
-
-                <!-- Capital Pool Switcher Action Buttons -->
-                <button id="btn-switch-binance-pool" onclick="switchTradingPool('BINANCE_DEMO')" class="px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-black text-xs shadow flex items-center transition">
-                    <i class="fa-solid fa-bolt mr-1.5"></i> Binance $5,000 Demo Pool
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 flex-1 max-w-3xl">
+                <!-- 1. Aegis Quant Master Engine -->
+                <button onclick="switchEnvironment('AEGIS_QUANT_MASTER')" id="env-btn-master" class="py-2.5 px-3 rounded-xl text-xs font-black transition flex items-center justify-center space-x-2 border bg-amber-500 text-black border-amber-400 shadow-lg">
+                    <i class="fa-solid fa-brain"></i>
+                    <span>1. Master Engine ($100k)</span>
                 </button>
 
-                <button id="btn-switch-live-spot" onclick="switchTradingPool('BINANCE_LIVE_REAL')" class="px-3.5 py-2 rounded-xl bg-red-600/20 hover:bg-red-600/40 border border-red-500/50 text-red-300 hover:text-white font-black text-xs shadow flex items-center transition">
-                    <i class="fa-solid fa-satellite-dish mr-1.5 text-red-400 animate-pulse"></i> Connect Real Binance Spot
+                <!-- 2. Binance Official Testnet -->
+                <button onclick="switchEnvironment('BINANCE_TESTNET_DEMO')" id="env-btn-testnet" class="py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-2 border bg-gray-900 text-gray-400 border-gray-800 hover:text-white">
+                    <i class="fa-brands fa-bitcoin text-amber-400"></i>
+                    <span>2. Binance Testnet ($19.9k)</span>
                 </button>
 
-                <button id="btn-switch-master-pool" onclick="switchTradingPool('MASTER_SIMULATION')" class="hidden px-3.5 py-2 rounded-xl bg-gray-900 hover:bg-gray-800 border border-gray-700 text-gray-200 text-xs font-bold transition flex items-center shadow">
-                    <i class="fa-solid fa-rotate-left mr-1.5 text-amber-400"></i> $100k Master Pool
-                </button>
-
-                <button onclick="directOpenSettingsModal()" class="px-3.5 py-2.5 rounded-xl bg-gray-900 hover:bg-gray-800 text-gray-200 hover:text-white border border-gray-800 text-xs font-bold transition flex items-center shadow">
-                    <i class="fa-solid fa-gear text-amber-400"></i>
+                <!-- 3. Binance Live Real Spot -->
+                <button onclick="switchEnvironment('BINANCE_LIVE_REAL')" id="env-btn-live" class="py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-2 border bg-gray-900 text-gray-400 border-gray-800 hover:text-white">
+                    <i class="fa-solid fa-satellite-dish text-red-400"></i>
+                    <span>3. Binance Live (Real USDT)</span>
                 </button>
             </div>
         </div>
@@ -2032,6 +2022,47 @@
                 }
             } catch (err) {
                 console.error('Harvest error:', err);
+            }
+        }
+
+        
+        // ==================== 3-ENVIRONMENT SWITCHER ENGINE ====================
+        let activeEnvironment = 'AEGIS_QUANT_MASTER';
+
+        async function switchEnvironment(envName) {
+            try {
+                activeEnvironment = envName;
+                
+                // Update button UI immediately
+                const btnMaster = document.getElementById('env-btn-master');
+                const btnTestnet = document.getElementById('env-btn-testnet');
+                const btnLive = document.getElementById('env-btn-live');
+
+                [btnMaster, btnTestnet, btnLive].forEach(b => {
+                    if (b) {
+                        b.className = 'py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-2 border bg-gray-900 text-gray-400 border-gray-800 hover:text-white';
+                    }
+                });
+
+                if (envName === 'AEGIS_QUANT_MASTER') {
+                    if (btnMaster) btnMaster.className = 'py-2.5 px-3 rounded-xl text-xs font-black transition flex items-center justify-center space-x-2 border bg-amber-500 text-black border-amber-400 shadow-lg';
+                } else if (envName === 'BINANCE_TESTNET_DEMO') {
+                    if (btnTestnet) btnTestnet.className = 'py-2.5 px-3 rounded-xl text-xs font-black transition flex items-center justify-center space-x-2 border bg-amber-500 text-black border-amber-400 shadow-lg';
+                } else if (envName === 'BINANCE_LIVE_REAL') {
+                    if (btnLive) btnLive.className = 'py-2.5 px-3 rounded-xl text-xs font-black transition flex items-center justify-center space-x-2 border bg-red-600 text-white border-red-500 shadow-lg animate-pulse';
+                }
+
+                const res = await fetch('/api/switch-trading-pool', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({pool: envName})
+                });
+
+                if (res.ok) {
+                    fetchState();
+                }
+            } catch (err) {
+                console.error('Environment switch error:', err);
             }
         }
 
