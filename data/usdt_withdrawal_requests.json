@@ -1,0 +1,23 @@
+{
+  "requests": [
+    {
+      "withdrawal_id": "WDR-LOCK-001",
+      "timestamp": "2026-09-01 18:23:21",
+      "environment": "AEGIS_QUANT_MASTER",
+      "amount": 400.0,
+      "asset": "USDT",
+      "network": "TRC20",
+      "destination_address": "TQn9Y2khEsLJW1ChV8m3N9K7xPnR2J4vLm",
+      "status": "PROCESSING",
+      "tx_hash": ""
+    }
+  ],
+  "address_book": [
+    {
+      "address": "TQn9Y2khEsLJW1ChV8m3N9K7xPnR2J4vLm",
+      "network": "TRC20",
+      "status": "VERIFIED"
+    }
+  ],
+  "zero_withdrawal_policy": false
+}

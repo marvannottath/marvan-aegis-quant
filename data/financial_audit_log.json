@@ -1,0 +1,43 @@
+{
+  "logs": [
+    {
+      "event_id": "AUD-1788267338421-DEPO",
+      "timestamp": "2026-09-01 18:25:38",
+      "event_type": "DEPOSIT_CREDITED",
+      "user_id": "USER-101",
+      "environment": "AEGIS_QUANT_MASTER",
+      "amount": 100.0,
+      "asset": "USDT",
+      "network": "TRC20",
+      "provider": "BINANCE",
+      "reference_id": "DEP-TEST-1",
+      "ip_address": "187.127.189.139"
+    },
+    {
+      "event_id": "AUD-1788267274221-DEPO",
+      "timestamp": "2026-09-01 18:24:34",
+      "event_type": "DEPOSIT_CREDITED",
+      "user_id": "USER-101",
+      "environment": "AEGIS_QUANT_MASTER",
+      "amount": 100.0,
+      "asset": "USDT",
+      "network": "TRC20",
+      "provider": "BINANCE",
+      "reference_id": "DEP-TEST-1",
+      "ip_address": "187.127.189.139"
+    },
+    {
+      "event_id": "AUD-1788267201563-DEPO",
+      "timestamp": "2026-09-01 18:23:21",
+      "event_type": "DEPOSIT_CREDITED",
+      "user_id": "USER-101",
+      "environment": "AEGIS_QUANT_MASTER",
+      "amount": 100.0,
+      "asset": "USDT",
+      "network": "TRC20",
+      "provider": "BINANCE",
+      "reference_id": "DEP-TEST-1",
+      "ip_address": "187.127.189.139"
+    }
+  ]
+}
