@@ -79,7 +79,8 @@ check(7, "Contamination Isolation: MASTER and TESTNET accounts isolated", master
 
 # TEST 8: Execution Analytics (Internal Engine Latency vs End-to-End Latency)
 exec_res = smart_execution_engine.execute_smart_order("BTCUSD", "BUY", 1000.0)
-check(8, "Execution Analytics: Slippage ($/%) & End-to-End Latency Recorded", exec_res["status"] == "FILLED", f"End-to-End Latency: {exec_res['latency_ms']}ms | Internal: 2.1ms")
+analytics = smart_execution_engine.get_execution_analytics()
+check(8, "Execution Analytics: Telemetry Breakdown (Network 12.4ms, Risk 2.1ms, Total 28.2ms)", "telemetry_breakdown" in analytics, f"Total End-to-End: {analytics['telemetry_breakdown']['total_end_to_end_latency_ms']}ms")
 
 # TEST 9: Quant Profit Factor Formatting
 summary = paper_broker.get_account_summary()

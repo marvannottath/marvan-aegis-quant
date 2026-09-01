@@ -756,12 +756,10 @@
                             <span>Leverage</span>
                             <span class="text-amber-400 font-bold" id="lbl-lev">10x</span>
                         </div>
-                        <div class="flex gap-1.5">
+                        <div id="container-leverage-buttons" class="flex gap-1.5">
                             <button id="btn-lev-1" onclick="setLeverage(1)" class="flex-1 py-1 bg-gray-800 text-gray-300 text-xs font-bold rounded">1x</button>
                             <button id="btn-lev-5" onclick="setLeverage(5)" class="flex-1 py-1 bg-gray-800 text-gray-300 text-xs font-bold rounded">5x</button>
                             <button id="btn-lev-10" onclick="setLeverage(10)" class="flex-1 py-1 bg-amber-500 text-black font-black text-xs rounded">10x (Max)</button>
-                            <button id="btn-lev-25" onclick="setLeverage(25)" disabled title="Exceeds Profile Risk Cap" class="flex-1 py-1 bg-gray-900 text-gray-600 text-xs font-bold rounded cursor-not-allowed border border-gray-800">25x</button>
-                            <button id="btn-lev-50" onclick="setLeverage(50)" disabled title="Exceeds Profile Risk Cap" class="flex-1 py-1 bg-gray-900 text-gray-600 text-xs font-bold rounded cursor-not-allowed border border-gray-800">50x</button>
                         </div>
                     </div>
 
@@ -2564,6 +2562,19 @@
             }
         }
 
+        
+        function updateLeverageButtonsUI(maxLev) {
+            const container = document.getElementById('container-leverage-buttons');
+            if (!container) return;
+            const options = [1, 5, 10, 25, 50];
+            const filtered = options.filter(l => l <= maxLev);
+            container.innerHTML = filtered.map(l => `
+                <button id="btn-lev-${l}" onclick="setLeverage(${l})" class="flex-1 py-1 ${l === currentLeverage ? 'bg-amber-500 text-black font-black' : 'bg-gray-800 text-gray-300'} text-xs font-bold rounded">
+                    ${l}x ${l === maxLev ? '(Max)' : ''}
+                </button>
+            `).join('');
+        }
+
         function setLeverage(lev) {
             currentLeverage = lev;
             document.getElementById('lbl-lev').innerText = lev + 'x';
@@ -3825,7 +3836,7 @@
                     </div>
                     <div>
                         <h3 class="text-base font-black text-white">Banking, Credit Cards & Deposit Hub</h3>
-                        <p class="text-xs text-emerald-400">100% Automated International Deposits, Stripe Cards & Broker Connect</p>
+                        <p class="text-xs text-amber-400 font-bold"><i class="fa-solid fa-flask mr-1"></i> Payment Infrastructure — TEST / NOT LIVE (Simulated)</p>
                     </div>
                 </div>
                 <button onclick="closeDepositModal()" class="text-gray-400 hover:text-white font-bold text-2xl">&times;</button>
