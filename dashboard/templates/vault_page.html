@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secured Profit Vault | Marvan's Pool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config = { darkMode: 'class', theme: { extend: { colors: { darkbg: '#09090b', darkcard: '#111113', darkborder: '#1f2937' } } } }</script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        body { background: #09090b; color: #fff; font-family: 'Inter', system-ui, sans-serif; overflow-y: auto !important; min-height: 100vh; }
+        ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: #111; } ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+    </style>
+    
+</head>
+<body class="bg-darkbg min-h-screen">
+    <!-- Top Bar -->
+    <div class="sticky top-0 z-50 bg-darkbg/95 backdrop-blur border-b border-darkborder px-4 py-3 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <a href="/" class="w-9 h-9 rounded-xl bg-gray-900 border border-gray-800 hover:border-amber-500/50 text-white flex items-center justify-center transition" title="Back to Dashboard">
+                <i class="fa-solid fa-arrow-left text-sm"></i>
+            </a>
+            <div>
+                <div class="text-sm font-black text-white flex items-center space-x-2">
+                    <span>🏦</span><span>Secured Profit Vault</span>
+                </div>
+                <div class="text-[10px] text-gray-500">Marvan's Pool · Pro AI Trading Console</div>
+            </div>
+        </div>
+        <a href="/" class="text-xs text-gray-500 hover:text-amber-400 transition font-mono flex items-center space-x-1">
+            <i class="fa-solid fa-gauge-high mr-1"></i>Dashboard
+        </a>
+    </div>
+    <!-- Page Content -->
+    <div class="max-w-6xl mx-auto px-4 py-6">
+        
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-black text-emerald-400 flex items-center space-x-2">
+            <i class="fa-solid fa-vault"></i><span>Secured Profit Vault</span>
+        </h1>
+        <p class="text-xs text-gray-500 mt-1">Complete audit history of all realized profit sweeps</p>
+    </div>
+    <div class="text-right">
+        <div class="text-xs text-gray-500 uppercase tracking-wider">Total Vault Reserve</div>
+        <div class="text-3xl font-black text-emerald-400" id="vault-total">Loading...</div>
+    </div>
+</div>
+
+<!-- Stats Row -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+    <div class="bg-darkcard border border-darkborder p-4 rounded-2xl">
+        <div class="text-[10px] text-gray-500 uppercase tracking-wider">Total Sweeps</div>
+        <div class="text-xl font-black text-white" id="vault-sweep-count">—</div>
+    </div>
+    <div class="bg-darkcard border border-darkborder p-4 rounded-2xl">
+        <div class="text-[10px] text-gray-500 uppercase tracking-wider">Today Swept</div>
+        <div class="text-xl font-black text-emerald-400" id="vault-today">—</div>
+    </div>
+    <div class="bg-darkcard border border-darkborder p-4 rounded-2xl">
+        <div class="text-[10px] text-gray-500 uppercase tracking-wider">This Month</div>
+        <div class="text-xl font-black text-amber-400" id="vault-month">—</div>
+    </div>
+    <div class="bg-darkcard border border-darkborder p-4 rounded-2xl">
+        <div class="text-[10px] text-gray-500 uppercase tracking-wider">Withdrawals</div>
+        <div class="text-xl font-black text-gray-300" id="vault-withdrawals">—</div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="bg-darkcard border border-darkborder rounded-2xl p-4 mb-4 flex flex-wrap gap-3 items-center">
+    <div class="flex items-center space-x-2 bg-black rounded-xl border border-gray-800 px-3 py-1.5 flex-1 min-w-48">
+        <i class="fa-solid fa-magnifying-glass text-gray-600 text-xs"></i>
+        <input id="vault-search" type="text" placeholder="Filter XAUUSD, BTCUSD, EURUSD..." class="bg-transparent text-xs text-white outline-none w-full font-mono">
+    </div>
+    <input id="vault-date-from" type="date" class="bg-black border border-gray-800 text-white text-xs rounded-xl px-3 py-1.5 outline-none">
+    <input id="vault-date-to" type="date" class="bg-black border border-gray-800 text-white text-xs rounded-xl px-3 py-1.5 outline-none">
+    <div class="flex space-x-1">
+        <button onclick="filterTime('all')" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-500 text-black" id="btn-all">All Time</button>
+        <button onclick="filterTime('1h')" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-gray-900 text-gray-400 hover:text-white" id="btn-1h">Past 1Hr</button>
+        <button onclick="filterTime('today')" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-gray-900 text-gray-400 hover:text-white" id="btn-today">Today</button>
+        <button onclick="filterTime('7d')" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-gray-900 text-gray-400 hover:text-white" id="btn-7d">7 Days</button>
+    </div>
+</div>
+
+<!-- Sweep Table -->
+<div class="bg-darkcard border border-darkborder rounded-2xl overflow-hidden">
+    <table class="w-full text-xs">
+        <thead>
+            <tr class="bg-black/50 border-b border-darkborder text-gray-500 uppercase text-[10px] tracking-wider">
+                <th class="px-4 py-3 text-left">Date & Time (IST)</th>
+                <th class="px-4 py-3 text-left">Asset</th>
+                <th class="px-4 py-3 text-right">Profit Swept (+USD)</th>
+                <th class="px-4 py-3 text-right">Accumulated Reserve</th>
+                <th class="px-4 py-3 text-left">Reason</th>
+            </tr>
+        </thead>
+        <tbody id="vault-tbody" class="divide-y divide-darkborder">
+            <tr><td colspan="5" class="text-center py-8 text-gray-600">Loading sweep history...</td></tr>
+        </tbody>
+    </table>
+</div>
+<div class="mt-3 text-[10px] text-gray-600 italic">Profits in this vault are isolated from active trading drawdown</div>
+
+<script>
+let allSweeps = [];
+
+async function loadVault() {
+    const res = await fetch('/api/vault/history?pool=AEGIS_QUANT_MASTER');
+    const data = await res.json();
+    const sweeps = data.sweeps || [];
+    allSweeps = sweeps;
+    document.getElementById('vault-total').textContent = '$' + (data.vault_balance || 0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+    document.getElementById('vault-sweep-count').textContent = (data.total_sweeps || sweeps.length).toLocaleString();
+    document.getElementById('vault-today').textContent = '$' + (data.today_swept_usd || 0).toFixed(2);
+    document.getElementById('vault-month').textContent = '$' + (data.month_swept_usd || 0).toFixed(2);
+    document.getElementById('vault-withdrawals').textContent = (data.withdrawal_history || []).length;
+    renderTable(sweeps);
+}
+
+function renderTable(sweeps) {
+    const tbody = document.getElementById('vault-tbody');
+    if (!sweeps.length) { tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-gray-600">No sweeps found</td></tr>'; return; }
+    tbody.innerHTML = sweeps.map(s => `
+        <tr class="hover:bg-white/2 transition">
+            <td class="px-4 py-2.5 font-mono text-gray-400">${s.timestamp || '—'}</td>
+            <td class="px-4 py-2.5 font-black text-white">${s.asset || s.symbol || '—'}</td>
+            <td class="px-4 py-2.5 text-right font-black text-emerald-400">+$${parseFloat(s.profit_swept || 0).toFixed(2)}</td>
+            <td class="px-4 py-2.5 text-right text-gray-300">$${parseFloat(s.vault_total || s.accumulated_reserve || 0).toLocaleString('en-US',{minimumFractionDigits:2})}</td>
+            <td class="px-4 py-2.5"><span class="px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 text-[9px] font-black">${s.exit_reason || s.reason || '—'}</span></td>
+        </tr>`).join('');
+}
+
+function filterTime(t) {
+    ['all','1h','today','7d'].forEach(x => {
+        document.getElementById('btn-'+x).className = x===t
+            ? 'px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-500 text-black'
+            : 'px-3 py-1.5 rounded-xl text-xs font-bold bg-gray-900 text-gray-400 hover:text-white';
+    });
+    const now = Date.now();
+    const cutoffs = { '1h': now-3600000, 'today': new Date().setHours(0,0,0,0), '7d': now-7*86400000 };
+    if (t === 'all') { renderTable(allSweeps); return; }
+    renderTable(allSweeps.filter(s => {
+        // Best effort timestamp parse
+        const d = new Date(s.timestamp || 0);
+        return d.getTime() >= cutoffs[t];
+    }));
+}
+
+document.getElementById('vault-search').addEventListener('input', function() {
+    const q = this.value.toUpperCase();
+    renderTable(allSweeps.filter(s => (s.asset||'').toUpperCase().includes(q) || (s.exit_reason||'').toUpperCase().includes(q)));
+});
+
+loadVault();
+setInterval(loadVault, 5000);
+</script>
+
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</body>
+</html>

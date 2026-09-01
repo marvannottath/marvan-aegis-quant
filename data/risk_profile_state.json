@@ -1,7 +1,7 @@
 {
   "active_profile_name": "MODERATE",
   "custom_trade_cap_usd": 5000.0,
-  "daily_realized_loss": 30.0,
+  "daily_realized_loss": 65.0,
   "daily_loss_limit_usd": 2000.0,
   "last_reset_date": "2026-09-01"
 }

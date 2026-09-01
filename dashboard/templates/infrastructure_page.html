@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Infrastructure & Feature Health | Marvan's Pool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config = { darkMode: 'class', theme: { extend: { colors: { darkbg: '#09090b', darkcard: '#111113', darkborder: '#1f2937' } } } }</script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        body { background: #09090b; color: #fff; font-family: 'Inter', system-ui, sans-serif; overflow-y: auto !important; min-height: 100vh; }
+        ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: #111; } ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+    </style>
+    
+</head>
+<body class="bg-darkbg min-h-screen">
+    <!-- Top Bar -->
+    <div class="sticky top-0 z-50 bg-darkbg/95 backdrop-blur border-b border-darkborder px-4 py-3 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <a href="/" class="w-9 h-9 rounded-xl bg-gray-900 border border-gray-800 hover:border-amber-500/50 text-white flex items-center justify-center transition" title="Back to Dashboard">
+                <i class="fa-solid fa-arrow-left text-sm"></i>
+            </a>
+            <div>
+                <div class="text-sm font-black text-white flex items-center space-x-2">
+                    <span>🖥️</span><span>Infrastructure & Feature Health</span>
+                </div>
+                <div class="text-[10px] text-gray-500">Marvan's Pool · Pro AI Trading Console</div>
+            </div>
+        </div>
+        <a href="/" class="text-xs text-gray-500 hover:text-amber-400 transition font-mono flex items-center space-x-1">
+            <i class="fa-solid fa-gauge-high mr-1"></i>Dashboard
+        </a>
+    </div>
+    <!-- Page Content -->
+    <div class="max-w-6xl mx-auto px-4 py-6">
+        
+<h1 class="text-2xl font-black text-white mb-2 flex items-center space-x-2">
+    <i class="fa-solid fa-server text-sky-400"></i><span>Infrastructure & Feature Health</span>
+</h1>
+<p class="text-xs text-gray-500 mb-6">Real-time, runtime-verified status for every claimed system capability</p>
+
+<div id="feature-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div class="col-span-full text-center py-8 text-gray-600">Loading feature health...</div>
+</div>
+
+<script>
+const STATUS_STYLES = {
+    'ACTIVE': 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400',
+    'ACTIVE (LOCAL)': 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400',
+    'CONNECTED (TESTNET)': 'bg-sky-500/15 border-sky-500/30 text-sky-400',
+    'SIMULATED': 'bg-yellow-500/15 border-yellow-500/30 text-yellow-400',
+    'NOT_CONFIGURED': 'bg-gray-800 border-gray-700 text-gray-500',
+    'OFFLINE': 'bg-red-500/15 border-red-500/30 text-red-400',
+    'DISABLED': 'bg-red-500/15 border-red-500/30 text-red-400',
+    'DEGRADED': 'bg-orange-500/15 border-orange-500/30 text-orange-400',
+};
+const ICONS = {
+    fix_protocol: 'fa-solid fa-bolt', websocket: 'fa-solid fa-tower-broadcast',
+    cpp_rust_kernel: 'fa-solid fa-microchip', pytorch_rl: 'fa-solid fa-robot',
+    rl_model: 'fa-solid fa-brain', telegram: 'fa-brands fa-telegram',
+    monte_carlo_var: 'fa-solid fa-dice', market_data: 'fa-solid fa-chart-line',
+    binance_api: 'fa-brands fa-bitcoin', algo_execution: 'fa-solid fa-gears',
+    order_book_l3: 'fa-solid fa-layer-group', deposits: 'fa-solid fa-circle-plus',
+    withdrawals: 'fa-solid fa-money-bill-transfer',
+};
+const LABELS = {
+    fix_protocol:'FIX Protocol', websocket:'WebSocket Feed', cpp_rust_kernel:'C++/Rust Kernel',
+    pytorch_rl:'PyTorch RL Agent', rl_model:'RL Model File', telegram:'Telegram Listener',
+    monte_carlo_var:'Monte Carlo VaR', market_data:'Market Data Feed', binance_api:'Binance API',
+    algo_execution:'Algo Execution (SOR/VWAP)', order_book_l3:'Order Book L3', deposits:'Deposits', withdrawals:'Withdrawals'
+};
+
+async function loadFeatures() {
+    const res = await fetch('/api/feature-health');
+    const data = await res.json();
+    const features = data.features || {};
+    const grid = document.getElementById('feature-grid');
+    grid.innerHTML = Object.entries(features).map(([key, f]) => {
+        const style = STATUS_STYLES[f.status] || 'bg-gray-800 border-gray-700 text-gray-400';
+        const icon = ICONS[key] || 'fa-solid fa-circle-dot';
+        const label = LABELS[key] || key.replace(/_/g,' ').toUpperCase();
+        return `<div class="bg-darkcard border border-darkborder rounded-2xl p-5">
+            <div class="flex items-start justify-between mb-3">
+                <div class="flex items-center space-x-2">
+                    <div class="w-8 h-8 rounded-xl bg-gray-900 flex items-center justify-center">
+                        <i class="${icon} text-sm text-gray-400"></i>
+                    </div>
+                    <span class="text-sm font-black text-white">${label}</span>
+                </div>
+                <span class="px-2 py-0.5 rounded-lg border text-[9px] font-black ${style} whitespace-nowrap">${f.status}</span>
+            </div>
+            <p class="text-[10px] text-gray-500 leading-relaxed">${f.detail||''}</p>
+        </div>`;
+    }).join('');
+}
+loadFeatures();
+</script>
+
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</body>
+</html>

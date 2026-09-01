@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Binance Live Trade Fills | Marvan's Pool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config = { darkMode: 'class', theme: { extend: { colors: { darkbg: '#09090b', darkcard: '#111113', darkborder: '#1f2937' } } } }</script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        body { background: #09090b; color: #fff; font-family: 'Inter', system-ui, sans-serif; overflow-y: auto !important; min-height: 100vh; }
+        ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: #111; } ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+    </style>
+    
+</head>
+<body class="bg-darkbg min-h-screen">
+    <!-- Top Bar -->
+    <div class="sticky top-0 z-50 bg-darkbg/95 backdrop-blur border-b border-darkborder px-4 py-3 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <a href="/" class="w-9 h-9 rounded-xl bg-gray-900 border border-gray-800 hover:border-amber-500/50 text-white flex items-center justify-center transition" title="Back to Dashboard">
+                <i class="fa-solid fa-arrow-left text-sm"></i>
+            </a>
+            <div>
+                <div class="text-sm font-black text-white flex items-center space-x-2">
+                    <span>₿</span><span>Binance Live Trade Fills</span>
+                </div>
+                <div class="text-[10px] text-gray-500">Marvan's Pool · Pro AI Trading Console</div>
+            </div>
+        </div>
+        <a href="/" class="text-xs text-gray-500 hover:text-amber-400 transition font-mono flex items-center space-x-1">
+            <i class="fa-solid fa-gauge-high mr-1"></i>Dashboard
+        </a>
+    </div>
+    <!-- Page Content -->
+    <div class="max-w-6xl mx-auto px-4 py-6">
+        
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-black text-amber-400 flex items-center space-x-2">
+            <i class="fa-brands fa-bitcoin"></i><span>Binance Live Trade Fills</span>
+        </h1>
+        <p class="text-xs text-gray-500 mt-1">Real-time official trade receipts from Binance Testnet API</p>
+    </div>
+    <div class="flex items-center space-x-2">
+        <span class="px-3 py-1 rounded-xl bg-green-500/10 border border-green-500/30 text-green-400 text-xs font-bold">
+            <span class="inline-block w-2 h-2 rounded-full bg-green-400 mr-1 animate-pulse"></span>LIVE
+        </span>
+        <button onclick="loadTrades()" class="px-3 py-1.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-bold hover:bg-amber-500/30 transition">
+            <i class="fa-solid fa-rotate-right mr-1"></i>Refresh
+        </button>
+    </div>
+</div>
+
+<!-- Stats -->
+<div class="grid grid-cols-3 gap-4 mb-6">
+    <div class="bg-darkcard border border-darkborder p-4 rounded-2xl">
+        <div class="text-[10px] text-gray-500 uppercase">Total Fills</div>
+        <div class="text-2xl font-black text-white" id="fill-count">—</div>
+    </div>
+    <div class="bg-darkcard border border-amber-500/20 p-4 rounded-2xl">
+        <div class="text-[10px] text-gray-500 uppercase">Buy Fills</div>
+        <div class="text-2xl font-black text-emerald-400" id="fill-buys">—</div>
+    </div>
+    <div class="bg-darkcard border border-darkborder p-4 rounded-2xl">
+        <div class="text-[10px] text-gray-500 uppercase">Sell Fills</div>
+        <div class="text-2xl font-black text-red-400" id="fill-sells">—</div>
+    </div>
+</div>
+
+<div class="bg-darkcard border border-darkborder rounded-2xl overflow-x-auto">
+    <table class="w-full text-xs min-w-max">
+        <thead>
+            <tr class="bg-black/50 border-b border-darkborder text-gray-500 uppercase text-[10px] tracking-wider">
+                <th class="px-4 py-3 text-left">Binance Trade ID</th>
+                <th class="px-4 py-3 text-left">Order ID</th>
+                <th class="px-4 py-3 text-left">Symbol</th>
+                <th class="px-4 py-3 text-center">Side</th>
+                <th class="px-4 py-3 text-right">Price</th>
+                <th class="px-4 py-3 text-right">USDT Value</th>
+                <th class="px-4 py-3 text-left">Timestamp</th>
+            </tr>
+        </thead>
+        <tbody id="fills-tbody" class="divide-y divide-darkborder">
+            <tr><td colspan="7" class="text-center py-8 text-gray-600">Loading Binance fills...</td></tr>
+        </tbody>
+    </table>
+</div>
+<p class="mt-3 text-[10px] text-gray-600 italic">Data fetched live from testnet.binance.vision via authenticated HMAC-SHA256 signed API call</p>
+
+<script>
+async function loadTrades() {
+    document.getElementById('fills-tbody').innerHTML = '<tr><td colspan="7" class="text-center py-8 text-gray-500 animate-pulse">Fetching from Binance...</td></tr>';
+    const res = await fetch('/api/binance-live-trades');
+    const data = await res.json();
+    const trades = data.trades || [];
+    const buys = trades.filter(t=>t.isBuyer||t.side==='BUY').length;
+    const sells = trades.length - buys;
+    document.getElementById('fill-count').textContent = trades.length;
+    document.getElementById('fill-buys').textContent = buys;
+    document.getElementById('fill-sells').textContent = sells;
+    const tbody = document.getElementById('fills-tbody');
+    if (!trades.length) { tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-gray-600">No fills yet</td></tr>'; return; }
+    tbody.innerHTML = trades.map(t => {
+        const isBuy = t.isBuyer ?? (t.side === 'BUY');
+        const ts = t.time ? new Date(t.time).toLocaleString('en-IN') : (t.timestamp || '—');
+        return `<tr class="hover:bg-white/2 transition">
+            <td class="px-4 py-2.5 font-mono text-amber-400">#${t.id || t.trade_id || '—'}</td>
+            <td class="px-4 py-2.5 font-mono text-gray-400">#${t.orderId || t.order_id || '—'}</td>
+            <td class="px-4 py-2.5 font-black text-white">${t.symbol || 'BTCUSDT'}</td>
+            <td class="px-4 py-2.5 text-center">
+                <span class="px-2 py-0.5 rounded font-black text-[10px] ${isBuy ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'}">${isBuy ? '▲ BUY' : '▼ SELL'}</span>
+            </td>
+            <td class="px-4 py-2.5 text-right font-mono text-white">$${parseFloat(t.price||0).toLocaleString('en-US',{minimumFractionDigits:2})}</td>
+            <td class="px-4 py-2.5 text-right font-mono text-gray-300">$${parseFloat(t.quoteQty||t.quote_qty||0).toFixed(4)}</td>
+            <td class="px-4 py-2.5 font-mono text-gray-500 text-[10px]">${ts}</td>
+        </tr>`;
+    }).join('');
+}
+loadTrades();
+setInterval(loadTrades, 10000);
+</script>
+
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Reconciliation | Marvan's Pool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config = { darkMode: 'class', theme: { extend: { colors: { darkbg: '#09090b', darkcard: '#111113', darkborder: '#1f2937' } } } }</script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        body { background: #09090b; color: #fff; font-family: 'Inter', system-ui, sans-serif; overflow-y: auto !important; min-height: 100vh; }
+        ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: #111; } ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+    </style>
+    
+</head>
+<body class="bg-darkbg min-h-screen">
+    <!-- Top Bar -->
+    <div class="sticky top-0 z-50 bg-darkbg/95 backdrop-blur border-b border-darkborder px-4 py-3 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <a href="/" class="w-9 h-9 rounded-xl bg-gray-900 border border-gray-800 hover:border-amber-500/50 text-white flex items-center justify-center transition" title="Back to Dashboard">
+                <i class="fa-solid fa-arrow-left text-sm"></i>
+            </a>
+            <div>
+                <div class="text-sm font-black text-white flex items-center space-x-2">
+                    <span>⚖️</span><span>Account Reconciliation</span>
+                </div>
+                <div class="text-[10px] text-gray-500">Marvan's Pool · Pro AI Trading Console</div>
+            </div>
+        </div>
+        <a href="/" class="text-xs text-gray-500 hover:text-amber-400 transition font-mono flex items-center space-x-1">
+            <i class="fa-solid fa-gauge-high mr-1"></i>Dashboard
+        </a>
+    </div>
+    <!-- Page Content -->
+    <div class="max-w-6xl mx-auto px-4 py-6">
+        
+<h1 class="text-2xl font-black text-white mb-2 flex items-center space-x-2">
+    <i class="fa-solid fa-scale-balanced text-amber-400"></i><span>Account Reconciliation</span>
+</h1>
+<p class="text-xs text-gray-500 mb-6">Real-time mathematical audit: Cash + Vault + Margin + UnrealizedPnL = Equity</p>
+
+<div id="recon-status" class="p-5 rounded-2xl border mb-6 flex items-center space-x-4">
+    <div class="text-4xl" id="recon-icon">⏳</div>
+    <div>
+        <div class="text-lg font-black" id="recon-label">Loading...</div>
+        <div class="text-xs text-gray-500" id="recon-formula">Equity = Cash + Used_Margin + Unrealized_PnL + Vault_Reserve</div>
+    </div>
+</div>
+
+<div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6" id="recon-grid">
+</div>
+
+<div class="bg-darkcard border border-darkborder rounded-2xl p-5">
+    <div class="text-xs font-black text-gray-400 uppercase mb-3">Reconciliation Equation</div>
+    <div class="font-mono text-sm text-white" id="recon-equation">...</div>
+</div>
+
+<script>
+async function loadRecon() {
+    const res = await fetch('/api/reconciliation');
+    const d = await res.json();
+    const ok = d.status === 'RECONCILIATION_OK';
+    const statusEl = document.getElementById('recon-status');
+    statusEl.className = 'p-5 rounded-2xl border mb-6 flex items-center space-x-4 ' + (ok ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-red-500/10 border-red-500/30');
+    document.getElementById('recon-icon').textContent = ok ? '✅' : '❌';
+    document.getElementById('recon-label').className = 'text-lg font-black ' + (ok ? 'text-emerald-400' : 'text-red-400');
+    document.getElementById('recon-label').textContent = d.status + (ok ? '' : ' — Delta: $' + d.delta);
+    const items = [
+        {label:'Virtual Cash', val: d.cash, color:'text-white'},
+        {label:'Used Margin', val: d.used_margin, color:'text-amber-400'},
+        {label:'Unrealized PnL', val: d.unrealized_pnl, color: d.unrealized_pnl >= 0 ? 'text-emerald-400' : 'text-red-400'},
+        {label:'Vault Reserve', val: d.vault_reserve, color:'text-emerald-400'},
+        {label:'Computed Equity', val: d.computed_equity, color:'text-sky-400'},
+        {label:'Reported Equity', val: d.reported_equity, color:'text-white'},
+    ];
+    document.getElementById('recon-grid').innerHTML = items.map(i => `
+        <div class="bg-darkcard border border-darkborder rounded-2xl p-4">
+            <div class="text-[10px] text-gray-500 uppercase">${i.label}</div>
+            <div class="text-xl font-black ${i.color}">$${parseFloat(i.val||0).toLocaleString('en-US',{minimumFractionDigits:2})}</div>
+        </div>`).join('');
+    document.getElementById('recon-equation').textContent =
+        `$${(d.cash||0).toLocaleString('en-US',{minimumFractionDigits:2})} (Cash)  +  $${(d.used_margin||0).toLocaleString('en-US',{minimumFractionDigits:2})} (Margin)  +  $${(d.unrealized_pnl||0).toFixed(2)} (UnrealPnL)  +  $${(d.vault_reserve||0).toLocaleString('en-US',{minimumFractionDigits:2})} (Vault)  =  $${(d.computed_equity||0).toLocaleString('en-US',{minimumFractionDigits:2})}`;
+}
+loadRecon();
+setInterval(loadRecon, 5000);
+</script>
+
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</body>
+</html>

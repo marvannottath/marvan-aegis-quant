@@ -250,8 +250,8 @@
                     </div>
                     <div id="m-val-vault" class="text-base font-black text-emerald-300 my-0.5">{{ VAULT_BALANCE }}</div>
                     <div class="flex items-center gap-1 mt-1">
-                        <button onclick="openVaultModal()" class="flex-1 bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-300 py-1 rounded text-[10px] font-bold border border-emerald-500/40 text-center">Log</button>
-                        <button onclick="openWithdrawModal()" class="flex-1 bg-emerald-500 hover:bg-emerald-400 text-black py-1 rounded text-[10px] font-black text-center">Withdraw</button>
+                        <button onclick="window.location.href='/vault'" class="flex-1 bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-300 py-1 rounded text-[10px] font-bold border border-emerald-500/40 text-center">Log</button>
+                        <button onclick="window.location.href='/withdraw'" class="flex-1 bg-emerald-500 hover:bg-emerald-400 text-black py-1 rounded text-[10px] font-black text-center">Withdraw</button>
                     </div>
                 </div>
 
@@ -263,7 +263,7 @@
                     </div>
                     <div id="m-val-cash" class="text-base font-black text-white my-0.5">{{ VIRTUAL_CASH }}</div>
                     <div class="mt-1">
-                        <button onclick="openDepositModal()" class="w-full bg-amber-500 hover:bg-amber-400 text-black py-1 rounded text-[10px] font-black text-center">+ Deposit</button>
+                        <button onclick="window.location.href='/deposit'" class="w-full bg-amber-500 hover:bg-amber-400 text-black py-1 rounded text-[10px] font-black text-center">+ Deposit</button>
                     </div>
                 </div>
             </div>
@@ -341,7 +341,7 @@
                 </div>
 
                 <!-- Binance Fills Log: Separate dedicated button (only when on Binance pool) -->
-                <button onclick="openBinanceTradesModal()" id="btn-binance-fills-log"
+                <button onclick="window.location.href='/binance-fills'" id="btn-binance-fills-log"
                     class="py-2.5 px-3 rounded-xl text-[11px] font-bold bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 transition flex items-center justify-center space-x-1 whitespace-nowrap flex-shrink-0">
                     <i class="fa-solid fa-list-check text-amber-400"></i>
                     <span>Binance Fills Log</span>
@@ -357,7 +357,7 @@
                 <div class="text-xs font-medium mt-1 text-emerald-400" id="val-pnl">+$0.00 (+0.00%) Floating Open PnL</div>
             </div>
 
-            <div onclick="openVaultModal()" class="bg-darkcard border border-darkborder p-4 md:p-5 rounded-2xl shadow-xl border-emerald-500/40 hover:border-emerald-400 cursor-pointer transition flex flex-col justify-between group overflow-hidden">
+            <div onclick="window.location.href='/vault'" class="bg-darkcard border border-darkborder p-4 md:p-5 rounded-2xl shadow-xl border-emerald-500/40 hover:border-emerald-400 cursor-pointer transition flex flex-col justify-between group overflow-hidden">
                 <div>
                     <div class="text-[11px] font-black uppercase text-emerald-400 tracking-wider flex items-center mb-1">
                         <i class="fa-solid fa-vault mr-1.5 text-emerald-400"></i> SECURED PROFIT VAULT
@@ -385,7 +385,7 @@
                     <div class="text-[11px] text-gray-400 mt-1">Allocated Capital</div>
                 </div>
                 <div class="mt-3 pt-2 border-t border-gray-800 flex items-center justify-end">
-                    <button onclick="depositCashModal()" class="px-2.5 py-1 bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-300 border border-emerald-500/50 text-xs font-black rounded-lg transition flex items-center shadow">
+                    <button onclick="window.location.href='/deposit'" class="px-2.5 py-1 bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-300 border border-emerald-500/50 text-xs font-black rounded-lg transition flex items-center shadow">
                         <i class="fa-solid fa-circle-plus mr-1 text-emerald-400"></i> Deposit Cash
                     </button>
                 </div>
@@ -462,7 +462,7 @@
                     </div>
                     <div>
                         <div class="flex items-center gap-2">
-                            <h4 class="text-sm font-black text-white">15-Year Institutional Historical Backtest (2010 – 2026)</h4>
+                            <h4 class="text-sm font-black text-white">INTERNAL SIMULATION BACKTEST (15-Year) (2010 – 2026)</h4>
                             <span class="text-[10px] font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-2 py-0.5 rounded-full font-bold">Audit Log Maintained</span>
                         </div>
                         <p class="text-xs text-gray-300 mt-0.5">
@@ -697,7 +697,7 @@
                     <div>
                         <div class="flex justify-between text-xs text-gray-400 font-semibold mb-1">
                             <span>Order Amount (USD)</span>
-                            <span>Cash: <span id="lbl-cash">$100,000</span></span>
+                            <span>Max Cap: <span id="lbl-order-cap" class="text-amber-400 font-bold">$5,000</span> | Cash: <span id="lbl-cash">$95,000</span></span>
                         </div>
                         <input type="number" id="order-amount" value="1000" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white font-bold focus:outline-none">
                     </div>
@@ -2525,6 +2525,10 @@
         async function placeOrder() {
             const asset = 'XAUUSD';
             const amount = parseFloat(document.getElementById('order-amount').value) || 1000;
+            const msgEl = document.getElementById('order-msg');
+
+            msgEl.className = 'text-xs text-amber-400 font-bold text-center';
+            msgEl.innerText = 'Validating order with 7-Gate Risk Engine...';
 
             const res = await fetch('/api/place-order', {
                 method: 'POST',
@@ -2532,12 +2536,36 @@
                 body: JSON.stringify({ asset, action: currentAction, amount, leverage: currentLeverage })
             });
 
-            if (res.ok) {
-                document.getElementById('order-msg').innerText = `${currentAction} Order Executed for ${asset}!`;
-                setTimeout(() => document.getElementById('order-msg').innerText = '', 3000);
+            const data = await res.json();
+
+            if (res.ok && data.status === 'SUCCESS') {
+                msgEl.className = 'text-xs text-emerald-400 font-bold text-center';
+                msgEl.innerText = `✅ ${currentAction} Order Executed for ${asset} ($${amount.toLocaleString()})!`;
+                setTimeout(() => msgEl.innerText = '', 4000);
                 fetchState();
+            } else {
+                msgEl.className = 'text-xs text-red-400 font-bold text-center';
+                msgEl.innerText = `❌ ${data.rejection_code || 'RISK_REJECTED'}: ${data.message || 'Order rejected by Risk Engine'}`;
             }
         }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const amtInput = document.getElementById('order-amount');
+            if (amtInput) {
+                amtInput.addEventListener('input', () => {
+                    const val = parseFloat(amtInput.value) || 0;
+                    const capText = (document.getElementById('lbl-order-cap') || {}).innerText || '$5,000';
+                    const capVal = parseFloat(capText.replace(/[^0-9.]/g, '')) || 5000;
+                    const msgEl = document.getElementById('order-msg');
+                    if (val > capVal) {
+                        msgEl.className = 'text-xs text-red-400 font-bold text-center';
+                        msgEl.innerText = `⚠️ Order $${val.toLocaleString()} exceeds active risk cap ($${capVal.toLocaleString()}) — server will reject`;
+                    } else {
+                        msgEl.innerText = '';
+                    }
+                });
+            }
+        });
 
         async function closePos(asset) {
             await fetch('/api/close-position', {
@@ -3167,7 +3195,7 @@
             const bannerSubtitle = document.getElementById('backtest-banner-subtitle');
             if (bannerTitle && bannerSubtitle) {
                 if (currentEnv === 'AEGIS_QUANT_MASTER') {
-                    bannerTitle.innerHTML = '<i class="fa-solid fa-trophy mr-2 text-amber-400"></i> 15-Year Institutional Historical Backtest (2010 – 2026) <span class="ml-2 px-2 py-0.5 rounded text-[10px] font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">Audit Log Maintained</span>';
+                    bannerTitle.innerHTML = '<i class="fa-solid fa-trophy mr-2 text-amber-400"></i> INTERNAL SIMULATION BACKTEST (15-Year) (2010 – 2026) <span class="ml-2 px-2 py-0.5 rounded text-[10px] font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">Audit Log Maintained</span>';
                     bannerSubtitle.innerHTML = `$100,000 Initial → <span class="text-emerald-400 font-bold">$${eq.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} Final Equity</span> | Vault Harvest: <span class="text-amber-400 font-bold">+$${vaultBal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span> | Max Drawdown: <span class="text-gray-300 font-bold">3.2%</span> | Sharpe: <span class="text-gray-300 font-bold">7.54</span>`;
                 } else if (currentEnv === 'BINANCE_TESTNET_DEMO') {
                     bannerTitle.innerHTML = '<i class="fa-brands fa-bitcoin mr-2 text-amber-400"></i> Binance Spot Official Testnet Live Session <span class="ml-2 px-2 py-0.5 rounded text-[10px] font-black bg-amber-500/20 text-amber-400 border border-amber-500/40">OFFICIAL API CONNECTED</span>';
@@ -4049,7 +4077,7 @@
     </div>
 
 
-    <!-- 15-Year Institutional Historical Backtesting & Stress Lab Modal (2010 - 2026) -->
+    <!-- INTERNAL SIMULATION BACKTEST (15-Year)ing & Stress Lab Modal (2010 - 2026) -->
     <div id="modal-15y-backtest" class="hidden fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-3 md:p-6 overflow-y-auto">
         <div class="bg-[#090d16] border border-gray-800 max-w-5xl w-full rounded-2xl p-5 md:p-7 shadow-2xl space-y-6 relative max-h-[92vh] overflow-y-auto">
             

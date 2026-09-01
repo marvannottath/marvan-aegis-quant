@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deposit Portal | Marvan's Pool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config = { darkMode: 'class', theme: { extend: { colors: { darkbg: '#09090b', darkcard: '#111113', darkborder: '#1f2937' } } } }</script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        body { background: #09090b; color: #fff; font-family: 'Inter', system-ui, sans-serif; overflow-y: auto !important; min-height: 100vh; }
+        ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: #111; } ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+    </style>
+    
+</head>
+<body class="bg-darkbg min-h-screen">
+    <!-- Top Bar -->
+    <div class="sticky top-0 z-50 bg-darkbg/95 backdrop-blur border-b border-darkborder px-4 py-3 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <a href="/" class="w-9 h-9 rounded-xl bg-gray-900 border border-gray-800 hover:border-amber-500/50 text-white flex items-center justify-center transition" title="Back to Dashboard">
+                <i class="fa-solid fa-arrow-left text-sm"></i>
+            </a>
+            <div>
+                <div class="text-sm font-black text-white flex items-center space-x-2">
+                    <span>💰</span><span>Deposit Portal</span>
+                </div>
+                <div class="text-[10px] text-gray-500">Marvan's Pool · Pro AI Trading Console</div>
+            </div>
+        </div>
+        <a href="/" class="text-xs text-gray-500 hover:text-amber-400 transition font-mono flex items-center space-x-1">
+            <i class="fa-solid fa-gauge-high mr-1"></i>Dashboard
+        </a>
+    </div>
+    <!-- Page Content -->
+    <div class="max-w-6xl mx-auto px-4 py-6">
+        
+<div class="max-w-xl mx-auto">
+    <div class="text-center mb-8">
+        <div class="w-16 h-16 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center mx-auto mb-4">
+            <i class="fa-solid fa-circle-plus text-2xl text-amber-400"></i>
+        </div>
+        <h1 class="text-2xl font-black text-white">Deposit Portal</h1>
+        <p class="text-xs text-gray-500 mt-1">Add capital to your trading account</p>
+    </div>
+
+    <div class="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 mb-6">
+        <div class="flex items-start space-x-3">
+            <i class="fa-solid fa-triangle-exclamation text-amber-400 mt-0.5"></i>
+            <div>
+                <div class="text-sm font-black text-amber-300">DEPOSITS NOT CONFIGURED</div>
+                <div class="text-xs text-gray-400 mt-1">No payment processor is connected. Deposits cannot be processed. All current balances are simulated paper trading capital.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Virtual Deposit (Paper Mode) -->
+    <div class="bg-darkcard border border-darkborder rounded-2xl p-6">
+        <div class="text-sm font-black text-white mb-1">Virtual Capital Injection (Paper Mode)</div>
+        <div class="text-xs text-gray-500 mb-4">For paper trading only — adds simulated capital to your virtual account balance.</div>
+        <div class="space-y-3">
+            <div>
+                <label class="text-xs text-gray-400 font-bold uppercase">Amount (USD)</label>
+                <input id="deposit-amount" type="number" min="100" placeholder="e.g. 5000" class="w-full mt-2 bg-black border border-gray-800 focus:border-amber-500/50 text-white rounded-xl px-4 py-3 text-sm font-mono outline-none">
+            </div>
+            <div id="deposit-msg" class="text-xs text-center font-bold"></div>
+            <button onclick="submitDeposit()" class="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-black text-sm transition">
+                <i class="fa-solid fa-plus mr-2"></i>Add Virtual Capital
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+async function submitDeposit() {
+    const amt = parseFloat(document.getElementById('deposit-amount').value);
+    const msg = document.getElementById('deposit-msg');
+    if (!amt || amt < 100) { msg.className='text-xs text-red-400 font-bold text-center'; msg.textContent='Minimum deposit is $100.'; return; }
+    const res = await fetch('/api/deposit-cash', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({amount: amt}) });
+    const data = await res.json();
+    if (data.status === 'SUCCESS') {
+        msg.className='text-xs text-emerald-400 font-bold text-center';
+        msg.textContent = 'Virtual capital added: $' + amt.toLocaleString() + ' — Return to dashboard to see updated balance.';
+    } else {
+        msg.className='text-xs text-red-400 font-bold text-center';
+        msg.textContent = data.message || 'Error processing deposit.';
+    }
+}
+</script>
+
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</body>
+</html>

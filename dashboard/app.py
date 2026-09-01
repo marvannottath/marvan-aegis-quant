@@ -831,3 +831,122 @@ async def get_binance_live_trades(symbol: str = "BTCUSDT"):
 async def serve_manifest():
     from fastapi.responses import FileResponse
     return FileResponse("dashboard/static/manifest.json", media_type="application/json")
+
+# ── Dedicated Full Page Routes (each modal → its own URL) ────────
+
+@app.get("/vault", response_class=HTMLResponse)
+async def vault_page():
+    p = BASE_DIR / "templates" / "vault_page.html"
+    return HTMLResponse(p.read_text(encoding="utf-8"))
+
+@app.get("/binance-fills", response_class=HTMLResponse)
+async def binance_fills_page():
+    p = BASE_DIR / "templates" / "binance_fills_page.html"
+    return HTMLResponse(p.read_text(encoding="utf-8"))
+
+@app.get("/withdraw", response_class=HTMLResponse)
+async def withdraw_page():
+    p = BASE_DIR / "templates" / "withdraw_page.html"
+    return HTMLResponse(p.read_text(encoding="utf-8"))
+
+@app.get("/deposit", response_class=HTMLResponse)
+async def deposit_page():
+    p = BASE_DIR / "templates" / "deposit_page.html"
+    return HTMLResponse(p.read_text(encoding="utf-8"))
+
+@app.get("/broker", response_class=HTMLResponse)
+async def broker_page():
+    p = BASE_DIR / "templates" / "broker_page.html"
+    return HTMLResponse(p.read_text(encoding="utf-8"))
+
+@app.get("/infrastructure", response_class=HTMLResponse)
+async def infrastructure_page():
+    p = BASE_DIR / "templates" / "infrastructure_page.html"
+    return HTMLResponse(p.read_text(encoding="utf-8"))
+
+@app.get("/reconciliation", response_class=HTMLResponse)
+async def reconciliation_page_view():
+    p = BASE_DIR / "templates" / "reconciliation_page.html"
+    return HTMLResponse(p.read_text(encoding="utf-8"))
+
+@app.post("/api/place-order")
+async def place_order_endpoint(request: Request):
+    """
+    Hard Server-Side 7-Gate Order Risk Validation Pipeline.
+    Every order must pass all gates. Direct API requests cannot bypass this gate.
+    """
+    try:
+        body = await request.json()
+        asset = str(body.get("asset", "XAUUSD")).strip().upper()
+        action = str(body.get("action", "BUY")).strip().upper()
+        amount_usd = float(body.get("amount", body.get("amount_usd", 1000.0)))
+        leverage = float(body.get("leverage", 1.0))
+        data_age = float(body.get("data_age_seconds", 0.0))
+
+        # Check market data tick age
+        if data_age > 60.0:
+            return JSONResponse({
+                "status": "RISK_REJECTED",
+                "rejection_code": "RISK_REJECTED/STALE_MARKET_DATA",
+                "message": f"Market data tick age ({data_age:.1f}s) exceeds threshold (60s). STALE_MARKET_DATA."
+            }, status_code=400)
+
+        # Check broker connection state if on live pool
+        if paper_broker.active_pool_name == "BINANCE_LIVE_REAL":
+            b_stat = binance_broker.get_status()
+            if not b_stat.get("connected", False):
+                return JSONResponse({
+                    "status": "RISK_REJECTED",
+                    "rejection_code": "RISK_REJECTED/BROKER_NOT_CONNECTED",
+                    "message": "Broker is disconnected/unauthenticated. Orders blocked."
+                }, status_code=400)
+
+        # Validate through 7-Gate Risk Pipeline
+        ok, code, msg = risk_engine.validate_order_pipeline(
+            amount_usd=amount_usd,
+            leverage=leverage,
+            current_open_positions=len(paper_broker.positions),
+            available_cash=paper_broker.virtual_cash
+        )
+
+        if not ok:
+            return JSONResponse({
+                "status": "RISK_REJECTED",
+                "rejection_code": code,
+                "message": msg,
+                "requested_amount": amount_usd,
+                "active_cap": risk_engine.custom_trade_cap_usd
+            }, status_code=400)
+
+        # Execute Order via PaperBroker
+        current_price = 2514.80 if "XAU" in asset else (64250.0 if "BTC" in asset else 100.0)
+        if asset in paper_broker.positions:
+            current_price = paper_broker.positions[asset].get("last_price", paper_broker.positions[asset]["entry_price"])
+
+        order = paper_broker.execute_order(
+            asset=asset,
+            action=action,
+            amount_usd=amount_usd,
+            current_price=current_price,
+            indicators={"RSI": 50.0, "Volatility": 0.01},
+            sentiment_score=0.5,
+            leverage=leverage
+        )
+
+        if not order:
+            return JSONResponse({
+                "status": "RISK_REJECTED",
+                "rejection_code": "RISK_REJECTED/EXECUTION_FAILED",
+                "message": "Broker failed to execute order."
+            }, status_code=400)
+
+        return JSONResponse({
+            "status": "SUCCESS",
+            "message": f"{action} order executed for {asset}",
+            "order": order
+        })
+    except Exception as e:
+        return JSONResponse({
+            "status": "ERROR",
+            "message": str(e)
+        }, status_code=500)

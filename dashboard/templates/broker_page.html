@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Broker Connections | Marvan's Pool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config = { darkMode: 'class', theme: { extend: { colors: { darkbg: '#09090b', darkcard: '#111113', darkborder: '#1f2937' } } } }</script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        body { background: #09090b; color: #fff; font-family: 'Inter', system-ui, sans-serif; overflow-y: auto !important; min-height: 100vh; }
+        ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: #111; } ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+    </style>
+    
+</head>
+<body class="bg-darkbg min-h-screen">
+    <!-- Top Bar -->
+    <div class="sticky top-0 z-50 bg-darkbg/95 backdrop-blur border-b border-darkborder px-4 py-3 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <a href="/" class="w-9 h-9 rounded-xl bg-gray-900 border border-gray-800 hover:border-amber-500/50 text-white flex items-center justify-center transition" title="Back to Dashboard">
+                <i class="fa-solid fa-arrow-left text-sm"></i>
+            </a>
+            <div>
+                <div class="text-sm font-black text-white flex items-center space-x-2">
+                    <span>🔗</span><span>Broker Connections</span>
+                </div>
+                <div class="text-[10px] text-gray-500">Marvan's Pool · Pro AI Trading Console</div>
+            </div>
+        </div>
+        <a href="/" class="text-xs text-gray-500 hover:text-amber-400 transition font-mono flex items-center space-x-1">
+            <i class="fa-solid fa-gauge-high mr-1"></i>Dashboard
+        </a>
+    </div>
+    <!-- Page Content -->
+    <div class="max-w-6xl mx-auto px-4 py-6">
+        
+<h1 class="text-2xl font-black text-white mb-2 flex items-center space-x-2">
+    <i class="fa-solid fa-plug text-amber-400"></i><span>Broker Connections</span>
+</h1>
+<p class="text-xs text-gray-500 mb-6">Configure and manage exchange connections for all 3 trading environments</p>
+
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8" id="broker-cards">
+    <!-- Loaded dynamically -->
+</div>
+
+<!-- Binance API Config -->
+<div class="bg-darkcard border border-darkborder rounded-2xl p-6">
+    <div class="text-sm font-black text-white mb-4 flex items-center space-x-2">
+        <i class="fa-brands fa-bitcoin text-amber-400"></i><span>Binance API Configuration</span>
+    </div>
+    <div class="space-y-4">
+        <div>
+            <label class="text-xs text-gray-400 uppercase font-bold">API Key</label>
+            <input id="api-key-input" type="text" placeholder="Paste your Binance API Key..." class="w-full mt-2 bg-black border border-gray-800 focus:border-amber-500/60 text-white rounded-xl px-4 py-3 text-xs font-mono outline-none">
+        </div>
+        <div>
+            <label class="text-xs text-gray-400 uppercase font-bold">Secret Key</label>
+            <input id="secret-key-input" type="password" placeholder="Paste your Binance Secret Key..." class="w-full mt-2 bg-black border border-gray-800 focus:border-amber-500/60 text-white rounded-xl px-4 py-3 text-xs font-mono outline-none">
+        </div>
+        <div class="flex space-x-2">
+            <label class="flex items-center space-x-2 text-xs text-gray-400">
+                <input type="checkbox" id="is-testnet" class="rounded" checked>
+                <span>Use Testnet (testnet.binance.vision)</span>
+            </label>
+        </div>
+        <div id="broker-msg" class="text-xs text-center font-bold"></div>
+        <button onclick="saveBroker()" class="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-black text-sm transition">
+            <i class="fa-solid fa-link mr-2"></i>Connect & Verify
+        </button>
+    </div>
+</div>
+
+<script>
+async function loadBrokerStatus() {
+    const res = await fetch('/api/broker-connections');
+    const data = await res.json();
+    const cards = document.getElementById('broker-cards');
+    const conns = data.connections || {};
+    const envs = [
+        {key:'BINANCE', label:'Binance Testnet', icon:'fa-brands fa-bitcoin', color:'amber'},
+        {key:'BINANCE_LIVE', label:'Binance Live', icon:'fa-solid fa-satellite-dish', color:'red'},
+        {key:'MASTER', label:'Master Engine', icon:'fa-solid fa-brain', color:'yellow'}
+    ];
+    cards.innerHTML = envs.map(e => {
+        const c = conns[e.key] || {};
+        const connected = c.connected || false;
+        return `<div class="bg-darkcard border border-darkborder rounded-2xl p-5">
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center space-x-2">
+                    <i class="${e.icon} text-${e.color}-400"></i>
+                    <span class="text-sm font-black text-white">${e.label}</span>
+                </div>
+                <span class="px-2 py-0.5 rounded-lg text-[10px] font-black ${connected ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-gray-800 text-gray-500 border border-gray-700'}">${connected ? 'CONNECTED' : 'SIMULATED'}</span>
+            </div>
+            <div class="text-[10px] text-gray-600 font-mono">${c.masked_api_key || 'Not configured'}</div>
+        </div>`;
+    }).join('');
+}
+
+async function saveBroker() {
+    const apiKey = document.getElementById('api-key-input').value.trim();
+    const secretKey = document.getElementById('secret-key-input').value.trim();
+    const isTestnet = document.getElementById('is-testnet').checked;
+    const msg = document.getElementById('broker-msg');
+    if (!apiKey || !secretKey) { msg.className='text-xs text-red-400 font-bold text-center'; msg.textContent='Both API Key and Secret Key are required.'; return; }
+    msg.className='text-xs text-gray-400 font-bold text-center'; msg.textContent='Verifying with Binance...';
+    const res = await fetch('/api/connect-broker', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({api_key: apiKey, secret_key: secretKey, is_testnet: isTestnet, broker: 'BINANCE'}) });
+    const data = await res.json();
+    if (data.status === 'SUCCESS') { msg.className='text-xs text-emerald-400 font-bold text-center'; msg.textContent='Connected! ' + (data.message||''); loadBrokerStatus(); }
+    else { msg.className='text-xs text-red-400 font-bold text-center'; msg.textContent='Error: ' + (data.message||'Connection failed'); }
+}
+
+loadBrokerStatus();
+</script>
+
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</body>
+</html>
