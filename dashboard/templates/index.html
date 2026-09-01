@@ -300,7 +300,7 @@
                     <div id="m-val-vault" class="text-base font-black text-emerald-300 my-0.5">{{ VAULT_BALANCE }}</div>
                     <div class="flex items-center gap-1 mt-1">
                         <button onclick="window.location.href='/vault'" class="flex-1 bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-300 py-1 rounded text-[10px] font-bold border border-emerald-500/40 text-center">Log</button>
-                        <button onclick="openWithdrawModal()" class="flex-1 bg-emerald-500 hover:bg-emerald-400 text-black py-1 rounded text-[10px] font-black text-center">Withdraw</button>
+                        <button onclick="window.location.href='/withdraw'" class="flex-1 bg-emerald-500 hover:bg-emerald-400 text-black py-1 rounded text-[10px] font-black text-center">Withdraw</button>
                     </div>
                 </div>
 
@@ -312,7 +312,7 @@
                     </div>
                     <div id="m-val-cash" class="text-base font-black text-white my-0.5">{{ VIRTUAL_CASH }}</div>
                     <div class="mt-1">
-                        <button onclick="openDepositModal()" class="w-full bg-amber-500 hover:bg-amber-400 text-black py-1 rounded text-[10px] font-black text-center">+ Deposit</button>
+                        <button onclick="window.location.href='/deposit'" class="w-full bg-amber-500 hover:bg-amber-400 text-black py-1 rounded text-[10px] font-black text-center">+ Deposit</button>
                     </div>
                 </div>
             </div>
@@ -434,7 +434,7 @@
                     <div class="text-[11px] text-gray-400 mt-1">Allocated Capital</div>
                 </div>
                 <div class="mt-3 pt-2 border-t border-gray-800 flex items-center justify-end">
-                    <button onclick="openDepositModal()" class="px-2.5 py-1 bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-300 border border-emerald-500/50 text-xs font-black rounded-lg transition flex items-center shadow">
+                    <button onclick="window.location.href='/deposit'" class="px-2.5 py-1 bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-300 border border-emerald-500/50 text-xs font-black rounded-lg transition flex items-center shadow">
                         <i class="fa-solid fa-circle-plus mr-1 text-emerald-400"></i> Deposit Cash
                     </button>
                 </div>
