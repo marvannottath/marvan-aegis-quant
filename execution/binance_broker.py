@@ -231,7 +231,7 @@ class BinanceBroker:
         if not self.api_key or not self.secret_key:
             return {"status": "ERROR", "message": "Binance API keys not configured."}
 
-        url = "https://api.binance.com/api/v3/order"
+        url = "https://testnet.binance.vision/api/v3/order" if (self.testnet or self.is_demo) else "https://api.binance.com/api/v3/order"
         headers = {"X-MBX-APIKEY": self.api_key}
 
         try:
@@ -273,7 +273,7 @@ class BinanceBroker:
         if not self.api_key or not self.secret_key:
             return []
 
-        url = "https://api.binance.com/api/v3/myTrades"
+        url = "https://testnet.binance.vision/api/v3/myTrades" if (self.testnet or self.is_demo) else "https://api.binance.com/api/v3/myTrades"
         headers = {"X-MBX-APIKEY": self.api_key}
 
         try:

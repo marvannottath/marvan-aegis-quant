@@ -1,8 +1,9 @@
 {
-    "api_key": "l9hqWmSpp1ewloNE4kfVasaTW0ZMf8AYYvZmFFF13brLd92Zmb6guvNzdLK1jQEt",
-    "secret_key": "drPZhwWIehg8lHdhrznJ2hnokc8haLsOciYARO1VPPWWtvN5q50eRgLeI9GiJaAG",
-    "testnet": false,
-    "is_demo": false,
-    "market_type": "SPOT",
-    "saved_at": "2026-09-01 04:45:00"
+    "api_key": "yl1GHkezBQzcJzDHneEoGkc9aW8Qe6FJuHSRN1ILjypLazgVkkCQ4lA6p9PDiUNF",
+    "secret_key": "Hc4igh1kmo0CI1ZgTu9dcl0tyjAjNL0G0kS2VrKOVkS8DjZox4d31NJFczgFzZxD",
+    "testnet": true,
+    "is_demo": true,
+    "market_type": "SPOT_TESTNET",
+    "endpoint": "https://testnet.binance.vision",
+    "saved_at": "2026-09-01 09:00:00"
 }
