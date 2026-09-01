@@ -1,6 +1,19 @@
 {
   "entries": [
     {
+      "entry_id": "DEL-TRA-1788290815540-9F66D1",
+      "timestamp": "2026-09-02 00:56:55",
+      "ledger_type": "TRADING_LEDGER",
+      "environment": "AEGIS_QUANT_MASTER",
+      "debit_account": "Customer Trading Account",
+      "credit_account": "Cash Account",
+      "amount": 10.0,
+      "asset": "USDT",
+      "reference_id": "ORD-TESTNET-1788290815539",
+      "metadata": {},
+      "status": "POSTED"
+    },
+    {
       "entry_id": "DEL-DEP-1788289969599-1A71BB",
       "timestamp": "2026-09-02 00:42:49",
       "ledger_type": "DEPOSIT_LEDGER",
