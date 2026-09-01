@@ -1,6 +1,32 @@
 {
   "logs": [
     {
+      "event_id": "AUD-1788289969596-EMER",
+      "timestamp": "2026-09-02 00:42:49",
+      "event_type": "EMERGENCY_KILL_SWITCH_TRIGGERED",
+      "user_id": "REDTEAM_BOT",
+      "environment": "AEGIS_QUANT_MASTER",
+      "amount": 0.0,
+      "asset": "SYSTEM",
+      "network": "NONE",
+      "provider": "ADMIN",
+      "reference_id": "REASON: Red Team Lockdown Test",
+      "ip_address": "127.0.0.1"
+    },
+    {
+      "event_id": "AUD-1788289776274-EMER",
+      "timestamp": "2026-09-02 00:39:36",
+      "event_type": "EMERGENCY_KILL_SWITCH_TRIGGERED",
+      "user_id": "REDTEAM_BOT",
+      "environment": "AEGIS_QUANT_MASTER",
+      "amount": 0.0,
+      "asset": "SYSTEM",
+      "network": "NONE",
+      "provider": "ADMIN",
+      "reference_id": "REASON: Red Team Lockdown Test",
+      "ip_address": "127.0.0.1"
+    },
+    {
       "event_id": "AUD-1788289275158-EMER",
       "timestamp": "2026-09-02 00:31:15",
       "event_type": "EMERGENCY_KILL_SWITCH_TRIGGERED",

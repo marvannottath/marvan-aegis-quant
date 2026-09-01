@@ -1,6 +1,38 @@
 {
   "requests": [
     {
+      "deposit_id": "DEP-TRC20-1788289969598-5EA3CD",
+      "timestamp": "2026-09-02 00:42:49",
+      "environment": "AEGIS_QUANT_MASTER",
+      "asset": "USDT",
+      "network": "TRC20",
+      "network_name": "TRON (TRC20)",
+      "deposit_address": "TQn9Y2khEsLJW1ChV8m3N9K7xPnR2J4vLm",
+      "expected_amount": 200.0,
+      "actual_received_amount": 200.0,
+      "tx_hash": "0xredteam_1788289969598",
+      "confirmations": 19,
+      "required_confirmations": 19,
+      "status": "CREDITED",
+      "warning": "Send ONLY USDT via TRON (TRC20) network. Sending any other currency or using wrong network will result in permanent loss."
+    },
+    {
+      "deposit_id": "DEP-TRC20-1788289776276-2F9A29",
+      "timestamp": "2026-09-02 00:39:36",
+      "environment": "AEGIS_QUANT_MASTER",
+      "asset": "USDT",
+      "network": "TRC20",
+      "network_name": "TRON (TRC20)",
+      "deposit_address": "TQn9Y2khEsLJW1ChV8m3N9K7xPnR2J4vLm",
+      "expected_amount": 200.0,
+      "actual_received_amount": 200.0,
+      "tx_hash": "0xredteam_1788289776276",
+      "confirmations": 19,
+      "required_confirmations": 19,
+      "status": "CREDITED",
+      "warning": "Send ONLY USDT via TRON (TRC20) network. Sending any other currency or using wrong network will result in permanent loss."
+    },
+    {
       "deposit_id": "DEP-TRC20-1788289275153-33F289",
       "timestamp": "2026-09-02 00:31:15",
       "environment": "AEGIS_QUANT_MASTER",
@@ -391,6 +423,8 @@
     "0xreplay_1788279632116_TRC20_USDT": "DEP-TRC20-1788279632115-95FF1B",
     "0xreplay_1788279907444_TRC20_USDT": "DEP-TRC20-1788279907443-159C0F",
     "0xreplay_1788288954299_TRC20_USDT": "DEP-TRC20-1788288954297-196F51",
-    "0xreplay_1788289275155_TRC20_USDT": "DEP-TRC20-1788289275153-33F289"
+    "0xreplay_1788289275155_TRC20_USDT": "DEP-TRC20-1788289275153-33F289",
+    "0xredteam_1788289776276_TRC20_USDT": "DEP-TRC20-1788289776276-2F9A29",
+    "0xredteam_1788289969598_TRC20_USDT": "DEP-TRC20-1788289969598-5EA3CD"
   }
 }
