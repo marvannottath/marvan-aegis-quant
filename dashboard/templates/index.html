@@ -2419,11 +2419,11 @@
                             <span class="px-2 py-0.5 text-[9px] font-black rounded border ${actClass}">${action}</span>
                         </div>
                         <div class="flex justify-between items-center text-[10px] text-gray-400">
-                            <span>AI Confidence:</span>
-                            <span class="text-amber-400 font-bold">${score}%</span>
+                            <span>AI Opportunity Score:</span>
+                            <span class="text-amber-400 font-bold">${score}/100</span>
                         </div>
                         <div class="w-full bg-gray-800 h-1.5 rounded-full overflow-hidden">
-                            <div class="bg-gradient-to-r from-amber-500 to-emerald-400 h-full rounded-full" style="width: ${score}%"></div>
+                            <div class="bg-gradient-to-r from-amber-500 to-emerald-400 h-full rounded-full" style="width: ${score}/100"></div>
                         </div>
                     </div>
                 `;
@@ -2650,6 +2650,15 @@
         }
 
         async function setRiskProfile(prof) {
+            let maxLev = 10;
+            if (prof === 'CONSERVATIVE') maxLev = 2;
+            else if (prof === 'MODERATE') maxLev = 10;
+            else if (prof === 'AGGRESSIVE') maxLev = 25;
+            
+            if (typeof updateLeverageButtonsUI === 'function') {
+                updateLeverageButtonsUI(maxLev);
+            }
+            
             await fetch('/api/set-risk-profile', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -3951,7 +3960,7 @@
                                 <th class="py-2 px-3">Date & Time (IST)</th>
                                 <th class="py-2 px-3">Method & ZK Token</th>
                                 <th class="py-2 px-3">Anonymized Origin Node</th>
-                                <th class="py-2 px-3">Multi-Hop Escrow Corridor</th>
+                                <th class="py-2 px-3">Verified Blockchain Network Corridor (TRC20/BEP20)</th>
                                 <th class="py-2 px-3">Amount (+USD)</th>
                                 <th class="py-2 px-3">Status</th>
                             </tr>
