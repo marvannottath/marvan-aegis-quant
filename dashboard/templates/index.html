@@ -616,10 +616,10 @@
             <div class="flex items-center gap-2">
                 <span class="text-xs font-bold text-emerald-400 mr-1" id="lbl-trade-cap-active">Active Cap: $5,000</span>
                 <div id="cap-buttons-container" class="flex items-center gap-2">
+                    <button onclick="setTradeCap(500)" class="px-3 py-1.5 rounded-lg text-xs font-black bg-gray-900 border border-gray-800 text-gray-300 hover:text-white transition">$500</button>
                     <button onclick="setTradeCap(1000)" class="px-3 py-1.5 rounded-lg text-xs font-black bg-gray-900 border border-gray-800 text-gray-300 hover:text-white transition">$1,000</button>
                     <button onclick="setTradeCap(2500)" class="px-3 py-1.5 rounded-lg text-xs font-black bg-gray-900 border border-gray-800 text-gray-300 hover:text-white transition">$2,500</button>
-                    <button onclick="setTradeCap(5000)" class="px-3 py-1.5 rounded-lg text-xs font-black bg-emerald-500 text-black border border-emerald-400 font-black shadow-md transition">$5,000</button>
-                    <button onclick="setTradeCap(10000)" class="px-3 py-1.5 rounded-lg text-xs font-black bg-gray-900 border border-gray-800 text-gray-300 hover:text-white transition">$10,000</button>
+                    <button onclick="setTradeCap(5000)" class="px-3 py-1.5 rounded-lg text-xs font-black bg-emerald-500 text-black border border-emerald-400 font-black shadow-md transition">$5,000 (Max Cap)</button>
                 </div>
                 
                 <div class="flex items-center space-x-1 ml-2">
@@ -2096,6 +2096,12 @@
 
         async function switchEnvironment(envName) {
             try {
+                let confirmLive = false;
+                if (envName === 'BINANCE_LIVE_REAL') {
+                    const ok = confirm("⚠️ CONFIRMATION REQUIRED: Switch to REAL BINANCE LIVE PRODUCTION Trading Pool?\n\nReal USDT capital will be used.");
+                    if (!ok) return;
+                    confirmLive = true;
+                }
                 activeEnvironment = envName;
                 
                 // Update button UI immediately
@@ -2120,7 +2126,7 @@
                 const res = await fetch('/api/switch-trading-pool', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({pool: envName})
+                    body: JSON.stringify({pool: envName, confirm_live_authorization: confirmLive})
                 });
 
                 if (res.ok) {

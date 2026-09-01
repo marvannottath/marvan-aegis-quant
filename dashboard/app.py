@@ -760,11 +760,18 @@ async def get_vault_history():
 
 @app.post("/api/switch-trading-pool")
 async def switch_trading_pool(request: Request):
-    """Switch active capital pool between MASTER ($100k) and BINANCE ($5k)."""
+    """Switch active capital pool between MASTER ($100k) and BINANCE ($5k). Requires authorization for LIVE."""
     try:
         body = await request.json()
         target_pool = body.get("pool", "BINANCE_DEMO")
+        confirm_live = bool(body.get("confirm_live_authorization", False))
         cap = float(body.get("capital", 5000.0))
+
+        if target_pool in ["BINANCE_LIVE_REAL", "BINANCE_LIVE"] and not confirm_live:
+            return JSONResponse({
+                "status": "LIVE_MODE_AUTH_REQUIRED",
+                "message": "Explicit live authorization required to switch to BINANCE_LIVE_REAL pool."
+            }, status_code=400)
         
         result = paper_broker.set_active_capital_pool(target_pool, initial_capital=cap)
         return JSONResponse(result)

@@ -17,7 +17,7 @@ class EconomicCalendarFilter:
                 "impact": "HIGH",
                 "currency": "USD",
                 "asset_affected": "XAUUSD / Forex",
-                "scheduled_time": (datetime.now() + timedelta(minutes=45)).strftime("%Y-%m-%d %H:%M:%S"),
+                "scheduled_time": (datetime.now() + timedelta(hours=18)).strftime("%Y-%m-%d %H:%M:%S"),
                 "status": "SCHEDULED"
             },
             {
