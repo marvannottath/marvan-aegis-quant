@@ -328,7 +328,19 @@ class PaperBroker:
 
         total_trades = len(self.trade_history)
         win_trades = sum(1 for t in self.trade_history if float(t.get("pnl_usd", 0.0)) > 0)
-        win_rate = round((win_trades / total_trades * 100.0), 1) if total_trades > 0 else (100.0 if win_trades > 0 else 0.0)
+        # Filter out zero PnL sweeps from trade statistics
+        real_trades = [t for t in self.trade_history if abs(float(t.get("pnl_usd", 0.0))) > 0.01]
+        total_real_trades = len(real_trades)
+        win_trades = sum(1 for t in real_trades if float(t.get("pnl_usd", 0.0)) > 0)
+        loss_trades_count = sum(1 for t in real_trades if float(t.get("pnl_usd", 0.0)) < 0)
+
+        if total_real_trades < 5:
+            win_rate_display = f"Live Sample: {win_trades} Profitable / {loss_trades_count} Losing Trades"
+            win_rate = 0.0
+        else:
+            win_rate = round((win_trades / total_real_trades * 100.0), 1)
+            win_rate_display = f"{win_rate}%"
+
 
         # Performance metric formatting: If gross_loss == 0, handle profit factor cleanly
         if gross_loss == 0:
@@ -359,6 +371,7 @@ class PaperBroker:
                     "net_profit_usd": round(net_pnl, 2),
                     "total_trades": total_trades,
                     "win_rate_pct": win_rate,
+                    "win_rate_display": win_rate_display,
                     "profit_factor": profit_factor_val,
                     "profit_factor_display": profit_factor_display,
                     "ytd_display": ytd_display
