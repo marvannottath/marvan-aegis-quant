@@ -1,93 +1,188 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Deposit Portal | Marvan's Pool</title>
+    <title>USDT Deposit Hub | Aegis Quant Financial Portal</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>tailwind.config = { darkMode: 'class', theme: { extend: { colors: { darkbg: '#09090b', darkcard: '#111113', darkborder: '#1f2937' } } } }</script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <style>
-        body { background: #09090b; color: #fff; font-family: 'Inter', system-ui, sans-serif; overflow-y: auto !important; min-height: 100vh; }
-        ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: #111; } ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
-    </style>
-    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-<body class="bg-darkbg min-h-screen">
-    <!-- Top Bar -->
-    <div class="sticky top-0 z-50 bg-darkbg/95 backdrop-blur border-b border-darkborder px-4 py-3 flex items-center justify-between">
-        <div class="flex items-center space-x-3">
-            <a href="/" class="w-9 h-9 rounded-xl bg-gray-900 border border-gray-800 hover:border-amber-500/50 text-white flex items-center justify-center transition" title="Back to Dashboard">
-                <i class="fa-solid fa-arrow-left text-sm"></i>
-            </a>
-            <div>
-                <div class="text-sm font-black text-white flex items-center space-x-2">
-                    <span>💰</span><span>Deposit Portal</span>
-                </div>
-                <div class="text-[10px] text-gray-500">Marvan's Pool · Pro AI Trading Console</div>
-            </div>
-        </div>
-        <a href="/" class="text-xs text-gray-500 hover:text-amber-400 transition font-mono flex items-center space-x-1">
-            <i class="fa-solid fa-gauge-high mr-1"></i>Dashboard
-        </a>
-    </div>
-    <!-- Page Content -->
-    <div class="max-w-6xl mx-auto px-4 py-6">
+<body class="bg-gray-950 text-gray-100 font-sans min-h-screen p-4 md:p-8">
+    <div class="max-w-4xl mx-auto space-y-6">
         
-<div class="max-w-xl mx-auto">
-    <div class="text-center mb-8">
-        <div class="w-16 h-16 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center mx-auto mb-4">
-            <i class="fa-solid fa-circle-plus text-2xl text-amber-400"></i>
-        </div>
-        <h1 class="text-2xl font-black text-white">Deposit Portal</h1>
-        <p class="text-xs text-gray-500 mt-1">Add capital to your trading account</p>
-    </div>
-
-    <div class="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 mb-6">
-        <div class="flex items-start space-x-3">
-            <i class="fa-solid fa-triangle-exclamation text-amber-400 mt-0.5"></i>
-            <div>
-                <div class="text-sm font-black text-amber-300">DEPOSITS NOT CONFIGURED</div>
-                <div class="text-xs text-gray-400 mt-1">Official USDT (TRC20/BEP20) Blockchain Deposit Engine & Double-Entry Ledger Active. Deposits cannot be processed. All current balances are simulated paper trading capital.</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Virtual Deposit (Paper Mode) -->
-    <div class="bg-darkcard border border-darkborder rounded-2xl p-6">
-        <div class="text-sm font-black text-white mb-1">Virtual Capital Injection (Paper Mode)</div>
-        <div class="text-xs text-gray-500 mb-4">For paper trading only — adds simulated capital to your virtual account balance.</div>
-        <div class="space-y-3">
-            <div>
-                <label class="text-xs text-gray-400 font-bold uppercase">Amount (USD)</label>
-                <input id="deposit-amount" type="number" min="100" placeholder="e.g. 5000" class="w-full mt-2 bg-black border border-gray-800 focus:border-amber-500/50 text-white rounded-xl px-4 py-3 text-sm font-mono outline-none">
-            </div>
-            <div id="deposit-msg" class="text-xs text-center font-bold"></div>
-            <button onclick="submitDeposit()" class="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-black text-sm transition">
-                <i class="fa-solid fa-plus mr-2"></i>Add Virtual Capital
+        <!-- Top Navigation Bar -->
+        <div class="flex items-center justify-between border-b border-gray-800 pb-4">
+            <button onclick="window.location.href='/'" class="flex items-center space-x-2 text-amber-400 hover:text-amber-300 font-bold text-sm bg-gray-900 border border-gray-800 px-4 py-2 rounded-xl transition">
+                <i class="fa-solid fa-arrow-left"></i>
+                <span>Back to Dashboard</span>
             </button>
+            <div class="flex items-center space-x-2">
+                <span class="px-3 py-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg text-xs font-black">
+                    <i class="fa-solid fa-shield-halved mr-1"></i> DOUBLE-ENTRY LEDGER ACTIVE
+                </span>
+            </div>
         </div>
-    </div>
-</div>
 
-<script>
-async function submitDeposit() {
-    const amt = parseFloat(document.getElementById('deposit-amount').value);
-    const msg = document.getElementById('deposit-msg');
-    if (!amt || amt < 100) { msg.className='text-xs text-red-400 font-bold text-center'; msg.textContent='Minimum deposit is $100.'; return; }
-    const res = await fetch('/api/deposit-cash', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({amount: amt}) });
-    const data = await res.json();
-    if (data.status === 'SUCCESS') {
-        msg.className='text-xs text-emerald-400 font-bold text-center';
-        msg.textContent = 'Virtual capital added: $' + amt.toLocaleString() + ' — Return to dashboard to see updated balance.';
-    } else {
-        msg.className='text-xs text-red-400 font-bold text-center';
-        msg.textContent = data.message || 'Error processing deposit.';
-    }
-}
-</script>
+        <!-- Header Title -->
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-2xl">
+            <div class="flex items-center space-x-3 mb-2">
+                <div class="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                    <i class="fa-solid fa-wallet text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl md:text-2xl font-black text-white">USDT Deposit Hub (Binance Custody)</h1>
+                    <p class="text-xs text-gray-400">Direct USDT Deposit with Blockchain Verification & Idempotency Protection</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Network Selector & Deposit Details -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            <!-- Left: Network Selector & Warning -->
+            <div class="bg-gray-900 border border-gray-800 p-6 rounded-2xl space-y-4">
+                <h2 class="text-sm font-black text-amber-400 uppercase tracking-wider">1. Select USDT Network</h2>
+                <div class="space-y-2">
+                    <button onclick="selectNetwork('TRC20')" id="btn-trc20" class="w-full p-3 rounded-xl bg-amber-500/20 border border-amber-500 text-amber-300 font-black text-left flex justify-between items-center transition">
+                        <span><i class="fa-solid fa-network-wired mr-2"></i>TRON (TRC20)</span>
+                        <span class="text-[10px] bg-amber-500/30 px-2 py-0.5 rounded">RECOMMENDED</span>
+                    </button>
+                    <button onclick="selectNetwork('BEP20')" id="btn-bep20" class="w-full p-3 rounded-xl bg-gray-950 border border-gray-800 text-gray-400 font-bold text-left flex justify-between items-center hover:text-white transition">
+                        <span><i class="fa-solid fa-cubes mr-2"></i>BNB Smart Chain (BEP20)</span>
+                        <span class="text-[10px] text-gray-500">LOW FEE</span>
+                    </button>
+                    <button onclick="selectNetwork('ERC20')" id="btn-erc20" class="w-full p-3 rounded-xl bg-gray-950 border border-gray-800 text-gray-400 font-bold text-left flex justify-between items-center hover:text-white transition">
+                        <span><i class="fa-brands fa-ethereum mr-2"></i>Ethereum (ERC20)</span>
+                        <span class="text-[10px] text-gray-500">STANDARD</span>
+                    </button>
+                </div>
+
+                <div class="p-3 bg-red-950/40 border border-red-800/60 rounded-xl space-y-1">
+                    <div class="flex items-center space-x-1.5 text-red-400 font-bold text-xs">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        <span>STRICT NETWORK WARNING</span>
+                    </div>
+                    <p id="lbl-network-warning" class="text-[11px] text-red-300/90 leading-tight">
+                        Send ONLY USDT via TRON (TRC20) network. Transfers sent on the wrong network will be permanently lost.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Middle: Assigned Deposit Address & Details -->
+            <div class="md:col-span-2 bg-gray-900 border border-gray-800 p-6 rounded-2xl space-y-6">
+                <div class="flex justify-between items-center border-b border-gray-800 pb-3">
+                    <span class="text-sm font-black text-amber-400 uppercase tracking-wider">2. Deposit Address & Instructions</span>
+                    <span id="lbl-selected-network" class="text-xs font-mono font-bold text-emerald-400 bg-emerald-950 px-3 py-1 rounded-lg border border-emerald-800">
+                        NETWORK: TRON (TRC20)
+                    </span>
+                </div>
+
+                <div class="space-y-2">
+                    <label class="text-xs text-gray-400 font-bold">Assigned USDT Deposit Address:</label>
+                    <div class="flex items-center space-x-2">
+                        <input type="text" id="txt-deposit-address" readonly value="TQn9Y2khEsLJW1ChV8m3N9K7xPnR2J4vLm" class="w-full bg-gray-950 border border-gray-700 rounded-xl px-4 py-3 text-sm font-mono text-white font-bold focus:outline-none">
+                        <button onclick="copyAddress()" class="px-4 py-3 bg-amber-500 text-black font-black text-xs rounded-xl hover:bg-amber-400 transition">
+                            <i class="fa-solid fa-copy mr-1"></i> Copy
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 text-xs font-mono">
+                    <div class="bg-gray-950 p-3 rounded-xl border border-gray-800">
+                        <span class="text-gray-400 block text-[10px]">MINIMUM DEPOSIT:</span>
+                        <span class="text-white font-bold">$10.00 USDT</span>
+                    </div>
+                    <div class="bg-gray-950 p-3 rounded-xl border border-gray-800">
+                        <span class="text-gray-400 block text-[10px]">REQUIRED CONFIRMATIONS:</span>
+                        <span class="text-white font-bold" id="lbl-confirmations">19 Blocks</span>
+                    </div>
+                </div>
+
+                <!-- Blockchain TX Verification Section -->
+                <div class="border-t border-gray-800 pt-4 space-y-3">
+                    <h3 class="text-xs font-black text-gray-300 uppercase">3. Verify Blockchain Transaction Hash</h3>
+                    <div class="flex flex-col md:flex-row gap-2">
+                        <input type="text" id="txt-tx-hash" placeholder="Enter Blockchain TX Hash (e.g. 0x99a88b77c...)" class="flex-1 bg-gray-950 border border-gray-700 rounded-xl px-4 py-2.5 text-xs text-white font-mono focus:outline-none">
+                        <button onclick="verifyTxHash()" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl transition">
+                            Verify & Credit Ledger
+                        </button>
+                    </div>
+                    <div id="div-tx-status" class="hidden p-3 rounded-xl text-xs font-mono"></div>
+                </div>
+            </div>
+        </div>
 
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <script>
+        let currentNetwork = 'TRC20';
+        const netAddresses = {
+            'TRC20': { addr: 'TQn9Y2khEsLJW1ChV8m3N9K7xPnR2J4vLm', name: 'TRON (TRC20)', blocks: '19 Blocks', warn: 'Send ONLY USDT via TRON (TRC20) network. Transfers sent on the wrong network will be permanently lost.' },
+            'BEP20': { addr: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F', name: 'BNB Smart Chain (BEP20)', blocks: '15 Blocks', warn: 'Send ONLY USDT via BSC (BEP20) network. Incorrect network transfers cannot be recovered.' },
+            'ERC20': { addr: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F', name: 'Ethereum (ERC20)', blocks: '12 Blocks', warn: 'Send ONLY USDT via Ethereum (ERC20) network.' }
+        };
+
+        function selectNetwork(net) {
+            currentNetwork = net;
+            const data = netAddresses[net];
+            document.getElementById('txt-deposit-address').value = data.addr;
+            document.getElementById('lbl-selected-network').innerText = 'NETWORK: ' + data.name;
+            document.getElementById('lbl-confirmations').innerText = data.blocks;
+            document.getElementById('lbl-network-warning').innerText = data.warn;
+
+            ['TRC20', 'BEP20', 'ERC20'].forEach(n => {
+                const btn = document.getElementById('btn-' + n.toLowerCase());
+                if (n === net) {
+                    btn.className = 'w-full p-3 rounded-xl bg-amber-500/20 border border-amber-500 text-amber-300 font-black text-left flex justify-between items-center transition';
+                } else {
+                    btn.className = 'w-full p-3 rounded-xl bg-gray-950 border border-gray-800 text-gray-400 font-bold text-left flex justify-between items-center hover:text-white transition';
+                }
+            });
+        }
+
+        function copyAddress() {
+            const addr = document.getElementById('txt-deposit-address').value;
+            navigator.clipboard.writeText(addr);
+            alert('Deposit address copied to clipboard!');
+        }
+
+        async function verifyTxHash() {
+            const txHash = document.getElementById('txt-tx-hash').value.trim();
+            const statusDiv = document.getElementById('div-tx-status');
+
+            if (!txHash) {
+                alert('Please enter a valid Blockchain TX Hash.');
+                return;
+            }
+
+            statusDiv.className = 'p-3 rounded-xl text-xs font-mono bg-amber-950/60 text-amber-300 border border-amber-800';
+            statusDiv.innerText = 'Verifying TX Hash on blockchain ledger...';
+            statusDiv.classList.remove('hidden');
+
+            try {
+                const resp = await fetch('/api/usdt/verify-tx-hash', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        tx_hash: txHash,
+                        amount: 100.0,
+                        network: currentNetwork
+                    })
+                });
+                const res = await resp.json();
+
+                if (res.status === 'CREDITED') {
+                    statusDiv.className = 'p-3 rounded-xl text-xs font-mono bg-emerald-950/80 text-emerald-300 border border-emerald-800';
+                    statusDiv.innerText = '✅ SUCCESS: ' + res.message;
+                } else {
+                    statusDiv.className = 'p-3 rounded-xl text-xs font-mono bg-red-950/80 text-red-300 border border-red-800';
+                    statusDiv.innerText = '❌ VERIFICATION FAILED: ' + (res.message || 'Invalid or duplicate transaction hash.');
+                }
+            } catch (err) {
+                statusDiv.className = 'p-3 rounded-xl text-xs font-mono bg-red-950/80 text-red-300 border border-red-800';
+                statusDiv.innerText = '❌ Error verifying transaction: ' + err.message;
+            }
+        }
+    </script>
 </body>
 </html>

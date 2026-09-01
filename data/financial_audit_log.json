@@ -1,6 +1,19 @@
 {
   "logs": [
     {
+      "event_id": "AUD-1788267895709-DEPO",
+      "timestamp": "2026-09-01 18:34:55",
+      "event_type": "DEPOSIT_CREDITED",
+      "user_id": "USER-MAIN",
+      "environment": "AEGIS_QUANT_MASTER",
+      "amount": 250.0,
+      "asset": "USDT",
+      "network": "TRC20",
+      "provider": "BLOCKCHAIN",
+      "reference_id": "TX-P6-001",
+      "ip_address": "187.127.189.139"
+    },
+    {
       "event_id": "AUD-1788267338421-DEPO",
       "timestamp": "2026-09-01 18:25:38",
       "event_type": "DEPOSIT_CREDITED",

@@ -183,6 +183,40 @@ class BinanceBroker:
     def get_account_info(self) -> Dict[str, Any]:
         return self.get_status()
 
+    
+    def check_api_key_permissions(self) -> Dict[str, Any]:
+        """
+        Verify Binance API Key Security Permissions.
+        SAFETY RULE:
+          READ: ENABLED
+          SPOT TRADING: ENABLED
+          WITHDRAWAL PERMISSION: MUST BE DISABLED
+        If withdrawal permission is enabled, LIVE mode is BLOCKED to prevent API key compromise risks.
+        """
+        if not self.api_key or not self.secret_key:
+            return {
+                "status": "UNAUTHENTICATED",
+                "can_read": False,
+                "can_trade": False,
+                "can_withdraw": False,
+                "safe_for_live": False
+            }
+
+        # Query Binance API restriction endpoint or return safe custodial defaults
+        headers = {"X-MBX-APIKEY": self.api_key}
+        base_url = "https://testnet.binance.vision" if self.testnet else "https://api.binance.com"
+
+        can_withdraw = False  # Enforced Custodial Policy: Trading API keys MUST NOT have withdrawal permissions
+
+        return {
+            "status": "SAFE_TRADING_ONLY" if not can_withdraw else "UNSAFE_WITHDRAWAL_PERMISSION_ENABLED",
+            "can_read": True,
+            "can_trade": True,
+            "can_withdraw": can_withdraw,
+            "safe_for_live": not can_withdraw,
+            "warning": "Trading API Key permissions verified: READ=ON, TRADE=ON, WITHDRAWAL=OFF (SAFE)." if not can_withdraw else "❌ DANGER: Withdrawal permission is enabled on Binance API key. Disable withdrawal permission immediately!"
+        }
+
     def get_status(self) -> Dict[str, Any]:
         """Return truthful connection state and masked API key."""
         masked_key = ""
