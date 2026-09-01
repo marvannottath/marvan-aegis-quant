@@ -165,6 +165,9 @@ class AutonomousTrader:
                                 except Exception:
                                     pass
 
+                # 3b. Enforce stops on all open positions (every tick)
+                self.broker.check_and_enforce_stops(self.risk_engine)
+
                 # 4. Tick Simulation & Continuous Profit Harvesting
                 possible_leverages = [base_lev, min(50.0, base_lev * 1.5)]
                 possible_margins = [1000.0, 2000.0, 2500.0]
@@ -235,18 +238,28 @@ class AutonomousTrader:
                                 c_act = "BUY" if top_c["ai_action"] != "SELL" else "SELL"
                                 dyn_lev = float(np.random.choice(possible_leverages))
                                 dyn_margin = float(np.random.choice(possible_margins))
-                                order = self.broker.execute_order(
-                                    asset=top_c["ticker"],
-                                    action=c_act,
+                                # All replenishment orders must pass full risk pipeline
+                                _ok, _code, _msg = self.risk_engine.validate_order_pipeline(
                                     amount_usd=dyn_margin,
-                                    current_price=top_c["price"],
-                                    indicators={"RSI": top_c["rsi"], "Volatility": top_c["volatility"]},
-                                    sentiment_score=sentiment_score,
-                                    leverage=dyn_lev
+                                    leverage=dyn_lev,
+                                    current_open_positions=len(self.broker.positions),
+                                    available_cash=self.broker.virtual_cash
                                 )
-                                if order:
-                                    self.position_age[top_c["ticker"]] = 0
-                                    self._log_action(top_c["ticker"], c_act, top_c["price"], dyn_margin, f"Continuous Harvest Replenishment ({dyn_lev:.0f}x Lev)")
+                                if not _ok:
+                                    self._log_action(top_c["ticker"], "RISK_REJECTED", top_c["price"], dyn_margin, f"Replenishment blocked: {_code}")
+                                else:
+                                    order = self.broker.execute_order(
+                                        asset=top_c["ticker"],
+                                        action=c_act,
+                                        amount_usd=dyn_margin,
+                                        current_price=top_c["price"],
+                                        indicators={"RSI": top_c["rsi"], "Volatility": top_c["volatility"]},
+                                        sentiment_score=sentiment_score,
+                                        leverage=dyn_lev
+                                    )
+                                    if order:
+                                        self.position_age[top_c["ticker"]] = 0
+                                        self._log_action(top_c["ticker"], c_act, top_c["price"], dyn_margin, f"Replenishment approved: {_code} ({dyn_lev:.0f}x Lev)")
 
                 # 5. Update equity and persist state
                 self.broker._update_equity()

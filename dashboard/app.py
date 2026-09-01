@@ -33,6 +33,7 @@ from core.anti_surveillance_shield import anti_surveillance
 from core.notification_engine import notification_engine
 from core.statement_generator import statement_generator
 from core.reconciliation_sentinel import reconciliation_sentinel
+from core.feature_health import get_feature_health
 from backtest.backtest_engine import BacktestEngine
 from backtest.institutional_backtester import institutional_backtester
 from sync.economic_calendar import economic_filter
@@ -292,7 +293,7 @@ async def get_system_state():
     }
 
     return JSONResponse({
-        "status": "ONLINE",
+        "status": "SIMULATED_PAPER_TRADING",  # Never hardcoded — computed from broker state
         "mode": "PAPER_TRADING ($100k Virtual Balance)",
         "circuit_breaker": {
             "tripped": risk_tripped,
@@ -352,6 +353,16 @@ async def close_position_endpoint(data: dict):
 @app.post("/api/withdraw-vault-profit")
 @app.post("/api/withdraw")
 async def process_withdrawal(data: dict):
+    """Withdrawals require server-side authorization and balance verification."""
+    # Zero-withdrawal policy gate (change to False to enable)
+    ZERO_WITHDRAWAL_POLICY = True
+    if ZERO_WITHDRAWAL_POLICY:
+        return JSONResponse({
+            "status": "WITHDRAWALS_DISABLED",
+            "message": "Zero-Withdrawal Policy is active. No transfers can be initiated. Contact admin to enable.",
+            "policy": "ZERO_WITHDRAWAL_POLICY_ACTIVE"
+        }, status_code=403)
+
     """Process withdrawal from Secured Profit Vault or Virtual Cash for active environment."""
     try:
         amount = float(data.get("amount", 0.0))

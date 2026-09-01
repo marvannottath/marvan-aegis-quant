@@ -514,4 +514,113 @@ class PaperBroker:
         except Exception as e:
             print(f"[PAPER BROKER] Immutable Binance sync notice: {e}")
 
+    def check_and_enforce_stops(self, risk_engine_ref=None) -> list:
+        """
+        Enforce stop-loss and take-profit on all open positions.
+        Called every tick. Returns list of positions closed by stop enforcement.
+        """
+        from core.risk_engine import risk_engine as re
+        engine = risk_engine_ref or re
+        closed = []
+
+        sl_pct = engine.active_profile.get("stop_loss_pct", 1.5) / 100.0
+        tp_pct = engine.active_profile.get("take_profit_target_pct", 3.5) / 100.0
+
+        for asset_key, pos in list(self.positions.items()):
+            entry = pos["entry_price"]
+            act = pos["action"]
+            price = pos.get("last_price", entry)
+
+            if act == "BUY":
+                pnl_pct = (price - entry) / entry if entry > 0 else 0.0
+                sl_trigger = -sl_pct
+                tp_trigger = tp_pct
+            else:
+                pnl_pct = (entry - price) / entry if entry > 0 else 0.0
+                sl_trigger = -sl_pct
+                tp_trigger = tp_pct
+
+            stop_price = entry * (1 - sl_pct) if act == "BUY" else entry * (1 + sl_pct)
+            tp_price   = entry * (1 + tp_pct) if act == "BUY" else entry * (1 - tp_pct)
+
+            # Enrich position with stop data for UI display
+            pos["stop_loss_price"]   = round(stop_price, 4 if price < 100 else 2)
+            pos["take_profit_price"] = round(tp_price, 4 if price < 100 else 2)
+            pos["distance_to_stop_pct"] = round((pnl_pct - sl_trigger) * 100, 3)
+            pos["stop_status"] = "AT_RISK" if pnl_pct <= (sl_trigger * 0.5) else "SAFE"
+
+            # Hard stop-loss enforcement
+            if pnl_pct <= sl_trigger:
+                pnl_usd = (price - entry) * pos["units"] if act == "BUY" else (entry - price) * pos["units"]
+                pos["stop_status"] = "TRIGGERED"
+                self.close_position(
+                    asset=asset_key,
+                    exit_price=price,
+                    current_indicators={"RSI": 50.0, "Volatility": 0.01},
+                    sentiment_score=0.5,
+                    reason=f"STOP_LOSS_ENFORCED (SL={sl_pct*100:.2f}%, PnL={pnl_pct*100:.3f}%)"
+                )
+                # Record loss in risk engine for daily limit tracking
+                if pnl_usd < 0:
+                    try:
+                        engine.record_loss(abs(pnl_usd))
+                    except Exception:
+                        pass
+                closed.append({"asset": asset_key, "reason": "STOP_LOSS_ENFORCED", "pnl_pct": round(pnl_pct * 100, 3)})
+                print(f"[STOP ENFORCED] {asset_key} closed at {price} | PnL: {pnl_pct*100:.3f}% | SL: {sl_pct*100:.2f}%")
+
+            # Take-profit enforcement
+            elif pnl_pct >= tp_trigger:
+                self.close_position(
+                    asset=asset_key,
+                    exit_price=price,
+                    current_indicators={"RSI": 50.0, "Volatility": 0.01},
+                    sentiment_score=0.5,
+                    reason=f"TAKE_PROFIT_ENFORCED (TP={tp_pct*100:.2f}%, PnL={pnl_pct*100:.3f}%)"
+                )
+                closed.append({"asset": asset_key, "reason": "TAKE_PROFIT_ENFORCED", "pnl_pct": round(pnl_pct * 100, 3)})
+
+        return closed
+
+    def get_reconciliation(self) -> dict:
+        """
+        Compute Account Reconciliation Statement.
+        Equity = Cash + Used_Margin + Unrealized_PnL + Vault_Reserve
+        """
+        self._update_equity()
+
+        used_margin = sum(p.get("capital_allocated", 0.0) for p in self.positions.values())
+        unrealized_pnl = 0.0
+        for pos in self.positions.values():
+            price = pos.get("last_price", pos["entry_price"])
+            if pos["action"] == "BUY":
+                unrealized_pnl += (price - pos["entry_price"]) * pos["units"]
+            else:
+                unrealized_pnl += (pos["entry_price"] - price) * pos["units"]
+
+        if self.active_pool_name == "AEGIS_QUANT_MASTER":
+            from execution.profit_vault import profit_vault
+            vault_bal = profit_vault.vault_balance
+        else:
+            vault_bal = self.pools[self.active_pool_name].get("vault_reserve", 0.0)
+
+        cash = self.virtual_cash
+        computed_equity = cash + used_margin + unrealized_pnl + vault_bal
+        reported_equity = self.equity
+        delta = abs(computed_equity - reported_equity)
+        reconciled = delta < 0.10  # Tolerance of $0.10
+
+        return {
+            "cash": round(cash, 2),
+            "vault_reserve": round(vault_bal, 2),
+            "used_margin": round(used_margin, 2),
+            "unrealized_pnl": round(unrealized_pnl, 2),
+            "computed_equity": round(computed_equity, 2),
+            "reported_equity": round(reported_equity, 2),
+            "delta": round(delta, 4),
+            "status": "RECONCILIATION_OK" if reconciled else "RECONCILIATION_ERROR",
+            "formula": "Equity = Cash + Used_Margin + Unrealized_PnL + Vault_Reserve",
+            "active_pool": self.active_pool_name
+        }
+
 paper_broker = PaperBroker()
