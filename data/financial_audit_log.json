@@ -1,6 +1,32 @@
 {
   "logs": [
     {
+      "event_id": "AUD-1788289275158-EMER",
+      "timestamp": "2026-09-02 00:31:15",
+      "event_type": "EMERGENCY_KILL_SWITCH_TRIGGERED",
+      "user_id": "PERF_TESTER",
+      "environment": "AEGIS_QUANT_MASTER",
+      "amount": 0.0,
+      "asset": "SYSTEM",
+      "network": "NONE",
+      "provider": "ADMIN",
+      "reference_id": "REASON: Emergency Chaos Test",
+      "ip_address": "127.0.0.1"
+    },
+    {
+      "event_id": "AUD-1788288954302-EMER",
+      "timestamp": "2026-09-02 00:25:54",
+      "event_type": "EMERGENCY_KILL_SWITCH_TRIGGERED",
+      "user_id": "PERF_TESTER",
+      "environment": "AEGIS_QUANT_MASTER",
+      "amount": 0.0,
+      "asset": "SYSTEM",
+      "network": "NONE",
+      "provider": "ADMIN",
+      "reference_id": "REASON: Emergency Chaos Test",
+      "ip_address": "127.0.0.1"
+    },
+    {
       "event_id": "AUD-1788279907448-EMER",
       "timestamp": "2026-09-01 21:55:07",
       "event_type": "EMERGENCY_KILL_SWITCH_TRIGGERED",

@@ -163,7 +163,7 @@
 
             <!-- Sidebar Bottom Info -->
             <div class="p-3 border-t border-darkborder bg-gray-950/60 text-[10px] text-gray-400 space-y-1 font-mono">
-                <div class="flex justify-between"><span>Risk Cap:</span><span id="lbl-sidebar-risk-cap" class="text-amber-400 font-bold">$5,000</span></div>
+                <div class="flex justify-between"><span>Trade Cap:</span><span class="text-amber-400 font-bold">$5,000</span> | <span>Risk:</span><span class="text-white font-bold">2.5%</span></div>
                 <div class="flex justify-between"><span>Kill Switch:</span><span class="text-emerald-400 font-bold">READY</span></div>
             </div>
         </aside>
@@ -461,7 +461,7 @@
 
                         <div class="p-3 bg-gray-950 border border-gray-800 rounded-xl text-[11px] text-gray-400 space-y-1">
                             <div class="font-bold text-amber-400 flex items-center"><i class="fa-solid fa-shield-halved mr-1"></i> Active Risk Guard: MODERATE</div>
-                            <div>Max Trade Cap: <span class="text-white font-bold">$5,000</span> | Max Lev: <span class="text-white font-bold">10x</span></div>
+                            <div>Trade Cap: <span class="text-amber-400 font-bold">$5,000</span> | Risk Cap: <span class="text-white font-bold">2.5%</span> | Max Lev: <span class="text-white font-bold">10x</span></div>
                         </div>
                     </div>
                 </div>
@@ -581,7 +581,7 @@
                 <div class="flex items-center justify-between border-b border-gray-800 pb-4">
                     <div>
                         <h2 class="text-xl font-black text-white"><i class="fa-solid fa-chart-pie text-indigo-400 mr-2"></i> Backtest Historical Analytics Lab</h2>
-                        <p class="text-xs text-amber-400 font-bold">INTERNAL HISTORICAL SIMULATION (2010–2026) — Past backtest performance does not predict future live returns.</p>
+                        <p class="text-xs text-amber-400 font-bold">SIMULATED / NON-LIVE / HISTORICAL MODEL OUTPUT — Past historical backtest performance does not predict future live returns.</p>
                     </div>
                 </div>
 
@@ -663,7 +663,7 @@
 
                             <div id="dep-address-box" class="hidden p-4 bg-gray-950 border border-amber-500/40 rounded-xl space-y-2 text-xs font-mono">
                                 <div class="text-gray-400">Assigned Wallet Address:</div>
-                                <div id="lbl-dep-address" class="text-amber-400 font-bold break-all">TQn9Y2khEsLJW1ChV8m3N9K7xPnR2J4vLm</div>
+                                <div id="lbl-dep-address" class="text-amber-400 font-bold break-all">SANDBOX-TESTNET-TRC20-UNASSIGNED-ADDRESS</div>
                                 <div class="text-[10px] text-gray-500">Minimum Deposit: 10 USDT | Confirmations Required: 12</div>
                             </div>
                         </div>
@@ -899,7 +899,31 @@
             }
         }
 
+        
+        function checkStaleDataAndConnectionGuard(data) {
+            const btnBuy = document.getElementById('btn-execute-order');
+            const connLbl = document.getElementById('lbl-conn-status');
+            
+            const isDisconnected = connLbl && connLbl.innerText.includes('DISCONNECTED');
+            const dataAge = data.data_age_seconds || 0;
+            const isStale = dataAge > 60;
+
+            if (isDisconnected || isStale) {
+                if (btnBuy) {
+                    btnBuy.disabled = true;
+                    btnBuy.className = 'w-full py-3.5 bg-gray-800 text-gray-500 font-black text-xs rounded-xl cursor-not-allowed border border-gray-700';
+                    btnBuy.innerText = isDisconnected ? 'TRADING DISABLED — CONNECTION DISCONNECTED' : 'TRADING DISABLED — STALE MARKET DATA (>60s)';
+                }
+            } else {
+                if (btnBuy) {
+                    btnBuy.disabled = false;
+                    btnBuy.className = 'flex-1 py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm rounded-xl transition shadow-lg flex items-center justify-center';
+                }
+            }
+        }
+
         function updateTerminalState(data) {
+            checkStaleDataAndConnectionGuard(data);
             // Authoritative Single Source of Truth Portfolio Values
             const equity = data.portfolio_equity || 100023.49;
             const cash = data.virtual_cash || 95196.83;
