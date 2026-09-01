@@ -3,13 +3,14 @@ Institutional Profit Sweep & Reserve Vault Module — Pure Data-Driven Invariant
 Vault balance is ALWAYS dynamically computed as:
   vault_balance = SUM(sweep_amount) - SUM(withdrawals)
 NO static balance variable. NO seed values. NO backtest leakage.
+100% Backward-compatible properties & methods.
 """
 
 import time
 import json
 import uuid
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone, timedelta
 
 IST_TZ = timezone(timedelta(hours=5, minutes=30))
@@ -60,6 +61,45 @@ class ProfitVault:
         withdrawals_sum = sum(float(w.get("amount", 0.0)) for w in store.get("withdrawals", []) if w.get("status") == "COMPLETED")
         return round(sweeps_sum - withdrawals_sum, 2)
 
+    @property
+    def vault_balance(self) -> float:
+        """Compatibility property: returns active pool vault balance."""
+        try:
+            from execution.paper_broker import paper_broker
+            env = getattr(paper_broker, "active_pool_name", "AEGIS_QUANT_MASTER")
+        except Exception:
+            env = "AEGIS_QUANT_MASTER"
+        return self.get_vault_balance(env)
+
+    @property
+    def sweep_history(self) -> List[Dict[str, Any]]:
+        """Compatibility property: returns active pool sweep transactions."""
+        try:
+            from execution.paper_broker import paper_broker
+            env = getattr(paper_broker, "active_pool_name", "AEGIS_QUANT_MASTER")
+        except Exception:
+            env = "AEGIS_QUANT_MASTER"
+        store = self.vault_stores.get(env, {"transactions": [], "withdrawals": []})
+        return store.get("transactions", [])
+
+    @property
+    def withdrawal_history(self) -> List[Dict[str, Any]]:
+        """Compatibility property: returns active pool withdrawal history."""
+        try:
+            from execution.paper_broker import paper_broker
+            env = getattr(paper_broker, "active_pool_name", "AEGIS_QUANT_MASTER")
+        except Exception:
+            env = "AEGIS_QUANT_MASTER"
+        store = self.vault_stores.get(env, {"transactions": [], "withdrawals": []})
+        return store.get("withdrawals", [])
+
+    def get_full_sweep_history(self, environment: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Returns sweep transactions for environment or active pool."""
+        if environment:
+            store = self.vault_stores.get(environment, {"transactions": [], "withdrawals": []})
+            return store.get("transactions", [])
+        return self.sweep_history
+
     def sweep_profit(self, trade_pnl: float, asset: str, exit_reason: str, source_trade_id: str = "", environment: str = "AEGIS_QUANT_MASTER") -> Dict[str, Any]:
         """
         Record verified profit sweep with 11-field Schema.
@@ -96,6 +136,26 @@ class ProfitVault:
         print(f"[PROFIT VAULT] Swept +${sweep_amt:.2f} into {environment} Vault | New Balance: ${new_bal:,.2f}")
         return tx_record
 
+    def withdraw(self, amount: float, reason: str = "VAULT_WITHDRAWAL", destination: str = "Bank Account", environment: str = "AEGIS_QUANT_MASTER") -> tuple:
+        """Record withdrawal from vault."""
+        bal = self.get_vault_balance(environment)
+        if amount > bal:
+            return False, f"Insufficient Vault Balance (${bal:.2f} available)."
+        
+        store = self.vault_stores.setdefault(environment, {"transactions": [], "withdrawals": []})
+        record = {
+            "withdrawal_id": f"WDR-{environment[:4]}-{int(time.time()*1000)}",
+            "timestamp": get_ist_timestamp(),
+            "amount": round(amount, 2),
+            "destination": destination,
+            "reason": reason,
+            "environment": environment,
+            "status": "COMPLETED"
+        }
+        store["withdrawals"].insert(0, record)
+        self._save_state()
+        return True, "Withdrawal executed successfully"
+
     def get_vault_summary(self, environment: str = "AEGIS_QUANT_MASTER") -> Dict[str, Any]:
         """Return dynamic vault summary derived strictly from verified transaction ledger."""
         store = self.vault_stores.get(environment, {"transactions": [], "withdrawals": []})
@@ -115,7 +175,6 @@ class ProfitVault:
             "withdrawal_history": wds,
             "ledger_verified": True
         }
-
 
 # Global Singleton
 profit_vault = ProfitVault()
