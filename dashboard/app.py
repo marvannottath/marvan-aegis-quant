@@ -118,7 +118,7 @@ async def read_dashboard(request: Request):
     ledger_metrics = account.get("ledger_metrics", {}).get("all_time", {})
     
     eq_val = account.get('portfolio_equity', 100000.0)
-    vault_val = vault.get('vault_balance', 0.0)
+    vault_val = profit_vault.get_vault_balance(paper_broker.active_pool_name)
     cash_val = account.get('virtual_cash', 100000.0)
     open_positions = account.get('open_positions', [])
     open_pos_count = len(open_positions)
