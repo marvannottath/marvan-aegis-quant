@@ -2563,17 +2563,24 @@
         }
 
         
+
         function updateLeverageButtonsUI(maxLev) {
             const container = document.getElementById('container-leverage-buttons');
             if (!container) return;
-            const options = [1, 5, 10, 25, 50];
-            const filtered = options.filter(l => l <= maxLev);
-            container.innerHTML = filtered.map(l => `
-                <button id="btn-lev-${l}" onclick="setLeverage(${l})" class="flex-1 py-1 ${l === currentLeverage ? 'bg-amber-500 text-black font-black' : 'bg-gray-800 text-gray-300'} text-xs font-bold rounded">
+            
+            // State-Aware Profile Leverage Map
+            let levOptions = [1, 5, 10];
+            if (maxLev <= 2) levOptions = [1, 2];
+            else if (maxLev <= 10) levOptions = [1, 5, 10];
+            else if (maxLev <= 25) levOptions = [1, 5, 10, 25];
+
+            container.innerHTML = levOptions.map(l => `
+                <button id="btn-lev-${l}" onclick="setLeverage(${l})" class="flex-1 py-1 ${l === currentLeverage ? 'bg-amber-500 text-black font-black' : 'bg-gray-800 text-gray-300 hover:text-white'} text-xs font-bold rounded">
                     ${l}x ${l === maxLev ? '(Max)' : ''}
                 </button>
             `).join('');
         }
+
 
         function setLeverage(lev) {
             currentLeverage = lev;
