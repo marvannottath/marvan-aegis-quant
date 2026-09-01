@@ -19,5 +19,5 @@
       "status": "VERIFIED"
     }
   ],
-  "zero_withdrawal_policy": false
+  "zero_withdrawal_policy": true
 }
