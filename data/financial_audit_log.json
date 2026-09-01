@@ -1,6 +1,19 @@
 {
   "logs": [
     {
+      "event_id": "AUD-1788275842451-EMER",
+      "timestamp": "2026-09-01 20:47:22",
+      "event_type": "EMERGENCY_KILL_SWITCH_TRIGGERED",
+      "user_id": "PERF_TESTER",
+      "environment": "AEGIS_QUANT_MASTER",
+      "amount": 0.0,
+      "asset": "SYSTEM",
+      "network": "NONE",
+      "provider": "ADMIN",
+      "reference_id": "REASON: Emergency Chaos Test",
+      "ip_address": "127.0.0.1"
+    },
+    {
       "event_id": "AUD-1788275292066-EMER",
       "timestamp": "2026-09-01 20:38:12",
       "event_type": "EMERGENCY_KILL_SWITCH_TRIGGERED",
