@@ -318,27 +318,33 @@
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 flex-1 max-w-3xl">
-                <!-- 1. Aegis Quant Master Engine -->
-                <button onclick="switchEnvironment('AEGIS_QUANT_MASTER')" id="env-btn-master" class="py-2.5 px-3 rounded-xl text-xs font-black transition flex items-center justify-center space-x-2 border bg-amber-500 text-black border-amber-400 shadow-lg">
-                    <i class="fa-solid fa-brain"></i>
-                    <span>1. Master Engine ($100k)</span>
-                </button>
+            <div class="flex items-center space-x-2 flex-1 max-w-3xl">
+                <!-- 3-way Environment Switcher -->
+                <div class="grid grid-cols-3 gap-2 flex-1">
+                    <!-- 1. Aegis Quant Master Engine -->
+                    <button onclick="switchEnvironment('AEGIS_QUANT_MASTER')" id="env-btn-master" class="py-2.5 px-3 rounded-xl text-xs font-black transition flex items-center justify-center space-x-2 border bg-amber-500 text-black border-amber-400 shadow-lg">
+                        <i class="fa-solid fa-brain"></i>
+                        <span>1. Master Engine ($100k)</span>
+                    </button>
 
-                <!-- 2. Binance Official Testnet -->
-                <button onclick="switchEnvironment('BINANCE_TESTNET_DEMO')" id="env-btn-testnet" class="py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-2 border bg-gray-900 text-gray-400 border-gray-800 hover:text-white">
-                    <i class="fa-brands fa-bitcoin text-amber-400"></i>
-                    <span>2. Binance Testnet ($19.9k)</span>
-                </button>
-                <button onclick="openBinanceTradesModal()" class="py-2.5 px-2 rounded-xl text-[11px] font-bold bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 transition flex items-center justify-center space-x-1">
+                    <!-- 2. Binance Official Testnet -->
+                    <button onclick="switchEnvironment('BINANCE_TESTNET_DEMO')" id="env-btn-testnet" class="py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-2 border bg-gray-900 text-gray-400 border-gray-800 hover:text-white">
+                        <i class="fa-brands fa-bitcoin text-amber-400"></i>
+                        <span>2. Binance Testnet ($19.9k)</span>
+                    </button>
+
+                    <!-- 3. Binance Live Real Spot -->
+                    <button onclick="switchEnvironment('BINANCE_LIVE_REAL')" id="env-btn-live" class="py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-2 border bg-gray-900 text-gray-400 border-gray-800 hover:text-white">
+                        <i class="fa-solid fa-satellite-dish text-red-400"></i>
+                        <span>3. Binance Live (Real USDT)</span>
+                    </button>
+                </div>
+
+                <!-- Binance Fills Log: Separate dedicated button (only when on Binance pool) -->
+                <button onclick="openBinanceTradesModal()" id="btn-binance-fills-log"
+                    class="py-2.5 px-3 rounded-xl text-[11px] font-bold bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 transition flex items-center justify-center space-x-1 whitespace-nowrap flex-shrink-0">
                     <i class="fa-solid fa-list-check text-amber-400"></i>
                     <span>Binance Fills Log</span>
-                </button>
-
-                <!-- 3. Binance Live Real Spot -->
-                <button onclick="switchEnvironment('BINANCE_LIVE_REAL')" id="env-btn-live" class="py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-2 border bg-gray-900 text-gray-400 border-gray-800 hover:text-white">
-                    <i class="fa-solid fa-satellite-dish text-red-400"></i>
-                    <span>3. Binance Live (Real USDT)</span>
                 </button>
             </div>
         </div>

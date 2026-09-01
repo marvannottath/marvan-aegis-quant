@@ -815,3 +815,8 @@ async def get_binance_live_trades(symbol: str = "BTCUSDT"):
         "trades_count": len(trades),
         "trades": trades
     })
+
+@app.get("/manifest.json")
+async def serve_manifest():
+    from fastapi.responses import FileResponse
+    return FileResponse("dashboard/static/manifest.json", media_type="application/json")
