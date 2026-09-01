@@ -1,3 +1,4 @@
+import os
 """
 FastAPI Backend Server & Real-time Web Dashboard for Marvan's Pool / Aegis-Quant.
 Provides REST endpoints and streams system state, virtual account balance, trade forensics, and RL agent metrics.
