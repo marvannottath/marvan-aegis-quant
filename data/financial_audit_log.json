@@ -1,6 +1,45 @@
 {
   "logs": [
     {
+      "event_id": "AUD-1788270908987-EMER",
+      "timestamp": "2026-09-01 19:25:08",
+      "event_type": "EMERGENCY_KILL_SWITCH_TRIGGERED",
+      "user_id": "CERT_TESTER",
+      "environment": "AEGIS_QUANT_MASTER",
+      "amount": 0.0,
+      "asset": "SYSTEM",
+      "network": "NONE",
+      "provider": "ADMIN",
+      "reference_id": "REASON: Certification Lockdown Test",
+      "ip_address": "127.0.0.1"
+    },
+    {
+      "event_id": "AUD-1788270844086-EMER",
+      "timestamp": "2026-09-01 19:24:04",
+      "event_type": "EMERGENCY_KILL_SWITCH_TRIGGERED",
+      "user_id": "CERT_TESTER",
+      "environment": "AEGIS_QUANT_MASTER",
+      "amount": 0.0,
+      "asset": "SYSTEM",
+      "network": "NONE",
+      "provider": "ADMIN",
+      "reference_id": "REASON: Certification Lockdown Test",
+      "ip_address": "127.0.0.1"
+    },
+    {
+      "event_id": "AUD-1788270609738-EMER",
+      "timestamp": "2026-09-01 19:20:09",
+      "event_type": "EMERGENCY_KILL_SWITCH_TRIGGERED",
+      "user_id": "CERT_TESTER",
+      "environment": "AEGIS_QUANT_MASTER",
+      "amount": 0.0,
+      "asset": "SYSTEM",
+      "network": "NONE",
+      "provider": "ADMIN",
+      "reference_id": "REASON: Certification Lockdown Test",
+      "ip_address": "127.0.0.1"
+    },
+    {
       "event_id": "AUD-1788269316832-DEPO",
       "timestamp": "2026-09-01 18:58:36",
       "event_type": "DEPOSIT_CREDITED",

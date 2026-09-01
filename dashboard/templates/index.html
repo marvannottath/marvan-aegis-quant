@@ -759,9 +759,9 @@
                         <div class="flex gap-1.5">
                             <button id="btn-lev-1" onclick="setLeverage(1)" class="flex-1 py-1 bg-gray-800 text-gray-300 text-xs font-bold rounded">1x</button>
                             <button id="btn-lev-5" onclick="setLeverage(5)" class="flex-1 py-1 bg-gray-800 text-gray-300 text-xs font-bold rounded">5x</button>
-                            <button id="btn-lev-10" onclick="setLeverage(10)" class="flex-1 py-1 bg-amber-500 text-black font-black text-xs rounded">10x</button>
-                            <button id="btn-lev-25" onclick="setLeverage(25)" class="flex-1 py-1 bg-gray-800 text-gray-300 text-xs font-bold rounded">25x</button>
-                            <button id="btn-lev-50" onclick="setLeverage(50)" class="flex-1 py-1 bg-gray-800 text-gray-300 text-xs font-bold rounded">50x</button>
+                            <button id="btn-lev-10" onclick="setLeverage(10)" class="flex-1 py-1 bg-amber-500 text-black font-black text-xs rounded">10x (Max)</button>
+                            <button id="btn-lev-25" onclick="setLeverage(25)" disabled title="Exceeds Profile Risk Cap" class="flex-1 py-1 bg-gray-900 text-gray-600 text-xs font-bold rounded cursor-not-allowed border border-gray-800">25x</button>
+                            <button id="btn-lev-50" onclick="setLeverage(50)" disabled title="Exceeds Profile Risk Cap" class="flex-1 py-1 bg-gray-900 text-gray-600 text-xs font-bold rounded cursor-not-allowed border border-gray-800">50x</button>
                         </div>
                     </div>
 
@@ -1220,8 +1220,8 @@
                         <div class="space-y-3.5 text-xs">
                             <div class="flex items-center justify-between p-3 bg-black/40 border border-gray-800/80 rounded-xl">
                                 <div>
-                                    <div class="font-bold text-white">Multi-Hop IP Anonymization</div>
-                                    <div class="text-[10px] text-gray-400">Randomized Swiss/Singapore Proxy Hops</div>
+                                    <div class="font-bold text-white">Fixed Production Server IP</div>
+                                    <div class="text-[10px] text-gray-400">Static Hostinger VPS IP Whitelist (187.127.189.139)</div>
                                 </div>
                                 <span class="px-2.5 py-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 rounded-lg text-[10px] font-black font-mono">ENABLED ✅</span>
                             </div>
@@ -2439,7 +2439,7 @@
                 <div class="p-2.5 bg-gray-900 border border-gray-800 rounded-xl space-y-1">
                     <div class="flex justify-between text-xs font-bold text-white">
                         <span>${a.channel || 'Telegram Channel'}</span>
-                        <span class="${a.verdict === 'APPROVED' ? 'text-emerald-400' : 'text-amber-400'}">${a.verdict || 'AUDITED'}</span>
+                        <span class="${a.verdict === 'APPROVED' ? 'text-emerald-400' : 'text-amber-400'}">${a.verdict || 'INTERNAL HISTORICAL SIMULATION'}</span>
                     </div>
                     <p class="text-[11px] text-gray-400">${a.summary || a.text || ''}</p>
                 </div>
@@ -4145,7 +4145,7 @@
                     <div>
                         <h3 class="text-base md:text-lg font-black text-white flex items-center gap-2">
                             Aegis-Quant 15-Year Historical Backtesting Lab
-                            <span class="text-[10px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full">2010 – 2026 AUDITED</span>
+                            <span class="text-[10px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full">2010 – 2026 INTERNAL HISTORICAL SIMULATION</span>
                         </h3>
                         <p class="text-xs text-gray-400">Multi-Asset Rolling Simulation with Realistic 0.02% Slippage, Commission & Micro-Profit Vault Harvesting</p>
                     </div>

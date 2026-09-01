@@ -1,6 +1,54 @@
 {
   "requests": [
     {
+      "deposit_id": "DEP-TRC20-1788270908984-FDBC89",
+      "timestamp": "2026-09-01 19:25:08",
+      "environment": "AEGIS_QUANT_MASTER",
+      "asset": "USDT",
+      "network": "TRC20",
+      "network_name": "TRON (TRC20)",
+      "deposit_address": "TQn9Y2khEsLJW1ChV8m3N9K7xPnR2J4vLm",
+      "expected_amount": 100.0,
+      "actual_received_amount": 100.0,
+      "tx_hash": "0xcert_1788270908985",
+      "confirmations": 19,
+      "required_confirmations": 19,
+      "status": "CREDITED",
+      "warning": "Send ONLY USDT via TRON (TRC20) network. Sending any other currency or using wrong network will result in permanent loss."
+    },
+    {
+      "deposit_id": "DEP-TRC20-1788270844082-E8849A",
+      "timestamp": "2026-09-01 19:24:04",
+      "environment": "AEGIS_QUANT_MASTER",
+      "asset": "USDT",
+      "network": "TRC20",
+      "network_name": "TRON (TRC20)",
+      "deposit_address": "TQn9Y2khEsLJW1ChV8m3N9K7xPnR2J4vLm",
+      "expected_amount": 100.0,
+      "actual_received_amount": 100.0,
+      "tx_hash": "0xcert_1788270844084",
+      "confirmations": 19,
+      "required_confirmations": 19,
+      "status": "CREDITED",
+      "warning": "Send ONLY USDT via TRON (TRC20) network. Sending any other currency or using wrong network will result in permanent loss."
+    },
+    {
+      "deposit_id": "DEP-TRC20-1788270609735-69154C",
+      "timestamp": "2026-09-01 19:20:09",
+      "environment": "AEGIS_QUANT_MASTER",
+      "asset": "USDT",
+      "network": "TRC20",
+      "network_name": "TRON (TRC20)",
+      "deposit_address": "TQn9Y2khEsLJW1ChV8m3N9K7xPnR2J4vLm",
+      "expected_amount": 100.0,
+      "actual_received_amount": 100.0,
+      "tx_hash": "0xcert_1788270609736",
+      "confirmations": 19,
+      "required_confirmations": 19,
+      "status": "CREDITED",
+      "warning": "Send ONLY USDT via TRON (TRC20) network. Sending any other currency or using wrong network will result in permanent loss."
+    },
+    {
       "deposit_id": "DEP-TRC20-1788269316829-BA8066",
       "timestamp": "2026-09-01 18:58:36",
       "environment": "AEGIS_QUANT_MASTER",
@@ -85,6 +133,9 @@
     "0x99a88b77c66f_TRC20_USDT": "DEP-TRC20-1788267201555-595410",
     "0x99a8_1788267338420_d729_TRC20_USDT": "DEP-TRC20-1788267338420-4CB936",
     "0xp6_tx_1788267895707_TRC20_USDT": "DEP-TRC20-1788267895706-340D36",
-    "0xp6_tx_1788269316830_TRC20_USDT": "DEP-TRC20-1788269316829-BA8066"
+    "0xp6_tx_1788269316830_TRC20_USDT": "DEP-TRC20-1788269316829-BA8066",
+    "0xcert_1788270609736_TRC20_USDT": "DEP-TRC20-1788270609735-69154C",
+    "0xcert_1788270844084_TRC20_USDT": "DEP-TRC20-1788270844082-E8849A",
+    "0xcert_1788270908985_TRC20_USDT": "DEP-TRC20-1788270908984-FDBC89"
   }
 }
