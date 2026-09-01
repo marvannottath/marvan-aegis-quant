@@ -1,6 +1,6 @@
 {
-  "vault_balance": 657116.01,
-  "total_sweeps_count": 11053,
+  "vault_balance": 657764.89,
+  "total_sweeps_count": 11169,
   "sweep_history": [
     {
       "timestamp": "2026-08-23 00:00:02",
@@ -77370,6 +77370,818 @@
       "asset": "EURUSD",
       "profit_swept": 9.6,
       "vault_total": 657116.01,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:36:07",
+      "asset": "NIFTY50",
+      "profit_swept": 7.2,
+      "vault_total": 657123.21,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:36:09",
+      "asset": "EURUSD",
+      "profit_swept": 2.12,
+      "vault_total": 657125.33,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:36:15",
+      "asset": "BTCUSD",
+      "profit_swept": 4.51,
+      "vault_total": 657129.84,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:36:17",
+      "asset": "EURUSD",
+      "profit_swept": 6.0,
+      "vault_total": 657135.84,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:36:20",
+      "asset": "ETHUSD",
+      "profit_swept": 4.0,
+      "vault_total": 657139.84,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:36:23",
+      "asset": "BTCUSD",
+      "profit_swept": 4.8,
+      "vault_total": 657144.64,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:36:30",
+      "asset": "EURUSD",
+      "profit_swept": 14.43,
+      "vault_total": 657159.07,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:36:38",
+      "asset": "NIFTY50",
+      "profit_swept": 2.4,
+      "vault_total": 657161.46,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:36:41",
+      "asset": "BTCUSD",
+      "profit_swept": 6.59,
+      "vault_total": 657168.06,
+      "reason": "TAKE_PROFIT_MILESTONE"
+    },
+    {
+      "timestamp": "2026-09-01 18:36:48",
+      "asset": "ETHUSD",
+      "profit_swept": 4.49,
+      "vault_total": 657172.55,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:37:09",
+      "asset": "ETHUSD",
+      "profit_swept": 2.4,
+      "vault_total": 657174.95,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:37:09",
+      "asset": "XAUUSD",
+      "profit_swept": 2.38,
+      "vault_total": 657177.34,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:37:12",
+      "asset": "BTCUSD",
+      "profit_swept": 5.6,
+      "vault_total": 657182.93,
+      "reason": "TAKE_PROFIT_MILESTONE"
+    },
+    {
+      "timestamp": "2026-09-01 18:37:14",
+      "asset": "BTCUSD",
+      "profit_swept": 2.4,
+      "vault_total": 657185.33,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:37:27",
+      "asset": "XAUUSD",
+      "profit_swept": 12.01,
+      "vault_total": 657197.34,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:39:01",
+      "asset": "EURUSD",
+      "profit_swept": 4.0,
+      "vault_total": 657201.34,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:39:16",
+      "asset": "EURUSD",
+      "profit_swept": 3.6,
+      "vault_total": 657204.94,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:39:26",
+      "asset": "ETHUSD",
+      "profit_swept": 6.0,
+      "vault_total": 657210.94,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:39:29",
+      "asset": "NIFTY50",
+      "profit_swept": 6.0,
+      "vault_total": 657216.93,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:39:31",
+      "asset": "ETHUSD",
+      "profit_swept": 4.0,
+      "vault_total": 657220.94,
+      "reason": "TAKE_PROFIT_MILESTONE"
+    },
+    {
+      "timestamp": "2026-09-01 18:39:31",
+      "asset": "BANKNIFTY",
+      "profit_swept": 4.5,
+      "vault_total": 657225.44,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:39:34",
+      "asset": "NVDA",
+      "profit_swept": 2.4,
+      "vault_total": 657227.84,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:39:37",
+      "asset": "EURUSD",
+      "profit_swept": 4.8,
+      "vault_total": 657232.64,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:39:39",
+      "asset": "BANKNIFTY",
+      "profit_swept": 4.49,
+      "vault_total": 657237.13,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:39:42",
+      "asset": "EURUSD",
+      "profit_swept": 15.1,
+      "vault_total": 657252.24,
+      "reason": "TAKE_PROFIT_MILESTONE"
+    },
+    {
+      "timestamp": "2026-09-01 18:39:45",
+      "asset": "XAUUSD",
+      "profit_swept": 2.4,
+      "vault_total": 657254.64,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:39:47",
+      "asset": "XAUUSD",
+      "profit_swept": 5.0,
+      "vault_total": 657259.64,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:39:50",
+      "asset": "EURUSD",
+      "profit_swept": 4.01,
+      "vault_total": 657263.65,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:39:53",
+      "asset": "XAUUSD",
+      "profit_swept": 9.61,
+      "vault_total": 657273.26,
+      "reason": "TAKE_PROFIT_MILESTONE"
+    },
+    {
+      "timestamp": "2026-09-01 18:39:58",
+      "asset": "NIFTY50",
+      "profit_swept": 3.6,
+      "vault_total": 657276.86,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:40:00",
+      "asset": "EURUSD",
+      "profit_swept": 1.6,
+      "vault_total": 657278.46,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:40:06",
+      "asset": "GBPUSD",
+      "profit_swept": 2.15,
+      "vault_total": 657280.61,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:40:08",
+      "asset": "XAUUSD",
+      "profit_swept": 3.6,
+      "vault_total": 657284.21,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:41:44",
+      "asset": "SOLUSD",
+      "profit_swept": 10.19,
+      "vault_total": 657294.39,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:42:00",
+      "asset": "BTCUSD",
+      "profit_swept": 2.4,
+      "vault_total": 657296.79,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:42:13",
+      "asset": "GBPUSD",
+      "profit_swept": 5.0,
+      "vault_total": 657301.79,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:42:15",
+      "asset": "BANKNIFTY",
+      "profit_swept": 1.6,
+      "vault_total": 657303.39,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:42:18",
+      "asset": "SOLUSD",
+      "profit_swept": 7.63,
+      "vault_total": 657311.02,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:42:21",
+      "asset": "SOLUSD",
+      "profit_swept": 5.0,
+      "vault_total": 657316.02,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:42:23",
+      "asset": "ETHUSD",
+      "profit_swept": 7.51,
+      "vault_total": 657323.53,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:42:23",
+      "asset": "XAUUSD",
+      "profit_swept": 7.5,
+      "vault_total": 657331.03,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:42:26",
+      "asset": "BTCUSD",
+      "profit_swept": 13.51,
+      "vault_total": 657344.54,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:42:31",
+      "asset": "BTCUSD",
+      "profit_swept": 4.0,
+      "vault_total": 657348.54,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:42:34",
+      "asset": "XAUUSD",
+      "profit_swept": 3.02,
+      "vault_total": 657351.56,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:42:42",
+      "asset": "EURUSD",
+      "profit_swept": 4.89,
+      "vault_total": 657356.46,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:42:47",
+      "asset": "GBPUSD",
+      "profit_swept": 3.05,
+      "vault_total": 657359.5,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:42:47",
+      "asset": "BTCUSD",
+      "profit_swept": 2.79,
+      "vault_total": 657362.29,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:43:02",
+      "asset": "ETHUSD",
+      "profit_swept": 2.4,
+      "vault_total": 657364.69,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:43:07",
+      "asset": "EURUSD",
+      "profit_swept": 11.07,
+      "vault_total": 657375.77,
+      "reason": "TAKE_PROFIT_MILESTONE"
+    },
+    {
+      "timestamp": "2026-09-01 18:45:04",
+      "asset": "XAUUSD",
+      "profit_swept": 4.8,
+      "vault_total": 657380.57,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:45:11",
+      "asset": "EURUSD",
+      "profit_swept": 6.46,
+      "vault_total": 657387.03,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:45:14",
+      "asset": "SOLUSD",
+      "profit_swept": 1.8,
+      "vault_total": 657388.83,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:45:22",
+      "asset": "XAUUSD",
+      "profit_swept": 6.61,
+      "vault_total": 657395.43,
+      "reason": "TAKE_PROFIT_MILESTONE"
+    },
+    {
+      "timestamp": "2026-09-01 18:45:32",
+      "asset": "SOLUSD",
+      "profit_swept": 2.21,
+      "vault_total": 657397.65,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:45:35",
+      "asset": "SOLUSD",
+      "profit_swept": 2.4,
+      "vault_total": 657400.05,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:45:40",
+      "asset": "GBPUSD",
+      "profit_swept": 2.0,
+      "vault_total": 657402.05,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:45:50",
+      "asset": "EURUSD",
+      "profit_swept": 1.57,
+      "vault_total": 657403.62,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:45:50",
+      "asset": "BTCUSD",
+      "profit_swept": 8.0,
+      "vault_total": 657411.62,
+      "reason": "TAKE_PROFIT_MILESTONE"
+    },
+    {
+      "timestamp": "2026-09-01 18:45:55",
+      "asset": "SOLUSD",
+      "profit_swept": 7.09,
+      "vault_total": 657418.71,
+      "reason": "TAKE_PROFIT_MILESTONE"
+    },
+    {
+      "timestamp": "2026-09-01 18:45:58",
+      "asset": "BTCUSD",
+      "profit_swept": 6.0,
+      "vault_total": 657424.71,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:46:06",
+      "asset": "NIFTY50",
+      "profit_swept": 1.6,
+      "vault_total": 657426.3,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:46:08",
+      "asset": "EURUSD",
+      "profit_swept": 2.22,
+      "vault_total": 657428.53,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:46:11",
+      "asset": "ETHUSD",
+      "profit_swept": 18.01,
+      "vault_total": 657446.53,
+      "reason": "TAKE_PROFIT_MILESTONE"
+    },
+    {
+      "timestamp": "2026-09-01 18:46:11",
+      "asset": "RELIANCE",
+      "profit_swept": 6.0,
+      "vault_total": 657452.53,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:46:19",
+      "asset": "ETHUSD",
+      "profit_swept": 5.99,
+      "vault_total": 657458.52,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:46:24",
+      "asset": "BANKNIFTY",
+      "profit_swept": 8.99,
+      "vault_total": 657467.52,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:46:27",
+      "asset": "BTCUSD",
+      "profit_swept": 6.0,
+      "vault_total": 657473.52,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:46:30",
+      "asset": "EURUSD",
+      "profit_swept": 12.92,
+      "vault_total": 657486.44,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:46:32",
+      "asset": "BTCUSD",
+      "profit_swept": 9.6,
+      "vault_total": 657496.04,
+      "reason": "TAKE_PROFIT_MILESTONE"
+    },
+    {
+      "timestamp": "2026-09-01 18:46:37",
+      "asset": "BTCUSD",
+      "profit_swept": 8.4,
+      "vault_total": 657504.45,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:47:23",
+      "asset": "NIFTY50",
+      "profit_swept": 4.0,
+      "vault_total": 657508.45,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:47:28",
+      "asset": "RELIANCE",
+      "profit_swept": 1.51,
+      "vault_total": 657509.95,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:47:33",
+      "asset": "RELIANCE",
+      "profit_swept": 4.0,
+      "vault_total": 657513.95,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:47:39",
+      "asset": "BANKNIFTY",
+      "profit_swept": 3.0,
+      "vault_total": 657516.95,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:47:49",
+      "asset": "GBPUSD",
+      "profit_swept": 3.18,
+      "vault_total": 657520.13,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:47:54",
+      "asset": "XAUUSD",
+      "profit_swept": 7.2,
+      "vault_total": 657527.33,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:48:09",
+      "asset": "XAUUSD",
+      "profit_swept": 3.6,
+      "vault_total": 657530.93,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:48:24",
+      "asset": "SOLUSD",
+      "profit_swept": 1.87,
+      "vault_total": 657532.8,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:48:40",
+      "asset": "BTCUSD",
+      "profit_swept": 12.0,
+      "vault_total": 657544.8,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:48:55",
+      "asset": "NIFTY50",
+      "profit_swept": 7.2,
+      "vault_total": 657552.0,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:48:58",
+      "asset": "SOLUSD",
+      "profit_swept": 4.0,
+      "vault_total": 657556.0,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:49:00",
+      "asset": "SOLUSD",
+      "profit_swept": 6.0,
+      "vault_total": 657562.0,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:49:03",
+      "asset": "EURUSD",
+      "profit_swept": 8.67,
+      "vault_total": 657570.67,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:49:11",
+      "asset": "BANKNIFTY",
+      "profit_swept": 3.99,
+      "vault_total": 657574.66,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:49:11",
+      "asset": "BTCUSD",
+      "profit_swept": 2.0,
+      "vault_total": 657576.66,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:49:16",
+      "asset": "SOLUSD",
+      "profit_swept": 11.09,
+      "vault_total": 657587.75,
+      "reason": "TAKE_PROFIT_MILESTONE"
+    },
+    {
+      "timestamp": "2026-09-01 18:49:19",
+      "asset": "BTCUSD",
+      "profit_swept": 5.6,
+      "vault_total": 657593.35,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:50:27",
+      "asset": "GBPUSD",
+      "profit_swept": 6.18,
+      "vault_total": 657599.53,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:50:42",
+      "asset": "XAUUSD",
+      "profit_swept": 8.97,
+      "vault_total": 657608.5,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:50:48",
+      "asset": "GBPUSD",
+      "profit_swept": 3.32,
+      "vault_total": 657611.82,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:51:28",
+      "asset": "ETHUSD",
+      "profit_swept": 2.4,
+      "vault_total": 657614.22,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:51:39",
+      "asset": "ETHUSD",
+      "profit_swept": 3.2,
+      "vault_total": 657617.42,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:51:44",
+      "asset": "SOLUSD",
+      "profit_swept": 3.61,
+      "vault_total": 657621.03,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:51:59",
+      "asset": "BTCUSD",
+      "profit_swept": 9.0,
+      "vault_total": 657630.02,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:53:25",
+      "asset": "ETHUSD",
+      "profit_swept": 3.0,
+      "vault_total": 657633.02,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:54:31",
+      "asset": "BTCUSD",
+      "profit_swept": 2.0,
+      "vault_total": 657635.02,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:54:34",
+      "asset": "SOLUSD",
+      "profit_swept": 8.53,
+      "vault_total": 657643.56,
+      "reason": "TAKE_PROFIT_MILESTONE"
+    },
+    {
+      "timestamp": "2026-09-01 18:55:02",
+      "asset": "BTCUSD",
+      "profit_swept": 8.97,
+      "vault_total": 657652.53,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:55:17",
+      "asset": "BTCUSD",
+      "profit_swept": 2.0,
+      "vault_total": 657654.52,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:55:27",
+      "asset": "ETHUSD",
+      "profit_swept": 5.0,
+      "vault_total": 657659.52,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:55:35",
+      "asset": "NIFTY50",
+      "profit_swept": 7.19,
+      "vault_total": 657666.72,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:55:37",
+      "asset": "BANKNIFTY",
+      "profit_swept": 7.2,
+      "vault_total": 657673.92,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:55:45",
+      "asset": "ETHUSD",
+      "profit_swept": 7.2,
+      "vault_total": 657681.11,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:55:48",
+      "asset": "XAUUSD",
+      "profit_swept": 4.8,
+      "vault_total": 657685.91,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:55:50",
+      "asset": "GBPUSD",
+      "profit_swept": 13.84,
+      "vault_total": 657699.75,
+      "reason": "TAKE_PROFIT_MILESTONE"
+    },
+    {
+      "timestamp": "2026-09-01 18:55:53",
+      "asset": "BTCUSD",
+      "profit_swept": 3.0,
+      "vault_total": 657702.75,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:56:03",
+      "asset": "BTCUSD",
+      "profit_swept": 10.0,
+      "vault_total": 657712.75,
+      "reason": "TAKE_PROFIT_MILESTONE"
+    },
+    {
+      "timestamp": "2026-09-01 18:56:06",
+      "asset": "XAUUSD",
+      "profit_swept": 2.4,
+      "vault_total": 657715.15,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:56:09",
+      "asset": "ETHUSD",
+      "profit_swept": 12.01,
+      "vault_total": 657727.16,
+      "reason": "TAKE_PROFIT_MILESTONE"
+    },
+    {
+      "timestamp": "2026-09-01 18:56:34",
+      "asset": "EURUSD",
+      "profit_swept": 1.96,
+      "vault_total": 657729.12,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:56:52",
+      "asset": "NIFTY50",
+      "profit_swept": 3.2,
+      "vault_total": 657732.32,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:57:00",
+      "asset": "ETHUSD",
+      "profit_swept": 5.59,
+      "vault_total": 657737.91,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:57:05",
+      "asset": "SOLUSD",
+      "profit_swept": 13.19,
+      "vault_total": 657751.1,
+      "reason": "TAKE_PROFIT_MILESTONE"
+    },
+    {
+      "timestamp": "2026-09-01 18:57:20",
+      "asset": "GBPUSD",
+      "profit_swept": 7.2,
+      "vault_total": 657758.3,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:58:36",
+      "asset": "XAUUSD",
+      "profit_swept": 3.59,
+      "vault_total": 657761.89,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 18:58:46",
+      "asset": "NIFTY50",
+      "profit_swept": 3.0,
+      "vault_total": 657764.89,
       "reason": "PROFIT_TARGET_AUTO_REBALANCE"
     }
   ],

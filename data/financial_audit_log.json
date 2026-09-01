@@ -1,6 +1,45 @@
 {
   "logs": [
     {
+      "event_id": "AUD-1788269316832-DEPO",
+      "timestamp": "2026-09-01 18:58:36",
+      "event_type": "DEPOSIT_CREDITED",
+      "user_id": "USER-MAIN",
+      "environment": "AEGIS_QUANT_MASTER",
+      "amount": 250.0,
+      "asset": "USDT",
+      "network": "TRC20",
+      "provider": "BLOCKCHAIN",
+      "reference_id": "TX-P6-001",
+      "ip_address": "187.127.189.139"
+    },
+    {
+      "event_id": "AUD-1788269311082-EMER",
+      "timestamp": "2026-09-01 18:58:31",
+      "event_type": "EMERGENCY_KILL_SWITCH_TRIGGERED",
+      "user_id": "CHAOS_TESTER",
+      "environment": "AEGIS_QUANT_MASTER",
+      "amount": 0.0,
+      "asset": "SYSTEM",
+      "network": "NONE",
+      "provider": "ADMIN",
+      "reference_id": "REASON: Chaos Test Lockdown Trigger",
+      "ip_address": "127.0.0.1"
+    },
+    {
+      "event_id": "AUD-1788269286587-EMER",
+      "timestamp": "2026-09-01 18:58:06",
+      "event_type": "EMERGENCY_KILL_SWITCH_TRIGGERED",
+      "user_id": "CHAOS_TESTER",
+      "environment": "AEGIS_QUANT_MASTER",
+      "amount": 0.0,
+      "asset": "SYSTEM",
+      "network": "NONE",
+      "provider": "ADMIN",
+      "reference_id": "REASON: Chaos Test Lockdown Trigger",
+      "ip_address": "127.0.0.1"
+    },
+    {
       "event_id": "AUD-1788267895709-DEPO",
       "timestamp": "2026-09-01 18:34:55",
       "event_type": "DEPOSIT_CREDITED",

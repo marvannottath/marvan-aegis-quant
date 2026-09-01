@@ -1,0 +1,42 @@
+{
+  "strategies": [
+    {
+      "strategy_id": "STRAT-001",
+      "name": "Alpha Trend Momentum Core",
+      "version": "v3.2",
+      "lifecycle_stage": "DEGRADED",
+      "asset_class": "Crypto / Gold",
+      "sharpe_ratio": 2.45,
+      "max_drawdown_pct": 4.12,
+      "win_rate_pct": 74.5,
+      "aegis_score": 88,
+      "metrics": {
+        "profitability": 86,
+        "risk": 91,
+        "robustness": 88,
+        "out_of_sample": 87,
+        "overfit_risk": 11
+      },
+      "degraded_auto_pause": true
+    },
+    {
+      "strategy_id": "STRAT-002",
+      "name": "Volatility Mean Reversion Rebalancer",
+      "version": "v2.1",
+      "lifecycle_stage": "VALIDATED",
+      "asset_class": "Forex Majors",
+      "sharpe_ratio": 1.98,
+      "max_drawdown_pct": 5.2,
+      "win_rate_pct": 68.2,
+      "aegis_score": 82,
+      "metrics": {
+        "profitability": 80,
+        "risk": 84,
+        "robustness": 82,
+        "out_of_sample": 81,
+        "overfit_risk": 15
+      },
+      "degraded_auto_pause": false
+    }
+  ]
+}
