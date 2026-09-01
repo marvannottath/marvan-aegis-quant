@@ -1,6 +1,6 @@
 {
-  "vault_balance": 661554.06,
-  "total_sweeps_count": 11843,
+  "vault_balance": 661608.48,
+  "total_sweeps_count": 11853,
   "sweep_history": [
     {
       "timestamp": "2026-08-23 00:00:02",
@@ -82900,6 +82900,76 @@
       "asset": "XAUUSD",
       "profit_swept": 1.51,
       "vault_total": 661554.06,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 21:47:06",
+      "asset": "ETHUSD",
+      "profit_swept": 4.79,
+      "vault_total": 661558.86,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 21:47:14",
+      "asset": "USDJPY",
+      "profit_swept": 4.32,
+      "vault_total": 661563.17,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 21:47:16",
+      "asset": "SOLUSD",
+      "profit_swept": 1.56,
+      "vault_total": 661564.74,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 21:47:19",
+      "asset": "BTCUSD",
+      "profit_swept": 3.0,
+      "vault_total": 661567.74,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 21:47:24",
+      "asset": "XAUUSD",
+      "profit_swept": 13.01,
+      "vault_total": 661580.75,
+      "reason": "TAKE_PROFIT_MILESTONE"
+    },
+    {
+      "timestamp": "2026-09-01 21:47:27",
+      "asset": "BTCUSD",
+      "profit_swept": 7.2,
+      "vault_total": 661587.95,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 21:48:25",
+      "asset": "ETHUSD",
+      "profit_swept": 5.99,
+      "vault_total": 661593.95,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 21:48:36",
+      "asset": "EURUSD",
+      "profit_swept": 4.91,
+      "vault_total": 661598.86,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 21:48:51",
+      "asset": "XAUUSD",
+      "profit_swept": 3.61,
+      "vault_total": 661602.47,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-01 21:48:56",
+      "asset": "XAUUSD",
+      "profit_swept": 6.01,
+      "vault_total": 661608.48,
       "reason": "PROFIT_TARGET_AUTO_REBALANCE"
     }
   ],

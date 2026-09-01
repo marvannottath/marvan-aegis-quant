@@ -1294,7 +1294,22 @@
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 flex-1">
+            <div class="bg-gray-900 p-8 rounded-2xl border border-amber-500/30 text-center space-y-4 shadow-2xl my-4">
+                <div class="w-16 h-16 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center mx-auto text-2xl">
+                    <i class="fa-solid fa-lock"></i>
+                </div>
+                <div class="space-y-1.5">
+                    <h3 class="text-base font-black text-amber-400 uppercase tracking-wider">Withdrawals Currently Disabled (Zero-Withdrawal Policy Active)</h3>
+                    <p class="text-xs text-gray-300 max-w-xl mx-auto leading-relaxed">
+                        Binance API withdrawal permission is intentionally disabled on the server for real money protection. Direct withdrawal operations remain locked until official production custody security verification.
+                    </p>
+                </div>
+                <div class="inline-flex items-center space-x-2 px-4 py-2 bg-gray-950 border border-gray-800 rounded-xl text-xs font-mono text-gray-400">
+                    <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+                    <span>Binance API Status: READ=ON | TRADING=ON | WITHDRAWAL=OFF (LOCKED)</span>
+                </div>
+            </div>
+            <div class="hidden grid-cols-1 lg:grid-cols-2 gap-8 flex-1">
                 <!-- Source Account Selection -->
                 <div class="space-y-5 bg-gray-900 p-6 rounded-2xl border border-gray-800 shadow-xl flex flex-col justify-between">
                     <div class="space-y-4">
