@@ -154,6 +154,17 @@ class ProfitVault:
         self._save_state()
         return record
 
+    def withdraw(self, amount: float, source: str = "Profit Vault", destination: str = "External Bank Wire / USDT"):
+        """Convenience alias for withdraw_profit with destination tracking."""
+        res = self.withdraw_profit(amount, source)
+        if res.get("status") == "SUCCESS":
+            if destination:
+                if self.withdrawal_history:
+                    self.withdrawal_history[0]["destination"] = destination
+                    self._save_state()
+            return True, f"Successfully withdrawn ${amount:.2f} to {destination}"
+        return False, res.get("message", "Withdrawal failed")
+
     def withdraw_profit(self, amount: float, source: str = "Profit Vault") -> Dict[str, Any]:
         """
         Withdraw/transfer funds out of Vault or Virtual Cash.

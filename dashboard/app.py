@@ -348,32 +348,53 @@ async def close_position_endpoint(data: dict):
     res = trader.broker.close_position(asset, reason="MANUAL_TRADER_EXIT")
     return JSONResponse({"status": "SUCCESS" if res else "FAILED", "closed_trade": res})
 
+
+@app.post("/api/withdraw-vault-profit")
 @app.post("/api/withdraw")
-async def withdraw_endpoint(data: dict):
-    """Process withdrawal from Secured Profit Vault or Virtual Cash."""
-    amount = float(data.get("amount", 0.0))
-    source = data.get("source", "Profit Vault")
-    address = data.get("address", "")
-    method = data.get("method", "USDT (TRC20)")
+async def process_withdrawal(data: dict):
+    """Process withdrawal from Secured Profit Vault or Virtual Cash for active environment."""
+    try:
+        amount = float(data.get("amount", 0.0))
+        source = data.get("source", "Profit Vault")
+        dest = data.get("destination", "External Bank Wire / USDT")
+        active_pool = paper_broker.active_pool_name
 
-    if amount <= 0:
-        return JSONResponse({"status": "FAILED", "message": "Withdrawal amount must be greater than 0."}, status_code=400)
+        if amount <= 0:
+            return JSONResponse({"status": "ERROR", "message": "Withdrawal amount must be greater than 0."}, status_code=400)
 
-    if source == "Profit Vault":
-        success, msg = profit_vault.withdraw(amount, method, address)
+        if source == "Profit Vault":
+            if active_pool == "AEGIS_QUANT_MASTER":
+                if amount > profit_vault.vault_balance:
+                    return JSONResponse({"status": "ERROR", "message": f"Insufficient Vault Balance (${profit_vault.vault_balance:.2f} available)."}, status_code=400)
+                success, msg = profit_vault.withdraw(amount, "VAULT_WITHDRAWAL", dest)
+            else:
+                cur_v = paper_broker.pools[active_pool].get("vault_reserve", 0.0)
+                if amount > cur_v:
+                    return JSONResponse({"status": "ERROR", "message": f"Insufficient Vault Balance (${cur_v:.2f} available)."}, status_code=400)
+                paper_broker.pools[active_pool]["vault_reserve"] = round(cur_v - amount, 2)
+                success, msg = True, f"Successfully withdrawn ${amount:.2f} to {dest}"
+        else:
+            if amount > paper_broker.virtual_cash:
+                return JSONResponse({"status": "ERROR", "message": f"Insufficient Cash (${paper_broker.virtual_cash:.2f} available)."}, status_code=400)
+            paper_broker.virtual_cash = round(paper_broker.virtual_cash - amount, 2)
+            paper_broker.pools[active_pool]["virtual_cash"] = paper_broker.virtual_cash
+            success, msg = True, f"Successfully withdrawn ${amount:.2f} cash to {dest}"
+
         if success:
             paper_broker._update_equity()
-            return JSONResponse({"status": "SUCCESS", "message": msg, "vault": profit_vault.get_vault_summary()})
-        else:
-            return JSONResponse({"status": "FAILED", "message": msg}, status_code=400)
-    else:
-        if paper_broker.virtual_cash >= amount:
-            paper_broker.virtual_cash -= amount
-            paper_broker._update_equity()
             paper_broker._save_state()
-            return JSONResponse({"status": "SUCCESS", "message": f"Successfully withdrew ${amount:,.2f} from Virtual Cash.", "account": paper_broker.get_account_summary()})
+            return JSONResponse({
+                "status": "SUCCESS",
+                "withdrawn_amount": amount,
+                "source": source,
+                "destination": dest,
+                "message": msg
+            })
         else:
-            return JSONResponse({"status": "FAILED", "message": f"Insufficient Virtual Cash (${paper_broker.virtual_cash:,.2f} available)."}, status_code=400)
+            return JSONResponse({"status": "ERROR", "message": msg}, status_code=400)
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
 
 @app.post("/api/deposit")
 async def deposit_endpoint(data: dict):

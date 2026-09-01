@@ -2546,17 +2546,19 @@
         }
 
         async function setTradeCap(capUsd) {
-            await fetch('/api/set-max-trade-cap', {
+            const res = await fetch('/api/set-max-trade-cap', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ cap_usd: capUsd })
             });
+            const lbl = document.getElementById('lbl-active-cap');
+            if (lbl) lbl.innerText = '$' + capUsd.toLocaleString();
             fetchState();
         }
 
         async function applyCustomCap() {
             const val = parseFloat(document.getElementById('input-custom-cap').value);
-            if (val && val >= 100) {
+            if (val && val >= 1) {
                 await setTradeCap(val);
                 document.getElementById('input-custom-cap').value = '';
             }
@@ -2565,17 +2567,15 @@
         let activeWithdrawSource = 'Profit Vault';
 
         function withdrawVaultProfit() {
-            checkTraderAuth(() => {
-                const modal = document.getElementById('withdraw-modal');
-                if (modal) {
-                    modal.classList.remove('hidden');
-                    modal.style.display = 'flex';
-                }
-                const msg = document.getElementById('withdraw-msg');
-                if (msg) msg.innerText = '';
-                fetchState();
-                setWithdrawSource(activeWithdrawSource);
-            });
+            const modal = document.getElementById('withdraw-modal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                modal.style.display = 'flex';
+            }
+            const msg = document.getElementById('withdraw-msg');
+            if (msg) msg.innerText = '';
+            fetchState();
+            setWithdrawSource(activeWithdrawSource);
         }
 
         function closeWithdrawModal() {

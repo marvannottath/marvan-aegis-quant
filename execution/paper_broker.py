@@ -326,7 +326,7 @@ class PaperBroker:
 
     def place_order(self, asset: str, action: str, margin_usd: float, leverage: float = 10.0, entry_price: Optional[float] = None, **kwargs) -> Dict[str, Any]:
         """Place an automated order in the current active environment."""
-        if margin_usd <= 0 or margin_usd > self.virtual_cash:
+        if margin_usd <= 0 or margin_usd > (self.virtual_cash + 0.01):
             if self.virtual_cash > 100.0:
                 margin_usd = min(margin_usd, self.virtual_cash * 0.9)
             else:
