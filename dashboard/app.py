@@ -781,3 +781,16 @@ async def save_broker_connection(request: Request):
         return JSONResponse(res)
     except Exception as e:
         return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+@app.get("/api/binance-live-trades")
+async def get_binance_live_trades(symbol: str = "BTCUSDT"):
+    """Fetch truthful live executed trade fills directly from Binance API."""
+    trades = binance_broker.get_live_my_trades(symbol=symbol, limit=20)
+    return JSONResponse({
+        "status": "SUCCESS",
+        "environment": "BINANCE_TESTNET" if binance_broker.testnet else "BINANCE_PRODUCTION",
+        "exchange_endpoint": "https://testnet.binance.vision" if binance_broker.testnet else "https://api.binance.com",
+        "symbol": symbol,
+        "trades_count": len(trades),
+        "trades": trades
+    })

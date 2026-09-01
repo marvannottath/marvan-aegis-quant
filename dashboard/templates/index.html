@@ -330,6 +330,10 @@
                     <i class="fa-brands fa-bitcoin text-amber-400"></i>
                     <span>2. Binance Testnet ($19.9k)</span>
                 </button>
+                <button onclick="openBinanceTradesModal()" class="py-2.5 px-2 rounded-xl text-[11px] font-bold bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 transition flex items-center justify-center space-x-1">
+                    <i class="fa-solid fa-list-check text-amber-400"></i>
+                    <span>Binance Fills Log</span>
+                </button>
 
                 <!-- 3. Binance Live Real Spot -->
                 <button onclick="switchEnvironment('BINANCE_LIVE_REAL')" id="env-btn-live" class="py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-2 border bg-gray-900 text-gray-400 border-gray-800 hover:text-white">
@@ -2063,6 +2067,57 @@
                 }
             } catch (err) {
                 console.error('Environment switch error:', err);
+            }
+        }
+
+        
+        // ==================== BINANCE LIVE TRADES MODAL LOGIC ====================
+        function openBinanceTradesModal() {
+            const modal = document.getElementById('binance-trades-modal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                modal.style.display = 'flex';
+                fetchBinanceLiveTrades();
+            }
+        }
+
+        function closeBinanceTradesModal() {
+            const modal = document.getElementById('binance-trades-modal');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.style.display = 'none';
+            }
+        }
+
+        async function fetchBinanceLiveTrades() {
+            const tbody = document.getElementById('binance-live-trades-tbody');
+            if (!tbody) return;
+            try {
+                tbody.innerHTML = '<tr><td colspan="7" class="py-6 text-center text-amber-400 font-bold"><i class="fa-solid fa-spinner fa-spin mr-2"></i> Fetching fills directly from Binance API...</td></tr>';
+                const res = await fetch('/api/binance-live-trades?symbol=BTCUSDT');
+                const data = await res.json();
+
+                if (data.trades && data.trades.length > 0) {
+                    tbody.innerHTML = data.trades.map(t => `
+                        <tr class="hover:bg-gray-800/40 transition">
+                            <td class="py-2.5 px-4 text-amber-400 font-bold">#${t.id}</td>
+                            <td class="py-2.5 px-4 text-gray-400">#${t.orderId}</td>
+                            <td class="py-2.5 px-4 font-bold text-white">${t.symbol}</td>
+                            <td class="py-2.5 px-4">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold ${t.isBuyer ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'bg-red-500/20 text-red-400 border border-red-500/40'}">
+                                    ${t.isBuyer ? 'BUY' : 'SELL'}
+                                </span>
+                            </td>
+                            <td class="py-2.5 px-4 font-bold text-white">$${Number(t.price).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                            <td class="py-2.5 px-4 text-gray-200">${Number(t.qty).toFixed(5)}</td>
+                            <td class="py-2.5 px-4 text-emerald-400 font-bold">$${Number(t.quoteQty).toFixed(2)}</td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="7" class="py-6 text-center text-gray-500">No executed fills yet. Orders will appear here as AI Scalper fills them on Binance.</td></tr>';
+                }
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-red-400 font-bold">Binance API Error: ${err.message}</td></tr>`;
             }
         }
 
