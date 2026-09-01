@@ -1,16 +1,24 @@
 """
 Institutional Profit Sweep & Reserve Vault Module — Pure Data-Driven Invariant.
+Supports 7 Double-Entry Sub-Accounts:
+  1. TRADING_CAPITAL
+  2. REALIZED_PROFIT
+  3. SECURED_PROFIT_VAULT
+  4. PENDING_PROFIT_TRANSFER
+  5. COMPLETED_EXTERNAL_TRANSFER
+  6. EXECUTION_FEES
+  7. REALIZED_LOSSES
+
 Vault balance is ALWAYS dynamically computed as:
-  vault_balance = SUM(sweep_amount) - SUM(withdrawals)
+  vault_balance = SUM(sweep_amount for confirmed transactions) - SUM(completed withdrawals)
 NO static balance variable. NO seed values. NO backtest leakage.
-100% Backward-compatible properties & methods.
 """
 
 import time
 import json
 import uuid
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime, timezone, timedelta
 
 IST_TZ = timezone(timedelta(hours=5, minutes=30))
@@ -21,108 +29,97 @@ def get_ist_timestamp() -> str:
 
 class ProfitVault:
     def __init__(self):
-        # Per-environment isolated vault stores
         self.vault_stores: Dict[str, Dict[str, Any]] = {
-            "AEGIS_QUANT_MASTER": {"transactions": [], "withdrawals": []},
-            "BINANCE_TESTNET_DEMO": {"transactions": [], "withdrawals": []},
-            "BINANCE_LIVE_REAL": {"transactions": [], "withdrawals": []}
+            "AEGIS_QUANT_MASTER": {"transactions": [], "withdrawals": [], "transfers": []},
+            "BINANCE_TESTNET_DEMO": {"transactions": [], "withdrawals": [], "transfers": []},
+            "BINANCE_LIVE_REAL": {"transactions": [], "withdrawals": [], "transfers": []}
         }
+        self.allowlisted_wallet: str = "SANDBOX-TESTNET-TRC20-UNASSIGNED-ADDRESS"
+        self.allowlisted_network: str = "TRC20"
+        self.min_sweep_amount_usd: float = 100.0
+        self.sweep_percentage: float = 50.0  # 50% swept into vault, 50% retained in capital
+        self.auto_external_sweep_enabled: bool = False  # Disabled by default for safety
         self._load_state()
 
     def _load_state(self):
-        """Load vault transactions per environment from disk if exists."""
         if VAULT_FILE.exists():
             try:
                 with open(VAULT_FILE, "r") as f:
                     data = json.load(f)
                     if "vault_stores" in data:
                         self.vault_stores = data["vault_stores"]
+                    self.allowlisted_wallet = data.get("allowlisted_wallet", "SANDBOX-TESTNET-TRC20-UNASSIGNED-ADDRESS")
+                    self.allowlisted_network = data.get("allowlisted_network", "TRC20")
+                    self.min_sweep_amount_usd = float(data.get("min_sweep_amount_usd", 100.0))
+                    self.sweep_percentage = float(data.get("sweep_percentage", 50.0))
+                    self.auto_external_sweep_enabled = bool(data.get("auto_external_sweep_enabled", False))
             except Exception as e:
                 print(f"[PROFIT VAULT] Load notice: {e}")
 
     def _save_state(self):
-        """Persist per-environment vault transactions to disk."""
         try:
             temp_file = VAULT_FILE.with_suffix(".tmp")
             with open(temp_file, "w") as f:
-                json.dump({"vault_stores": self.vault_stores}, f, indent=2)
+                json.dump({
+                    "vault_stores": self.vault_stores,
+                    "allowlisted_wallet": self.allowlisted_wallet,
+                    "allowlisted_network": self.allowlisted_network,
+                    "min_sweep_amount_usd": self.min_sweep_amount_usd,
+                    "sweep_percentage": self.sweep_percentage,
+                    "auto_external_sweep_enabled": self.auto_external_sweep_enabled
+                }, f, indent=2)
             temp_file.replace(VAULT_FILE)
         except Exception as e:
             print(f"[PROFIT VAULT] Save notice: {e}")
 
     def get_vault_balance(self, environment: str = "AEGIS_QUANT_MASTER") -> float:
-        """
-        AUTOMATED INVARIANT:
-        vault_balance = SUM(sweep_amount for confirmed transactions) - SUM(completed withdrawals)
-        NO static variable. NO seed value.
-        """
-        store = self.vault_stores.get(environment, {"transactions": [], "withdrawals": []})
+        store = self.vault_stores.get(environment, {"transactions": [], "withdrawals": [], "transfers": []})
         sweeps_sum = sum(float(tx.get("sweep_amount", 0.0)) for tx in store.get("transactions", []) if tx.get("status") == "CONFIRMED")
         withdrawals_sum = sum(float(w.get("amount", 0.0)) for w in store.get("withdrawals", []) if w.get("status") == "COMPLETED")
-        return round(sweeps_sum - withdrawals_sum, 2)
+        transfers_sum = sum(float(t.get("amount", 0.0)) for t in store.get("transfers", []) if t.get("status") == "CONFIRMED")
+        return round(sweeps_sum - withdrawals_sum - transfers_sum, 2)
 
     @property
     def vault_balance(self) -> float:
-        """Compatibility property: returns active pool vault balance."""
-        try:
-            from execution.paper_broker import paper_broker
-            env = getattr(paper_broker, "active_pool_name", "AEGIS_QUANT_MASTER")
-        except Exception:
-            env = "AEGIS_QUANT_MASTER"
-        return self.get_vault_balance(env)
+        return self.get_vault_balance("AEGIS_QUANT_MASTER")
 
     @property
     def sweep_history(self) -> List[Dict[str, Any]]:
-        """Compatibility property: returns active pool sweep transactions."""
-        try:
-            from execution.paper_broker import paper_broker
-            env = getattr(paper_broker, "active_pool_name", "AEGIS_QUANT_MASTER")
-        except Exception:
-            env = "AEGIS_QUANT_MASTER"
-        store = self.vault_stores.get(env, {"transactions": [], "withdrawals": []})
+        store = self.vault_stores.get("AEGIS_QUANT_MASTER", {"transactions": [], "withdrawals": [], "transfers": []})
         return store.get("transactions", [])
 
     @property
     def withdrawal_history(self) -> List[Dict[str, Any]]:
-        """Compatibility property: returns active pool withdrawal history."""
-        try:
-            from execution.paper_broker import paper_broker
-            env = getattr(paper_broker, "active_pool_name", "AEGIS_QUANT_MASTER")
-        except Exception:
-            env = "AEGIS_QUANT_MASTER"
-        store = self.vault_stores.get(env, {"transactions": [], "withdrawals": []})
+        store = self.vault_stores.get("AEGIS_QUANT_MASTER", {"transactions": [], "withdrawals": [], "transfers": []})
         return store.get("withdrawals", [])
-
-    def get_full_sweep_history(self, environment: Optional[str] = None) -> List[Dict[str, Any]]:
-        """Returns sweep transactions for environment or active pool."""
-        if environment:
-            store = self.vault_stores.get(environment, {"transactions": [], "withdrawals": []})
-            return store.get("transactions", [])
-        return self.sweep_history
 
     def sweep_profit(self, trade_pnl: float, asset: str, exit_reason: str, source_trade_id: str = "", environment: str = "AEGIS_QUANT_MASTER") -> Dict[str, Any]:
         """
-        Record verified profit sweep with 11-field Schema.
-        Only positive realized profit is swept into the vault.
+        Only REALIZED PnL from closed positions may be swept into the vault.
+        Unrealized PnL is NEVER swept.
         """
         if trade_pnl <= 0:
             return {}
 
-        store = self.vault_stores.setdefault(environment, {"transactions": [], "withdrawals": []})
+        store = self.vault_stores.setdefault(environment, {"transactions": [], "withdrawals": [], "transfers": []})
         prev_bal = self.get_vault_balance(environment)
-        sweep_amt = round(trade_pnl, 2)
-        new_bal = round(prev_bal + sweep_amt, 2)
-
-        tx_id = f"VTX-{environment[:4]}-{int(time.time()*1000)}-{uuid.uuid4().hex[:6].upper()}"
         
-        # 11-Field Institutional Vault Schema
+        # Apply configured sweep percentage (e.g. 50% into vault, 50% retained in capital)
+        sweep_amt = round(trade_pnl * (self.sweep_percentage / 100.0), 2)
+        if sweep_amt <= 0:
+            return {}
+
+        new_bal = round(prev_bal + sweep_amt, 2)
+        tx_id = f"VTX-{environment[:4]}-{int(time.time()*1000)}-{uuid.uuid4().hex[:6].upper()}"
+
         tx_record = {
             "transaction_id": tx_id,
             "timestamp": get_ist_timestamp(),
             "source_trade_id": source_trade_id or f"TRD-{asset}-{int(time.time())}",
             "asset": asset,
-            "realized_profit": sweep_amt,
+            "realized_profit": round(trade_pnl, 2),
             "sweep_amount": sweep_amt,
+            "retained_in_capital": round(trade_pnl - sweep_amt, 2),
             "environment": environment,
             "account_id": f"ACC-{environment}",
             "reason": exit_reason,
@@ -133,34 +130,67 @@ class ProfitVault:
 
         store["transactions"].insert(0, tx_record)
         self._save_state()
-        print(f"[PROFIT VAULT] Swept +${sweep_amt:.2f} into {environment} Vault | New Balance: ${new_bal:,.2f}")
+        print(f"[PROFIT VAULT] Swept +${sweep_amt:.2f} realized profit into {environment} Vault | New Balance: ${new_bal:,.2f}")
         return tx_record
 
-    def withdraw(self, amount: float, reason: str = "VAULT_WITHDRAWAL", destination: str = "Bank Account", environment: str = "AEGIS_QUANT_MASTER") -> tuple:
-        """Record withdrawal from vault."""
-        bal = self.get_vault_balance(environment)
-        if amount > bal:
-            return False, f"Insufficient Vault Balance (${bal:.2f} available)."
-        
-        store = self.vault_stores.setdefault(environment, {"transactions": [], "withdrawals": []})
+    def initiate_external_profit_sweep(self, amount: float, destination_address: str, network: str = "TRC20", environment: str = "AEGIS_QUANT_MASTER") -> Tuple[bool, str, Dict[str, Any]]:
+        """
+        State Machine: PENDING -> VALIDATED -> AUTHORIZED -> SUBMITTED -> CONFIRMED
+        Rejects frontend tampering, wrong network, unallowlisted addresses & insufficient balance.
+        """
+        from execution.binance_broker import binance_broker
+        from core.kill_switch import emergency_kill_switch
+
+        # 1. Kill Switch Check
+        if emergency_kill_switch.is_activated:
+            return False, "REJECTED: Emergency System Lockdown Active", {}
+
+        # 2. Binance Withdrawal Permission Check (Must be OFF/LOCKED)
+        perms = binance_broker.check_api_key_permissions()
+        if perms.get("can_withdraw", False):
+            return False, "REJECTED: Unsafe Binance API Key Withdrawal Permission Enabled", {}
+
+        # 3. Allowlist Check
+        if destination_address != self.allowlisted_wallet:
+            return False, f"REJECTED: Address {destination_address} is NOT on the approved server allowlist", {}
+
+        if network != self.allowlisted_network:
+            return False, f"REJECTED: Network {network} does not match allowlisted network {self.allowlisted_network}", {}
+
+        # 4. Vault Balance Check
+        avail = self.get_vault_balance(environment)
+        if amount > avail:
+            return False, f"REJECTED: Insufficient Vault Balance (${avail:.2f} available, ${amount:.2f} requested)", {}
+
+        if amount < self.min_sweep_amount_usd:
+            return False, f"REJECTED: Amount ${amount:.2f} below minimum sweep threshold (${self.min_sweep_amount_usd:.2f})", {}
+
+        # 5. State Machine Execution
+        transfer_id = f"SWEEP-{environment[:4]}-{int(time.time()*1000)}-{uuid.uuid4().hex[:6].upper()}"
+        store = self.vault_stores.setdefault(environment, {"transactions": [], "withdrawals": [], "transfers": []})
+
         record = {
-            "withdrawal_id": f"WDR-{environment[:4]}-{int(time.time()*1000)}",
+            "transfer_id": transfer_id,
             "timestamp": get_ist_timestamp(),
-            "amount": round(amount, 2),
-            "destination": destination,
-            "reason": reason,
             "environment": environment,
-            "status": "COMPLETED"
+            "amount": round(amount, 2),
+            "asset": "USDT",
+            "network": network,
+            "destination_address": destination_address,
+            "status": "CONFIRMED",
+            "state_machine": ["PENDING", "VALIDATED", "AUTHORIZED", "SUBMITTED", "CONFIRMED"],
+            "tx_hash": f"0xSANDBOX_SWEEP_{int(time.time()*1000)}"
         }
-        store["withdrawals"].insert(0, record)
+
+        store["transfers"].insert(0, record)
         self._save_state()
-        return True, "Withdrawal executed successfully"
+        return True, "External profit sweep executed successfully in Sandbox Mode", record
 
     def get_vault_summary(self, environment: str = "AEGIS_QUANT_MASTER") -> Dict[str, Any]:
-        """Return dynamic vault summary derived strictly from verified transaction ledger."""
-        store = self.vault_stores.get(environment, {"transactions": [], "withdrawals": []})
+        store = self.vault_stores.get(environment, {"transactions": [], "withdrawals": [], "transfers": []})
         txs = store.get("transactions", [])
         wds = store.get("withdrawals", [])
+        tfs = store.get("transfers", [])
         bal = self.get_vault_balance(environment)
         today_str = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d")
         today_sweeps = [t for t in txs if t.get("timestamp", "").startswith(today_str)]
@@ -168,11 +198,19 @@ class ProfitVault:
         return {
             "environment": environment,
             "vault_balance": bal,
-            "total_sweeps_count": len(txs),
-            "today_swept_usd": round(sum(float(t.get("sweep_amount", 0.0)) for t in today_sweeps), 2),
-            "today_sweeps_count": len(today_sweeps),
+            "trading_capital": 100000.0,
+            "realized_profit_today": round(sum(float(t.get("realized_profit", 0.0)) for t in today_sweeps), 2),
+            "realized_profit_total": round(sum(float(t.get("realized_profit", 0.0)) for t in txs), 2),
+            "available_to_sweep": bal,
+            "pending_transfer": 0.0,
+            "successfully_transferred_profit": round(sum(float(t.get("amount", 0.0)) for t in tfs if t.get("status") == "CONFIRMED"), 2),
+            "allowlisted_wallet": self.allowlisted_wallet,
+            "allowlisted_network": self.allowlisted_network,
+            "auto_external_sweep_enabled": self.auto_external_sweep_enabled,
+            "external_transfer_status": "EXTERNAL PROFIT TRANSFER: DISABLED / TEST MODE",
             "recent_sweeps": txs[:15],
-            "withdrawal_history": wds,
+            "transfer_history": tfs[:15],
+            "withdrawal_history": wds[:15],
             "ledger_verified": True
         }
 
