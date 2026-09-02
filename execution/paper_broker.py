@@ -282,6 +282,9 @@ class PaperBroker:
 
         return closed
 
+    def reconcile_ledger(self) -> dict:
+        return self.get_reconciliation()
+
     def get_reconciliation(self) -> dict:
         """
         FORMAL ACCOUNT RECONCILIATION REPORT:
