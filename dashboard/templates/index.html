@@ -1059,6 +1059,114 @@
             updatePreOrderEstimates();
         }
 
+        let currentOrderType = 'MARKET';
+
+        function setOrderType(orderType) {
+            currentOrderType = orderType;
+            const btnMarket = document.getElementById('btn-ord-type-market');
+            const btnLimit = document.getElementById('btn-ord-type-limit');
+            const btnStop = document.getElementById('btn-ord-type-stop');
+
+            [btnMarket, btnLimit, btnStop].forEach(b => {
+                if (b) b.className = 'px-4 py-2 bg-gray-900 text-gray-300 font-bold text-xs rounded-xl hover:text-white';
+            });
+
+            if (orderType === 'MARKET' && btnMarket) btnMarket.className = 'px-4 py-2 bg-amber-500 text-black font-black text-xs rounded-xl';
+            if (orderType === 'LIMIT' && btnLimit) btnLimit.className = 'px-4 py-2 bg-amber-500 text-black font-black text-xs rounded-xl';
+            if (orderType === 'STOP_LIMIT' && btnStop) btnStop.className = 'px-4 py-2 bg-amber-500 text-black font-black text-xs rounded-xl';
+        }
+
+        async function executeTerminalOrder(side) {
+            const symbol = document.getElementById('order-asset')?.value || 'BTCUSD';
+            const amountUsd = parseFloat(document.getElementById('order-amount-input')?.value) || 1000;
+            const resultBox = document.getElementById('order-result-box');
+
+            try {
+                const res = await fetch('/api/orders/submit', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        symbol: symbol,
+                        side: side,
+                        quantity: amountUsd / 64250.0,
+                        order_type: currentOrderType,
+                        price: 64250.0,
+                        environment: 'PAPER',
+                        strategy: 'TERMINAL_MANUAL'
+                    })
+                });
+                const data = await res.json();
+
+                if (resultBox) {
+                    resultBox.classList.remove('hidden');
+                    if (data.status === 'SUCCESS') {
+                        resultBox.className = 'p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/40 text-emerald-400 font-mono text-xs';
+                        resultBox.innerHTML = `<i class="fa-solid fa-circle-check mr-1"></i> ORDER ${side} EXECUTED! ID: <span class="font-bold text-white">${data.order?.order_id || 'ORD-SUCCESS'}</span>`;
+                    } else {
+                        resultBox.className = 'p-3 rounded-xl bg-red-500/10 border border-red-500/40 text-red-400 font-mono text-xs';
+                        resultBox.innerHTML = `<i class="fa-solid fa-triangle-exclamation mr-1"></i> ORDER BLOCKED: ${data.reason || data.message || 'Risk Gate Rejection'}`;
+                    }
+                }
+                fetchState();
+                fetchExecutionLatency();
+            } catch (e) {
+                console.error('Execute terminal order error:', e);
+            }
+        }
+
+        async function closePosition(symbol) {
+            try {
+                const res = await fetch('/api/close-position', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ asset: symbol, exit_price: 64300.0, reason: 'MANUAL_CLOSE_BTN' })
+                });
+                const data = await res.json();
+                if (data.status === 'SUCCESS' || data.status === 'CLOSED') {
+                    alert(`Position ${symbol} Closed! Realized PnL: +$${(data.realized_pnl || 0).toFixed(2)}`);
+                } else {
+                    alert(`Close Position notice: ${data.message || data.status}`);
+                }
+                fetchState();
+            } catch (e) {
+                console.error('Close position error:', e);
+            }
+        }
+
+        async function setRiskProfile(profileName) {
+            try {
+                const res = await fetch('/api/set-risk-profile', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ profile: profileName })
+                });
+                const data = await res.json();
+                if (data.status === 'SUCCESS') {
+                    alert(`Active Risk Profile Switched to: ${profileName}`);
+                    fetchState();
+                }
+            } catch (e) {
+                console.error('Set risk profile error:', e);
+            }
+        }
+
+        async function triggerEmergencyKillSwitch() {
+            if (!confirm("🚨 WARNING: Are you sure you want to trigger the EMERGENCY KILL SWITCH? All trading will be instantly halted.")) return;
+            try {
+                const res = await fetch('/api/kill-switch/trigger', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ user: 'ADMIN_USER', reason: 'Dashboard Button Click' })
+                });
+                const data = await res.json();
+                alert(`🚨 EMERGENCY KILL SWITCH ACTIVATED: ${data.reason || 'All orders blocked.'}`);
+                fetchState();
+            } catch (e) {
+                console.error('Kill switch error:', e);
+            }
+        }
+
+
         function updatePreOrderEstimates() {
             const amt = parseFloat(document.getElementById('order-amount-input').value) || 1000;
             const lev = currentLeverage || 10;
