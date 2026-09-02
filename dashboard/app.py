@@ -685,6 +685,43 @@ async def stripe_webhook_endpoint(request: Request):
     res = stripe_payment_engine.process_webhook_event(event_data)
     return JSONResponse(res)
 
+# =====================================================================
+# EVENT-DRIVEN BACKTEST ENGINE ENDPOINTS
+# =====================================================================
+from backtest.event_driven_backtester import event_driven_backtester
+
+@app.post("/api/backtest/run")
+async def run_event_driven_backtest(data: dict = {}):
+    """Run real event-driven historical backtest simulation without look-ahead bias."""
+    symbol = str(data.get("symbol", "BTCUSD"))
+    timeframe = str(data.get("timeframe", "1h"))
+    capital = float(data.get("initial_capital", 100000.0))
+    leverage = float(data.get("leverage", 5.0))
+    
+    result = event_driven_backtester.run_backtest_simulation(
+        symbol=symbol,
+        timeframe=timeframe,
+        initial_capital=capital,
+        leverage=leverage
+    )
+    return JSONResponse(result)
+
+@app.get("/api/backtest/runs")
+async def get_backtest_runs():
+    """Return all persisted backtest runs history."""
+    return JSONResponse({
+        "status": "SUCCESS",
+        "count": len(event_driven_backtester.runs),
+        "data": event_driven_backtester.runs
+    })
+
+@app.get("/api/backtest/latest")
+async def get_latest_backtest_run():
+    """Return latest backtest run result."""
+    if event_driven_backtester.runs:
+        return JSONResponse(event_driven_backtester.runs[0])
+    return JSONResponse({"status": "FAILED", "message": "No backtest runs found"}, status_code=404)
+
 @app.post("/api/admin/login")
 async def admin_login(data: dict):
     """Authenticate Super Admin / Trader credentials."""
