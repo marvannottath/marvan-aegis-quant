@@ -1816,3 +1816,320 @@ async def get_api_status():
         "risk_engine_status": "ACTIVE",
         "kill_switch_status": "READY" if not emergency_kill_switch.is_activated else "ACTIVE"
     }
+
+# =====================================================================
+# MONEY FLOW ARCHITECTURE — COMPLETE INFRASTRUCTURE ENDPOINTS
+# =====================================================================
+
+# Lazy imports (avoid circular deps, only load when routes are called)
+def _get_environment_gate():
+    from core.environment_gate import environment_gate
+    return environment_gate
+
+def _get_market_data_watchdog():
+    from core.market_data_watchdog import market_data_watchdog
+    return market_data_watchdog
+
+def _get_payment_provider_router():
+    from execution.payment_provider_router import payment_provider_router
+    return payment_provider_router
+
+def _get_user_wallet():
+    from execution.user_wallet import user_wallet
+    return user_wallet
+
+def _get_order_state_machine():
+    from core.order_state_machine import order_state_machine
+    return order_state_machine
+
+def _get_withdrawal_state_machine():
+    from core.withdrawal_state_machine import withdrawal_state_machine
+    return withdrawal_state_machine
+
+
+# ------------------------------------------------------------------
+# 1. Environment Status
+# ------------------------------------------------------------------
+@app.get("/api/environment/status")
+async def get_environment_status():
+    """Return complete environment gate status: PAPER / TESTNET / LIVE / withdrawal locks."""
+    gate = _get_environment_gate()
+    return JSONResponse({"status": "SUCCESS", "data": gate.get_environment_status()})
+
+
+# ------------------------------------------------------------------
+# 2. Market Data Health
+# ------------------------------------------------------------------
+@app.get("/api/market-data/health")
+async def get_market_data_health():
+    """Return real-time market data freshness per symbol with P50/P95/P99 latency."""
+    watchdog = _get_market_data_watchdog()
+    return JSONResponse({"status": "SUCCESS", "data": watchdog.get_all_status()})
+
+
+# ------------------------------------------------------------------
+# 3. Payment Provider Status
+# ------------------------------------------------------------------
+@app.get("/api/payments/provider-status")
+async def get_payment_provider_status():
+    """Return health and configuration status for all payment providers."""
+    router = _get_payment_provider_router()
+    statuses = router.get_provider_statuses()
+    return JSONResponse({"status": "SUCCESS", "providers": statuses})
+
+
+# ------------------------------------------------------------------
+# 4. Wallet Balances (10 Buckets from Ledger)
+# ------------------------------------------------------------------
+@app.get("/api/wallet/balances")
+async def get_wallet_balances(environment: str = "AEGIS_QUANT_MASTER"):
+    """Return all 10 wallet balance buckets derived from the authoritative double-entry ledger."""
+    try:
+        wallet = _get_user_wallet()
+        balances = wallet.compute_all(environment=environment)
+        return JSONResponse({"status": "SUCCESS", "wallet": balances})
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+# ------------------------------------------------------------------
+# 5. Binance Pay — Create Payment Order
+# ------------------------------------------------------------------
+@app.post("/api/payments/binance-pay/create-order")
+async def create_binance_pay_order(request: Request):
+    """Create a Binance Pay payment order. Returns NOT_CONFIGURED if credentials absent."""
+    try:
+        body = await request.json()
+        amount   = float(body.get("amount", 0))
+        currency = body.get("currency", "USDT")
+        user_id  = body.get("user_id", "USER-MAIN")
+        if amount <= 0:
+            return JSONResponse({"status": "ERROR", "message": "Amount must be positive"}, status_code=400)
+        router = _get_payment_provider_router()
+        result = router.create_deposit("BINANCE_PAY", amount=amount, currency=currency, user_id=user_id)
+        return JSONResponse(result)
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+# ------------------------------------------------------------------
+# 6. Binance Pay — Webhook Receiver
+# ------------------------------------------------------------------
+@app.post("/api/payments/webhook/binance-pay")
+async def binance_pay_webhook(request: Request):
+    """
+    Receive Binance Pay webhook events.
+    Server-side HMAC signature verification is mandatory before any wallet credit.
+    """
+    try:
+        payload_bytes = await request.body()
+        timestamp  = request.headers.get("BinancePay-Timestamp", "")
+        nonce      = request.headers.get("BinancePay-Nonce", "")
+        signature  = request.headers.get("BinancePay-Signature", "")
+
+        router = _get_payment_provider_router()
+
+        # Verify signature
+        is_valid = router.verify_webhook(
+            "BINANCE_PAY", payload_bytes, signature,
+            timestamp=timestamp, nonce=nonce
+        )
+
+        # In NOT_CONFIGURED state, reject all webhook calls
+        from execution.binance_pay_engine import binance_pay_engine
+        if not binance_pay_engine.enabled:
+            return JSONResponse({"status": "NOT_CONFIGURED"}, status_code=200)
+
+        if not is_valid:
+            return JSONResponse({"status": "REJECTED_INVALID_SIGNATURE"}, status_code=400)
+
+        event_data = json.loads(payload_bytes.decode("utf-8"))
+        result = router.process_webhook_event("BINANCE_PAY", event_data)
+
+        # Audit log
+        audit_logger.log_event(
+            "BINANCE_PAY_WEBHOOK", "SYSTEM",
+            event_data.get("orderAmount", 0), "USDT",
+            "BINANCE_PAY", "WEBHOOK",
+            event_data.get("merchantTradeNo", ""),
+            request.client.host if request.client else "0.0.0.0",
+            "AEGIS_QUANT_MASTER"
+        )
+        return JSONResponse(result)
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+# ------------------------------------------------------------------
+# 7. Order Submission (via Environment Gate)
+# ------------------------------------------------------------------
+@app.post("/api/orders/submit")
+async def submit_order(request: Request):
+    """
+    Submit a new order through the complete safety gate pipeline:
+    EnvironmentGate -> Risk Engine -> OrderStateMachine -> Execution
+    """
+    try:
+        body        = await request.json()
+        symbol      = body.get("symbol", "BTCUSD")
+        side        = body.get("side", "BUY")
+        quantity    = float(body.get("quantity", 0))
+        order_type  = body.get("order_type", "MARKET")
+        price       = float(body.get("price", 0))
+        environment = body.get("environment", "PAPER")
+        strategy    = body.get("strategy", "MANUAL")
+
+        if quantity <= 0:
+            return JSONResponse({"status": "REJECTED", "reason": "Quantity must be positive"}, status_code=400)
+
+        # Gate check
+        gate = _get_environment_gate()
+        watchdog = _get_market_data_watchdog()
+        data_age = watchdog.get_age(symbol)
+        allowed, gate_msg = gate.check_order_allowed(environment, market_data_age_seconds=data_age)
+
+        if not allowed:
+            return JSONResponse({"status": "BLOCKED", "reason": gate_msg}, status_code=403)
+
+        # Create order in state machine
+        osm = _get_order_state_machine()
+        order = osm.create_order(
+            symbol=symbol, side=side, quantity=quantity,
+            order_type=order_type, environment=environment,
+            price=price, strategy=strategy,
+        )
+        order_id = order["order_id"]
+
+        # Risk engine check
+        osm.transition(order_id, "RISK_PENDING", reason="Entering risk pipeline")
+        approved, _, risk_msg = risk_engine.validate_order_pipeline(
+            amount_usd=price * quantity if price > 0 else 1000.0,
+            leverage=1.0, current_open_positions=len(paper_broker.positions),
+            available_cash=paper_broker.virtual_cash
+        )
+        if not approved:
+            osm.transition(order_id, "REJECTED", reason=f"Risk engine: {risk_msg}")
+            return JSONResponse({"status": "REJECTED", "order_id": order_id, "reason": risk_msg})
+
+        osm.transition(order_id, "APPROVED", reason="Risk engine approved")
+
+        # Paper execution (PAPER environment)
+        if environment == "PAPER":
+            osm.transition(order_id, "SUBMITTED", reason="Submitting to paper broker")
+            exec_result = paper_broker.place_order(symbol=symbol, side=side, amount_usd=price * quantity if price > 0 else 1000.0)
+            if exec_result.get("status") == "SUCCESS":
+                exec_record = {"fill_price": exec_result.get("entry_price", price), "environment": "PAPER", "broker": "PAPER"}
+                osm.transition(order_id, "ACKNOWLEDGED", reason="Paper broker acknowledged")
+                osm.transition(order_id, "FILLED", reason="Paper fill executed",
+                               execution_record=exec_record,
+                               fill_qty=quantity, avg_fill_price=exec_result.get("entry_price", price))
+            else:
+                osm.transition(order_id, "FAILED", reason=exec_result.get("message", "Paper execution failed"))
+
+        return JSONResponse({"status": "SUCCESS", "order": osm.get_order(order_id)})
+
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+# ------------------------------------------------------------------
+# 8. Order Status
+# ------------------------------------------------------------------
+@app.get("/api/orders/{order_id}/status")
+async def get_order_status(order_id: str):
+    """Return current state machine status for an order."""
+    try:
+        osm = _get_order_state_machine()
+        order = osm.get_order(order_id)
+        if not order:
+            return JSONResponse({"status": "NOT_FOUND", "order_id": order_id}, status_code=404)
+        return JSONResponse({"status": "SUCCESS", "order": order})
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+# ------------------------------------------------------------------
+# 9. Withdrawal Request (locked by default)
+# ------------------------------------------------------------------
+@app.post("/api/withdrawals/request")
+async def request_withdrawal(request: Request):
+    """
+    Submit a withdrawal request.
+    Locked by default (LIVE_WITHDRAWALS_ENABLED=false).
+    """
+    try:
+        gate = _get_environment_gate()
+        allowed, reason = gate.check_withdrawal_allowed("AEGIS_QUANT_MASTER")
+        if not allowed:
+            return JSONResponse({"status": "LOCKED", "reason": reason}, status_code=403)
+
+        body    = await request.json()
+        amount  = float(body.get("amount", 0))
+        asset   = body.get("asset", "USDT")
+        dest    = body.get("destination_address", "")
+        network = body.get("network", "TRC20")
+        user_id = body.get("user_id", "USER-MAIN")
+
+        wsm = _get_withdrawal_state_machine()
+        result = wsm.request_withdrawal(
+            user_id=user_id, amount=amount, asset=asset,
+            destination_address=dest, network=network
+        )
+        return JSONResponse(result)
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+# ------------------------------------------------------------------
+# 10. Withdrawal Status
+# ------------------------------------------------------------------
+@app.get("/api/withdrawals/{withdrawal_id}/status")
+async def get_withdrawal_status(withdrawal_id: str):
+    """Return current state machine status for a withdrawal."""
+    try:
+        wsm = _get_withdrawal_state_machine()
+        wd = wsm.get_withdrawal(withdrawal_id)
+        if not wd:
+            return JSONResponse({"status": "NOT_FOUND"}, status_code=404)
+        return JSONResponse({"status": "SUCCESS", "withdrawal": wd})
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+# ------------------------------------------------------------------
+# 11. Full Money Flow Architecture Status (single summary endpoint)
+# ------------------------------------------------------------------
+@app.get("/api/money-flow/status")
+async def get_money_flow_status():
+    """
+    Single summary endpoint returning the complete money flow architecture status.
+    Used by the frontend to render all payment/trading/withdrawal mode indicators.
+    """
+    try:
+        gate      = _get_environment_gate()
+        watchdog  = _get_market_data_watchdog()
+        router    = _get_payment_provider_router()
+        wallet    = _get_user_wallet()
+
+        env_status      = gate.get_environment_status()
+        providers       = router.get_provider_statuses()
+        market_health   = watchdog.get_all_status()
+
+        try:
+            wallet_balances = wallet.compute_all()
+        except Exception as we:
+            wallet_balances = {"error": str(we)}
+
+        recon = paper_broker.get_reconciliation()
+
+        return JSONResponse({
+            "status":         "SUCCESS",
+            "environment":    env_status,
+            "payment_providers": providers,
+            "market_data":    market_health,
+            "wallet":         wallet_balances,
+            "reconciliation": recon,
+            "generated_at":   time.strftime("%Y-%m-%d %H:%M:%S"),
+        })
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)

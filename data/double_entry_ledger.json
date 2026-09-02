@@ -1,6 +1,32 @@
 {
   "entries": [
     {
+      "entry_id": "DEL-BIN-1788337943471-E84811",
+      "timestamp": "2026-09-02 14:02:23",
+      "ledger_type": "BINANCE_PAY_DEPOSIT",
+      "environment": "AEGIS_QUANT_MASTER",
+      "debit_account": "BINANCE_PAY_INFLOW",
+      "credit_account": "CUSTOMER_TRADING_ACCOUNT",
+      "amount": 500.0,
+      "asset": "USDT",
+      "reference_id": "TEST-ARCH-001",
+      "metadata": {},
+      "status": "POSTED"
+    },
+    {
+      "entry_id": "DEL-BIN-1788337834743-167A20",
+      "timestamp": "2026-09-02 14:00:34",
+      "ledger_type": "BINANCE_PAY_DEPOSIT",
+      "environment": "AEGIS_QUANT_MASTER",
+      "debit_account": "BINANCE_PAY_INFLOW",
+      "credit_account": "CUSTOMER_TRADING_ACCOUNT",
+      "amount": 500.0,
+      "asset": "USDT",
+      "reference_id": "TEST-ARCH-001",
+      "metadata": {},
+      "status": "POSTED"
+    },
+    {
       "entry_id": "DEL-DEP-1788310906783-4068C0",
       "timestamp": "2026-09-02 06:31:46",
       "ledger_type": "DEPOSIT_LEDGER",
