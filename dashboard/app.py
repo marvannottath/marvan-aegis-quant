@@ -1,3 +1,10 @@
+def get_current_git_commit():
+    try:
+        import subprocess
+        return subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], cwd=str(BASE_DIR)).decode("utf-8").strip()
+    except Exception:
+        return "142b866b"
+
 import os
 """
 FastAPI Backend Server & Real-time Web Dashboard for Marvan's Pool / Aegis-Quant.
@@ -1663,7 +1670,7 @@ async def get_api_status():
     return {
         "status": "HEALTHY",
         "build_version": "v6.0.0",
-        "git_commit": "42894a91",
+        "git_commit": get_current_git_commit(),
         "server_time": time.strftime("%Y-%m-%d %H:%M:%S IST"),
         "process_pid": os.getpid(),
         "uptime_seconds": 86400,
