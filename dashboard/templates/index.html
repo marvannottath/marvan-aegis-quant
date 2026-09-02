@@ -1341,6 +1341,27 @@
             });
         }
 
+        function initWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+            try {
+                const ws = new WebSocket(wsUrl);
+                ws.onopen = () => console.log('WebSocket connected to:', wsUrl);
+                ws.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        updateTerminalState(data);
+                    } catch (e) {
+                        console.warn('WS message parse notice:', e);
+                    }
+                };
+                ws.onerror = (err) => console.warn('WS notice:', err);
+                ws.onclose = () => setTimeout(initWebSocket, 5000);
+            } catch (e) {
+                console.warn('WS init notice:', e);
+            }
+        }
+
         window.addEventListener('DOMContentLoaded', () => {
             initChart();
             fetchState();
