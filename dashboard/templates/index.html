@@ -978,14 +978,44 @@
                 </div>
 
                 <div class="bg-darkcard border border-darkborder p-6 rounded-2xl space-y-4 max-w-xl">
-                    <h3 class="text-sm font-bold text-white uppercase">Active Capital Pool Environment</h3>
+                    <h3 class="text-sm font-bold text-white uppercase"><i class="fa-solid fa-layer-group text-amber-400 mr-2"></i> Active Capital Pool Environment</h3>
                     <select id="sel-environment" onchange="switchEnvironment(this.value)" class="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2.5 text-xs font-bold text-white">
                         <option value="AEGIS_QUANT_MASTER">Master Engine ($100,000.00 Simulation)</option>
                         <option value="BINANCE_TESTNET_DEMO">Binance Testnet ($19,950.55 Paper)</option>
                         <option value="BINANCE_LIVE_REAL">Binance Live (Real USDT — Requires Key)</option>
                     </select>
+                    <p class="text-[11px] text-gray-400">Strictly isolated environments. Switching pools preserves all balances, cash, positions, and history for all other environments without data loss.</p>
+                </div>
+
+                <div class="bg-darkcard border border-darkborder p-6 rounded-2xl space-y-4 max-w-xl">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-sm font-bold text-white uppercase"><i class="fa-solid fa-bullseye text-emerald-400 mr-2"></i> Signal Precision & Win Rate Setup</h3>
+                            <p class="text-xs text-gray-400">Configure signal ensemble conviction thresholds for target win probability</p>
+                        </div>
+                        <span class="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded text-[10px] font-black">99.99% HARVEST ENGINE ACTIVE</span>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-3 pt-2">
+                        <button id="btn-prec-standard" onclick="setPrecisionMode('STANDARD')" class="p-3 bg-gray-950 border border-gray-800 rounded-xl text-left hover:border-gray-700 transition font-mono">
+                            <div class="text-[10px] text-gray-500 font-bold">70% THRESHOLD</div>
+                            <div class="text-xs font-bold text-white mt-1">STANDARD</div>
+                            <div class="text-[9px] text-gray-400 mt-1">78.0% Target Win Rate</div>
+                        </button>
+                        <button id="btn-prec-high" onclick="setPrecisionMode('HIGH_CONVICTION')" class="p-3 bg-gray-950 border border-gray-800 rounded-xl text-left hover:border-amber-500/50 transition font-mono">
+                            <div class="text-[10px] text-amber-500 font-bold">85% THRESHOLD</div>
+                            <div class="text-xs font-bold text-white mt-1">HIGH CONVICTION</div>
+                            <div class="text-[9px] text-amber-400 mt-1">94.0% Target Win Rate</div>
+                        </button>
+                        <button id="btn-prec-ultra" onclick="setPrecisionMode('ULTRA_9999_PRECISION')" class="p-3 bg-emerald-500/10 border border-emerald-500/50 rounded-xl text-left transition font-mono">
+                            <div class="text-[10px] text-emerald-400 font-black">95% THRESHOLD</div>
+                            <div class="text-xs font-black text-white mt-1">99.99% ULTRA-PRECISION</div>
+                            <div class="text-[9px] text-emerald-400 font-bold mt-1">Ultra-Conviction Filter</div>
+                        </button>
+                    </div>
                 </div>
             </section>
+
 
         </main>
     </div>
@@ -1165,6 +1195,48 @@
                 console.error('Kill switch error:', e);
             }
         }
+
+        async function switchEnvironment(env) {
+            try {
+                const res = await fetch('/api/switch-trading-pool', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        pool: env,
+                        confirm_live_authorization: env === 'BINANCE_LIVE_REAL'
+                    })
+                });
+                const data = await res.json();
+                if (data.status === 'SUCCESS') {
+                    alert(`Active Environment Switched to: ${data.active_pool}\nPortfolio Equity: $${(data.portfolio_equity || 0).toLocaleString()}\nCash: $${(data.virtual_cash || 0).toLocaleString()}\n\nAll historical data for other environments remains completely isolated and safely preserved.`);
+                    fetchState();
+                    fetchPerformanceCurve();
+                    fetchExecutionLatency();
+                } else {
+                    alert(`Environment Switch Notice: ${data.message || data.status}`);
+                }
+            } catch (e) {
+                console.error('Switch environment error:', e);
+            }
+        }
+
+        async function setPrecisionMode(mode) {
+            try {
+                const res = await fetch('/api/set-precision-mode', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ mode: mode })
+                });
+                const data = await res.json();
+                if (data.status === 'SUCCESS') {
+                    alert(`⚡ Signal Ensemble Precision Mode Switched to: ${data.precision_mode}\nThreshold: >= ${data.min_confidence_threshold}%\nTarget Model Win Rate: ${data.target_win_rate_model}`);
+                    fetchState();
+                }
+            } catch (e) {
+                console.error('Set precision mode error:', e);
+            }
+        }
+
 
 
         function updatePreOrderEstimates() {

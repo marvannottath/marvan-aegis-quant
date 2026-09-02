@@ -353,6 +353,15 @@ async def set_risk_profile_endpoint(data: dict):
     res = risk_engine.set_risk_profile(prof)
     return JSONResponse({"status": "SUCCESS", "active_profile": res})
 
+@app.post("/api/set-precision-mode")
+async def set_precision_mode_endpoint(data: dict):
+    """Dynamically set Signal Ensemble Precision Mode (ULTRA_9999_PRECISION, HIGH_CONVICTION, STANDARD)."""
+    mode = data.get("mode", "ULTRA_9999_PRECISION")
+    from core.signal_ensemble import signal_ensemble_engine
+    res = signal_ensemble_engine.set_precision_mode(mode)
+    return JSONResponse(res)
+
+
 @app.post("/api/set-max-trade-cap")
 @app.post("/api/set-trade-cap")
 async def set_max_trade_cap_endpoint(data: dict):
