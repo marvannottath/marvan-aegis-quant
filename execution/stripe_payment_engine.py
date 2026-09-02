@@ -7,7 +7,10 @@ import os
 import json
 import time
 import uuid
-import stripe
+try:
+    import stripe
+except ImportError:
+    stripe = None
 from pathlib import Path
 from typing import Dict, Any, List, Tuple, Optional
 from datetime import datetime, timezone, timedelta
@@ -23,7 +26,8 @@ class StripePaymentEngine:
         self.webhook_secret = os.getenv("STRIPE_WEBHOOK_SECRET", "whsec_mock_aegis_secret_key_778899")
         self.mode = "TEST"  # Explicit TEST / SANDBOX MODE
         
-        stripe.api_key = self.secret_key
+        if stripe:
+            stripe.api_key = self.secret_key
         self.payments: List[Dict[str, Any]] = []
         self.processed_event_ids: set = set()
         self._load_db()
