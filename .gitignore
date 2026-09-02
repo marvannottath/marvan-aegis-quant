@@ -5,6 +5,8 @@ __pycache__/
 .env
 logs/
 frontend/node_modules/
-data/notification_config.json
-execution/binance_config.json
+data/*.json
+data/backups/
 execution/*_state.json
+execution/binance_config.json
+!data/default_*.json
