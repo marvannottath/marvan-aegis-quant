@@ -68,7 +68,7 @@ class UserWallet:
 
         # 5. Reconciliation check
         ledger_equity = round(total_deposits - total_withdrawals + realized_pnl - fees_paid, 2)
-        broker_equity = round(float(paper_broker.equity), 2)
+        broker_equity = round(float(paper_broker.equity) + vault_balance, 2)
         recon_ok = abs(ledger_equity - broker_equity) < 1.0  # allow $1 float tolerance
 
         return {
