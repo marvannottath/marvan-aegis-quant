@@ -1303,7 +1303,16 @@
             const health = data.system_health || {};
 
             // Top Header & Metrics
+            const activePool = data.active_capital_pool || 'AEGIS_QUANT_MASTER';
+            const hdrEnv = document.getElementById('hdr-env-label');
+            if (hdrEnv) {
+                if (activePool.includes('MASTER')) hdrEnv.innerText = `MASTER ENGINE ($${equity.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})})`;
+                else if (activePool.includes('TESTNET') || activePool.includes('DEMO')) hdrEnv.innerText = `BINANCE TESTNET ($${equity.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})})`;
+                else hdrEnv.innerText = `BINANCE LIVE (REAL USDT)`;
+            }
+
             if (document.getElementById('metric-equity')) document.getElementById('metric-equity').innerText = '$' + equity.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
             const todayPnl = (data.realized_pnl_today !== undefined) ? data.realized_pnl_today : ((data.profit_vault && data.profit_vault.realized_profit_today) ? data.profit_vault.realized_profit_today : 0.0);
             const todayPct = (data.realized_pnl_pct !== undefined) ? data.realized_pnl_pct : 0.0;
             if (document.getElementById('metric-today-pnl')) document.getElementById('metric-today-pnl').innerText = (todayPnl >= 0 ? '+' : '') + '$' + todayPnl.toFixed(2);
@@ -2243,7 +2252,21 @@
             }
         }
 
+        function updateLiveHeaderClock() {
+            const el = document.getElementById('lbl-server-time');
+            if (!el) return;
+            const now = new Date();
+            const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+            const istDate = new Date(utc + (3600000 * 5.5));
+            const h = String(istDate.getHours()).padStart(2, '0');
+            const m = String(istDate.getMinutes()).padStart(2, '0');
+            const s = String(istDate.getSeconds()).padStart(2, '0');
+            el.innerHTML = `${h}:${m}:${s} <span class="text-amber-400 font-bold">IST</span>`;
+        }
+
         window.addEventListener('DOMContentLoaded', () => {
+            updateLiveHeaderClock();
+            setInterval(updateLiveHeaderClock, 1000);
             initChart();
             fetchState();
             fetchExecutionLatency();
@@ -2253,6 +2276,7 @@
             setInterval(fetchExecutionLatency, 5000);
         });
     </script>
+
 
     <!-- BACKTEST TRADE DETAIL MODAL -->
     <div id="backtestTradeDetailModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
