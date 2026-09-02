@@ -56,20 +56,20 @@
 
         <div class="hidden lg:flex items-center space-x-4 text-xs font-mono">
             <!-- Active Environment -->
-            <div class="flex items-center space-x-1.5 px-3 py-1 bg-gray-900 border border-gray-800 rounded-lg">
+            <div onclick="switchTab('settings')" class="flex items-center space-x-1.5 px-3 py-1 bg-gray-900 border border-gray-800 rounded-lg cursor-pointer hover:border-amber-500/50 transition" title="Click to view Environment Settings">
                 <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                 <span class="text-gray-400">ACTIVE:</span>
                 <span id="hdr-env-label" class="font-bold text-emerald-400">MASTER ENGINE ($100,000.00)</span>
             </div>
 
             <!-- Execution Mode -->
-            <div class="flex items-center space-x-1.5 px-3 py-1 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-400 font-bold">
+            <div onclick="switchTab('execution')" class="flex items-center space-x-1.5 px-3 py-1 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-400 font-bold cursor-pointer hover:bg-amber-500/20 transition" title="Click to view Execution Monitor">
                 <i class="fa-solid fa-flask"></i>
                 <span>SIMULATION / DEMO</span>
             </div>
 
             <!-- Connection Status -->
-            <div class="flex items-center space-x-1.5 text-emerald-400 font-bold">
+            <div onclick="switchTab('system')" class="flex items-center space-x-1.5 text-emerald-400 font-bold cursor-pointer hover:underline" title="Click to view System Health">
                 <i class="fa-solid fa-wifi"></i>
                 <span id="lbl-conn-status">CONNECTED (WS)</span>
             </div>
@@ -176,37 +176,37 @@
                 
                 <!-- TOP 6 CORE FINANCIAL METRICS -->
                 <div class="grid grid-cols-2 lg:grid-cols-6 gap-3 md:gap-4">
-                    <div class="bg-darkcard border border-darkborder p-4 rounded-xl space-y-1">
+                    <div onclick="switchTab('portfolio')" class="bg-darkcard border border-darkborder p-4 rounded-xl space-y-1 cursor-pointer hover:border-amber-500/50 transition" title="Click to view Portfolio & Vault">
                         <div class="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Total Equity</div>
                         <div id="metric-equity" class="text-xl md:text-2xl font-black text-white font-mono">$100,023.49</div>
                         <div class="text-[10px] text-emerald-400 font-mono font-bold">Authoritative Ledger</div>
                     </div>
 
-                    <div class="bg-darkcard border border-darkborder p-4 rounded-xl space-y-1">
+                    <div onclick="switchTab('analytics')" class="bg-darkcard border border-darkborder p-4 rounded-xl space-y-1 cursor-pointer hover:border-emerald-500/50 transition" title="Click to view Performance Analytics">
                         <div class="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Today's Realized PnL</div>
                         <div id="metric-today-pnl" class="text-xl md:text-2xl font-black text-emerald-400 font-mono">+$0.00</div>
                         <div class="text-[10px] text-gray-400 font-mono">+0.00% Daily Return</div>
                     </div>
 
-                    <div class="bg-darkcard border border-darkborder p-4 rounded-xl space-y-1">
+                    <div onclick="switchTab('portfolio')" class="bg-darkcard border border-darkborder p-4 rounded-xl space-y-1 cursor-pointer hover:border-blue-500/50 transition" title="Click to view Available Cash">
                         <div class="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Free Cash</div>
                         <div id="metric-free-cash" class="text-xl md:text-2xl font-black text-white font-mono">$95,196.83</div>
                         <div class="text-[10px] text-gray-400 font-mono">Available Margin</div>
                     </div>
 
-                    <div class="bg-darkcard border border-darkborder p-4 rounded-xl space-y-1">
+                    <div onclick="switchTab('positions')" class="bg-darkcard border border-darkborder p-4 rounded-xl space-y-1 cursor-pointer hover:border-amber-500/50 transition" title="Click to view Open Positions">
                         <div class="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Open Positions</div>
                         <div id="metric-open-count" class="text-xl md:text-2xl font-black text-amber-400 font-mono">0 Active</div>
                         <div class="text-[10px] text-gray-400 font-mono">Max Profile: 8</div>
                     </div>
 
-                    <div class="bg-darkcard border border-darkborder p-4 rounded-xl space-y-1">
+                    <div onclick="switchTab('positions')" class="bg-darkcard border border-darkborder p-4 rounded-xl space-y-1 cursor-pointer hover:border-blue-500/50 transition" title="Click to view Exposure Details">
                         <div class="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Total Exposure</div>
                         <div id="metric-exposure" class="text-xl md:text-2xl font-black text-blue-400 font-mono">$0.00</div>
                         <div class="text-[10px] text-gray-400 font-mono">Allocated Margin</div>
                     </div>
 
-                    <div class="bg-darkcard border border-darkborder p-4 rounded-xl space-y-1">
+                    <div onclick="switchTab('risk')" class="bg-darkcard border border-darkborder p-4 rounded-xl space-y-1 cursor-pointer hover:border-red-500/50 transition" title="Click to view Risk Center">
                         <div class="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Current Drawdown</div>
                         <div id="metric-drawdown" class="text-xl md:text-2xl font-black text-emerald-400 font-mono">0.00%</div>
                         <div class="text-[10px] text-gray-400 font-mono">Max Circuit: 10.0%</div>
