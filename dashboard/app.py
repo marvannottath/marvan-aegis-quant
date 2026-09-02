@@ -732,6 +732,20 @@ async def run_event_driven_backtest(data: dict = {}):
     )
     return JSONResponse(result)
 
+@app.post("/api/backtest/run-fast-engine")
+async def run_fast_engine_backtest():
+    """Run the actual live strategy engine at high speed over 15-year 365-day historical data."""
+    try:
+        from run_full_365day_15year_historical_backtest import run_continuous_15year_backtest
+        run_continuous_15year_backtest()
+        from core.backtest_analytics_engine import backtest_analytics_engine
+        runs = backtest_analytics_engine.list_backtest_runs()
+        latest = runs[0] if runs else {}
+        return JSONResponse({"status": "SUCCESS", "message": "High-speed 15-year 365-day engine backtest completed!", "backtest": latest})
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
 @app.get("/api/backtest/runs")
 async def get_backtest_runs():
     """Return all persisted backtest runs history."""
