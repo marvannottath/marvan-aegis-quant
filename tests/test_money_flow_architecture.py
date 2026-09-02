@@ -180,31 +180,42 @@ except Exception as e:
     test("UserWallet compute_all runs without error", False, str(e))
 
 # ==========================================================================
-# 8. DOUBLE-ENTRY LEDGER INTEGRITY
+# 8. DOUBLE-ENTRY LEDGER INTEGRITY & FINANCIAL ASSERTIONS
 # ==========================================================================
-print("\n[8. DOUBLE-ENTRY LEDGER]")
+print("\n[8. DOUBLE-ENTRY LEDGER INTEGRITY & RECONCILIATION]")
 from core.double_entry_ledger import double_entry_ledger
 
 entry = double_entry_ledger.post_entry(
     "BINANCE_PAY_DEPOSIT", "BINANCE_PAY_INFLOW", "CUSTOMER_TRADING_ACCOUNT",
-    500.0, "USDT", reference_id="TEST-ARCH-001"
+    500.0, "USDT", reference_id="TEST-ARCH-001", environment="TEST_ENV"
 )
 test("Ledger entry posted successfully", entry["status"] == "POSTED", entry["entry_id"])
 
 try:
-    double_entry_ledger.post_entry("DEPOSIT", "DR", "CR", 0.0)
+    double_entry_ledger.post_entry("DEPOSIT", "DR", "CR", 0.0, environment="TEST_ENV")
     test("Zero-amount ledger entry blocked", False)
 except ValueError as e:
     test("Zero-amount ledger entry blocked", True, str(e)[:60])
 
 try:
-    double_entry_ledger.post_entry("DEPOSIT", "DR", "CR", -100.0)
+    double_entry_ledger.post_entry("DEPOSIT", "DR", "CR", -100.0, environment="TEST_ENV")
     test("Negative-amount ledger entry blocked", False)
 except ValueError as e:
     test("Negative-amount ledger entry blocked", True, str(e)[:60])
 
-bal = double_entry_ledger.get_account_balance("CUSTOMER_TRADING_ACCOUNT")
+bal = double_entry_ledger.get_account_balance("CUSTOMER_TRADING_ACCOUNT", "AEGIS_QUANT_MASTER")
 test("Ledger account balance computable", isinstance(bal, float), f"Balance: {bal}")
+
+# Strict Financial Assertions for AEGIS_QUANT_MASTER
+opening_entry = double_entry_ledger.ensure_opening_balance("AEGIS_QUANT_MASTER", 100000.0)
+test("Opening balance ledger entry exists", opening_entry is not None and opening_entry["amount"] == 100000.0)
+
+from execution.paper_broker import paper_broker
+broker_eq = round(float(paper_broker.equity), 2)
+ledger_eq = round(double_entry_ledger.get_account_balance("CUSTOMER_TRADING_ACCOUNT", "AEGIS_QUANT_MASTER"), 2)
+delta = round(abs(broker_eq - ledger_eq), 2)
+
+test("Ledger Equity == Broker Equity (Delta == $0.00)", delta == 0.0, f"Ledger: ${ledger_eq}, Broker: ${broker_eq}, Delta: ${delta}")
 
 # ==========================================================================
 # 9. FAIL-CLOSED INTEGRATION: stale data + LIVE lock
