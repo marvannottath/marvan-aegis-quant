@@ -59,6 +59,7 @@ class BinancePayEngine:
         self.payments: List[Dict[str, Any]] = []
         self.processed_trade_nos: set = set()  # idempotency set
         self._load_db()
+        self._save_db()
 
     # ------------------------------------------------------------------ #
     # Persistence

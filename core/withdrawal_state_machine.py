@@ -47,6 +47,7 @@ class WithdrawalStateMachine:
     def __init__(self):
         self.withdrawals: Dict[str, Dict[str, Any]] = {}
         self._load()
+        self._save()
 
     def _load(self):
         WITHDRAWALS_DB.parent.mkdir(parents=True, exist_ok=True)

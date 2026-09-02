@@ -1,10 +1,10 @@
 {
   "entries": [
     {
-      "entry_id": "DEL-BIN-1788337943471-E84811",
-      "timestamp": "2026-09-02 14:02:23",
+      "entry_id": "DEL-BIN-1788350161912-39F03F",
+      "timestamp": "2026-09-02 17:26:01",
       "ledger_type": "BINANCE_PAY_DEPOSIT",
-      "environment": "AEGIS_QUANT_MASTER",
+      "environment": "TEST_ENV",
       "debit_account": "BINANCE_PAY_INFLOW",
       "credit_account": "CUSTOMER_TRADING_ACCOUNT",
       "amount": 500.0,
@@ -14,16 +14,32 @@
       "status": "POSTED"
     },
     {
-      "entry_id": "DEL-BIN-1788337834743-167A20",
-      "timestamp": "2026-09-02 14:00:34",
+      "entry_id": "DEL-BIN-1788349343092-471566",
+      "timestamp": "2026-09-02 17:12:23",
       "ledger_type": "BINANCE_PAY_DEPOSIT",
-      "environment": "AEGIS_QUANT_MASTER",
+      "environment": "TEST_ENV",
       "debit_account": "BINANCE_PAY_INFLOW",
       "credit_account": "CUSTOMER_TRADING_ACCOUNT",
       "amount": 500.0,
       "asset": "USDT",
       "reference_id": "TEST-ARCH-001",
       "metadata": {},
+      "status": "POSTED"
+    },
+    {
+      "entry_id": "DEL-OPE-1788348856065-C6B373",
+      "timestamp": "2026-09-02 17:04:16",
+      "ledger_type": "OPENING_BALANCE",
+      "environment": "AEGIS_QUANT_MASTER",
+      "debit_account": "BROKER_TRADING_ASSET",
+      "credit_account": "CUSTOMER_TRADING_ACCOUNT",
+      "amount": 100000.0,
+      "asset": "USDT",
+      "reference_id": "OPENING_BALANCE_AEGIS_QUANT_MASTER",
+      "metadata": {
+        "description": "Initial Opening Capital Seed",
+        "is_opening_balance": true
+      },
       "status": "POSTED"
     },
     {
