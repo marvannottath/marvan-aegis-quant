@@ -286,7 +286,7 @@ async def get_state():
     from core.signal_ensemble import signal_ensemble_engine
 
     acc = paper_broker.get_account_summary()
-    positions = acc.get("positions", [])
+    positions = acc.get("positions", acc.get("open_positions", []))
     orders = acc.get("orders", [])
     
     # Generate live signal evaluations for top assets
@@ -364,11 +364,20 @@ async def toggle_ai_mode_endpoint():
     return JSONResponse({"status": "SUCCESS", "ai_active": is_active})
 
 @app.post("/api/close-position")
-async def close_position_endpoint(data: dict):
+async def close_position_endpoint(request: Request):
     """Manually close an open position."""
-    asset = data.get("asset", "")
-    res = trader.broker.close_position(asset, reason="MANUAL_TRADER_EXIT")
-    return JSONResponse({"status": "SUCCESS" if res else "FAILED", "closed_trade": res})
+    try:
+        if isinstance(request, dict):
+            body = request
+        else:
+            body = await request.json()
+        asset = body.get("asset", "")
+        pos = paper_broker.positions.get(asset, {})
+        exit_price = pos.get("last_price", pos.get("entry_price", 64250.0 if "BTC" in asset else 100.0))
+        res = paper_broker.close_position(asset, exit_price=exit_price, reason="MANUAL_TRADER_EXIT")
+        return JSONResponse({"status": "SUCCESS" if res else "FAILED", "closed_trade": res, "realized_pnl": res.get("pnl_usd", 0.0) if res else 0.0})
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=400)
 
 
 @app.post("/api/withdraw-vault-profit")
@@ -1636,7 +1645,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     "portfolio_equity": acc.get("portfolio_equity", 100023.49),
                     "virtual_cash": acc.get("virtual_cash", 95196.83),
                     "floating_open_pnl_usd": acc.get("floating_open_pnl_usd", 0.0),
-                    "positions": acc.get("positions", []),
+                    "positions": acc.get("positions", acc.get("open_positions", [])),
                     "orders": acc.get("orders", []),
                     "audit_log": audit_logger.get_audit_trail()[:10],
                     "profit_vault": profit_vault.get_vault_summary(),
@@ -1665,7 +1674,7 @@ async def get_api_status():
     
     b_stat = binance_broker.get_status()
     acc = paper_broker.get_account_summary()
-    positions = acc.get("positions", [])
+    positions = acc.get("positions", acc.get("open_positions", []))
 
     return {
         "status": "HEALTHY",

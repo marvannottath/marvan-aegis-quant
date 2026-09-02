@@ -360,6 +360,7 @@ class PaperBroker:
             "portfolio_equity": round(self.equity, 2),
             "floating_open_pnl_usd": 0.0,
             "floating_open_pnl_pct": 0.0,
+            "positions": list(self.positions.values()),
             "open_positions": list(self.positions.values()),
             "open_positions_count": len(self.positions),
             "trade_history": self.trade_history[:25],
