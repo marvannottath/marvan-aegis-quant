@@ -1581,3 +1581,64 @@ async def get_market_scanner():
         {"symbol": "NVDA", "category": "Stocks", "price": 128.0, "change_24h": "+3.20%", "volatility": "2.8%", "score": 89.5, "direction": "BUY", "age": "1m"}
     ]
     return {"status": "CONNECTED", "count": len(assets), "data": assets}
+
+
+from fastapi import WebSocket, WebSocketDisconnect
+from typing import List
+
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: List[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
+
+    async def broadcast(self, message: dict):
+        for connection in list(self.active_connections):
+            try:
+                await connection.send_json(message)
+            except Exception:
+                self.disconnect(connection)
+
+manager = ConnectionManager()
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await manager.connect(websocket)
+    seq = 0
+    try:
+        while True:
+            await asyncio.sleep(1.0)
+            seq += 1
+            from execution.paper_broker import paper_broker
+            from core.risk_engine import risk_engine
+            from core.audit_logger import audit_logger
+            from execution.profit_vault import profit_vault
+
+            acc = paper_broker.get_account_summary()
+            state_msg = {
+                "event_type": "ENGINE_HEARTBEAT",
+                "server_time": time.strftime("%H:%M:%S IST"),
+                "sequence": seq,
+                "payload": {
+                    "portfolio_equity": acc.get("portfolio_equity", 100023.49),
+                    "virtual_cash": acc.get("virtual_cash", 95196.83),
+                    "floating_open_pnl_usd": acc.get("floating_open_pnl_usd", 0.0),
+                    "positions": acc.get("positions", []),
+                    "orders": acc.get("orders", []),
+                    "audit_log": audit_logger.get_audit_trail()[:10],
+                    "profit_vault": profit_vault.get_vault_summary(),
+                    "risk_profile": risk_engine.active_profile,
+                    "data_age_seconds": 0.5
+                }
+            }
+            await websocket.send_json(state_msg)
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+    except Exception:
+        manager.disconnect(websocket)
