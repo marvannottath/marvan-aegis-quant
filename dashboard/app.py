@@ -325,6 +325,8 @@ async def get_state():
 
     return {
         "portfolio_equity": acc.get("portfolio_equity", 100023.49),
+        "realized_pnl_today": vault_summary.get("realized_profit_today", 0.0),
+        "realized_pnl_pct": round((vault_summary.get("realized_profit_today", 0.0) / max(1.0, acc.get("initial_capital", 100000.0))) * 100.0, 2),
         "virtual_cash": acc.get("virtual_cash", 95196.83),
         "floating_open_pnl_usd": acc.get("floating_open_pnl_usd", 0.0),
         "positions": positions,
@@ -1662,6 +1664,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 "sequence": seq,
                 "payload": {
                     "portfolio_equity": acc.get("portfolio_equity", 100023.49),
+        "realized_pnl_today": vault_summary.get("realized_profit_today", 0.0),
+        "realized_pnl_pct": round((vault_summary.get("realized_profit_today", 0.0) / max(1.0, acc.get("initial_capital", 100000.0))) * 100.0, 2),
                     "virtual_cash": acc.get("virtual_cash", 95196.83),
                     "floating_open_pnl_usd": acc.get("floating_open_pnl_usd", 0.0),
                     "positions": acc.get("positions", acc.get("open_positions", [])),

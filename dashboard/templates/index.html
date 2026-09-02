@@ -989,7 +989,9 @@
 
             // Top Header & Metrics
             if (document.getElementById('metric-equity')) document.getElementById('metric-equity').innerText = '$' + equity.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-            if (document.getElementById('metric-today-pnl')) document.getElementById('metric-today-pnl').innerText = (pnl >= 0 ? '+' : '') + '$' + pnl.toFixed(2);
+            const todayPnl = (data.realized_pnl_today !== undefined) ? data.realized_pnl_today : ((data.profit_vault && data.profit_vault.realized_profit_today) ? data.profit_vault.realized_profit_today : 0.0);
+            const todayPct = (data.realized_pnl_pct !== undefined) ? data.realized_pnl_pct : 0.0;
+            if (document.getElementById('metric-today-pnl')) document.getElementById('metric-today-pnl').innerText = (todayPnl >= 0 ? '+' : '') + '$' + todayPnl.toFixed(2);
             if (document.getElementById('metric-free-cash')) document.getElementById('metric-free-cash').innerText = '$' + cash.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
             if (document.getElementById('metric-open-count')) document.getElementById('metric-open-count').innerText = positions.length + ' Active';
             if (document.getElementById('badge-open-pos')) document.getElementById('badge-open-pos').innerText = positions.length;
