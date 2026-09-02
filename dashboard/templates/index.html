@@ -1258,7 +1258,7 @@
             try { renderAuditTrail(auditLog); } catch (e) { console.warn("Audit trail notice:", e); }
             try { renderDepositAuditTable(deposits); } catch (e) { console.warn("Deposit audit notice:", e); }
             try { renderVaultTransactions(data.profit_vault); } catch (e) { console.warn("Vault transactions notice:", e); }
-            try { renderBacktestAnalytics(data); } catch (e) { console.warn("Backtest analytics notice:", e); }
+
 
             try { renderSystemHealth(health); } catch (e) { console.warn("System health notice:", e); }
         }
@@ -1461,26 +1461,9 @@
         }
 
         function renderBacktestAnalytics(backtest) {
-            const tbody = document.getElementById('backtest-trades-tbody');
-            if (!tbody) return;
-            const trades = (backtest && (backtest.trade_history || backtest.trades)) ? (backtest.trade_history || backtest.trades) : [];
-            if (!trades || trades.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="8" class="py-6 text-center text-gray-500 font-mono text-xs"><i class="fa-solid fa-chart-line text-indigo-400 mr-2"></i> NO BACKTEST HISTORICAL TRADES RUN YET — Click 'Run 15-Year Backtest' to compute strategy metrics</td></tr>`;
-                return;
-            }
-            tbody.innerHTML = trades.map(t => `
-                <tr class="border-b border-gray-800/60 hover:bg-gray-900/50 text-xs">
-                    <td class="py-2.5 px-3 text-gray-400">${t.timestamp || '2026-09-02'}</td>
-                    <td class="py-2.5 px-3 text-gray-300 font-mono">${t.trade_id || t.id}</td>
-                    <td class="py-2.5 px-3 text-white font-bold">${t.asset}</td>
-                    <td class="py-2.5 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded bg-emerald-500/10 text-emerald-400">${t.type || t.action || 'BUY'}</span></td>
-                    <td class="py-2.5 px-3 text-gray-300">$${(t.entry || t.entry_price || 0).toLocaleString()}</td>
-                    <td class="py-2.5 px-3 text-white font-bold">$${(t.exit || t.exit_price || 0).toLocaleString()}</td>
-                    <td class="py-2.5 px-3 text-emerald-400 font-bold">+$${(t.pnl || t.pnl_usd || 0).toFixed(2)}</td>
-                    <td class="py-2.5 px-3 text-right text-indigo-400 font-bold">${t.model || 'Ensemble V6.0'}</td>
-                </tr>
-            `).join('');
+            // Managed exclusively by Backtest Analytics Lab (loadBacktestRun & renderBacktestTradeLogs)
         }
+
 
         function renderDepositAuditTable(deposits) {
             const tbody = document.getElementById('deposit-audit-tbody');
