@@ -1093,12 +1093,9 @@
         function renderVaultTransactions(vault) {
             const tbody = document.getElementById('vault-transactions-tbody');
             if (!tbody) return;
-            const history = (vault && vault.sweep_history) ? vault.sweep_history : [
-                {timestamp: "2026-09-02 01:20:15", tx_id: "SWP-AEGI-1788289776276", type: "PROFIT_SWEEP", asset: "BTCUSD", amount: 48.50, balance_after: 97.08, status: "SECURED"},
-                {timestamp: "2026-09-02 00:45:10", tx_id: "SWP-AEGI-1788289776100", type: "PROFIT_SWEEP", asset: "XAUUSD", amount: 48.58, balance_after: 48.58, status: "SECURED"}
-            ];
-            if (history.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-gray-500">NO PROFIT SWEEPS YET — Realized profits automatically sweep into vault</td></tr>`;
+            const history = (vault && (vault.recent_sweeps || vault.sweep_history || vault.transactions)) ? (vault.recent_sweeps || vault.sweep_history || vault.transactions) : [];
+            if (!history || history.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-gray-500 font-mono text-xs"><i class="fa-solid fa-vault text-emerald-400 mr-2"></i> NO PROFIT SWEEPS RECORDED — Realized profits automatically sweep into vault ledger</td></tr>`;
                 return;
             }
             tbody.innerHTML = history.map(h => `
@@ -1107,8 +1104,8 @@
                     <td class="py-2.5 px-3 text-gray-300 font-mono">${h.tx_id || h.id || 'SWP-001'}</td>
                     <td class="py-2.5 px-3 text-emerald-400 font-bold">${h.type || 'PROFIT_SWEEP'}</td>
                     <td class="py-2.5 px-3 text-white font-bold">${h.asset || 'BTCUSD'}</td>
-                    <td class="py-2.5 px-3 text-emerald-400 font-bold">+$${(h.amount || 0).toFixed(2)}</td>
-                    <td class="py-2.5 px-3 text-amber-400 font-bold">$${(h.balance_after || h.amount || 0).toFixed(2)}</td>
+                    <td class="py-2.5 px-3 text-emerald-400 font-bold">+$${(h.realized_profit || h.amount || 0).toFixed(2)}</td>
+                    <td class="py-2.5 px-3 text-amber-400 font-bold">$${(h.balance_after || h.realized_profit || 0).toFixed(2)}</td>
                     <td class="py-2.5 px-3 text-right"><span class="px-2 py-0.5 text-[9px] font-black rounded bg-emerald-500/10 text-emerald-400">${h.status || 'SECURED'}</span></td>
                 </tr>
             `).join('');
@@ -1117,22 +1114,21 @@
         function renderBacktestAnalytics(backtest) {
             const tbody = document.getElementById('backtest-trades-tbody');
             if (!tbody) return;
-            const trades = [
-                {timestamp: "2026-08-28 14:30:00", trade_id: "BT-2026-8801", asset: "BTCUSD", type: "BUY", entry: 64250.0, exit: 66800.0, pnl: 2550.0, model: "Ensemble V6.0"},
-                {timestamp: "2026-08-25 11:15:00", trade_id: "BT-2026-8802", asset: "ETHUSD", type: "BUY", entry: 2580.0, exit: 2720.0, pnl: 1400.0, model: "Ensemble V6.0"},
-                {timestamp: "2026-08-20 09:45:00", trade_id: "BT-2026-8803", asset: "XAUUSD", type: "BUY", entry: 2680.0, exit: 2740.0, pnl: 600.0, model: "Ensemble V6.0"},
-                {timestamp: "2026-08-15 16:20:00", trade_id: "BT-2026-8804", asset: "SOLUSD", type: "BUY", entry: 135.0, exit: 148.0, pnl: 1300.0, model: "Ensemble V6.0"}
-            ];
+            const trades = (backtest && (backtest.trade_history || backtest.trades)) ? (backtest.trade_history || backtest.trades) : [];
+            if (!trades || trades.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" class="py-6 text-center text-gray-500 font-mono text-xs"><i class="fa-solid fa-chart-line text-indigo-400 mr-2"></i> NO BACKTEST HISTORICAL TRADES RUN YET — Click 'Run 15-Year Backtest' to compute strategy metrics</td></tr>`;
+                return;
+            }
             tbody.innerHTML = trades.map(t => `
                 <tr class="border-b border-gray-800/60 hover:bg-gray-900/50 text-xs">
-                    <td class="py-2.5 px-3 text-gray-400">${t.timestamp}</td>
-                    <td class="py-2.5 px-3 text-gray-300 font-mono">${t.trade_id}</td>
+                    <td class="py-2.5 px-3 text-gray-400">${t.timestamp || '2026-09-02'}</td>
+                    <td class="py-2.5 px-3 text-gray-300 font-mono">${t.trade_id || t.id}</td>
                     <td class="py-2.5 px-3 text-white font-bold">${t.asset}</td>
-                    <td class="py-2.5 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded bg-emerald-500/10 text-emerald-400">${t.type}</span></td>
-                    <td class="py-2.5 px-3 text-gray-300">$${t.entry.toLocaleString()}</td>
-                    <td class="py-2.5 px-3 text-white font-bold">$${t.exit.toLocaleString()}</td>
-                    <td class="py-2.5 px-3 text-emerald-400 font-bold">+$${t.pnl.toFixed(2)}</td>
-                    <td class="py-2.5 px-3 text-right text-indigo-400 font-bold">${t.model}</td>
+                    <td class="py-2.5 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded bg-emerald-500/10 text-emerald-400">${t.type || t.action || 'BUY'}</span></td>
+                    <td class="py-2.5 px-3 text-gray-300">$${(t.entry || t.entry_price || 0).toLocaleString()}</td>
+                    <td class="py-2.5 px-3 text-white font-bold">$${(t.exit || t.exit_price || 0).toLocaleString()}</td>
+                    <td class="py-2.5 px-3 text-emerald-400 font-bold">+$${(t.pnl || t.pnl_usd || 0).toFixed(2)}</td>
+                    <td class="py-2.5 px-3 text-right text-indigo-400 font-bold">${t.model || 'Ensemble V6.0'}</td>
                 </tr>
             `).join('');
         }
