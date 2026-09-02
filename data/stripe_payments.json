@@ -1,0 +1,148 @@
+{
+  "payments": [
+    {
+      "payment_id": "PAY-STRIPE-1788326073537-79894F",
+      "stripe_session_id": "cs_test_e07b23511ab14f5fb83970ff",
+      "stripe_payment_intent_id": "pi_test_a5ed623ede354726ba38e478",
+      "user_id": "USER_USD_TEST",
+      "customer_email": "trader@aegisquant.io",
+      "amount": 500.0,
+      "currency": "USD",
+      "status": "REFUNDED",
+      "allocation_split": {
+        "trading_capital": 425.0,
+        "risk_reserve": 50.0,
+        "vault_reserve": 25.0
+      },
+      "created_at": "2026-09-02 10:44:33",
+      "confirmed_at": "2026-09-02 10:44:33",
+      "mode": "TEST"
+    },
+    {
+      "payment_id": "PAY-STRIPE-1788326073535-CCEFF0",
+      "stripe_session_id": "cs_test_2f70951f1c9f4014add3d66c",
+      "stripe_payment_intent_id": "pi_test_93fe8570806a48a8b1b6e87a",
+      "user_id": "USER_CAD_TEST",
+      "customer_email": "trader@aegisquant.io",
+      "amount": 100.0,
+      "currency": "CAD",
+      "status": "CHECKOUT_STARTED",
+      "allocation_split": {
+        "trading_capital": 85.0,
+        "risk_reserve": 10.0,
+        "vault_reserve": 5.0
+      },
+      "created_at": "2026-09-02 10:44:33",
+      "confirmed_at": null,
+      "mode": "TEST"
+    },
+    {
+      "payment_id": "PAY-STRIPE-1788325970587-9BCD7E",
+      "stripe_session_id": "cs_test_988cc8f3e94043569399da6f",
+      "stripe_payment_intent_id": "pi_test_d984f8cf41ea4762988e0bb5",
+      "user_id": "USER_USD_TEST",
+      "customer_email": "trader@aegisquant.io",
+      "amount": 500.0,
+      "currency": "USD",
+      "status": "SUCCEEDED",
+      "allocation_split": {
+        "trading_capital": 425.0,
+        "risk_reserve": 50.0,
+        "vault_reserve": 25.0
+      },
+      "created_at": "2026-09-02 10:42:50",
+      "confirmed_at": "2026-09-02 10:42:50",
+      "mode": "TEST"
+    },
+    {
+      "payment_id": "PAY-STRIPE-1788325970586-47F930",
+      "stripe_session_id": "cs_test_e1238a2f1d954191807e1f4c",
+      "stripe_payment_intent_id": "pi_test_6e779a09aece4d4ba937754a",
+      "user_id": "USER_CAD_TEST",
+      "customer_email": "trader@aegisquant.io",
+      "amount": 100.0,
+      "currency": "CAD",
+      "status": "CHECKOUT_STARTED",
+      "allocation_split": {
+        "trading_capital": 85.0,
+        "risk_reserve": 10.0,
+        "vault_reserve": 5.0
+      },
+      "created_at": "2026-09-02 10:42:50",
+      "confirmed_at": null,
+      "mode": "TEST"
+    },
+    {
+      "payment_id": "PAY-STRIPE-1788325921676-A99685",
+      "stripe_session_id": "cs_test_41b98d2e75e94fa98618ef17",
+      "stripe_payment_intent_id": "pi_test_b2d936e2ac0040099df94e68",
+      "user_id": "USER_USD_TEST",
+      "customer_email": "trader@aegisquant.io",
+      "amount": 500.0,
+      "currency": "USD",
+      "status": "SUCCEEDED",
+      "allocation_split": {
+        "trading_capital": 425.0,
+        "risk_reserve": 50.0,
+        "vault_reserve": 25.0
+      },
+      "created_at": "2026-09-02 10:42:01",
+      "confirmed_at": "2026-09-02 10:42:01",
+      "mode": "TEST"
+    },
+    {
+      "payment_id": "PAY-STRIPE-1788325921674-A2061A",
+      "stripe_session_id": "cs_test_256a52e5ad024a149a4fca0d",
+      "stripe_payment_intent_id": "pi_test_de844791993145499fd2ab4d",
+      "user_id": "USER_CAD_TEST",
+      "customer_email": "trader@aegisquant.io",
+      "amount": 100.0,
+      "currency": "CAD",
+      "status": "CHECKOUT_STARTED",
+      "allocation_split": {
+        "trading_capital": 85.0,
+        "risk_reserve": 10.0,
+        "vault_reserve": 5.0
+      },
+      "created_at": "2026-09-02 10:42:01",
+      "confirmed_at": null,
+      "mode": "TEST"
+    },
+    {
+      "payment_id": "PAY-STRIPE-1788325802274-2CF506",
+      "stripe_session_id": "cs_test_cffd40c6d3204194918c2328",
+      "stripe_payment_intent_id": "pi_test_5039143653ff4412b0cf3fbd",
+      "user_id": "USER_USD_TEST",
+      "customer_email": "trader@aegisquant.io",
+      "amount": 500.0,
+      "currency": "USD",
+      "status": "SUCCEEDED",
+      "allocation_split": {
+        "trading_capital": 425.0,
+        "risk_reserve": 50.0,
+        "vault_reserve": 25.0
+      },
+      "created_at": "2026-09-02 10:40:02",
+      "confirmed_at": "2026-09-02 10:40:02",
+      "mode": "TEST"
+    },
+    {
+      "payment_id": "PAY-STRIPE-1788325802272-465A96",
+      "stripe_session_id": "cs_test_f163bd85108445a3b0b6e47d",
+      "stripe_payment_intent_id": "pi_test_799d7613be9043b488b6791a",
+      "user_id": "USER_CAD_TEST",
+      "customer_email": "trader@aegisquant.io",
+      "amount": 100.0,
+      "currency": "CAD",
+      "status": "CHECKOUT_STARTED",
+      "allocation_split": {
+        "trading_capital": 85.0,
+        "risk_reserve": 10.0,
+        "vault_reserve": 5.0
+      },
+      "created_at": "2026-09-02 10:40:02",
+      "confirmed_at": null,
+      "mode": "TEST"
+    }
+  ]
+}

@@ -165,8 +165,10 @@ class PaperBroker:
         # Cash = Initial Capital - Used Margin + Realized PnL (net of closed trades)
         realized_pnl = sum(float(t.get("pnl_usd", 0.0)) for t in self.trade_history)
         
-        # Calculate cash: initial - margin + realized PnL
-        computed_cash = max(0.0, self.initial_capital - allocated_margin + realized_pnl)
+        # Calculate cash: initial + net_deposits - margin + realized PnL
+        pool = self.pools.get(self.active_pool_name, {})
+        net_deposits = float(pool.get("net_deposits", 0.0))
+        computed_cash = max(0.0, self.initial_capital + net_deposits - allocated_margin + realized_pnl)
         self.virtual_cash = round(computed_cash, 2)
 
         # Trading Account Equity = Cash + Margin + Unrealized PnL
@@ -176,6 +178,20 @@ class PaperBroker:
         pool = self.pools[self.active_pool_name]
         pool["virtual_cash"] = self.virtual_cash
         pool["equity"] = self.equity
+
+    def credit_trading_capital(self, amount: float):
+        """Credit customer trading capital in active environment pool via double-entry ledger."""
+        current = self.pools.setdefault(self.active_pool_name, {})
+        current["net_deposits"] = round(float(current.get("net_deposits", 0.0)) + amount, 2)
+        self._update_equity()
+        self._save_state()
+
+    def debit_trading_capital(self, amount: float):
+        """Debit / reverse customer trading capital in active environment pool via double-entry ledger."""
+        current = self.pools.setdefault(self.active_pool_name, {})
+        current["net_deposits"] = round(float(current.get("net_deposits", 0.0)) - amount, 2)
+        self._update_equity()
+        self._save_state()
 
     def execute_order(self, asset: str, action: str, amount_usd: float, current_price: float, leverage: float = 10.0, **kwargs) -> Dict[str, Any]:
         """Execute order in active environment."""

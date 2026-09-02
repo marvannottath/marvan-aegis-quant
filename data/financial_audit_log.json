@@ -1,6 +1,71 @@
 {
   "logs": [
     {
+      "event_id": "AUD-1788326073550-PAYM",
+      "timestamp": "2026-09-02 10:44:33",
+      "event_type": "PAYMENT_REFUNDED_STRIPE",
+      "user_id": "USER_USD_TEST",
+      "environment": "AEGIS_QUANT_MASTER",
+      "amount": 500.0,
+      "asset": "USD",
+      "network": "TRC20",
+      "provider": "STRIPE",
+      "reference_id": "PAY-STRIPE-1788326073537-79894F",
+      "ip_address": "127.0.0.1"
+    },
+    {
+      "event_id": "AUD-1788326073539-PAYM",
+      "timestamp": "2026-09-02 10:44:33",
+      "event_type": "PAYMENT_CREDITED_STRIPE",
+      "user_id": "USER_USD_TEST",
+      "environment": "AEGIS_QUANT_MASTER",
+      "amount": 500.0,
+      "asset": "USD",
+      "network": "TRC20",
+      "provider": "STRIPE",
+      "reference_id": "PAY-STRIPE-1788326073537-79894F",
+      "ip_address": "127.0.0.1"
+    },
+    {
+      "event_id": "AUD-1788325970588-PAYM",
+      "timestamp": "2026-09-02 10:42:50",
+      "event_type": "PAYMENT_CREDITED_STRIPE",
+      "user_id": "USER_USD_TEST",
+      "environment": "AEGIS_QUANT_MASTER",
+      "amount": 500.0,
+      "asset": "USD",
+      "network": "TRC20",
+      "provider": "STRIPE",
+      "reference_id": "PAY-STRIPE-1788325970587-9BCD7E",
+      "ip_address": "127.0.0.1"
+    },
+    {
+      "event_id": "AUD-1788325921677-PAYM",
+      "timestamp": "2026-09-02 10:42:01",
+      "event_type": "PAYMENT_CREDITED_STRIPE",
+      "user_id": "USER_USD_TEST",
+      "environment": "AEGIS_QUANT_MASTER",
+      "amount": 500.0,
+      "asset": "USD",
+      "network": "TRC20",
+      "provider": "STRIPE",
+      "reference_id": "PAY-STRIPE-1788325921676-A99685",
+      "ip_address": "127.0.0.1"
+    },
+    {
+      "event_id": "AUD-1788325802275-PAYM",
+      "timestamp": "2026-09-02 10:40:02",
+      "event_type": "PAYMENT_CREDITED_STRIPE",
+      "user_id": "USER_USD_TEST",
+      "environment": "AEGIS_QUANT_MASTER",
+      "amount": 500.0,
+      "asset": "USD",
+      "network": "TRC20",
+      "provider": "STRIPE",
+      "reference_id": "PAY-STRIPE-1788325802274-2CF506",
+      "ip_address": "127.0.0.1"
+    },
+    {
       "event_id": "AUD-1788324919153-ORDE",
       "timestamp": "2026-09-02 10:25:19",
       "event_type": "ORDER_EXECUTED",

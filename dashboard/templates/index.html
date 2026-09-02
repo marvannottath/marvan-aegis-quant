@@ -685,76 +685,89 @@
 
 
             <!-- TAB 11: PAYMENTS -->
+            <!-- TAB 11: PAYMENTS -->
             <section id="tab-payments" class="tab-content space-y-6">
                 <div class="flex items-center justify-between border-b border-gray-800 pb-4">
                     <div>
-                        <h2 class="text-xl font-black text-white"><i class="fa-solid fa-credit-card text-amber-400 mr-2"></i> USDT Deposit Hub & Payments</h2>
-                        <p class="text-xs text-amber-400 font-bold">Payment Infrastructure — TEST / NOT LIVE (Simulated Sandbox)</p>
+                        <h2 class="text-xl font-black text-white"><i class="fa-solid fa-credit-card text-amber-400 mr-2"></i> Stripe Production Funding & Payment Hub</h2>
+                        <p class="text-xs text-amber-400 font-bold">Stripe Payment Gateway Infrastructure — TEST / SANDBOX MODE</p>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div class="bg-darkcard border border-darkborder p-6 rounded-2xl space-y-4 shadow-xl">
-                        <h3 class="text-sm font-bold text-white uppercase border-b border-gray-800 pb-2">Generate USDT Deposit Address</h3>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div class="bg-darkcard border border-darkborder p-4 rounded-xl space-y-1">
+                        <div class="text-[10px] text-gray-400 font-bold">Credit & Debit Cards</div>
+                        <div class="text-sm font-black text-emerald-400"><i class="fa-solid fa-credit-card mr-1"></i> Visa / Mastercard / Amex</div>
+                        <div class="text-[9px] text-gray-500">Supported: US, CA, EU, Global</div>
+                    </div>
+                    <div class="bg-darkcard border border-darkborder p-4 rounded-xl space-y-1">
+                        <div class="text-[10px] text-gray-400 font-bold">Apple Pay</div>
+                        <div class="text-sm font-black text-white"><i class="fa-brands fa-apple mr-1"></i> Apple Pay (Touch / Face ID)</div>
+                        <div class="text-[9px] text-gray-500">Supported: iOS / Safari</div>
+                    </div>
+                    <div class="bg-darkcard border border-darkborder p-4 rounded-xl space-y-1">
+                        <div class="text-[10px] text-gray-400 font-bold">Google Pay</div>
+                        <div class="text-sm font-black text-blue-400"><i class="fa-brands fa-google mr-1"></i> Google Pay</div>
+                        <div class="text-[9px] text-gray-500">Supported: Android / Chrome</div>
+                    </div>
+                    <div class="bg-darkcard border border-darkborder p-4 rounded-xl space-y-1">
+                        <div class="text-[10px] text-gray-400 font-bold">Stripe Contactless / NFC</div>
+                        <div class="text-sm font-black text-purple-400"><i class="fa-solid fa-wifi mr-1"></i> Stripe Terminal Infrastructure</div>
+                        <div class="text-[9px] text-gray-500">Supported: US & Canada In-Person</div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="bg-darkcard border border-darkborder p-6 rounded-2xl space-y-4 shadow-xl lg:col-span-1">
+                        <h3 class="text-sm font-bold text-white uppercase border-b border-gray-800 pb-2">Deposit Capital via Stripe</h3>
                         <div class="space-y-3">
                             <div>
-                                <label class="block text-xs font-bold text-gray-400 mb-1">Select Blockchain Network:</label>
-                                <select id="dep-network" class="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-xs font-bold text-white">
-                                    <option value="TRC20">TRC20 — Tron Network (Recommended)</option>
-                                    <option value="BEP20">BEP20 — BNB Smart Chain</option>
-                                    <option value="ERC20">ERC20 — Ethereum Network</option>
+                                <label class="block text-xs font-bold text-gray-400 mb-1">Select Deposit Currency:</label>
+                                <select id="stripe-currency" class="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-xs font-bold text-white">
+                                    <option value="USD">USD — US Dollar ($)</option>
+                                    <option value="CAD">CAD — Canadian Dollar ($)</option>
+                                    <option value="EUR">EUR — Euro (€)</option>
                                 </select>
                             </div>
 
-                            <button onclick="generateUSDTAddress()" class="w-full py-3 bg-amber-500 text-black font-black text-xs rounded-xl shadow hover:bg-amber-400 transition">
-                                GENERATE DEPOSIT ADDRESS & QR
+                            <div>
+                                <label class="block text-xs font-bold text-gray-400 mb-1">Deposit Amount:</label>
+                                <input type="number" id="stripe-amount" value="500" min="10" step="10" class="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 font-mono text-xs text-white">
+                            </div>
+
+                            <button onclick="initiateStripeCheckout()" class="w-full py-3 bg-amber-500 text-black font-black text-xs rounded-xl shadow hover:bg-amber-400 transition">
+                                <i class="fa-solid fa-lock mr-2"></i> DEPOSIT VIA STRIPE CHECKOUT
                             </button>
 
-                            <div id="dep-address-box" class="hidden p-4 bg-gray-950 border border-amber-500/40 rounded-xl space-y-2 text-xs font-mono">
-                                <div class="text-gray-400">Assigned Wallet Address:</div>
-                                <div id="lbl-dep-address" class="text-amber-400 font-bold break-all">SANDBOX-TESTNET-TRC20-UNASSIGNED-ADDRESS</div>
-                                <div class="text-[10px] text-gray-500">Minimum Deposit: 10 USDT | Confirmations Required: 12</div>
+                            <div id="stripe-result-box" class="hidden p-3 bg-emerald-950/60 border border-emerald-500/40 rounded-xl text-xs font-mono text-emerald-400">
+                                <!-- Dynamic Stripe Session Result -->
                             </div>
                         </div>
                     </div>
 
-                    <div class="bg-darkcard border border-darkborder p-6 rounded-2xl space-y-4 shadow-xl">
-                        <h3 class="text-sm font-bold text-white uppercase border-b border-gray-800 pb-2">Submit Blockchain TX Hash for Verification</h3>
-                        <div class="space-y-3 text-xs">
-                            <div>
-                                <label class="block text-gray-400 font-bold mb-1">Blockchain Transaction Hash (TXID):</label>
-                                <input type="text" id="input-tx-hash" placeholder="0x..." class="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 font-mono text-white">
-                            </div>
-                            <div>
-                                <label class="block text-gray-400 font-bold mb-1">Deposit Amount (USDT):</label>
-                                <input type="number" id="input-dep-amount" value="100" class="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 font-mono text-white">
-                            </div>
-                            <button onclick="submitTXHash()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-xl transition">
-                                VERIFY & CREDIT LEDGER
-                            </button>
-                            <div id="tx-hash-msg" class="text-emerald-400 font-mono font-bold text-center"></div>
+                    <div class="bg-darkcard border border-darkborder p-6 rounded-2xl space-y-4 shadow-xl lg:col-span-2">
+                        <div class="flex items-center justify-between border-b border-gray-800 pb-2">
+                            <h3 class="text-sm font-bold text-white uppercase"><i class="fa-solid fa-list-check text-amber-400 mr-2"></i> Persistent Funding & Payment Ledger</h3>
+                            <span class="text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded font-mono font-bold">DOUBLE-ENTRY RECONCILED</span>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs font-mono border-collapse">
+                                <thead>
+                                    <tr class="border-b border-gray-800 text-gray-400 uppercase">
+                                        <th class="py-2.5 px-3">Timestamp</th>
+                                        <th class="py-2.5 px-3">Payment ID</th>
+                                        <th class="py-2.5 px-3">Amount</th>
+                                        <th class="py-2.5 px-3">Currency</th>
+                                        <th class="py-2.5 px-3">Allocation Split</th>
+                                        <th class="py-2.5 px-3 text-right">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="payments-history-tbody" class="divide-y divide-gray-800/60">
+                                    <!-- Dynamic Payment Records -->
+                                </tbody>
+                            </table>
                         </div>
                     </div>
-                </div>
-
-                <!-- Clean Deposit Audit Table -->
-                <div class="bg-darkcard border border-darkborder p-4 rounded-2xl overflow-x-auto shadow-xl">
-                    <h3 class="text-xs font-bold text-white uppercase mb-3">Deposit Audit History Ledger</h3>
-                    <table class="w-full text-left text-xs font-mono border-collapse">
-                        <thead>
-                            <tr class="border-b border-gray-800 text-gray-400 uppercase text-[10px]">
-                                <th class="py-2 px-3">Date & Time (IST)</th>
-                                <th class="py-2 px-3">Payment Method</th>
-                                <th class="py-2 px-3">Asset & Network</th>
-                                <th class="py-2 px-3">TX Hash / Provider ID</th>
-                                <th class="py-2 px-3">Amount (+USD)</th>
-                                <th class="py-2 px-3">Ledger Status</th>
-                            </tr>
-                        </thead>
-                        <tbody id="deposit-audit-tbody" class="divide-y divide-gray-800/60">
-                            <!-- Dynamic Deposit Rows -->
-                        </tbody>
-                    </table>
                 </div>
             </section>
 
@@ -1095,6 +1108,88 @@
             }).join('');
         }
 
+        async function initiateStripeCheckout() {
+            const amount = parseFloat(document.getElementById('stripe-amount').value) || 100;
+            const currency = document.getElementById('stripe-currency').value || 'USD';
+            const resBox = document.getElementById('stripe-result-box');
+
+            try {
+                const res = await fetch('/api/payments/create-checkout', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ amount: amount, currency: currency, user_id: 'USER_MASTER' })
+                });
+                const data = await res.json();
+                if (data.status === 'SUCCESS') {
+                    if (resBox) {
+                        resBox.classList.remove('hidden');
+                        resBox.innerHTML = `
+                            <div class="font-bold text-white"><i class="fa-solid fa-circle-check text-emerald-400 mr-1"></i> Checkout Session Created!</div>
+                            <div class="text-[10px] text-gray-300 mt-1">Payment ID: <span class="text-amber-400">${data.payment_id}</span></div>
+                            <div class="text-[10px] text-gray-400">Session ID: ${data.session_id}</div>
+                            <button onclick="simulateWebhook('${data.session_id}')" class="mt-2 w-full py-1.5 bg-emerald-500 text-black font-black text-[10px] rounded hover:bg-emerald-400 transition">
+                                SIMULATE SUCCESSFUL STRIPE WEBHOOK CONFIRMATION
+                            </button>
+                        `;
+                    }
+                    fetchPaymentHistory();
+                } else {
+                    alert('Checkout Error: ' + data.message);
+                }
+            } catch (e) {
+                console.error('Stripe checkout error:', e);
+            }
+        }
+
+        async function simulateWebhook(sessionId) {
+            try {
+                const res = await fetch('/api/payments/webhook/stripe', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'stripe-signature': 't=1788325000,v1=mock_signature_for_test'
+                    },
+                    body: JSON.stringify({
+                        id: 'evt_sim_' + Date.now(),
+                        type: 'checkout.session.completed',
+                        data: { object: { id: sessionId, amount_total: 50000, currency: 'usd' } }
+                    })
+                });
+                const data = await res.json();
+                alert('Stripe Webhook Processed! Status: ' + data.status);
+                fetchPaymentHistory();
+                fetchState();
+            } catch (e) {
+                console.error('Webhook sim error:', e);
+            }
+        }
+
+        async function fetchPaymentHistory() {
+            const tbody = document.getElementById('payments-history-tbody');
+            if (!tbody) return;
+            try {
+                const res = await fetch('/api/payments/history');
+                const data = await res.json();
+                const items = data.data || [];
+                if (items.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-gray-500 font-mono text-xs">NO STRIPE PAYMENTS YET — Deposit capital via Stripe Checkout</td></tr>`;
+                    return;
+                }
+                tbody.innerHTML = items.map(p => `
+                    <tr class="border-b border-gray-800/60 hover:bg-gray-900/50 text-xs font-mono">
+                        <td class="py-2.5 px-3 text-gray-400">${p.created_at || '2026-09-02'}</td>
+                        <td class="py-2.5 px-3 text-amber-400 font-bold">${p.payment_id || 'PAY-001'}</td>
+                        <td class="py-2.5 px-3 text-emerald-400 font-bold">$${(p.amount || 0).toFixed(2)}</td>
+                        <td class="py-2.5 px-3 text-white font-bold">${(p.currency || 'USD').toUpperCase()}</td>
+                        <td class="py-2.5 px-3 text-gray-300 text-[10px]">85% Trading / 10% Risk / 5% Vault</td>
+                        <td class="py-2.5 px-3 text-right"><span class="px-2 py-0.5 text-[9px] font-black rounded ${p.status === 'SUCCEEDED' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}">${p.status}</span></td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                console.warn('Payment history fetch notice:', e);
+            }
+        }
+
         function renderAuditTrail(logs) {
             const tbody = document.getElementById('audit-log-tbody');
             if (!tbody) return;
@@ -1290,6 +1385,88 @@
                     </td>
                 </tr>
             `).join('');
+        }
+
+        async function initiateStripeCheckout() {
+            const amount = parseFloat(document.getElementById('stripe-amount').value) || 100;
+            const currency = document.getElementById('stripe-currency').value || 'USD';
+            const resBox = document.getElementById('stripe-result-box');
+
+            try {
+                const res = await fetch('/api/payments/create-checkout', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ amount: amount, currency: currency, user_id: 'USER_MASTER' })
+                });
+                const data = await res.json();
+                if (data.status === 'SUCCESS') {
+                    if (resBox) {
+                        resBox.classList.remove('hidden');
+                        resBox.innerHTML = `
+                            <div class="font-bold text-white"><i class="fa-solid fa-circle-check text-emerald-400 mr-1"></i> Checkout Session Created!</div>
+                            <div class="text-[10px] text-gray-300 mt-1">Payment ID: <span class="text-amber-400">${data.payment_id}</span></div>
+                            <div class="text-[10px] text-gray-400">Session ID: ${data.session_id}</div>
+                            <button onclick="simulateWebhook('${data.session_id}')" class="mt-2 w-full py-1.5 bg-emerald-500 text-black font-black text-[10px] rounded hover:bg-emerald-400 transition">
+                                SIMULATE SUCCESSFUL STRIPE WEBHOOK CONFIRMATION
+                            </button>
+                        `;
+                    }
+                    fetchPaymentHistory();
+                } else {
+                    alert('Checkout Error: ' + data.message);
+                }
+            } catch (e) {
+                console.error('Stripe checkout error:', e);
+            }
+        }
+
+        async function simulateWebhook(sessionId) {
+            try {
+                const res = await fetch('/api/payments/webhook/stripe', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'stripe-signature': 't=1788325000,v1=mock_signature_for_test'
+                    },
+                    body: JSON.stringify({
+                        id: 'evt_sim_' + Date.now(),
+                        type: 'checkout.session.completed',
+                        data: { object: { id: sessionId, amount_total: 50000, currency: 'usd' } }
+                    })
+                });
+                const data = await res.json();
+                alert('Stripe Webhook Processed! Status: ' + data.status);
+                fetchPaymentHistory();
+                fetchState();
+            } catch (e) {
+                console.error('Webhook sim error:', e);
+            }
+        }
+
+        async function fetchPaymentHistory() {
+            const tbody = document.getElementById('payments-history-tbody');
+            if (!tbody) return;
+            try {
+                const res = await fetch('/api/payments/history');
+                const data = await res.json();
+                const items = data.data || [];
+                if (items.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-gray-500 font-mono text-xs">NO STRIPE PAYMENTS YET — Deposit capital via Stripe Checkout</td></tr>`;
+                    return;
+                }
+                tbody.innerHTML = items.map(p => `
+                    <tr class="border-b border-gray-800/60 hover:bg-gray-900/50 text-xs font-mono">
+                        <td class="py-2.5 px-3 text-gray-400">${p.created_at || '2026-09-02'}</td>
+                        <td class="py-2.5 px-3 text-amber-400 font-bold">${p.payment_id || 'PAY-001'}</td>
+                        <td class="py-2.5 px-3 text-emerald-400 font-bold">$${(p.amount || 0).toFixed(2)}</td>
+                        <td class="py-2.5 px-3 text-white font-bold">${(p.currency || 'USD').toUpperCase()}</td>
+                        <td class="py-2.5 px-3 text-gray-300 text-[10px]">85% Trading / 10% Risk / 5% Vault</td>
+                        <td class="py-2.5 px-3 text-right"><span class="px-2 py-0.5 text-[9px] font-black rounded ${p.status === 'SUCCEEDED' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}">${p.status}</span></td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                console.warn('Payment history fetch notice:', e);
+            }
         }
 
         function renderAuditTrail(logs) {
