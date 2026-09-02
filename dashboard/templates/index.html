@@ -997,6 +997,9 @@
             if (document.getElementById('pf-vault-reserve')) document.getElementById('pf-vault-reserve').innerText = '$' + vault.toFixed(2);
             if (document.getElementById('pf-total-assets')) document.getElementById('pf-total-assets').innerText = '$' + (equity + vault).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 
+            const totalExposure = positions.reduce((sum, p) => sum + (parseFloat(p.capital_allocated) || 0), 0);
+            if (document.getElementById('metric-exposure')) document.getElementById('metric-exposure').innerText = '$' + totalExposure.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
             // Update Leverage UI
             const maxLev = (data.risk_profile && data.risk_profile.max_leverage) ? data.risk_profile.max_leverage : 10;
             updateLeverageButtonsUI(maxLev);
@@ -1529,6 +1532,12 @@
 
         async function setChartTF(tf) {
             activeChartTF = tf;
+            ['1D', '1W', '1M', '3M', 'ALL'].forEach(t => {
+                const btns = document.querySelectorAll(`button[onclick="setChartTF('${t}')"]`);
+                btns.forEach(b => {
+                    b.className = t === tf ? 'px-2 py-0.5 text-amber-400 font-black' : 'px-2 py-0.5 text-gray-400 hover:text-white';
+                });
+            });
             await loadChartData();
         }
 
