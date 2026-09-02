@@ -2133,3 +2133,132 @@ async def get_money_flow_status():
         })
     except Exception as e:
         return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+# =====================================================================
+# ANALYTICS & PERFORMANCE MODULES — AUTHORITATIVE BACKEND ROUTES
+# =====================================================================
+
+# ------------------------------------------------------------------
+# 12. Performance Curve API (Equity / PnL / Drawdown)
+# ------------------------------------------------------------------
+@app.get("/api/performance/curve")
+async def get_performance_curve(
+    metric: str = "equity",
+    range: str = "1D",
+    environment: str = "AEGIS_QUANT_MASTER"
+):
+    """
+    Return authoritative time-series performance data points for:
+      - metric: equity | pnl | drawdown
+      - range: 1D | 1W | 1M | 3M | ALL
+    """
+    try:
+        from core.performance_curve_engine import performance_curve_engine
+        result = performance_curve_engine.get_curve(metric=metric, time_range=range, environment=environment)
+        return JSONResponse(result)
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+# ------------------------------------------------------------------
+# 13. Execution Pipeline Latency Profiler API
+# ------------------------------------------------------------------
+@app.get("/api/execution/latency")
+async def get_execution_latency(environment: str = "PAPER"):
+    """
+    Return 10-step institutional execution pipeline latency profiling:
+      P50, P95, P99, min, max, avg, stage breakdowns, and recent execution logs.
+    """
+    try:
+        from core.execution_latency_profiler import execution_latency_profiler
+        summary = execution_latency_profiler.get_summary(environment=environment)
+        return JSONResponse(summary)
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+# ------------------------------------------------------------------
+# 14. Backtest Runs List API
+# ------------------------------------------------------------------
+@app.get("/api/backtests")
+async def list_backtest_runs():
+    """Return list of all historical backtest runs."""
+    try:
+        from core.backtest_analytics_engine import backtest_analytics_engine
+        runs = backtest_analytics_engine.list_backtest_runs()
+        return JSONResponse({"status": "SUCCESS", "backtests": runs, "total_runs": len(runs)})
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+# ------------------------------------------------------------------
+# 15. Backtest Run Detail API
+# ------------------------------------------------------------------
+@app.get("/api/backtests/{backtest_id}")
+async def get_backtest_detail(backtest_id: str):
+    """Return complete details for a specific backtest run (summary, provenance, trades, equity)."""
+    try:
+        from core.backtest_analytics_engine import backtest_analytics_engine
+        detail = backtest_analytics_engine.get_backtest_detail(backtest_id)
+        if not detail:
+            return JSONResponse({"status": "NOT_FOUND", "backtest_id": backtest_id}, status_code=404)
+        return JSONResponse({"status": "SUCCESS", "data": detail})
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+# ------------------------------------------------------------------
+# 16. Backtest Trade Logs API
+# ------------------------------------------------------------------
+@app.get("/api/backtests/{backtest_id}/trades")
+async def get_backtest_trades(backtest_id: str, limit: int = 100, page: int = 1, result: Optional[str] = None):
+    """Return trade logs for a backtest run with pagination and result filtering."""
+    try:
+        from core.backtest_analytics_engine import backtest_analytics_engine
+        detail = backtest_analytics_engine.get_backtest_detail(backtest_id)
+        if not detail:
+            return JSONResponse({"status": "NOT_FOUND", "backtest_id": backtest_id}, status_code=404)
+
+        all_trades = detail.get("trades", [])
+        if result and result.upper() in ("WIN", "LOSS"):
+            all_trades = [t for t in all_trades if t.get("result") == result.upper()]
+
+        total_count = len(all_trades)
+        start_idx = max(0, (page - 1) * limit)
+        end_idx = start_idx + limit
+        paged_trades = all_trades[start_idx:end_idx]
+
+        return JSONResponse({
+            "status": "SUCCESS",
+            "backtest_id": backtest_id,
+            "page": page,
+            "limit": limit,
+            "total_trades": total_count,
+            "trades": paged_trades
+        })
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+# ------------------------------------------------------------------
+# 17. Backtest Equity Curve API
+# ------------------------------------------------------------------
+@app.get("/api/backtests/{backtest_id}/equity")
+async def get_backtest_equity(backtest_id: str):
+    """Return equity curve points for a backtest run."""
+    try:
+        from core.backtest_analytics_engine import backtest_analytics_engine
+        detail = backtest_analytics_engine.get_backtest_detail(backtest_id)
+        if not detail:
+            return JSONResponse({"status": "NOT_FOUND", "backtest_id": backtest_id}, status_code=404)
+
+        return JSONResponse({
+            "status": "SUCCESS",
+            "backtest_id": backtest_id,
+            "points": detail.get("equity_curve", []),
+            "integrity": detail.get("summary", {}).get("integrity_status")
+        })
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
