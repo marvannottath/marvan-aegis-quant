@@ -1057,23 +1057,42 @@
                 `;
                 return;
             }
-            tbody.innerHTML = positions.map(pos => `
-                <tr class="border-b border-gray-800/60 hover:bg-gray-900/50 text-xs">
-                    <td class="py-3 px-3 font-bold text-white">${pos.asset}</td>
-                    <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded ${pos.action === 'BUY' ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}">${pos.action}</span></td>
-                    <td class="py-3 px-3">$${(pos.capital_allocated || 1000).toFixed(2)}</td>
-                    <td class="py-3 px-3 text-amber-400 font-bold">${pos.leverage || 10}x</td>
-                    <td class="py-3 px-3">$${(pos.entry_price || 79050).toLocaleString()}</td>
-                    <td class="py-3 px-3">$${(pos.last_price || pos.entry_price || 79050).toLocaleString()}</td>
-                    <td class="py-3 px-3 text-emerald-400 font-bold">+$${(pos.unrealized_pnl || 0.0).toFixed(2)}</td>
-                    <td class="py-3 px-3 text-emerald-400 font-bold">+0.00%</td>
-                    <td class="py-3 px-3 text-right">
-                        <button onclick="closePosition('${pos.id || pos.asset}')" class="px-2.5 py-1 bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white font-bold rounded transition text-[10px]">
-                            CLOSE
-                        </button>
-                    </td>
-                </tr>
-            `).join('');
+            tbody.innerHTML = positions.map(pos => {
+                const entry = parseFloat(pos.entry_price) || 0;
+                const mark = parseFloat(pos.last_price || pos.mark_price || pos.entry_price) || entry;
+                const allocated = parseFloat(pos.capital_allocated) || 1000;
+                const lev = parseFloat(pos.leverage) || 10;
+                const units = parseFloat(pos.units) || (allocated * lev / (entry || 1));
+                const side = (pos.action || pos.side || 'BUY').toUpperCase();
+
+                let pnlUsd = (pos.unrealized_pnl !== undefined) ? parseFloat(pos.unrealized_pnl) : (pos.pnl_usd !== undefined ? parseFloat(pos.pnl_usd) : 0);
+                if (pnlUsd === 0 && entry > 0 && mark !== entry) {
+                    pnlUsd = (side === 'BUY') ? (mark - entry) * units : (entry - mark) * units;
+                }
+                const pnlPct = (pos.pnl_pct !== undefined) ? parseFloat(pos.pnl_pct) : (allocated > 0 ? (pnlUsd / allocated) * 100 : 0);
+
+                const colorClass = pnlUsd > 0 ? 'text-emerald-400' : (pnlUsd < 0 ? 'text-red-400' : 'text-gray-400');
+                const pnlSign = pnlUsd >= 0 ? '+' : '';
+                const pctSign = pnlPct >= 0 ? '+' : '';
+
+                return `
+                    <tr class="border-b border-gray-800/60 hover:bg-gray-900/50 text-xs">
+                        <td class="py-3 px-3 font-bold text-white">${pos.asset}</td>
+                        <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded ${side === 'BUY' ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}">${side}</span></td>
+                        <td class="py-3 px-3">$${allocated.toFixed(2)}</td>
+                        <td class="py-3 px-3 text-amber-400 font-bold">${lev}x</td>
+                        <td class="py-3 px-3">$${entry.toLocaleString()}</td>
+                        <td class="py-3 px-3">$${mark.toLocaleString()}</td>
+                        <td class="py-3 px-3 ${colorClass} font-bold">${pnlSign}$${pnlUsd.toFixed(2)}</td>
+                        <td class="py-3 px-3 ${colorClass} font-bold">${pctSign}${pnlPct.toFixed(2)}%</td>
+                        <td class="py-3 px-3 text-right">
+                            <button onclick="closePosition('${pos.asset}')" class="px-2.5 py-1 bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white font-bold rounded transition text-[10px]">
+                                CLOSE
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
         }
 
         function renderAuditTrail(logs) {

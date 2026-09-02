@@ -360,8 +360,22 @@ class PaperBroker:
             "portfolio_equity": round(self.equity, 2),
             "floating_open_pnl_usd": 0.0,
             "floating_open_pnl_pct": 0.0,
-            "positions": list(self.positions.values()),
-            "open_positions": list(self.positions.values()),
+            "positions": [
+                {
+                    **p,
+                    "unrealized_pnl": round(((p.get("last_price", p["entry_price"]) - p["entry_price"]) * p["units"]) if p["action"] == "BUY" else ((p["entry_price"] - p.get("last_price", p["entry_price"])) * p["units"]), 2),
+                    "pnl_usd": round(((p.get("last_price", p["entry_price"]) - p["entry_price"]) * p["units"]) if p["action"] == "BUY" else ((p["entry_price"] - p.get("last_price", p["entry_price"])) * p["units"]), 2),
+                    "pnl_pct": round(((((p.get("last_price", p["entry_price"]) - p["entry_price"]) * p["units"]) if p["action"] == "BUY" else ((p["entry_price"] - p.get("last_price", p["entry_price"])) * p["units"])) / max(1.0, p.get("capital_allocated", 1000.0))) * 100.0, 2)
+                } for p in self.positions.values()
+            ],
+            "open_positions": [
+                {
+                    **p,
+                    "unrealized_pnl": round(((p.get("last_price", p["entry_price"]) - p["entry_price"]) * p["units"]) if p["action"] == "BUY" else ((p["entry_price"] - p.get("last_price", p["entry_price"])) * p["units"]), 2),
+                    "pnl_usd": round(((p.get("last_price", p["entry_price"]) - p["entry_price"]) * p["units"]) if p["action"] == "BUY" else ((p["entry_price"] - p.get("last_price", p["entry_price"])) * p["units"]), 2),
+                    "pnl_pct": round(((((p.get("last_price", p["entry_price"]) - p["entry_price"]) * p["units"]) if p["action"] == "BUY" else ((p["entry_price"] - p.get("last_price", p["entry_price"])) * p["units"])) / max(1.0, p.get("capital_allocated", 1000.0))) * 100.0, 2)
+                } for p in self.positions.values()
+            ],
             "open_positions_count": len(self.positions),
             "trade_history": self.trade_history[:25],
             "profit_vault": vault_summary,
