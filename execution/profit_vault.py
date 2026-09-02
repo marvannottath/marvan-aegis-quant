@@ -119,17 +119,30 @@ class ProfitVault:
             "asset": asset,
             "realized_profit": round(trade_pnl, 2),
             "sweep_amount": sweep_amt,
-            "retained_in_capital": round(trade_pnl - sweep_amt, 2),
-            "environment": environment,
-            "account_id": f"ACC-{environment}",
-            "reason": exit_reason,
-            "previous_balance": prev_bal,
-            "new_balance": new_bal,
+            "retained_capital": round(trade_pnl - sweep_amt, 2),
+            "previous_vault_balance": prev_bal,
+            "resulting_vault_balance": new_bal,
+            "exit_reason": exit_reason,
             "status": "CONFIRMED"
         }
 
         store["transactions"].insert(0, tx_record)
         self._save_state()
+
+        # Post double-entry ledger entry for profit vault sweep
+        try:
+            from core.double_entry_ledger import double_entry_ledger
+            double_entry_ledger.post_entry(
+                ledger_type="VAULT_LEDGER",
+                debit_account="CUSTOMER_TRADING_ACCOUNT",
+                credit_account="VAULT_RESERVE_ACCOUNT",
+                amount=sweep_amt,
+                asset=asset,
+                reference_id=tx_id,
+                environment=environment
+            )
+        except Exception as e:
+            print(f"[PROFIT VAULT] Double entry ledger post notice: {e}")
         print(f"[PROFIT VAULT] Swept +${sweep_amt:.2f} realized profit into {environment} Vault | New Balance: ${new_bal:,.2f}")
         return tx_record
 

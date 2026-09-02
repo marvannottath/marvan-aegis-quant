@@ -255,7 +255,32 @@ class PaperBroker:
             "timestamp": datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S")
         }
 
-        self.trade_history.insert(0, trade_record)
+        # Post double-entry ledger transaction for realized trade PnL
+        if abs(pnl_u) > 0.001:
+            try:
+                from core.double_entry_ledger import double_entry_ledger
+                if pnl_u > 0:
+                    double_entry_ledger.post_entry(
+                        ledger_type="TRADING_LEDGER",
+                        debit_account="MARKET_REALIZED_GAIN",
+                        credit_account="CUSTOMER_TRADING_ACCOUNT",
+                        amount=pnl_u,
+                        asset="USDT",
+                        reference_id=pos["trade_id"],
+                        environment=self.active_pool_name
+                    )
+                else:
+                    double_entry_ledger.post_entry(
+                        ledger_type="TRADING_LEDGER",
+                        debit_account="CUSTOMER_TRADING_ACCOUNT",
+                        credit_account="MARKET_REALIZED_LOSS",
+                        amount=abs(pnl_u),
+                        asset="USDT",
+                        reference_id=pos["trade_id"],
+                        environment=self.active_pool_name
+                    )
+            except Exception as e:
+                print(f"[PAPER BROKER] Ledger post notice: {e}")
 
         # Sweep profit if positive into isolated vault for active environment
         if pnl_u > 0:
