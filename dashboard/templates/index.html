@@ -1350,22 +1350,33 @@
             if (!orders || orders.length === 0) {
                 stream.innerHTML = `
                     <div class="p-3 text-center text-gray-500 font-mono text-xs">
-                        NO RECENT ORDERS — Autonomous Order Engine Ready
+                        <i class="fa-solid fa-bolt text-amber-400 mr-2"></i> NO RECENT ORDERS — Autonomous Order Engine Ready
                     </div>
                 `;
                 return;
             }
-            stream.innerHTML = orders.slice(0, 8).map(ord => `
-                <div class="p-2 bg-gray-950 border border-gray-850 rounded-lg flex justify-between items-center text-xs">
-                    <div class="space-x-2">
-                        <span class="text-gray-500">${ord.timestamp ? ord.timestamp.split(' ')[1] : '21:38:18'}</span>
-                        <span class="font-bold text-white">${ord.asset}</span>
-                        <span class="text-amber-400 font-bold">${ord.action}</span>
+            stream.innerHTML = orders.slice(0, 8).map(ord => {
+                const ts = ord.timestamp ? (ord.timestamp.includes(' ') ? ord.timestamp.split(' ')[1] : ord.timestamp) : '21:30:00';
+                const asset = ord.asset || ord.symbol || 'BTCUSD';
+                const action = (ord.action || ord.side || 'BUY').toUpperCase();
+                const status = ord.status || 'APPROVED';
+                const amt = ord.amount_usd || (ord.quantity && ord.price ? ord.quantity * ord.price : 1000.0);
+                const isBuy = action === 'BUY';
+
+                return `
+                    <div class="p-2.5 bg-gray-950 border border-gray-850 rounded-xl flex justify-between items-center text-xs font-mono">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-gray-500 text-[10px]">${ts}</span>
+                            <span class="font-bold text-white">${asset}</span>
+                            <span class="px-1.5 py-0.2 rounded text-[9px] font-black ${isBuy ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}">${action}</span>
+                            <span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-gray-900 text-gray-300 border border-gray-800">${status}</span>
+                        </div>
+                        <span class="text-amber-400 font-bold">$${amt.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                     </div>
-                    <span class="text-emerald-400 font-bold">$${(ord.amount_usd || 1000).toLocaleString()}</span>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         }
+
 
         function renderPositionsTable(positions) {
             const tbody = document.getElementById('positions-full-tbody');
