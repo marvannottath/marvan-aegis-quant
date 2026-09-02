@@ -313,7 +313,7 @@ async def get_state():
     ]
 
     audit_log = audit_logger.get_audit_trail()
-    deposit_history = usdt_deposit_engine.deposit_requests
+    deposit_history = getattr(usdt_deposit_engine, "requests", [])
     vault_summary = profit_vault.get_vault_summary()
 
     return {
