@@ -1,6 +1,6 @@
 {
-  "vault_balance": 1083536.05,
-  "total_sweeps_count": 9346,
+  "vault_balance": 1083956.99,
+  "total_sweeps_count": 9349,
   "sweep_history": [
     {
       "timestamp": "2026-08-23 00:00:02",
@@ -65428,6 +65428,27 @@
       "asset": "ETHUSD",
       "profit_swept": 124.89,
       "vault_total": 1083536.05,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-02 09:23:07",
+      "asset": "EURUSD",
+      "profit_swept": 122.7,
+      "vault_total": 1083658.75,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-02 09:23:42",
+      "asset": "SOLUSD",
+      "profit_swept": 250.14,
+      "vault_total": 1083908.89,
+      "reason": "PROFIT_TARGET_AUTO_REBALANCE"
+    },
+    {
+      "timestamp": "2026-09-02 09:24:28",
+      "asset": "XAUUSD",
+      "profit_swept": 48.1,
+      "vault_total": 1083956.99,
       "reason": "PROFIT_TARGET_AUTO_REBALANCE"
     }
   ],

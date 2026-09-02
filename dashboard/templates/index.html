@@ -1291,6 +1291,37 @@
             `).join('');
         }
 
+        let chartInstance = null;
+
+        function initChart() {
+            const ctx = document.getElementById('overviewEquityChart');
+            if (!ctx) return;
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['09:00', '11:00', '13:00', '15:00', '17:00', '19:00', '21:00'],
+                    datasets: [{
+                        label: 'Portfolio Equity ($)',
+                        data: [100000, 100010, 100005, 100018, 100012, 100023, 100023.49],
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245, 158, 11, 0.05)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { color: '#1e293b' }, ticks: { color: '#64748b' } },
+                        y: { grid: { color: '#1e293b' }, ticks: { color: '#64748b' } }
+                    }
+                }
+            });
+        }
+
         window.addEventListener('DOMContentLoaded', () => {
             initChart();
             fetchState();
