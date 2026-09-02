@@ -1372,6 +1372,148 @@
             }
         }
 
+        let activeChartMetric = 'equity';
+        let activeChartTF = '1D';
+
+        async function setChartMetric(metric) {
+            activeChartMetric = metric;
+            const btnEq = document.getElementById('btn-cm-equity');
+            const btnPnl = document.getElementById('btn-cm-pnl');
+            const btnDd = document.getElementById('btn-cm-dd');
+
+            if (btnEq) btnEq.className = metric === 'equity' ? 'px-2.5 py-1 rounded bg-amber-500 text-black font-black' : 'px-2.5 py-1 rounded text-gray-400 hover:text-white';
+            if (btnPnl) btnPnl.className = metric === 'pnl' ? 'px-2.5 py-1 rounded bg-amber-500 text-black font-black' : 'px-2.5 py-1 rounded text-gray-400 hover:text-white';
+            if (btnDd) btnDd.className = metric === 'drawdown' ? 'px-2.5 py-1 rounded bg-amber-500 text-black font-black' : 'px-2.5 py-1 rounded text-gray-400 hover:text-white';
+
+            await loadChartData();
+        }
+
+        async function setChartTF(tf) {
+            activeChartTF = tf;
+            await loadChartData();
+        }
+
+        async function loadChartData() {
+            try {
+                const res = await fetch(`/api/chart-history?metric=${activeChartMetric}&tf=${activeChartTF}`);
+                const data = await res.json();
+                if (chartInstance && data.data) {
+                    chartInstance.data.labels = data.labels || ["09:00", "11:00", "13:00", "15:00", "17:00", "19:00", "21:00"];
+                    chartInstance.data.datasets[0].data = data.data;
+                    chartInstance.data.datasets[0].label = activeChartMetric === 'pnl' ? 'PnL ($)' : (activeChartMetric === 'drawdown' ? 'Drawdown (%)' : 'Portfolio Equity ($)');
+                    chartInstance.update();
+                }
+            } catch (e) {
+                console.error("Load chart data notice:", e);
+            }
+        }
+
+        function initChart() {
+            const ctx = document.getElementById('overviewEquityChart');
+            if (!ctx) return;
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['09:00', '11:00', '13:00', '15:00', '17:00', '19:00', '21:00'],
+                    datasets: [{
+                        label: 'Portfolio Equity ($)',
+                        data: [100000, 100010, 100005, 100018, 100012, 100023, 100023.49],
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245, 158, 11, 0.05)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { color: '#1e293b' }, ticks: { color: '#64748b' } },
+                        y: { grid: { color: '#1e293b' }, ticks: { color: '#64748b' } }
+                    }
+                }
+            });
+        }
+
+        // Keyboard Shortcuts Listener (B=Buy, S=Sell, O=Orders, P=Positions, R=Risk, Esc=Cancel)
+        window.addEventListener('keydown', (e) => {
+            if (['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) return;
+            const key = e.key.toUpperCase();
+            if (key === 'B') switchTab('orders');
+            else if (key === 'S') switchTab('orders');
+            else if (key === 'O') switchTab('orders');
+            else if (key === 'P') switchTab('positions');
+            else if (key === 'R') switchTab('risk');
+        });
+
+        // Server Time Loop
+        setInterval(() => {
+            const timeEl = document.getElementById('lbl-server-time');
+            if (timeEl) timeEl.innerText = new Date().toLocaleTimeString('en-IN') + ' IST';
+        }, 1000);
+
+        // Input Listener for pre-order estimates
+        document.getElementById('order-amount-input')?.addEventListener('input', updatePreOrderEstimates);
+        document.getElementById('order-sl-input')?.addEventListener('input', updatePreOrderEstimates);
+
+        // Initializer
+        
+        let ws = null;
+        let activeChartMetric = 'equity';
+        let activeChartTF = '1D';
+
+        function initWebSocket() {
+            const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = protocol + '//' + location.host + '/ws';
+            
+            try {
+                ws = new WebSocket(wsUrl);
+
+                ws.onopen = () => {
+                    console.log("WebSocket connected to:", wsUrl);
+                    const lbl = document.getElementById('lbl-conn-status');
+                    if (lbl) {
+                        lbl.innerText = 'CONNECTED (WS)';
+                        lbl.className = 'text-emerald-400 font-bold';
+                    }
+                };
+
+                ws.onmessage = (event) => {
+                    try {
+                        const msg = JSON.parse(event.data);
+                        if (msg && msg.payload) {
+                            updateTerminalState(msg.payload);
+                            if (msg.server_time) {
+                                const stEl = document.getElementById('lbl-server-time');
+                                if (stEl) stEl.innerText = msg.server_time;
+                            }
+                        }
+                    } catch (e) {
+                        console.error("WS message parse error:", e);
+                    }
+                };
+
+                ws.onclose = () => {
+                    const lbl = document.getElementById('lbl-conn-status');
+                    if (lbl) {
+                        lbl.innerText = 'WS DISCONNECTED (RECONNECTING...)';
+                        lbl.className = 'text-red-400 font-bold';
+                    }
+                    setTimeout(initWebSocket, 3000);
+                };
+
+                ws.onerror = (err) => {
+                    console.warn("WS error:", err);
+                    ws.close();
+                };
+            } catch (e) {
+                console.error("WS init exception:", e);
+                setTimeout(initWebSocket, 3000);
+            }
+        }
+
         async function switchChartMetric(metric) {
             activeChartMetric = metric;
             await loadChartData();
