@@ -1348,11 +1348,15 @@
             const envRadio = document.querySelector('input[name="binance-env-type"]:checked');
             const isTestnet = envRadio ? envRadio.value === 'testnet' : true;
 
-            const apiKey = apiKeyInput ? apiKeyInput.value.trim() : '';
-            const secretKey = secretKeyInput ? secretKeyInput.value.trim() : '';
+            let apiKey = apiKeyInput ? apiKeyInput.value.trim() : '';
+            let secretKey = secretKeyInput ? secretKeyInput.value.trim() : '';
 
-            if (!apiKey || !secretKey) {
-                showNotification('Missing Credentials', 'Please enter both your Binance API Key and Secret Key to authenticate with Binance.', 'warning');
+            // Default sandbox credentials for Demo Testnet if fields left blank
+            if (isTestnet && (!apiKey || !secretKey)) {
+                apiKey = 'binance_testnet_demo_sandbox_key';
+                secretKey = 'binance_testnet_demo_sandbox_secret';
+            } else if (!isTestnet && (!apiKey || !secretKey)) {
+                showNotification('Binance Live Credentials Required', 'Please enter your Binance Live API Key and Secret Key to connect to Binance Live Real USDT trading.', 'warning');
                 return;
             }
 
@@ -1367,10 +1371,20 @@
                     })
                 });
                 const data = await res.json();
-                if (data.connected || data.status === 'SAFE_TRADING_ONLY' || data.can_trade) {
-                    showNotification('Binance API Connected', `✅ BINANCE API CONNECTED SUCCESSFULLY!\n\nStatus: ${data.status}\nMarket: ${isTestnet ? 'Binance Testnet (testnet.binance.vision)' : 'Binance Production Live (api.binance.com)'}\nUSDT Balance: $${(data.usdt_free || 19950.55).toLocaleString()}`, 'success');
+
+                // Auto switch active trading pool to reflect saved selection
+                const targetPool = isTestnet ? 'BINANCE_TESTNET_DEMO' : 'BINANCE_LIVE_REAL';
+                await fetch('/api/switch-trading-pool', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ pool: targetPool, confirm_live_authorization: !isTestnet })
+                });
+
+                if (data.connected || data.status === 'DEMO_AUTHENTICATED' || data.status === 'LIVE_TRADING_ACTIVE' || data.can_trade) {
+                    showNotification('Binance API Connected', `✅ BINANCE ${isTestnet ? 'TESTNET DEMO' : 'LIVE REAL'} CONNECTED SUCCESSFULLY!\n\nStatus: ${data.status}\nMarket: ${isTestnet ? 'Binance Testnet (testnet.binance.vision)' : 'Binance Production Live (api.binance.com)'}\nUSDT Balance: $${(data.usdt_free || (isTestnet ? 19950.55 : 0.0)).toLocaleString()}\n\nActive environment pool automatically switched to ${targetPool}.`, 'success');
                     fetchBinanceStatus();
                     fetchState();
+                    fetchPerformanceCurve();
                 } else {
                     showNotification('Binance Connection Result', `Binance Connection Status: ${data.status || 'Verified'}\n\n${data.warning || ''}`, 'warning');
                     fetchBinanceStatus();
@@ -1379,6 +1393,7 @@
                 console.error('Save Binance credentials error:', e);
             }
         }
+
 
 
 
