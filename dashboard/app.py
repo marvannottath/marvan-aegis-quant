@@ -340,10 +340,22 @@ async def get_state():
     deposit_history = getattr(usdt_deposit_engine, "requests", [])
     vault_summary = profit_vault.get_vault_summary()
 
+    equity_val = acc.get("portfolio_equity", 100000.0)
+    init_cap = max(1.0, acc.get("initial_capital", 100000.0))
+    peak_eq = max(init_cap, equity_val)
+    drawdown_pct = round(((peak_eq - equity_val) / peak_eq) * 100.0, 2) if peak_eq > 0 else 0.0
+
+    active_trades = acc.get("trade_history", [])
+    pool_realized_pnl = round(sum(t.get("realized_pnl", 0.0) for t in active_trades), 2)
+    today_pnl = pool_realized_pnl if pool_realized_pnl != 0.0 else vault_summary.get("realized_profit_today", 0.0)
+
     return {
-        "portfolio_equity": acc.get("portfolio_equity", 100023.49),
-        "realized_pnl_today": vault_summary.get("realized_profit_today", 0.0),
-        "realized_pnl_pct": round((vault_summary.get("realized_profit_today", 0.0) / max(1.0, acc.get("initial_capital", 100000.0))) * 100.0, 2),
+        "active_capital_pool": paper_broker.active_pool_name,
+        "portfolio_equity": equity_val,
+        "initial_capital": init_cap,
+        "realized_pnl_today": today_pnl,
+        "realized_pnl_pct": round((today_pnl / init_cap) * 100.0, 2),
+        "current_drawdown_pct": drawdown_pct,
         "virtual_cash": acc.get("virtual_cash", 95196.83),
         "floating_open_pnl_usd": acc.get("floating_open_pnl_usd", 0.0),
         "positions": positions,
@@ -360,6 +372,7 @@ async def get_state():
             "process": "ACTIVE"
         }
     }
+
 
 @app.post("/api/set-risk-profile")
 async def set_risk_profile_endpoint(data: dict):

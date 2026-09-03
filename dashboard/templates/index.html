@@ -1403,16 +1403,31 @@
             const activePool = data.active_capital_pool || 'AEGIS_QUANT_MASTER';
             const hdrEnv = document.getElementById('hdr-env-label');
             if (hdrEnv) {
-                if (activePool.includes('MASTER')) hdrEnv.innerText = `MASTER ENGINE ($${equity.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})})`;
-                else if (activePool.includes('TESTNET') || activePool.includes('DEMO')) hdrEnv.innerText = `BINANCE TESTNET ($${equity.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})})`;
-                else hdrEnv.innerText = `BINANCE LIVE (REAL USDT)`;
+                if (activePool.includes('TESTNET') || activePool.includes('DEMO')) {
+                    hdrEnv.innerText = `BINANCE TESTNET ($${equity.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})})`;
+                    hdrEnv.className = 'font-bold text-amber-400';
+                } else if (activePool.includes('LIVE')) {
+                    hdrEnv.innerText = `BINANCE LIVE ($${equity.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})})`;
+                    hdrEnv.className = 'font-bold text-emerald-400';
+                } else {
+                    hdrEnv.innerText = `MASTER ENGINE ($${equity.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})})`;
+                    hdrEnv.className = 'font-bold text-emerald-400';
+                }
+            }
+
+            const selEnv = document.getElementById('sel-environment');
+            if (selEnv && selEnv.value !== activePool && (document.activeElement !== selEnv)) {
+                selEnv.value = activePool;
             }
 
             if (document.getElementById('metric-equity')) document.getElementById('metric-equity').innerText = '$' + equity.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 
-            const todayPnl = (data.realized_pnl_today !== undefined) ? data.realized_pnl_today : ((data.profit_vault && data.profit_vault.realized_profit_today) ? data.profit_vault.realized_profit_today : 0.0);
-            const todayPct = (data.realized_pnl_pct !== undefined) ? data.realized_pnl_pct : 0.0;
+            const todayPnl = (data.realized_pnl_today !== undefined) ? data.realized_pnl_today : 0.0;
             if (document.getElementById('metric-today-pnl')) document.getElementById('metric-today-pnl').innerText = (todayPnl >= 0 ? '+' : '') + '$' + todayPnl.toFixed(2);
+
+            const ddPct = data.current_drawdown_pct || 0.0;
+            if (document.getElementById('metric-drawdown')) document.getElementById('metric-drawdown').innerText = ddPct.toFixed(2) + '%';
+
             if (document.getElementById('metric-free-cash')) document.getElementById('metric-free-cash').innerText = '$' + cash.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
             if (document.getElementById('metric-open-count')) document.getElementById('metric-open-count').innerText = positions.length + ' Active';
             if (document.getElementById('badge-open-pos')) document.getElementById('badge-open-pos').innerText = positions.length;
@@ -1422,6 +1437,7 @@
 
             const totalExposure = positions.reduce((sum, p) => sum + (parseFloat(p.capital_allocated) || 0), 0);
             if (document.getElementById('metric-exposure')) document.getElementById('metric-exposure').innerText = '$' + totalExposure.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
 
             // Update Leverage UI
             const maxLev = (data.risk_profile && data.risk_profile.max_leverage) ? data.risk_profile.max_leverage : 10;

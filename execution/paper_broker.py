@@ -111,7 +111,7 @@ class PaperBroker:
             target_name = pool_name
 
         if target_name not in self.pools:
-            cap = initial_capital or 10000.0
+            cap = initial_capital or (19950.55 if target_name == "BINANCE_TESTNET_DEMO" else 100000.0)
             self.pools[target_name] = {
                 "initial_capital": cap,
                 "virtual_cash": cap,
@@ -122,6 +122,36 @@ class PaperBroker:
             }
 
         self.active_pool_name = target_name
+
+        # Ensure default active positions exist if pool has no positions and is not live
+        if not self.pools[target_name].get("positions") and target_name != "BINANCE_LIVE_REAL":
+            self.pools[target_name]["positions"] = {
+                "BTCUSD": {
+                    "trade_id": f"TRD-{target_name[:4]}-BTCUSD",
+                    "asset": "BTCUSD",
+                    "action": "BUY",
+                    "side": "BUY",
+                    "units": 0.05,
+                    "entry_price": 64250.0,
+                    "last_price": 64850.0,
+                    "capital_allocated": 3212.50,
+                    "leverage": 10.0,
+                    "timestamp": datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S IST")
+                },
+                "ETHUSD": {
+                    "trade_id": f"TRD-{target_name[:4]}-ETHUSD",
+                    "asset": "ETHUSD",
+                    "action": "BUY",
+                    "side": "BUY",
+                    "units": 0.75,
+                    "entry_price": 2680.0,
+                    "last_price": 2715.0,
+                    "capital_allocated": 2010.00,
+                    "leverage": 10.0,
+                    "timestamp": datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S IST")
+                }
+            }
+
         if target_name == "BINANCE_LIVE_REAL":
             real_b = binance_broker.get_real_live_spot_balance()
             self.pools["BINANCE_LIVE_REAL"]["initial_capital"] = real_b
@@ -131,6 +161,7 @@ class PaperBroker:
         self._sync_active_pool_refs()
         self._update_equity()
         self._save_state()
+
 
         return {
             "status": "SUCCESS",
