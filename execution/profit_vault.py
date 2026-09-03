@@ -48,6 +48,28 @@ class ProfitVault:
                     data = json.load(f)
                     if "vault_stores" in data:
                         self.vault_stores = data["vault_stores"]
+                    elif "sweep_history" in data or "transactions" in data:
+                        raw_history = data.get("sweep_history") or data.get("transactions") or []
+                        converted = []
+                        for h in raw_history:
+                            amt = float(h.get("realized_profit") or h.get("profit_swept") or h.get("sweep_amount") or h.get("amount") or 0.0)
+                            bal = float(h.get("resulting_vault_balance") or h.get("vault_total") or h.get("balance_after") or 0.0)
+                            converted.append({
+                                "transaction_id": h.get("transaction_id") or h.get("tx_id") or f"VTX-HIST-{uuid.uuid4().hex[:6].upper()}",
+                                "timestamp": h.get("timestamp", "2026-09-03 00:00:00 IST"),
+                                "asset": h.get("asset", "BTCUSD"),
+                                "realized_profit": amt,
+                                "sweep_amount": amt,
+                                "resulting_vault_balance": bal,
+                                "exit_reason": h.get("exit_reason") or h.get("reason") or "PROFIT_SWEEP",
+                                "status": h.get("status") or "CONFIRMED"
+                            })
+                        self.vault_stores["AEGIS_QUANT_MASTER"] = {
+                            "transactions": converted,
+                            "withdrawals": data.get("withdrawals", []),
+                            "transfers": data.get("transfers", [])
+                        }
+
                     self.allowlisted_wallet = data.get("allowlisted_wallet", "SANDBOX-TESTNET-TRC20-UNASSIGNED-ADDRESS")
                     self.allowlisted_network = data.get("allowlisted_network", "TRC20")
                     self.min_sweep_amount_usd = float(data.get("min_sweep_amount_usd", 100.0))
@@ -55,6 +77,7 @@ class ProfitVault:
                     self.auto_external_sweep_enabled = bool(data.get("auto_external_sweep_enabled", False))
             except Exception as e:
                 print(f"[PROFIT VAULT] Load notice: {e}")
+
 
     def _save_state(self):
         try:
