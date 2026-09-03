@@ -1733,18 +1733,40 @@
                 tbody.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-gray-500 font-mono text-xs"><i class="fa-solid fa-vault text-emerald-400 mr-2"></i> NO PROFIT SWEEPS RECORDED — Realized profits automatically sweep into vault ledger</td></tr>`;
                 return;
             }
-            tbody.innerHTML = history.map(h => `
+
+            const currentTotalVaultBalance = (vault && (vault.vault_balance !== undefined)) ? parseFloat(vault.vault_balance) : 0.0;
+
+            let runningBal = currentTotalVaultBalance;
+            const itemsWithRunningBal = history.map((h, idx) => {
+                const amt = parseFloat(h.sweep_amount || h.realized_profit || h.amount || 0.0);
+                const explicitBal = h.resulting_vault_balance || h.balance_after;
+                let balAfter = 0.0;
+                if (explicitBal !== undefined && explicitBal !== null && parseFloat(explicitBal) > 0) {
+                    balAfter = parseFloat(explicitBal);
+                } else {
+                    if (idx === 0) {
+                        balAfter = runningBal > 0 ? runningBal : amt;
+                    } else {
+                        balAfter = runningBal;
+                    }
+                    runningBal = Math.max(0, runningBal - amt);
+                }
+                return { ...h, calculated_balance_after: balAfter };
+            });
+
+            tbody.innerHTML = itemsWithRunningBal.map(h => `
                 <tr class="border-b border-gray-800/60 hover:bg-gray-900/50 text-xs">
-                    <td class="py-2.5 px-3 text-gray-400">${h.timestamp || '2026-09-02'}</td>
-                    <td class="py-2.5 px-3 text-gray-300 font-mono">${h.tx_id || h.id || 'SWP-001'}</td>
+                    <td class="py-2.5 px-3 text-gray-400">${h.timestamp || '2026-09-03'}</td>
+                    <td class="py-2.5 px-3 text-gray-300 font-mono">${h.transaction_id || h.tx_id || h.id || 'SWP-001'}</td>
                     <td class="py-2.5 px-3 text-emerald-400 font-bold">${h.type || 'PROFIT_SWEEP'}</td>
                     <td class="py-2.5 px-3 text-white font-bold">${h.asset || 'BTCUSD'}</td>
-                    <td class="py-2.5 px-3 text-emerald-400 font-bold">+$${(h.realized_profit || h.amount || 0).toFixed(2)}</td>
-                    <td class="py-2.5 px-3 text-amber-400 font-bold">$${(h.balance_after || h.realized_profit || 0).toFixed(2)}</td>
+                    <td class="py-2.5 px-3 text-emerald-400 font-bold">+$${(h.sweep_amount || h.realized_profit || h.amount || 0).toFixed(2)}</td>
+                    <td class="py-2.5 px-3 text-amber-400 font-bold">$${(h.calculated_balance_after || 0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
                     <td class="py-2.5 px-3 text-right"><span class="px-2 py-0.5 text-[9px] font-black rounded bg-emerald-500/10 text-emerald-400">${h.status || 'SECURED'}</span></td>
                 </tr>
             `).join('');
         }
+
 
         function renderBacktestAnalytics(backtest) {
             // Managed exclusively by Backtest Analytics Lab (loadBacktestRun & renderBacktestTradeLogs)
