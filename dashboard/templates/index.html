@@ -59,7 +59,8 @@
             <div onclick="switchTab('settings')" class="flex items-center space-x-1.5 px-3 py-1 bg-gray-900 border border-gray-800 rounded-lg cursor-pointer hover:border-amber-500/50 transition" title="Click to view Environment Settings">
                 <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                 <span class="text-gray-400">ACTIVE:</span>
-                <span id="hdr-env-label" class="font-bold text-emerald-400">MASTER ENGINE ($100,000.00)</span>
+                <span id="hdr-env-label" class="font-bold text-emerald-400">MARVAN'S POOL ($100,000.00)</span>
+
             </div>
 
             <!-- Live Trading ON/OFF Toggle Button -->
@@ -991,10 +992,11 @@
                 <div class="bg-darkcard border border-darkborder p-6 rounded-2xl space-y-4 max-w-xl">
                     <h3 class="text-sm font-bold text-white uppercase"><i class="fa-solid fa-layer-group text-amber-400 mr-2"></i> Active Capital Pool Environment</h3>
                     <select id="sel-environment" onchange="switchEnvironment(this.value)" class="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2.5 text-xs font-bold text-white">
-                        <option value="AEGIS_QUANT_MASTER">Master Engine ($100,000.00 Simulation)</option>
+                        <option value="AEGIS_QUANT_MASTER">Marvan's Pool ($100,000.00 Paper)</option>
                         <option value="BINANCE_TESTNET_DEMO">Binance Testnet ($19,950.55 Paper)</option>
                         <option value="BINANCE_LIVE_REAL">Binance Live (Real USDT — Requires Key)</option>
                     </select>
+
                     <p class="text-[11px] text-gray-400">Strictly isolated environments. Switching pools preserves all balances, cash, positions, and history for all other environments without data loss.</p>
                 </div>
 
@@ -1498,9 +1500,10 @@
                     hdrEnv.innerText = `BINANCE LIVE ($${equity.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})})`;
                     hdrEnv.className = 'font-bold text-emerald-400';
                 } else {
-                    hdrEnv.innerText = `MASTER ENGINE ($${equity.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})})`;
+                    hdrEnv.innerText = `MARVAN'S POOL ($${equity.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})})`;
                     hdrEnv.className = 'font-bold text-emerald-400';
                 }
+
             }
 
             const selEnv = document.getElementById('sel-environment');
