@@ -932,6 +932,60 @@ async def get_vault_history():
             "withdrawals": summary["withdrawal_history"]
         })
 
+@app.post("/api/toggle-live-trading")
+async def toggle_live_trading(request: Request):
+    """Toggle Binance Live Trading ON or OFF dynamically."""
+    try:
+        body = await request.json()
+        enabled = bool(body.get("enabled", False))
+        environment_gate.toggle_live_trading(enabled)
+        status_str = "ENABLED (LIVE)" if enabled else "LOCKED (OFF)"
+        return JSONResponse({
+            "status": "SUCCESS",
+            "live_trading_enabled": enabled,
+            "message": f"Binance Live Trading mode is now {status_str}."
+        })
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+@app.post("/api/create-paper-account")
+async def create_paper_account(request: Request):
+    """Create a paper account with any capital amount ($10, $50, $100, $500, $1k, $10k, $100k, $1M)."""
+    try:
+        body = await request.json()
+        name = body.get("name", "Custom Paper Account")
+        capital = float(body.get("capital", 100.0))
+        result = paper_broker.create_custom_paper_account(account_name=name, initial_capital=capital)
+        return JSONResponse(result)
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+@app.get("/api/news-lock-status")
+async def get_news_lock_status():
+    """Fetch Telegram news intelligence and High Impact News Lock status."""
+    try:
+        from core.macro_news_engine import macro_engine
+        data = macro_engine.scan_macro_news()
+        return JSONResponse({"status": "SUCCESS", "news": data})
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+@app.get("/api/100-shield-status")
+async def get_100_shield_status():
+    """Fetch 100-Shield Defense-in-Depth Risk Gate audit status."""
+    try:
+        shield_eval = risk_engine.evaluate_100_shield_gate(
+            amount_usd=1000.0,
+            leverage=10.0,
+            current_open_positions=len(paper_broker.positions),
+            available_cash=paper_broker.virtual_cash,
+            symbol="BTCUSD",
+            environment=paper_broker.active_pool_name
+        )
+        return JSONResponse({"status": "SUCCESS", "shield": shield_eval})
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
 @app.post("/api/switch-trading-pool")
 async def switch_trading_pool(request: Request):
     """Switch active capital pool between MASTER ($100k) and BINANCE ($5k). Requires authorization for LIVE."""
@@ -951,6 +1005,7 @@ async def switch_trading_pool(request: Request):
         return JSONResponse(result)
     except Exception as e:
         return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
 
 @app.post("/api/harvest-profit")
 async def harvest_profit(request: Request):

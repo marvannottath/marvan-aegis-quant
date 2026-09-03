@@ -128,7 +128,41 @@ class PaperBroker:
         self.trade_history = current.get("trade_history", [])
         self.ai_active = current.get("ai_active", True)
 
+    def create_custom_paper_account(self, account_name: str, initial_capital: float) -> Dict[str, Any]:
+        """
+        Create a custom paper trading account with dynamic initial capital.
+        Supports any capital amount: $10, $50, $100, $500, $1,000, $10,000, $100,000, $1,000,000.
+        All position sizing is dynamically scaled based on percentage risk of account equity.
+        """
+        cap = max(10.0, float(initial_capital))
+        pool_key = f"PAPER_ACC_{account_name.upper().replace(' ', '_')}"
+
+        self.pools[pool_key] = {
+            "initial_capital": cap,
+            "virtual_cash": cap,
+            "equity": cap,
+            "positions": {},
+            "trade_history": [],
+            "ai_active": True
+        }
+
+        self.active_pool_name = pool_key
+        self._sync_active_pool_refs()
+        self._update_equity()
+        self._save_state()
+
+        return {
+            "status": "SUCCESS",
+            "account_id": pool_key,
+            "account_name": account_name,
+            "initial_capital": cap,
+            "virtual_cash": cap,
+            "portfolio_equity": cap,
+            "message": f"Custom Paper Account '{account_name}' created successfully with ${cap:,.2f} initial capital."
+        }
+
     def set_active_capital_pool(self, pool_name: str, initial_capital: Optional[float] = None) -> Dict[str, Any]:
+
         """Switch active environment cleanly."""
         if pool_name in ["MASTER_SIMULATION", "AEGIS_QUANT_MASTER"]:
             target_name = "AEGIS_QUANT_MASTER"

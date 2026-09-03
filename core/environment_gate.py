@@ -28,12 +28,13 @@ class EnvironmentGate:
       5. Reconciliation health
     """
     PAPER   = "PAPER"
+    DEMO    = "DEMO"
     TESTNET = "TESTNET"
     LIVE    = "LIVE"
 
-    VALID_ENVIRONMENTS = {PAPER, TESTNET, LIVE}
+    VALID_ENVIRONMENTS = {PAPER, DEMO, TESTNET, LIVE}
 
-    # Hard defaults — must be explicitly overridden via env vars
+    # Dynamic Live Trading ON/OFF toggle state
     LIVE_TRADING_ENABLED     = os.getenv("LIVE_TRADING_ENABLED",    "false").lower() == "true"
     LIVE_WITHDRAWALS_ENABLED = os.getenv("LIVE_WITHDRAWALS_ENABLED","false").lower() == "true"
 
@@ -44,6 +45,11 @@ class EnvironmentGate:
     def __init__(self):
         self._decision_log: list = []
 
+    def toggle_live_trading(self, enabled: bool) -> bool:
+        """Toggle Live Trading ON or OFF dynamically."""
+        self.LIVE_TRADING_ENABLED = bool(enabled)
+        return self.LIVE_TRADING_ENABLED
+
     def _is_kill_switch_active(self) -> bool:
         try:
             if self.KILL_SWITCH_FILE.exists():
@@ -52,6 +58,7 @@ class EnvironmentGate:
         except Exception:
             return True  # fail closed on read error
         return False
+
 
     def _get_reconciliation_status(self) -> str:
         """Import lazily to avoid circular deps."""

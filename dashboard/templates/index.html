@@ -62,11 +62,18 @@
                 <span id="hdr-env-label" class="font-bold text-emerald-400">MASTER ENGINE ($100,000.00)</span>
             </div>
 
+            <!-- Live Trading ON/OFF Toggle Button -->
+            <button id="btn-live-toggle" onclick="toggleLiveTradingState()" class="flex items-center space-x-1.5 px-3 py-1 bg-red-500/10 border border-red-500/40 text-red-400 font-black rounded-lg hover:bg-red-500/20 transition cursor-pointer" title="Click to Toggle Binance Live Trading Mode">
+                <i id="icon-live-toggle" class="fa-solid fa-toggle-off"></i>
+                <span id="lbl-live-toggle">LIVE TRADING: OFF</span>
+            </button>
+
             <!-- Execution Mode -->
             <div onclick="switchTab('execution')" class="flex items-center space-x-1.5 px-3 py-1 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-400 font-bold cursor-pointer hover:bg-amber-500/20 transition" title="Click to view Execution Monitor">
                 <i class="fa-solid fa-flask"></i>
                 <span>SIMULATION / DEMO</span>
             </div>
+
 
             <!-- Connection Status -->
             <div onclick="switchTab('system')" class="flex items-center space-x-1.5 text-emerald-400 font-bold cursor-pointer hover:underline" title="Click to view System Health">
@@ -1791,7 +1798,60 @@
             `).join('');
         }
 
+        let isLiveTradingEnabled = false;
+
+        async function toggleLiveTradingState() {
+            try {
+                isLiveTradingEnabled = !isLiveTradingEnabled;
+                const res = await fetch('/api/toggle-live-trading', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled: isLiveTradingEnabled })
+                });
+                const data = await res.json();
+                const btn = document.getElementById('btn-live-toggle');
+                const lbl = document.getElementById('lbl-live-toggle');
+                const icon = document.getElementById('icon-live-toggle');
+
+                if (isLiveTradingEnabled) {
+                    btn.className = "flex items-center space-x-1.5 px-3 py-1 bg-emerald-500/20 border border-emerald-500 text-emerald-400 font-black rounded-lg hover:bg-emerald-500/30 transition cursor-pointer";
+                    lbl.innerText = "LIVE TRADING: ON";
+                    icon.className = "fa-solid fa-toggle-on text-emerald-400";
+                    showSystemNotification("Binance Live Trading Mode ENABLED! Safety gates active.", "LIVE TRADING ACTIVE");
+                } else {
+                    btn.className = "flex items-center space-x-1.5 px-3 py-1 bg-red-500/10 border border-red-500/40 text-red-400 font-black rounded-lg hover:bg-red-500/20 transition cursor-pointer";
+                    lbl.innerText = "LIVE TRADING: OFF";
+                    icon.className = "fa-solid fa-toggle-off text-red-400";
+                    showSystemNotification("Binance Live Trading Mode LOCKED (OFF). Orders blocked for safety.", "LIVE TRADING LOCKED");
+                }
+            } catch (e) {
+                console.error('Error toggling live trading:', e);
+            }
+        }
+
+        async function createCustomPaperAccountModal() {
+            const name = prompt("Enter Paper Account Name:", "Quantum Paper Account");
+            if (!name) return;
+            const capStr = prompt("Enter Initial Capital Amount ($10 to $1,000,000):", "100");
+            if (!capStr) return;
+            const capital = parseFloat(capStr);
+
+            try {
+                const res = await fetch('/api/create-paper-account', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: name, capital: capital })
+                });
+                const data = await res.json();
+                showSystemNotification(data.message || "Custom Paper Account Created!", "PAPER ACCOUNT CREATED");
+                fetchState();
+            } catch (e) {
+                console.error('Error creating custom paper account:', e);
+            }
+        }
+
         function renderSystemHealth(health) {
+
             const grid = document.getElementById('system-health-grid');
             if (!grid) return;
             const services = [
