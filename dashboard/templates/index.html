@@ -1200,14 +1200,8 @@
             }
         }
 
-        async function closePosition(symbol) {
-            try {
-                const res = await fetch('/api/close-position', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ asset: symbol, exit_price: 64300.0, reason: 'MANUAL_CLOSE_BTN' })
-                });
         function showNotification(title, message, type = 'info') {
+
             const modal = document.getElementById('systemNotificationModal');
             const notifTitle = document.getElementById('notif-title');
             const notifMsg = document.getElementById('notif-message');
@@ -1877,108 +1871,7 @@
             `).join('');
         }
 
-        async function initiateStripeCheckout() {
-            const amount = parseFloat(document.getElementById('stripe-amount').value) || 100;
-            const currency = document.getElementById('stripe-currency').value || 'USD';
-            const resBox = document.getElementById('stripe-result-box');
-
-            try {
-                const res = await fetch('/api/payments/create-checkout', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ amount: amount, currency: currency, user_id: 'USER_MASTER' })
-                });
-                const data = await res.json();
-                if (data.status === 'SUCCESS') {
-                    if (resBox) {
-                        resBox.classList.remove('hidden');
-                        resBox.innerHTML = `
-                            <div class="font-bold text-white"><i class="fa-solid fa-circle-check text-emerald-400 mr-1"></i> Checkout Session Created!</div>
-                            <div class="text-[10px] text-gray-300 mt-1">Payment ID: <span class="text-amber-400">${data.payment_id}</span></div>
-                            <div class="text-[10px] text-gray-400">Session ID: ${data.session_id}</div>
-                            <button onclick="simulateWebhook('${data.session_id}')" class="mt-2 w-full py-1.5 bg-emerald-500 text-black font-black text-[10px] rounded hover:bg-emerald-400 transition">
-                                SIMULATE SUCCESSFUL STRIPE WEBHOOK CONFIRMATION
-                            </button>
-                        `;
-                    }
-                    fetchPaymentHistory();
-                } else {
-                    alert('Checkout Error: ' + data.message);
-                }
-            } catch (e) {
-                console.error('Stripe checkout error:', e);
-            }
-        }
-
-        async function simulateWebhook(sessionId) {
-            try {
-                const res = await fetch('/api/payments/webhook/stripe', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'stripe-signature': 't=1788325000,v1=mock_signature_for_test'
-                    },
-                    body: JSON.stringify({
-                        id: 'evt_sim_' + Date.now(),
-                        type: 'checkout.session.completed',
-                        data: { object: { id: sessionId, amount_total: 50000, currency: 'usd' } }
-                    })
-                });
-                const data = await res.json();
-                alert('Stripe Webhook Processed! Status: ' + data.status);
-                fetchPaymentHistory();
-                fetchState();
-            } catch (e) {
-                console.error('Webhook sim error:', e);
-            }
-        }
-
-        async function fetchPaymentHistory() {
-            const tbody = document.getElementById('payments-history-tbody');
-            if (!tbody) return;
-            try {
-                const res = await fetch('/api/payments/history');
-                const data = await res.json();
-                const items = data.data || [];
-                if (items.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-gray-500 font-mono text-xs">NO STRIPE PAYMENTS YET — Deposit capital via Stripe Checkout</td></tr>`;
-                    return;
-                }
-                tbody.innerHTML = items.map(p => `
-                    <tr class="border-b border-gray-800/60 hover:bg-gray-900/50 text-xs font-mono">
-                        <td class="py-2.5 px-3 text-gray-400">${p.created_at || '2026-09-02'}</td>
-                        <td class="py-2.5 px-3 text-amber-400 font-bold">${p.payment_id || 'PAY-001'}</td>
-                        <td class="py-2.5 px-3 text-emerald-400 font-bold">$${(p.amount || 0).toFixed(2)}</td>
-                        <td class="py-2.5 px-3 text-white font-bold">${(p.currency || 'USD').toUpperCase()}</td>
-                        <td class="py-2.5 px-3 text-gray-300 text-[10px]">85% Trading / 10% Risk / 5% Vault</td>
-                        <td class="py-2.5 px-3 text-right"><span class="px-2 py-0.5 text-[9px] font-black rounded ${p.status === 'SUCCEEDED' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}">${p.status}</span></td>
-                    </tr>
-                `).join('');
-            } catch (e) {
-                console.warn('Payment history fetch notice:', e);
-            }
-        }
-
-        function renderAuditTrail(logs) {
-            const tbody = document.getElementById('audit-log-tbody');
-            if (!tbody) return;
-            const items = logs && logs.length > 0 ? logs : [
-                {timestamp: "2026-09-02 01:30:12", ip: "127.0.0.1", action: "ORDER_EXECUTED", asset: "BTCUSD", result: "FILLED", id: "AUD-9912-ORDER"},
-                {timestamp: "2026-09-02 01:25:05", ip: "127.0.0.1", action: "RISK_CHECK", asset: "MODERATE", result: "PASSED", id: "AUD-9911-RISK"},
-                {timestamp: "2026-09-02 01:20:00", ip: "127.0.0.1", action: "DEPOSIT_VERIFIED", asset: "USDT", result: "CREDITED", id: "AUD-9910-DEPO"}
-            ];
-            tbody.innerHTML = items.map(a => `
-                <tr class="border-b border-gray-800/60 hover:bg-gray-900/50">
-                    <td class="py-2.5 px-3 text-gray-400">${a.timestamp || '2026-09-02'}</td>
-                    <td class="py-2.5 px-3 text-gray-300">${a.user_id || a.ip || '127.0.0.1'}</td>
-                    <td class="py-2.5 px-3 text-amber-400 font-bold">${a.event_type || a.action}</td>
-                    <td class="py-2.5 px-3 text-white">${a.asset || a.network || 'USDT'}</td>
-                    <td class="py-2.5 px-3 text-emerald-400 font-bold">SUCCESS / CONFIRMED</td>
-                    <td class="py-2.5 px-3 text-gray-500">${a.event_id || a.id}</td>
-                </tr>
-            `).join('');
-        }
-
+        
         // =====================================================================
         // PERFORMANCE CURVE CONTROLS & DYNAMIC FETCHING
         // =====================================================================
