@@ -37,7 +37,7 @@ class ProfitVault:
         self.allowlisted_wallet: str = "SANDBOX-TESTNET-TRC20-UNASSIGNED-ADDRESS"
         self.allowlisted_network: str = "TRC20"
         self.min_sweep_amount_usd: float = 100.0
-        self.sweep_percentage: float = 50.0  # 50% swept into vault, 50% retained in capital
+        self.sweep_percentage: float = 100.0  # 100% swept into vault
         self.auto_external_sweep_enabled: bool = False  # Disabled by default for safety
         self._load_state()
 
@@ -73,10 +73,11 @@ class ProfitVault:
                     self.allowlisted_wallet = data.get("allowlisted_wallet", "SANDBOX-TESTNET-TRC20-UNASSIGNED-ADDRESS")
                     self.allowlisted_network = data.get("allowlisted_network", "TRC20")
                     self.min_sweep_amount_usd = float(data.get("min_sweep_amount_usd", 100.0))
-                    self.sweep_percentage = float(data.get("sweep_percentage", 50.0))
+                    self.sweep_percentage = float(data.get("sweep_percentage", 100.0))
                     self.auto_external_sweep_enabled = bool(data.get("auto_external_sweep_enabled", False))
             except Exception as e:
                 print(f"[PROFIT VAULT] Load notice: {e}")
+
 
 
     def _save_state(self):

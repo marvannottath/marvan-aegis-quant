@@ -55,80 +55,76 @@ class PerformanceCurveEngine:
         }
         cutoff_dt = now_dt - range_deltas[time_range]
 
-        # Build baseline point from opening balance or broker equity
-        opening_entry = double_entry_ledger.ensure_opening_balance(environment, 100000.0)
-        opening_amt = float(opening_entry.get("amount", 100000.0))
-        opening_time = opening_entry.get("timestamp", "2026-01-01 00:00:00")
+        opening_amt = float(paper_broker.initial_capital)
+        now_dt = datetime.now(timezone.utc).astimezone(IST_TZ)
+        now_str = now_dt.strftime("%Y-%m-%d %H:%M:%S IST")
+
+        # Collect closed trades & vault sweeps chronologically
+        trades = list(paper_broker.trade_history)
+        sweeps = profit_vault.sweep_history
+
+
+        events = []
+        for t in trades:
+            events.append({
+                "timestamp": t.get("timestamp", now_str),
+                "pnl": float(t.get("pnl_usd") or t.get("realized_pnl") or 0.0)
+            })
+        for s in sweeps:
+            events.append({
+                "timestamp": s.get("timestamp", now_str),
+                "pnl": float(s.get("sweep_amount") or s.get("realized_profit") or 0.0)
+            })
+
+        sorted_events = sorted(events, key=lambda x: x.get("timestamp", ""))
 
         points = []
-        running_cash = opening_amt
+        running_equity = opening_amt
         running_pnl = 0.0
         peak_equity = opening_amt
 
-        # Add initial starting point
+        # Initial starting point
+        start_time = sorted_events[0]["timestamp"] if sorted_events else "2026-09-03 00:00:00 IST"
         points.append({
-            "timestamp": opening_time,
-            "value": opening_amt if metric == "equity" else (0.0 if metric == "pnl" else 0.0)
+            "timestamp": start_time,
+            "value": opening_amt if metric == "equity" else 0.0
         })
 
-        for e in sorted_entries:
-            if e.get("ledger_type") == "OPENING_BALANCE":
-                continue
-            
-            ts_str = e.get("timestamp", "")
-            amt = float(e.get("amount", 0.0))
-            ltype = e.get("ledger_type", "")
-            credit_acc = e.get("credit_account", "")
-            debit_acc = e.get("debit_account", "")
+        for ev in sorted_events:
+            pnl_amt = ev["pnl"]
+            running_pnl += pnl_amt
+            running_equity += pnl_amt
+            if running_equity > peak_equity:
+                peak_equity = running_equity
 
-            if ltype in ("TRADING_LEDGER", "REALIZED_PNL_LEDGER"):
-                if credit_acc == "CUSTOMER_TRADING_ACCOUNT":
-                    running_pnl += amt
-                    running_cash += amt
-                elif debit_acc == "CUSTOMER_TRADING_ACCOUNT":
-                    running_pnl -= amt
-                    running_cash -= amt
-
-            elif ltype in ("DEPOSIT", "BINANCE_PAY_DEPOSIT", "STRIPE_DEPOSIT"):
-                if credit_acc == "CUSTOMER_TRADING_ACCOUNT":
-                    running_cash += amt
-
-            elif ltype == "WITHDRAWAL":
-                if debit_acc == "CUSTOMER_TRADING_ACCOUNT":
-                    running_cash -= amt
-
-            cur_equity = round(running_cash, 2)
-            if cur_equity > peak_equity:
-                peak_equity = cur_equity
-            
-            dd_pct = round(((peak_equity - cur_equity) / peak_equity * 100.0), 2) if peak_equity > 0 else 0.0
+            dd_pct = round(((peak_equity - running_equity) / peak_equity * 100.0), 2) if peak_equity > 0 else 0.0
 
             if metric == "equity":
-                val = cur_equity
+                val = round(running_equity, 2)
             elif metric == "pnl":
                 val = round(running_pnl, 2)
             else:
                 val = dd_pct
 
             points.append({
-                "timestamp": ts_str,
+                "timestamp": ev["timestamp"],
                 "value": val
             })
 
-        # Add current live broker point
-        broker_cash = round(float(paper_broker.equity) + float(profit_vault.get_vault_balance(environment)), 2)
-        total_pnl = round(sum(float(t.get("pnl_usd", 0.0)) for t in paper_broker.trade_history), 2)
-        
-        if broker_cash > peak_equity:
-            peak_equity = broker_cash
-        dd_pct_live = round(((peak_equity - broker_cash) / peak_equity * 100.0), 2) if peak_equity > 0 else 0.0
+        # Add current live broker equity point
+        cur_broker_equity = round(float(paper_broker.equity), 2)
+        cur_total_pnl = round(sum(float(t.get("pnl_usd", 0.0)) for t in paper_broker.trade_history), 2)
+
+        if cur_broker_equity > peak_equity:
+            peak_equity = cur_broker_equity
+        live_dd = round(((peak_equity - cur_broker_equity) / peak_equity * 100.0), 2) if peak_equity > 0 else 0.0
 
         if metric == "equity":
-            live_val = broker_cash
+            live_val = cur_broker_equity
         elif metric == "pnl":
-            live_val = total_pnl
+            live_val = cur_total_pnl
         else:
-            live_val = dd_pct_live
+            live_val = live_dd
 
         points.append({
             "timestamp": now_str,
@@ -138,6 +134,11 @@ class PerformanceCurveEngine:
         # Deduplicate points by timestamp if identical
         filtered_points = []
         seen = set()
+        for p in points:
+            if p["timestamp"] not in seen:
+                seen.add(p["timestamp"])
+                filtered_points.append(p)
+
         for p in points:
             if p["timestamp"] not in seen:
                 seen.add(p["timestamp"])

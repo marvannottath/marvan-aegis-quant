@@ -39,10 +39,10 @@
         .sidebar-item.active { background-color: #1e293b; border-left: 3px solid #f59e0b; color: #ffffff; }
     </style>
 </head>
-<body class="font-sans antialiased selection:bg-amber-500 selection:text-black">
+<body class="bg-darkbg text-white h-screen overflow-hidden flex flex-col font-sans antialiased selection:bg-amber-500 selection:text-black">
 
     <!-- TOP INSTITUTIONAL STATUS BAR -->
-    <header class="h-14 bg-darkcard border-b border-darkborder px-4 flex items-center justify-between sticky top-0 z-50 shadow-md">
+    <header class="h-14 bg-darkcard border-b border-darkborder px-4 flex items-center justify-between shrink-0 z-50 shadow-md">
         <div class="flex items-center space-x-4">
             <button id="btn-toggle-sidebar" onclick="toggleSidebar()" class="text-gray-400 hover:text-white text-lg focus:outline-none">
                 <i class="fa-solid fa-bars-staggered"></i>
@@ -50,7 +50,6 @@
             <div class="flex items-center space-x-2">
                 <div class="w-7 h-7 rounded-lg bg-amber-500 flex items-center justify-center font-black text-black text-sm">A</div>
                 <span class="font-black text-base tracking-wider text-white">AEGIS<span class="text-amber-400 font-light">QUANT</span></span>
-                <span class="text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded font-mono font-bold">TERMINAL v6.0</span>
             </div>
         </div>
 
@@ -60,7 +59,6 @@
                 <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                 <span class="text-gray-400">ACTIVE:</span>
                 <span id="hdr-env-label" class="font-bold text-emerald-400">MARVAN'S POOL ($100,000.00)</span>
-
             </div>
 
             <!-- Live Trading ON/OFF Toggle Button -->
@@ -69,30 +67,16 @@
                 <span id="lbl-live-toggle">LIVE TRADING: OFF</span>
             </button>
 
-            <!-- Execution Mode -->
-            <div onclick="switchTab('execution')" class="flex items-center space-x-1.5 px-3 py-1 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-400 font-bold cursor-pointer hover:bg-amber-500/20 transition" title="Click to view Execution Monitor">
-                <i class="fa-solid fa-flask"></i>
-                <span>SIMULATION / DEMO</span>
-            </div>
-
-
             <!-- Connection Status -->
             <div onclick="switchTab('system')" class="flex items-center space-x-1.5 text-emerald-400 font-bold cursor-pointer hover:underline" title="Click to view System Health">
                 <i class="fa-solid fa-wifi"></i>
                 <span id="lbl-conn-status">CONNECTED (WS)</span>
-            </div>
-
-            <!-- Latency Profiler -->
-            <div class="text-gray-400 text-[11px]">
-                <span class="text-gray-500">LATENCY:</span>
-                <span class="text-white font-bold" id="lbl-hdr-latency">P50: 25.1ms | P95: 29.8ms</span>
             </div>
         </div>
 
         <div class="flex items-center space-x-3 text-xs">
             <div class="hidden sm:block text-right font-mono text-[11px]">
                 <div id="lbl-server-time" class="text-gray-300 font-bold">--:--:-- IST</div>
-                <div class="text-emerald-400 text-[9px]">RISK ENGINE: ONLINE</div>
             </div>
             <button onclick="switchTab('orders')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-lg transition shadow flex items-center">
                 <i class="fa-solid fa-bolt mr-1"></i> ORDER (B/S)
@@ -100,10 +84,11 @@
         </div>
     </header>
 
-    <div class="flex min-h-[calc(100vh-3.5rem)] relative">
+    <div class="flex flex-1 overflow-hidden relative">
 
         <!-- LEFT COLLAPSIBLE SIDEBAR -->
-        <aside id="app-sidebar" class="w-64 bg-darkcard border-r border-darkborder flex flex-col justify-between transition-all duration-200 z-40 shrink-0">
+        <aside id="app-sidebar" class="w-64 bg-darkcard border-r border-darkborder flex flex-col justify-between shrink-0 h-full overflow-y-auto z-40">
+
             <div class="py-3 px-2 space-y-1 overflow-y-auto">
                 <div class="text-[10px] font-black text-gray-500 uppercase tracking-widest px-3 mb-2">Trading Workspace</div>
                 
@@ -567,19 +552,20 @@
                     <div class="bg-darkcard border border-darkborder p-5 rounded-2xl space-y-3 shadow-xl">
                         <h3 class="text-sm font-bold text-white uppercase border-b border-gray-800 pb-2">Active Profile Selector</h3>
                         <div class="space-y-2">
-                            <button onclick="setRiskProfile('CONSERVATIVE')" class="w-full p-3 rounded-xl border bg-gray-900 border-gray-800 text-left hover:border-amber-500/50 transition">
-                                <div class="font-bold text-xs text-white">CONSERVATIVE (2x Max)</div>
+                            <button id="btn-risk-conservative" onclick="setRiskProfile('CONSERVATIVE')" class="w-full p-3 rounded-xl border bg-gray-900 border-gray-800 text-left hover:border-amber-500/50 transition">
+                                <div class="profile-title font-bold text-xs text-white">CONSERVATIVE (2x Max)</div>
                                 <div class="text-[10px] text-gray-400">1.0% Risk Cap | 0.8% Stop Loss</div>
                             </button>
-                            <button onclick="setRiskProfile('MODERATE')" class="w-full p-3 rounded-xl border bg-amber-500/10 border-amber-500/40 text-left transition">
-                                <div class="font-bold text-xs text-amber-400">MODERATE (10x Max) ★ ACTIVE</div>
+                            <button id="btn-risk-moderate" onclick="setRiskProfile('MODERATE')" class="w-full p-3 rounded-xl border bg-amber-500/10 border-amber-500/40 text-left transition">
+                                <div class="profile-title font-bold text-xs text-amber-400">MODERATE (10x Max) <span class="text-amber-400 font-bold ml-1">★ ACTIVE</span></div>
                                 <div class="text-[10px] text-gray-400">2.5% Risk Cap | 1.5% Stop Loss</div>
                             </button>
-                            <button onclick="setRiskProfile('AGGRESSIVE')" class="w-full p-3 rounded-xl border bg-gray-900 border-gray-800 text-left hover:border-amber-500/50 transition">
-                                <div class="font-bold text-xs text-white">AGGRESSIVE (25x Max)</div>
+                            <button id="btn-risk-aggressive" onclick="setRiskProfile('AGGRESSIVE')" class="w-full p-3 rounded-xl border bg-gray-900 border-gray-800 text-left hover:border-amber-500/50 transition">
+                                <div class="profile-title font-bold text-xs text-white">AGGRESSIVE (25x Max)</div>
                                 <div class="text-[10px] text-gray-400">5.0% Risk Cap | 2.5% Stop Loss</div>
                             </button>
                         </div>
+
                     </div>
 
                     <div class="bg-darkcard border border-darkborder p-5 rounded-2xl space-y-3 shadow-xl">
@@ -1146,6 +1132,37 @@
             `).join('');
         }
 
+        function renderRiskProfiles(profileName) {
+            const prof = (profileName || 'MODERATE').toUpperCase();
+            const btnCons = document.getElementById('btn-risk-conservative');
+            const btnMod = document.getElementById('btn-risk-moderate');
+            const btnAgg = document.getElementById('btn-risk-aggressive');
+
+            if (!btnCons || !btnMod || !btnAgg) return;
+
+            btnCons.className = `w-full p-3 rounded-xl border text-left transition cursor-pointer ${prof === 'CONSERVATIVE' ? 'bg-amber-500/10 border-amber-500/40' : 'bg-gray-900 border-gray-800 hover:border-amber-500/50'}`;
+            const tCons = btnCons.querySelector('.profile-title');
+            if (tCons) {
+                tCons.innerHTML = `CONSERVATIVE (2x Max) ${prof === 'CONSERVATIVE' ? '<span class="text-amber-400 font-bold ml-1">★ ACTIVE</span>' : ''}`;
+                tCons.className = `profile-title font-bold text-xs ${prof === 'CONSERVATIVE' ? 'text-amber-400' : 'text-white'}`;
+            }
+
+            btnMod.className = `w-full p-3 rounded-xl border text-left transition cursor-pointer ${prof === 'MODERATE' ? 'bg-amber-500/10 border-amber-500/40' : 'bg-gray-900 border-gray-800 hover:border-amber-500/50'}`;
+            const tMod = btnMod.querySelector('.profile-title');
+            if (tMod) {
+                tMod.innerHTML = `MODERATE (10x Max) ${prof === 'MODERATE' ? '<span class="text-amber-400 font-bold ml-1">★ ACTIVE</span>' : ''}`;
+                tMod.className = `profile-title font-bold text-xs ${prof === 'MODERATE' ? 'text-amber-400' : 'text-white'}`;
+            }
+
+            btnAgg.className = `w-full p-3 rounded-xl border text-left transition cursor-pointer ${prof === 'AGGRESSIVE' ? 'bg-amber-500/10 border-amber-500/40' : 'bg-gray-900 border-gray-800 hover:border-amber-500/50'}`;
+            const tAgg = btnAgg.querySelector('.profile-title');
+            if (tAgg) {
+                tAgg.innerHTML = `AGGRESSIVE (25x Max) ${prof === 'AGGRESSIVE' ? '<span class="text-amber-400 font-bold ml-1">★ ACTIVE</span>' : ''}`;
+                tAgg.className = `profile-title font-bold text-xs ${prof === 'AGGRESSIVE' ? 'text-amber-400' : 'text-white'}`;
+            }
+        }
+
+
         function setLeverage(lev) {
             currentLeverage = lev;
             const lbl = document.getElementById('lbl-order-lev');
@@ -1530,9 +1547,11 @@
             if (document.getElementById('metric-exposure')) document.getElementById('metric-exposure').innerText = '$' + totalExposure.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 
 
-            // Update Leverage UI
+            // Update Leverage & Risk Profile UI
             const maxLev = (data.risk_profile && data.risk_profile.max_leverage) ? data.risk_profile.max_leverage : 10;
             updateLeverageButtonsUI(maxLev);
+            renderRiskProfiles(data.risk_profile ? (data.risk_profile.profile_name || data.risk_profile.active_profile) : 'MODERATE');
+
 
 // Render Tab Components with Component Isolation
             try { renderOverviewSignals(opps); } catch (e) { console.warn("Overview signals notice:", e); }
