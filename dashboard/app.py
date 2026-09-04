@@ -365,12 +365,17 @@ async def get_state():
         "audit_log": audit_log,
         "deposit_history": deposit_history,
         "profit_vault": vault_summary,
-        "risk_profile": risk_engine.active_profile,
+        "risk_profile": {
+            **risk_engine.active_profile,
+            "profile_name": risk_engine.active_profile_name,
+            "active_profile": risk_engine.active_profile_name
+        },
         "system_health": {
             "status": "HEALTHY",
             "heartbeat": "ONLINE",
             "process": "ACTIVE"
         }
+
     }
 
 
