@@ -72,15 +72,31 @@ class PerformanceCurveEngine:
 
         sweeps = profit_vault.get_sweep_history(environment)
 
+        def _parse_ts(ts_str: str) -> Optional[datetime]:
+            try:
+                clean_str = str(ts_str).replace(" IST", "").strip()
+                dt = datetime.strptime(clean_str, "%Y-%m-%d %H:%M:%S")
+                return dt.replace(tzinfo=IST_TZ)
+            except Exception:
+                return None
+
         events = []
         for t in trades:
+            ts_val = t.get("timestamp", now_str)
+            dt_val = _parse_ts(ts_val)
+            if time_range != "ALL" and dt_val and dt_val < cutoff_dt:
+                continue
             events.append({
-                "timestamp": t.get("timestamp", now_str),
+                "timestamp": ts_val,
                 "pnl": float(t.get("pnl_usd") or t.get("realized_pnl") or 0.0)
             })
         for s in sweeps:
+            ts_val = s.get("timestamp", now_str)
+            dt_val = _parse_ts(ts_val)
+            if time_range != "ALL" and dt_val and dt_val < cutoff_dt:
+                continue
             events.append({
-                "timestamp": s.get("timestamp", now_str),
+                "timestamp": ts_val,
                 "pnl": float(s.get("sweep_amount") or s.get("realized_profit") or 0.0)
             })
 
@@ -151,6 +167,14 @@ class PerformanceCurveEngine:
             if p["timestamp"] not in seen:
                 seen.add(p["timestamp"])
                 filtered_points.append(p)
+
+        # Downsample points to a maximum of 100 points for smooth sub-millisecond Chart.js rendering
+        if len(filtered_points) > 100:
+            step = len(filtered_points) / 99.0
+            downsampled = [filtered_points[int(i * step)] for i in range(99)]
+            if filtered_points[-1] not in downsampled:
+                downsampled.append(filtered_points[-1])
+            filtered_points = downsampled
 
         values = [p["value"] for p in filtered_points]
         latest_val = values[-1] if values else 0.0
