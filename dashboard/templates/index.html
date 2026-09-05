@@ -1646,11 +1646,11 @@
                 return;
             }
             stream.innerHTML = orders.slice(0, 8).map(ord => {
-                const ts = ord.timestamp ? (ord.timestamp.includes(' ') ? ord.timestamp.split(' ')[1] : ord.timestamp) : '21:30:00';
+                const ts = ord.timestamp ? (ord.timestamp.includes(' ') ? ord.timestamp.split(' ')[1] : ord.timestamp) : new Date().toLocaleTimeString();
                 const asset = ord.asset || ord.symbol || 'BTCUSD';
                 const action = (ord.action || ord.side || 'BUY').toUpperCase();
-                const status = ord.status || 'APPROVED';
-                const amt = ord.amount_usd || (ord.quantity && ord.price ? ord.quantity * ord.price : 1000.0);
+                const status = ord.status || (ord.reasoning ? (action === 'BUY' ? 'FILLED' : (action === 'SCAN' ? 'SCANNING' : 'ACKNOWLEDGED')) : 'APPROVED');
+                const amt = (ord.amount_usd !== undefined) ? ord.amount_usd : (ord.quantity && ord.price ? ord.quantity * ord.price : 1000.0);
                 const isBuy = action === 'BUY';
 
                 return `

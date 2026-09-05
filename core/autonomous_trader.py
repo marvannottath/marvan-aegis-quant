@@ -37,11 +37,12 @@ class AutonomousTrader:
             pass
         self.is_running = False
         self._thread = None
+        now_ts = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%H:%M:%S")
         self.live_stream_log: List[Dict[str, Any]] = [
-            {"timestamp": datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%H:%M:%S"), "asset": "XAUUSD", "action": "SCAN", "price": 2518.80, "amount_usd": 0.0, "reasoning": "Scanning Live Ticks: Gold Volatility Expansion Filter Active"},
-            {"timestamp": datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%H:%M:%S"), "asset": "BTCUSD", "action": "BUY", "price": 64320.00, "amount_usd": 2000.0, "reasoning": "Multi-Agent Consensus (0.84) BUY Execution (3x Lev)"},
-            {"timestamp": datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%H:%M:%S"), "asset": "SOLUSD", "action": "CLOSE", "price": 157.13, "amount_usd": 2000.0, "reasoning": "Micro-Profit Take-Profit Sweep (+3.5%) into Vault"},
-            {"timestamp": datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%H:%M:%S"), "asset": "NVDA", "action": "BUY", "price": 129.45, "amount_usd": 1000.0, "reasoning": "AI Sentiment Momentum Trade Entry (3x Lev)"}
+            {"timestamp": now_ts, "asset": "XAUUSD", "action": "SCAN", "price": 2518.80, "amount_usd": 0.0, "reasoning": "Scanning Live Ticks: Gold Volatility Expansion Filter Active"},
+            {"timestamp": now_ts, "asset": "BTCUSD", "action": "BUY", "price": 64320.00, "amount_usd": 2000.0, "reasoning": "Multi-Agent Consensus (0.84) BUY Execution (3x Lev)"},
+            {"timestamp": now_ts, "asset": "SOLUSD", "action": "CLOSE", "price": 157.13, "amount_usd": 2000.0, "reasoning": "Micro-Profit Take-Profit Sweep (+3.5%) into Vault"},
+            {"timestamp": now_ts, "asset": "NVDA", "action": "BUY", "price": 129.45, "amount_usd": 1000.0, "reasoning": "AI Sentiment Momentum Trade Entry (3x Lev)"}
         ]
         self.position_age: Dict[str, int] = {}
 

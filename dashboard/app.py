@@ -304,7 +304,9 @@ async def get_state():
     IST_TZ = timezone(timedelta(hours=5, minutes=30))
     now_str = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S IST")
 
-    raw_orders = acc.get("orders", []) or list(order_state_machine.orders.values())
+    raw_orders = trader.get_live_stream()
+    if not raw_orders:
+        raw_orders = acc.get("orders", []) or list(order_state_machine.orders.values())
     if not raw_orders:
         raw_orders = [
             {"order_id": "ORD-AI-9901", "timestamp": now_str, "asset": "BTCUSD", "symbol": "BTCUSD", "action": "BUY", "side": "BUY", "amount_usd": 1000.0, "status": "APPROVED", "reason": "7-Gate Risk Pass"},
