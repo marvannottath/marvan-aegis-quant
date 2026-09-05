@@ -634,8 +634,10 @@
                             </tbody>
                         </table>
                     </div>
+                    <div id="vault-pagination" class="pt-3 border-t border-gray-800"></div>
                 </div>
             </section>
+
 
 
             <!-- TAB 9: BACKTEST ANALYTICS -->
@@ -800,8 +802,10 @@
                             <!-- Dynamic Audit Rows -->
                         </tbody>
                     </table>
+                    <div id="audit-pagination" class="pt-3 border-t border-gray-800"></div>
                 </div>
             </section>
+
 
 
             <!-- TAB 11: PAYMENTS -->
@@ -1735,24 +1739,60 @@
             }
         }
 
-        function renderAuditTrail(logs) {
+        let auditPage = 1;
+        const AUDIT_PAGE_SIZE = 50;
+
+        function renderAuditTrail(audit) {
             const tbody = document.getElementById('audit-log-tbody');
             if (!tbody) return;
-            const items = logs && logs.length > 0 ? logs : [
-                {timestamp: "2026-09-02 01:30:12", user_id: "127.0.0.1", event_type: "ORDER_EXECUTED", asset: "BTCUSD", event_id: "AUD-9912-ORDER"},
-                {timestamp: "2026-09-02 01:25:05", user_id: "127.0.0.1", event_type: "RISK_CHECK", asset: "MODERATE", event_id: "AUD-9911-RISK"}
-            ];
-            tbody.innerHTML = items.map(a => `
+            const items = audit && audit.length > 0 ? audit : [];
+            if (items.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-gray-500 font-mono text-xs">NO AUDIT LOGS RECORDED</td></tr>`;
+                const pagin = document.getElementById('audit-pagination');
+                if (pagin) pagin.innerHTML = '';
+                return;
+            }
+
+            const totalItems = items.length;
+            const totalPages = Math.ceil(totalItems / AUDIT_PAGE_SIZE) || 1;
+            if (auditPage > totalPages) auditPage = 1;
+            if (auditPage < 1) auditPage = 1;
+            const startIndex = (auditPage - 1) * AUDIT_PAGE_SIZE;
+            const paginatedItems = items.slice(startIndex, startIndex + AUDIT_PAGE_SIZE);
+
+            tbody.innerHTML = paginatedItems.map(a => `
                 <tr class="border-b border-gray-800/60 hover:bg-gray-900/50 text-xs">
-                    <td class="py-2.5 px-3 text-gray-400">${a.timestamp || '2026-09-02'}</td>
-                    <td class="py-2.5 px-3 text-gray-300">${a.user_id || '127.0.0.1'}</td>
-                    <td class="py-2.5 px-3 text-amber-400 font-bold">${a.event_type || a.action}</td>
+                    <td class="py-2.5 px-3 text-gray-400">${a.timestamp || '2026-09-03'}</td>
+                    <td class="py-2.5 px-3 text-white font-bold">${a.actor || 'SYSTEM_CORE'} (${a.ip || 'INTERNAL'})</td>
+                    <td class="py-2.5 px-3 text-amber-400 font-bold">${a.action || 'AUDIT_LOG'}</td>
                     <td class="py-2.5 px-3 text-white">${a.asset || 'USDT'}</td>
                     <td class="py-2.5 px-3 text-emerald-400 font-bold">CONFIRMED</td>
                     <td class="py-2.5 px-3 text-gray-500 font-mono">${a.event_id || a.id}</td>
                 </tr>
             `).join('');
+
+            const pagin = document.getElementById('audit-pagination');
+            if (pagin) {
+                pagin.innerHTML = `
+                    <div class="flex items-center justify-between text-xs font-mono text-gray-400">
+                        <div>Showing ${startIndex + 1}-${Math.min(startIndex + AUDIT_PAGE_SIZE, totalItems)} of ${totalItems} entries (50 / page)</div>
+                        <div class="flex items-center space-x-2">
+                            <button onclick="changeAuditPage(-1)" ${auditPage <= 1 ? 'disabled' : ''} class="px-2.5 py-1 rounded bg-gray-900 border border-gray-800 text-gray-300 hover:text-white disabled:opacity-40 cursor-pointer">Prev</button>
+                            <span class="text-amber-400 font-bold">Page ${auditPage} of ${totalPages}</span>
+                            <button onclick="changeAuditPage(1)" ${auditPage >= totalPages ? 'disabled' : ''} class="px-2.5 py-1 rounded bg-gray-900 border border-gray-800 text-gray-300 hover:text-white disabled:opacity-40 cursor-pointer">Next</button>
+                        </div>
+                    </div>
+                `;
+            }
         }
+
+        function changeAuditPage(delta) {
+            auditPage += delta;
+            fetchState();
+        }
+
+        let vaultPage = 1;
+        const VAULT_PAGE_SIZE = 50;
 
         function renderVaultTransactions(vault) {
             const tbody = document.getElementById('vault-transactions-tbody');
@@ -1760,6 +1800,8 @@
             const history = (vault && (vault.recent_sweeps || vault.sweep_history || vault.transactions)) ? (vault.recent_sweeps || vault.sweep_history || vault.transactions) : [];
             if (!history || history.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-gray-500 font-mono text-xs"><i class="fa-solid fa-vault text-emerald-400 mr-2"></i> NO PROFIT SWEEPS RECORDED — Realized profits automatically sweep into vault ledger</td></tr>`;
+                const pagin = document.getElementById('vault-pagination');
+                if (pagin) pagin.innerHTML = '';
                 return;
             }
 
@@ -1783,7 +1825,15 @@
                 return { ...h, calculated_balance_after: balAfter };
             });
 
-            tbody.innerHTML = itemsWithRunningBal.map(h => `
+            // 50-Item Pagination
+            const totalItems = itemsWithRunningBal.length;
+            const totalPages = Math.ceil(totalItems / VAULT_PAGE_SIZE) || 1;
+            if (vaultPage > totalPages) vaultPage = 1;
+            if (vaultPage < 1) vaultPage = 1;
+            const startIndex = (vaultPage - 1) * VAULT_PAGE_SIZE;
+            const paginatedItems = itemsWithRunningBal.slice(startIndex, startIndex + VAULT_PAGE_SIZE);
+
+            tbody.innerHTML = paginatedItems.map(h => `
                 <tr class="border-b border-gray-800/60 hover:bg-gray-900/50 text-xs">
                     <td class="py-2.5 px-3 text-gray-400">${h.timestamp || '2026-09-03'}</td>
                     <td class="py-2.5 px-3 text-gray-300 font-mono">${h.transaction_id || h.tx_id || h.id || 'SWP-001'}</td>
@@ -1794,6 +1844,25 @@
                     <td class="py-2.5 px-3 text-right"><span class="px-2 py-0.5 text-[9px] font-black rounded bg-emerald-500/10 text-emerald-400">${h.status || 'SECURED'}</span></td>
                 </tr>
             `).join('');
+
+            const pagin = document.getElementById('vault-pagination');
+            if (pagin) {
+                pagin.innerHTML = `
+                    <div class="flex items-center justify-between text-xs font-mono text-gray-400">
+                        <div>Showing ${startIndex + 1}-${Math.min(startIndex + VAULT_PAGE_SIZE, totalItems)} of ${totalItems} entries (50 / page)</div>
+                        <div class="flex items-center space-x-2">
+                            <button onclick="changeVaultPage(-1)" ${vaultPage <= 1 ? 'disabled' : ''} class="px-2.5 py-1 rounded bg-gray-900 border border-gray-800 text-gray-300 hover:text-white disabled:opacity-40 cursor-pointer">Prev</button>
+                            <span class="text-amber-400 font-bold">Page ${vaultPage} of ${totalPages}</span>
+                            <button onclick="changeVaultPage(1)" ${vaultPage >= totalPages ? 'disabled' : ''} class="px-2.5 py-1 rounded bg-gray-900 border border-gray-800 text-gray-300 hover:text-white disabled:opacity-40 cursor-pointer">Next</button>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        function changeVaultPage(delta) {
+            vaultPage += delta;
+            fetchState();
         }
 
 
