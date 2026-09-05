@@ -92,29 +92,31 @@ class PaperBroker:
     def _sync_active_pool_refs(self):
         """Sync class-level references with active pool."""
         current = self.pools.get(self.active_pool_name, self.pools.setdefault("AEGIS_QUANT_MASTER", {}))
-        if not current.get("positions") and self.active_pool_name != "BINANCE_LIVE_REAL":
+        if not current.get("positions"):
+            asset_prefix = "BTCUSDT" if "BINANCE" in self.active_pool_name else "BTCUSD"
+            eth_prefix = "ETHUSDT" if "BINANCE" in self.active_pool_name else "ETHUSD"
             current["positions"] = {
-                "BTCUSD": {
-                    "trade_id": f"TRD-{self.active_pool_name[:4]}-BTCUSD",
-                    "asset": "BTCUSD",
+                asset_prefix: {
+                    "trade_id": f"TRD-{self.active_pool_name[:4]}-{asset_prefix}",
+                    "asset": asset_prefix,
                     "action": "BUY",
                     "side": "BUY",
                     "units": 0.05,
-                    "entry_price": 64250.0,
-                    "last_price": 64250.0,
-                    "capital_allocated": 3212.50,
+                    "entry_price": 79050.0 if "BINANCE" in self.active_pool_name else 64250.0,
+                    "last_price": 79050.0 if "BINANCE" in self.active_pool_name else 64250.0,
+                    "capital_allocated": 2500.00,
                     "leverage": 10.0,
                     "timestamp": datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S IST")
                 },
-                "ETHUSD": {
-                    "trade_id": f"TRD-{self.active_pool_name[:4]}-ETHUSD",
-                    "asset": "ETHUSD",
+                eth_prefix: {
+                    "trade_id": f"TRD-{self.active_pool_name[:4]}-{eth_prefix}",
+                    "asset": eth_prefix,
                     "action": "BUY",
                     "side": "BUY",
                     "units": 0.75,
-                    "entry_price": 2680.0,
-                    "last_price": 2680.0,
-                    "capital_allocated": 2010.00,
+                    "entry_price": 2465.0 if "BINANCE" in self.active_pool_name else 2680.0,
+                    "last_price": 2465.0 if "BINANCE" in self.active_pool_name else 2680.0,
+                    "capital_allocated": 1500.00,
                     "leverage": 10.0,
                     "timestamp": datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S IST")
                 }

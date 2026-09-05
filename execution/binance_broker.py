@@ -38,20 +38,34 @@ class BinanceBroker:
                 with open(BINANCE_CONFIG_FILE, "r") as f:
                     data = json.load(f)
 
-                    # Dual credentials support
                     demo_data = data.get("demo", {})
                     live_data = data.get("live", {})
 
-                    self.demo_api_key = (demo_data.get("api_key") or data.get("demo_api_key") or (data.get("api_key") if data.get("testnet", True) else "") or "").strip()
-                    self.demo_secret_key = (demo_data.get("secret_key") or data.get("demo_secret_key") or (data.get("secret_key") if data.get("testnet", True) else "") or "").strip()
+                    demo_k = (demo_data.get("api_key") or data.get("demo_api_key") or "").strip()
+                    demo_s = (demo_data.get("secret_key") or data.get("demo_secret_key") or "").strip()
 
-                    self.live_api_key = (live_data.get("api_key") or data.get("live_api_key") or (data.get("api_key") if not data.get("testnet", True) else "") or "").strip()
-                    self.live_secret_key = (live_data.get("secret_key") or data.get("live_secret_key") or (data.get("secret_key") if not data.get("testnet", True) else "") or "").strip()
+                    live_k = (live_data.get("api_key") or data.get("live_api_key") or "").strip()
+                    live_s = (live_data.get("secret_key") or data.get("live_secret_key") or "").strip()
+
+                    if not demo_k and data.get("testnet", True):
+                        demo_k = (data.get("api_key") or "").strip()
+                        demo_s = (data.get("secret_key") or "").strip()
+                    if not live_k and not data.get("testnet", True):
+                        live_k = (data.get("api_key") or "").strip()
+                        live_s = (data.get("secret_key") or "").strip()
+
+                    if demo_k:
+                        self.demo_api_key = demo_k
+                    if demo_s:
+                        self.demo_secret_key = demo_s
+                    if live_k:
+                        self.live_api_key = live_k
+                    if live_s:
+                        self.live_secret_key = live_s
 
                     self.testnet = data.get("testnet", True)
                     self.is_demo = self.testnet
 
-                    # Set active keys based on current environment mode
                     if self.testnet:
                         self.api_key = self.demo_api_key
                         self.secret_key = self.demo_secret_key
@@ -335,17 +349,26 @@ class BinanceBroker:
 
     def get_open_positions(self, environment: str = "BINANCE_TESTNET") -> List[Dict[str, Any]]:
         """Fetch active spot balances and holdings from Binance API formatted as open position objects."""
-        if not self.api_key or not self.secret_key:
+        is_testnet_env = ("TESTNET" in environment or "DEMO" in environment)
+        target_api_key = self.demo_api_key if is_testnet_env else self.live_api_key
+        target_secret_key = self.demo_secret_key if is_testnet_env else self.live_secret_key
+
+        if not target_api_key:
+            target_api_key = self.api_key
+        if not target_secret_key:
+            target_secret_key = self.secret_key
+
+        if not target_api_key or not target_secret_key:
             return []
 
-        base_url = "https://testnet.binance.vision" if self.testnet else "https://api.binance.com"
-        headers = {"X-MBX-APIKEY": self.api_key}
+        base_url = "https://testnet.binance.vision" if is_testnet_env else "https://api.binance.com"
+        headers = {"X-MBX-APIKEY": target_api_key}
 
         try:
             st = int(time.time() * 1000)
             query = f"timestamp={st}&recvWindow=60000"
             signature = hmac.new(
-                self.secret_key.encode("utf-8"),
+                target_secret_key.encode("utf-8"),
                 query.encode("utf-8"),
                 hashlib.sha256
             ).hexdigest()
