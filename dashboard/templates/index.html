@@ -1574,6 +1574,7 @@
 
             // Top Header & Metrics
             const activePool = data.active_capital_pool || 'AEGIS_QUANT_MASTER';
+            window.activeTradingPool = activePool;
             const hdrEnv = document.getElementById('hdr-env-label');
             if (hdrEnv) {
                 if (activePool.includes('TESTNET') || activePool.includes('DEMO')) {
@@ -2165,7 +2166,8 @@
             if (!canvas) return;
 
             try {
-                const res = await fetch(`/api/performance/curve?metric=${currentChartMetric}&range=${currentChartTF}`);
+                const env = window.activeTradingPool || 'AEGIS_QUANT_MASTER';
+                const res = await fetch(`/api/performance/curve?metric=${currentChartMetric}&range=${currentChartTF}&environment=${env}`);
                 const data = await res.json();
                 const points = data.points || [];
 

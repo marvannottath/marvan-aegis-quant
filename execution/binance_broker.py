@@ -333,5 +333,76 @@ class BinanceBroker:
 
         return getattr(self, '_cached_live_bal', 0.0)
 
+    def get_open_positions(self, environment: str = "BINANCE_TESTNET") -> List[Dict[str, Any]]:
+        """Fetch active spot balances and holdings from Binance API formatted as open position objects."""
+        if not self.api_key or not self.secret_key:
+            return []
+
+        base_url = "https://testnet.binance.vision" if self.testnet else "https://api.binance.com"
+        headers = {"X-MBX-APIKEY": self.api_key}
+
+        try:
+            st = int(time.time() * 1000)
+            query = f"timestamp={st}&recvWindow=60000"
+            signature = hmac.new(
+                self.secret_key.encode("utf-8"),
+                query.encode("utf-8"),
+                hashlib.sha256
+            ).hexdigest()
+
+            resp = requests.get(f"{base_url}/api/v3/account?{query}&signature={signature}", headers=headers, timeout=3.0)
+            if resp.status_code == 200:
+                data = resp.json()
+                balances = data.get("balances", [])
+                positions = []
+                for b in balances:
+                    asset = b.get("asset", "")
+                    if asset in ["USDT", "BUSD", "USDC", "FDUSD"]:
+                        continue
+                    free_qty = float(b.get("free", 0.0))
+                    locked_qty = float(b.get("locked", 0.0))
+                    total_qty = free_qty + locked_qty
+                    if total_qty <= 0.0001:
+                        continue
+
+                    # Try fetching symbol price
+                    ticker_symbol = f"{asset}USDT"
+                    cur_price = 0.0
+                    try:
+                        presp = requests.get(f"{base_url}/api/v3/ticker/price?symbol={ticker_symbol}", timeout=1.5)
+                        if presp.status_code == 200:
+                            cur_price = float(presp.json().get("price", 0.0))
+                    except Exception:
+                        pass
+
+                    val_usd = round(total_qty * cur_price, 2) if cur_price > 0 else 0.0
+                    if val_usd < 1.0 and total_qty < 0.001:
+                        continue  # skip tiny dust
+
+                    positions.append({
+                        "trade_id": f"TRD-{environment[:4]}-{asset}",
+                        "asset": ticker_symbol,
+                        "symbol": ticker_symbol,
+                        "action": "BUY",
+                        "side": "BUY",
+                        "units": round(total_qty, 4),
+                        "entry_price": cur_price if cur_price > 0 else 1.0,
+                        "mark_price": cur_price if cur_price > 0 else 1.0,
+                        "current_price": cur_price if cur_price > 0 else 1.0,
+                        "capital_allocated": val_usd,
+                        "allocated_margin": val_usd,
+                        "leverage": 1.0,
+                        "pnl_usd": 0.0,
+                        "pnl_pct": 0.0,
+                        "unrealized_pnl": 0.0,
+                        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
+                    })
+                return positions
+        except Exception as e:
+            print(f"[BINANCE POSITIONS] Fetch notice: {e}")
+
+        return []
+
+
 # Singleton instance
 binance_broker = BinanceBroker()

@@ -287,9 +287,18 @@ async def get_state():
     from execution.usdt_deposit_engine import usdt_deposit_engine
     from core.signal_ensemble import signal_ensemble_engine
 
+    active_pool = paper_broker.active_pool_name
     acc = paper_broker.get_account_summary()
     positions = acc.get("positions", acc.get("open_positions", []))
-    
+    if active_pool in ["BINANCE_TESTNET_DEMO", "BINANCE_LIVE_REAL", "BINANCE_DEMO", "BINANCE_LIVE"]:
+        try:
+            from execution.binance_broker import binance_broker
+            b_positions = binance_broker.get_open_positions(active_pool)
+            if b_positions:
+                positions = b_positions
+        except Exception as e:
+            print(f"[BINANCE POSITIONS FETCH] Notice: {e}")
+
     from core.order_state_machine import order_state_machine
     from datetime import datetime, timezone, timedelta
     IST_TZ = timezone(timedelta(hours=5, minutes=30))
@@ -338,7 +347,7 @@ async def get_state():
 
     audit_log = audit_logger.get_audit_trail()
     deposit_history = getattr(usdt_deposit_engine, "requests", [])
-    vault_summary = profit_vault.get_vault_summary()
+    vault_summary = profit_vault.get_vault_summary(active_pool)
 
     equity_val = acc.get("portfolio_equity", 100000.0)
     init_cap = max(1.0, acc.get("initial_capital", 100000.0))
@@ -346,8 +355,11 @@ async def get_state():
     drawdown_pct = round(((peak_eq - equity_val) / peak_eq) * 100.0, 2) if peak_eq > 0 else 0.0
 
     active_trades = acc.get("trade_history", [])
-    pool_realized_pnl = round(sum(t.get("realized_pnl", 0.0) for t in active_trades), 2)
-    today_pnl = pool_realized_pnl if pool_realized_pnl != 0.0 else vault_summary.get("realized_profit_today", 0.0)
+    pool_realized_pnl = round(sum(t.get("realized_pnl", 0.0) or t.get("pnl_usd", 0.0) for t in active_trades), 2)
+    if active_pool != "AEGIS_QUANT_MASTER":
+        today_pnl = pool_realized_pnl
+    else:
+        today_pnl = pool_realized_pnl if pool_realized_pnl != 0.0 else vault_summary.get("realized_profit_today", 0.0)
 
     return {
         "active_capital_pool": paper_broker.active_pool_name,

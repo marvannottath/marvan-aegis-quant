@@ -282,6 +282,14 @@ class PaperBroker:
             "timestamp": datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S")
         }
 
+        # Trigger real spot order placement on Binance if active pool is Binance
+        if self.active_pool_name in ["BINANCE_TESTNET_DEMO", "BINANCE_LIVE_REAL", "BINANCE_DEMO", "BINANCE_LIVE"]:
+            try:
+                from execution.binance_broker import binance_broker
+                binance_broker.place_spot_market_order(symbol=asset, side=action, quote_order_qty=amount_usd)
+            except Exception as e:
+                print(f"[PAPER_BROKER -> BINANCE EXECUTION] Notice: {e}")
+
         self.positions[asset] = position
         self._update_equity()
         self._save_state()

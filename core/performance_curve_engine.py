@@ -55,14 +55,22 @@ class PerformanceCurveEngine:
         }
         cutoff_dt = now_dt - range_deltas[time_range]
 
-        opening_amt = float(paper_broker.initial_capital)
-        now_dt = datetime.now(timezone.utc).astimezone(IST_TZ)
-        now_str = now_dt.strftime("%Y-%m-%d %H:%M:%S IST")
+        opening_amt = 100000.0
+        if environment in ["BINANCE_TESTNET", "BINANCE_DEMO", "BINANCE_TESTNET_DEMO"]:
+            opening_amt = 19950.55
+        elif environment in ["BINANCE_LIVE", "BINANCE_LIVE_REAL"]:
+            opening_amt = paper_broker.pools.get(environment, {}).get("initial_capital", 0.0)
+        elif environment in paper_broker.pools:
+            opening_amt = paper_broker.pools[environment].get("initial_capital", 100000.0)
 
-        # Collect closed trades & vault sweeps chronologically
-        trades = list(paper_broker.trade_history)
-        sweeps = profit_vault.sweep_history
+        # Collect closed trades & vault sweeps strictly for the requested environment
+        if environment in paper_broker.pools and environment != "AEGIS_QUANT_MASTER":
+            pool_data = paper_broker.pools[environment]
+            trades = pool_data.get("trade_history", [])
+        else:
+            trades = list(paper_broker.trade_history)
 
+        sweeps = profit_vault.get_sweep_history(environment)
 
         events = []
         for t in trades:
@@ -84,7 +92,7 @@ class PerformanceCurveEngine:
         peak_equity = opening_amt
 
         # Initial starting point
-        start_time = sorted_events[0]["timestamp"] if sorted_events else "2026-09-03 00:00:00 IST"
+        start_time = sorted_events[0]["timestamp"] if sorted_events else now_str
         points.append({
             "timestamp": start_time,
             "value": opening_amt if metric == "equity" else 0.0
@@ -111,9 +119,14 @@ class PerformanceCurveEngine:
                 "value": val
             })
 
-        # Add current live broker equity point
-        cur_broker_equity = round(float(paper_broker.equity), 2)
-        cur_total_pnl = round(sum(float(t.get("pnl_usd", 0.0)) for t in paper_broker.trade_history), 2)
+        # Environment-specific live equity & PnL
+        if environment in paper_broker.pools and environment != "AEGIS_QUANT_MASTER":
+            pool_data = paper_broker.pools[environment]
+            cur_broker_equity = round(float(pool_data.get("portfolio_equity", pool_data.get("virtual_cash", opening_amt))), 2)
+            cur_total_pnl = round(sum(float(t.get("pnl_usd", 0.0)) for t in trades), 2)
+        else:
+            cur_broker_equity = round(float(paper_broker.equity), 2)
+            cur_total_pnl = round(sum(float(t.get("pnl_usd", 0.0)) for t in paper_broker.trade_history), 2)
 
         if cur_broker_equity > peak_equity:
             peak_equity = cur_broker_equity
@@ -131,14 +144,9 @@ class PerformanceCurveEngine:
             "value": live_val
         })
 
-        # Deduplicate points by timestamp if identical
+        # Deduplicate points by timestamp
         filtered_points = []
         seen = set()
-        for p in points:
-            if p["timestamp"] not in seen:
-                seen.add(p["timestamp"])
-                filtered_points.append(p)
-
         for p in points:
             if p["timestamp"] not in seen:
                 seen.add(p["timestamp"])

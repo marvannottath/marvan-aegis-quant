@@ -109,7 +109,10 @@ class ProfitVault:
 
     @property
     def sweep_history(self) -> List[Dict[str, Any]]:
-        store = self.vault_stores.get("AEGIS_QUANT_MASTER", {"transactions": [], "withdrawals": [], "transfers": []})
+        return self.get_sweep_history("AEGIS_QUANT_MASTER")
+
+    def get_sweep_history(self, environment: str = "AEGIS_QUANT_MASTER") -> List[Dict[str, Any]]:
+        store = self.vault_stores.get(environment, {"transactions": [], "withdrawals": [], "transfers": []})
         return store.get("transactions", [])
 
     @property
