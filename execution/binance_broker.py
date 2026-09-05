@@ -348,7 +348,14 @@ class BinanceBroker:
         return getattr(self, '_cached_live_bal', 0.0)
 
     def get_open_positions(self, environment: str = "BINANCE_TESTNET") -> List[Dict[str, Any]]:
-        """Fetch active spot balances and holdings from Binance API formatted as open position objects."""
+        """Fetch active spot balances and holdings from Binance API formatted as open position objects (5s TTL Cache)."""
+        now = time.time()
+        cache_key = f"_cached_pos_{environment}"
+        cache_ts_key = f"_cached_pos_ts_{environment}"
+
+        if hasattr(self, cache_key) and (now - getattr(self, cache_ts_key, 0)) < 5.0:
+            return getattr(self, cache_key, [])
+
         is_testnet_env = ("TESTNET" in environment or "DEMO" in environment)
         target_api_key = self.demo_api_key if is_testnet_env else self.live_api_key
         target_secret_key = self.demo_secret_key if is_testnet_env else self.live_secret_key
@@ -359,7 +366,7 @@ class BinanceBroker:
             target_secret_key = self.secret_key
 
         if not target_api_key or not target_secret_key:
-            return []
+            return getattr(self, cache_key, [])
 
         base_url = "https://testnet.binance.vision" if is_testnet_env else "https://api.binance.com"
         headers = {"X-MBX-APIKEY": target_api_key}
@@ -373,7 +380,7 @@ class BinanceBroker:
                 hashlib.sha256
             ).hexdigest()
 
-            resp = requests.get(f"{base_url}/api/v3/account?{query}&signature={signature}", headers=headers, timeout=3.0)
+            resp = requests.get(f"{base_url}/api/v3/account?{query}&signature={signature}", headers=headers, timeout=1.2)
             if resp.status_code == 200:
                 data = resp.json()
                 balances = data.get("balances", [])
@@ -388,11 +395,10 @@ class BinanceBroker:
                     if total_qty <= 0.0001:
                         continue
 
-                    # Try fetching symbol price
                     ticker_symbol = f"{asset}USDT"
                     cur_price = 0.0
                     try:
-                        presp = requests.get(f"{base_url}/api/v3/ticker/price?symbol={ticker_symbol}", timeout=1.5)
+                        presp = requests.get(f"{base_url}/api/v3/ticker/price?symbol={ticker_symbol}", timeout=0.8)
                         if presp.status_code == 200:
                             cur_price = float(presp.json().get("price", 0.0))
                     except Exception:
@@ -420,11 +426,14 @@ class BinanceBroker:
                         "unrealized_pnl": 0.0,
                         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
                     })
+
+                setattr(self, cache_key, positions)
+                setattr(self, cache_ts_key, now)
                 return positions
         except Exception as e:
             print(f"[BINANCE POSITIONS] Fetch notice: {e}")
 
-        return []
+        return getattr(self, cache_key, [])
 
 
 # Singleton instance

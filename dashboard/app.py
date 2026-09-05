@@ -287,6 +287,9 @@ async def get_state():
     from execution.usdt_deposit_engine import usdt_deposit_engine
     from core.signal_ensemble import signal_ensemble_engine
 
+    if not trader.is_running:
+        trader.start_autonomous_loop()
+
     active_pool = paper_broker.active_pool_name
     acc = paper_broker.get_account_summary()
     positions = acc.get("positions", acc.get("open_positions", []))
