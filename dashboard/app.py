@@ -112,7 +112,7 @@ async def on_startup():
 
 INDEX_HTML_PATH = BASE_DIR / "templates" / "index.html"
 
-@app.get("/", response_class=HTMLResponse)
+@app.api_route("/", methods=["GET", "HEAD"], response_class=HTMLResponse)
 async def read_dashboard(request: Request):
     """Serve the master hedge fund dashboard with 100% truthful server-side pre-rendered financial state & HTML tables."""
     template_path = BASE_DIR / "templates" / "index.html"
@@ -277,7 +277,7 @@ async def serve_admin_portal(request: Request):
             return HTMLResponse(content=f.read(), status_code=200)
     return HTMLResponse(content="<h2>Admin portal not found</h2>", status_code=404)
 
-@app.get("/api/state")
+@app.api_route("/api/state", methods=["GET", "HEAD"])
 async def get_state():
     """Authoritative backend single source of truth state."""
     from execution.paper_broker import paper_broker
