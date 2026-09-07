@@ -1,6 +1,71 @@
 {
   "entries": [
     {
+      "entry_id": "DEL-BIN-1788620873003-B347BF",
+      "timestamp": "2026-09-05 20:37:53",
+      "ledger_type": "BINANCE_PAY_DEPOSIT",
+      "environment": "TEST_ENV",
+      "debit_account": "BINANCE_PAY_INFLOW",
+      "credit_account": "CUSTOMER_TRADING_ACCOUNT",
+      "amount": 500.0,
+      "asset": "USDT",
+      "reference_id": "TEST-ARCH-001",
+      "metadata": {},
+      "status": "POSTED"
+    },
+    {
+      "entry_id": "DEL-BIN-1788615290752-A8C215",
+      "timestamp": "2026-09-05 19:04:50",
+      "ledger_type": "BINANCE_PAY_DEPOSIT",
+      "environment": "TEST_ENV",
+      "debit_account": "BINANCE_PAY_INFLOW",
+      "credit_account": "CUSTOMER_TRADING_ACCOUNT",
+      "amount": 500.0,
+      "asset": "USDT",
+      "reference_id": "TEST-ARCH-001",
+      "metadata": {},
+      "status": "POSTED"
+    },
+    {
+      "entry_id": "DEL-BIN-1788610739028-FE0729",
+      "timestamp": "2026-09-05 17:48:59",
+      "ledger_type": "BINANCE_PAY_DEPOSIT",
+      "environment": "TEST_ENV",
+      "debit_account": "BINANCE_PAY_INFLOW",
+      "credit_account": "CUSTOMER_TRADING_ACCOUNT",
+      "amount": 500.0,
+      "asset": "USDT",
+      "reference_id": "TEST-ARCH-001",
+      "metadata": {},
+      "status": "POSTED"
+    },
+    {
+      "entry_id": "DEL-BIN-1788600572025-A2FC2C",
+      "timestamp": "2026-09-05 14:59:32",
+      "ledger_type": "BINANCE_PAY_DEPOSIT",
+      "environment": "TEST_ENV",
+      "debit_account": "BINANCE_PAY_INFLOW",
+      "credit_account": "CUSTOMER_TRADING_ACCOUNT",
+      "amount": 500.0,
+      "asset": "USDT",
+      "reference_id": "TEST-ARCH-001",
+      "metadata": {},
+      "status": "POSTED"
+    },
+    {
+      "entry_id": "DEL-BIN-1788586115517-B40AB7",
+      "timestamp": "2026-09-05 10:58:35",
+      "ledger_type": "BINANCE_PAY_DEPOSIT",
+      "environment": "TEST_ENV",
+      "debit_account": "BINANCE_PAY_INFLOW",
+      "credit_account": "CUSTOMER_TRADING_ACCOUNT",
+      "amount": 500.0,
+      "asset": "USDT",
+      "reference_id": "TEST-ARCH-001",
+      "metadata": {},
+      "status": "POSTED"
+    },
+    {
       "entry_id": "DEL-OPE-1788348856065-C6B373",
       "timestamp": "2026-09-02 17:04:16",
       "ledger_type": "OPENING_BALANCE",

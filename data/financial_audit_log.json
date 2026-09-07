@@ -1,6 +1,45 @@
 {
   "logs": [
     {
+      "event_id": "AUD-1788350985435-EMER",
+      "timestamp": "2026-09-02 17:39:45",
+      "event_type": "EMERGENCY_KILL_SWITCH_TRIGGERED",
+      "user_id": "TEST_ADMIN",
+      "environment": "AEGIS_QUANT_MASTER",
+      "amount": 0.0,
+      "asset": "SYSTEM",
+      "network": "NONE",
+      "provider": "ADMIN",
+      "reference_id": "REASON: Emergency Test",
+      "ip_address": "127.0.0.1"
+    },
+    {
+      "event_id": "AUD-1788350948375-EMER",
+      "timestamp": "2026-09-02 17:39:08",
+      "event_type": "EMERGENCY_KILL_SWITCH_TRIGGERED",
+      "user_id": "TEST_ADMIN",
+      "environment": "AEGIS_QUANT_MASTER",
+      "amount": 0.0,
+      "asset": "SYSTEM",
+      "network": "NONE",
+      "provider": "ADMIN",
+      "reference_id": "REASON: Emergency Test",
+      "ip_address": "127.0.0.1"
+    },
+    {
+      "event_id": "AUD-1788350878458-EMER",
+      "timestamp": "2026-09-02 17:37:58",
+      "event_type": "EMERGENCY_KILL_SWITCH_TRIGGERED",
+      "user_id": "TEST_ADMIN",
+      "environment": "AEGIS_QUANT_MASTER",
+      "amount": 0.0,
+      "asset": "SYSTEM",
+      "network": "NONE",
+      "provider": "ADMIN",
+      "reference_id": "REASON: Emergency Test",
+      "ip_address": "127.0.0.1"
+    },
+    {
       "event_id": "AUD-1788326073550-PAYM",
       "timestamp": "2026-09-02 10:44:33",
       "event_type": "PAYMENT_REFUNDED_STRIPE",

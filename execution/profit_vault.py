@@ -115,6 +115,9 @@ class ProfitVault:
         store = self.vault_stores.get(environment, {"transactions": [], "withdrawals": [], "transfers": []})
         return store.get("transactions", [])
 
+    def get_full_sweep_history(self, environment: str = "AEGIS_QUANT_MASTER") -> List[Dict[str, Any]]:
+        return self.get_sweep_history(environment)
+
     @property
     def withdrawal_history(self) -> List[Dict[str, Any]]:
         store = self.vault_stores.get("AEGIS_QUANT_MASTER", {"transactions": [], "withdrawals": [], "transfers": []})
@@ -248,9 +251,10 @@ class ProfitVault:
             "allowlisted_network": self.allowlisted_network,
             "auto_external_sweep_enabled": self.auto_external_sweep_enabled,
             "external_transfer_status": "EXTERNAL PROFIT TRANSFER: DISABLED / TEST MODE",
-            "recent_sweeps": txs[:15],
-            "transfer_history": tfs[:15],
-            "withdrawal_history": wds[:15],
+            "recent_sweeps": txs,
+            "sweep_history": txs,
+            "transfer_history": tfs,
+            "withdrawal_history": wds,
             "ledger_verified": True
         }
 

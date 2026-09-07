@@ -87,9 +87,9 @@
     <div class="flex flex-1 overflow-hidden relative">
 
         <!-- LEFT COLLAPSIBLE SIDEBAR -->
-        <aside id="app-sidebar" class="w-64 bg-darkcard border-r border-darkborder flex flex-col justify-between shrink-0 h-full overflow-y-auto z-40">
+        <aside id="app-sidebar" class="w-64 bg-darkcard border-r border-darkborder flex flex-col justify-between shrink-0 h-full overflow-y-hidden select-none z-40">
 
-            <div class="py-3 px-2 space-y-1 overflow-y-auto">
+            <div class="py-3 px-2 space-y-1 overflow-y-hidden flex-1">
                 <div class="text-[10px] font-black text-gray-500 uppercase tracking-widest px-3 mb-2">Trading Workspace</div>
                 
                 <button onclick="switchTab('overview')" id="nav-overview" class="sidebar-item active w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-bold text-gray-300 hover:text-white transition">
@@ -1408,12 +1408,12 @@
         async function saveBinanceDemoCredentials() {
             const keyInput = document.getElementById('binance-demo-api-key-input');
             const secretInput = document.getElementById('binance-demo-secret-key-input');
-            let apiKey = keyInput ? keyInput.value.trim() : '';
-            let secretKey = secretInput ? secretInput.value.trim() : '';
+            const apiKey = keyInput ? keyInput.value.trim() : '';
+            const secretKey = secretInput ? secretInput.value.trim() : '';
 
             if (!apiKey || !secretKey) {
-                apiKey = 'binance_testnet_demo_sandbox_key';
-                secretKey = 'binance_testnet_demo_sandbox_secret';
+                showNotification('Binance Demo Credentials Required', 'Please enter your Binance Demo (Testnet) API Key and Secret Key.', 'warning');
+                return;
             }
 
             try {
@@ -1856,11 +1856,14 @@
 
         let vaultPage = 1;
         const VAULT_PAGE_SIZE = 50;
+        let cachedVaultData = null;
 
         function renderVaultTransactions(vault) {
+            if (vault) cachedVaultData = vault;
+            const targetVault = vault || cachedVaultData;
             const tbody = document.getElementById('vault-transactions-tbody');
             if (!tbody) return;
-            const history = (vault && (vault.recent_sweeps || vault.sweep_history || vault.transactions)) ? (vault.recent_sweeps || vault.sweep_history || vault.transactions) : [];
+            const history = (targetVault && (targetVault.sweep_history || targetVault.recent_sweeps || targetVault.transactions)) ? (targetVault.sweep_history || targetVault.recent_sweeps || targetVault.transactions) : [];
             if (!history || history.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-gray-500 font-mono text-xs"><i class="fa-solid fa-vault text-emerald-400 mr-2"></i> NO PROFIT SWEEPS RECORDED — Realized profits automatically sweep into vault ledger</td></tr>`;
                 const pagin = document.getElementById('vault-pagination');
@@ -1868,7 +1871,7 @@
                 return;
             }
 
-            const currentTotalVaultBalance = (vault && (vault.vault_balance !== undefined)) ? parseFloat(vault.vault_balance) : 0.0;
+            const currentTotalVaultBalance = (targetVault && (targetVault.vault_balance !== undefined)) ? parseFloat(targetVault.vault_balance) : 0.0;
 
             let runningBal = currentTotalVaultBalance;
             const itemsWithRunningBal = history.map((h, idx) => {
@@ -1891,16 +1894,16 @@
             // 50-Item Pagination
             const totalItems = itemsWithRunningBal.length;
             const totalPages = Math.ceil(totalItems / VAULT_PAGE_SIZE) || 1;
-            if (vaultPage > totalPages) vaultPage = 1;
+            if (vaultPage > totalPages) vaultPage = totalPages;
             if (vaultPage < 1) vaultPage = 1;
             const startIndex = (vaultPage - 1) * VAULT_PAGE_SIZE;
             const paginatedItems = itemsWithRunningBal.slice(startIndex, startIndex + VAULT_PAGE_SIZE);
 
             tbody.innerHTML = paginatedItems.map(h => `
-                <tr class="border-b border-gray-800/60 hover:bg-gray-900/50 text-xs">
+                <tr class="border-b border-gray-800/60 hover:bg-gray-900/50 text-xs font-mono">
                     <td class="py-2.5 px-3 text-gray-400">${h.timestamp || '2026-09-03'}</td>
-                    <td class="py-2.5 px-3 text-gray-300 font-mono">${h.transaction_id || h.tx_id || h.id || 'SWP-001'}</td>
-                    <td class="py-2.5 px-3 text-emerald-400 font-bold">${h.type || 'PROFIT_SWEEP'}</td>
+                    <td class="py-2.5 px-3 text-amber-400 font-bold">${h.transaction_id || h.tx_id || h.id || 'SWP-001'}</td>
+                    <td class="py-2.5 px-3 text-emerald-400 font-bold">${h.type || h.exit_reason || 'PROFIT_SWEEP'}</td>
                     <td class="py-2.5 px-3 text-white font-bold">${h.asset || 'BTCUSD'}</td>
                     <td class="py-2.5 px-3 text-emerald-400 font-bold">+$${(h.sweep_amount || h.realized_profit || h.amount || 0).toFixed(2)}</td>
                     <td class="py-2.5 px-3 text-amber-400 font-bold">$${(h.calculated_balance_after || 0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
@@ -1925,7 +1928,7 @@
 
         function changeVaultPage(delta) {
             vaultPage += delta;
-            fetchState();
+            renderVaultTransactions(cachedVaultData);
         }
 
 

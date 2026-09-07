@@ -586,6 +586,47 @@ async def connect_binance_endpoint(data: dict):
     res = binance_broker.save_credentials(api_key, secret_key, testnet)
     return JSONResponse(res)
 
+@app.post("/api/switch-trading-pool")
+@app.post("/api/select-pool")
+async def switch_trading_pool_endpoint(request: Request):
+    """Dynamically switch active trading pool environment (AEGIS_QUANT_MASTER, BINANCE_TESTNET_DEMO, BINANCE_LIVE_REAL)."""
+    try:
+        if isinstance(request, dict):
+            body = request
+        else:
+            try:
+                body = await request.json()
+            except Exception:
+                body = {}
+        pool = str(body.get("pool", body.get("pool_name", "AEGIS_QUANT_MASTER"))).strip()
+        confirm_live = bool(body.get("confirm_live_authorization", False))
+
+        if "LIVE" in pool and not confirm_live:
+            if not binance_broker.live_api_key or not binance_broker.live_secret_key:
+                return JSONResponse({"status": "ERROR", "message": "Binance Live API credentials not configured."}, status_code=400)
+
+        res = paper_broker.set_active_capital_pool(pool)
+        binance_broker.market_type = "SPOT_LIVE" if "LIVE" in pool else "SPOT_TESTNET"
+        binance_broker.testnet = not ("LIVE" in pool)
+        binance_broker.is_demo = binance_broker.testnet
+        if binance_broker.testnet:
+            binance_broker.api_key = binance_broker.demo_api_key
+            binance_broker.secret_key = binance_broker.demo_secret_key
+        else:
+            binance_broker.api_key = binance_broker.live_api_key
+            binance_broker.secret_key = binance_broker.live_secret_key
+
+        return JSONResponse({
+            "status": "SUCCESS",
+            "active_pool": paper_broker.active_pool_name,
+            "portfolio_equity": paper_broker.equity,
+            "virtual_cash": paper_broker.virtual_cash,
+            "positions": paper_broker.positions,
+            "pool_details": res
+        })
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
 @app.get("/api/reconciliation-status")
 async def get_reconciliation_status():
     """Fetch real-time 5-Invariant Mathematical Accounting Reconciliation Report."""
@@ -1878,20 +1919,21 @@ async def websocket_endpoint(websocket: WebSocket):
             from execution.profit_vault import profit_vault
 
             acc = paper_broker.get_account_summary()
+            vault_summary = profit_vault.get_vault_summary(paper_broker.active_pool_name)
             state_msg = {
                 "event_type": "ENGINE_HEARTBEAT",
                 "server_time": time.strftime("%H:%M:%S IST"),
                 "sequence": seq,
                 "payload": {
                     "portfolio_equity": acc.get("portfolio_equity", 100023.49),
-        "realized_pnl_today": vault_summary.get("realized_profit_today", 0.0),
-        "realized_pnl_pct": round((vault_summary.get("realized_profit_today", 0.0) / max(1.0, acc.get("initial_capital", 100000.0))) * 100.0, 2),
+                    "realized_pnl_today": vault_summary.get("realized_profit_today", 0.0),
+                    "realized_pnl_pct": round((vault_summary.get("realized_profit_today", 0.0) / max(1.0, acc.get("initial_capital", 100000.0))) * 100.0, 2),
                     "virtual_cash": acc.get("virtual_cash", 95196.83),
                     "floating_open_pnl_usd": acc.get("floating_open_pnl_usd", 0.0),
                     "positions": acc.get("positions", acc.get("open_positions", [])),
                     "orders": acc.get("orders", []),
                     "audit_log": audit_logger.get_audit_trail()[:10],
-                    "profit_vault": profit_vault.get_vault_summary(),
+                    "profit_vault": vault_summary,
                     "risk_profile": risk_engine.active_profile,
                     "data_age_seconds": 0.5
                 }

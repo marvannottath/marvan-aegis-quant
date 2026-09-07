@@ -380,11 +380,22 @@ class BinanceBroker:
                 hashlib.sha256
             ).hexdigest()
 
-            resp = requests.get(f"{base_url}/api/v3/account?{query}&signature={signature}", headers=headers, timeout=1.2)
+            resp = requests.get(f"{base_url}/api/v3/account?{query}&signature={signature}", headers=headers, timeout=0.8)
             if resp.status_code == 200:
                 data = resp.json()
                 balances = data.get("balances", [])
                 positions = []
+                
+                # Fetch all ticker prices in ONE single fast bulk API call
+                all_prices = {}
+                try:
+                    presp = requests.get(f"{base_url}/api/v3/ticker/price", timeout=0.8)
+                    if presp.status_code == 200:
+                        for p_item in presp.json():
+                            all_prices[p_item.get("symbol")] = float(p_item.get("price", 0.0))
+                except Exception:
+                    pass
+
                 for b in balances:
                     asset = b.get("asset", "")
                     if asset in ["USDT", "BUSD", "USDC", "FDUSD"]:
@@ -396,13 +407,7 @@ class BinanceBroker:
                         continue
 
                     ticker_symbol = f"{asset}USDT"
-                    cur_price = 0.0
-                    try:
-                        presp = requests.get(f"{base_url}/api/v3/ticker/price?symbol={ticker_symbol}", timeout=0.8)
-                        if presp.status_code == 200:
-                            cur_price = float(presp.json().get("price", 0.0))
-                    except Exception:
-                        pass
+                    cur_price = all_prices.get(ticker_symbol, 0.0)
 
                     val_usd = round(total_qty * cur_price, 2) if cur_price > 0 else 0.0
                     if val_usd < 1.0 and total_qty < 0.001:
