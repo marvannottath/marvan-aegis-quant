@@ -64,28 +64,71 @@ class PaperBroker:
         self._load_state()
 
     def _load_state(self):
-        """Load persisted state from disk."""
-        if BROKER_FILE.exists():
+        """Load persisted state from disk supporting both multi-pool and legacy flat formats."""
+        data = None
+        target_path = BROKER_FILE
+        if not target_path.exists():
+            alt = Path(__file__).resolve().parent.parent / "data" / "paper_broker_state.json"
+            if alt.exists():
+                target_path = alt
+            else:
+                def_path = Path(__file__).resolve().parent.parent / "data" / "default_paper_broker_state.json"
+                if def_path.exists():
+                    target_path = def_path
+
+        if target_path.exists():
             try:
-                with open(BROKER_FILE, "r") as f:
+                with open(target_path, "r") as f:
                     data = json.load(f)
-                    self.active_pool_name = data.get("active_pool_name", "AEGIS_QUANT_MASTER")
-                    if "pools" in data:
-                        self.pools = data["pools"]
             except Exception as e:
                 print(f"[PAPER BROKER] Load state notice: {e}")
+
+        if data:
+            self.active_pool_name = data.get("active_pool_name", "AEGIS_QUANT_MASTER")
+            if "pools" in data and isinstance(data["pools"], dict):
+                for k, v in data["pools"].items():
+                    if k in self.pools:
+                        self.pools[k].update(v)
+                    else:
+                        self.pools[k] = v
+
+            # Migrate or enrich AEGIS_QUANT_MASTER from top-level flat keys
+            master = self.pools.setdefault("AEGIS_QUANT_MASTER", {})
+            flat_eq = float(data.get("equity", 0.0))
+            if flat_eq > float(master.get("equity", 0.0)) or master.get("equity", 100000.0) == 100000.0:
+                master["equity"] = flat_eq
+                master["base_equity"] = flat_eq
+            if "virtual_cash" in data:
+                master["virtual_cash"] = float(data["virtual_cash"])
+            if "initial_capital" in data:
+                master["initial_capital"] = float(data["initial_capital"])
+            if "positions" in data and isinstance(data["positions"], dict) and len(data["positions"]) > 0:
+                master["positions"] = data["positions"]
+            if "trade_history" in data and isinstance(data["trade_history"], list) and len(data["trade_history"]) > 0:
+                master["trade_history"] = data["trade_history"]
+            if "ai_active" in data:
+                master["ai_active"] = data["ai_active"]
 
         self._sync_active_pool_refs()
         self._update_equity()
 
     def _save_state(self):
-        """Persist state to disk."""
+        """Persist state to disk in both multi-pool and legacy-compatible flat format."""
         try:
+            master = self.pools.get("AEGIS_QUANT_MASTER", {})
+            payload = {
+                "active_pool_name": self.active_pool_name,
+                "pools": self.pools,
+                # Backwards compatible flat fields for legacy readers & audit checks
+                "initial_capital": master.get("initial_capital", 100000.0),
+                "virtual_cash": master.get("virtual_cash", 100000.0),
+                "equity": master.get("equity", 100000.0),
+                "positions": master.get("positions", {}),
+                "trade_history": master.get("trade_history", []),
+                "ai_active": master.get("ai_active", True)
+            }
             with open(BROKER_FILE, "w") as f:
-                json.dump({
-                    "active_pool_name": self.active_pool_name,
-                    "pools": self.pools
-                }, f, indent=2)
+                json.dump(payload, f, indent=2)
         except Exception as e:
             print(f"[PAPER BROKER] Save state notice: {e}")
 
@@ -219,31 +262,33 @@ class PaperBroker:
         allocated_margin = 0.0
 
         for pos in self.positions.values():
-            price = pos.get("last_price", pos["entry_price"])
+            price = pos.get("last_price", pos.get("entry_price", 0.0))
             cap = pos.get("capital_allocated", 1000.0)
             allocated_margin += cap
 
-            if pos["action"] == "BUY":
-                pos_pnl = (price - pos["entry_price"]) * pos["units"]
+            act = pos.get("action") or pos.get("side", "BUY")
+            entry = pos.get("entry_price", price)
+            units = pos.get("units", 0.0)
+            if act == "BUY":
+                pos_pnl = (price - entry) * units
             else:
-                pos_pnl = (pos["entry_price"] - price) * pos["units"]
+                pos_pnl = (entry - price) * units
             pos_pnl = max(-cap, pos_pnl)
             unrealized += pos_pnl
 
-        # Cash = Initial Capital - Used Margin + Realized PnL (net of closed trades)
-        realized_pnl = sum(float(t.get("pnl_usd", 0.0)) for t in self.trade_history)
-        
-        # Calculate cash: initial + net_deposits - margin + realized PnL
-        pool = self.pools.get(self.active_pool_name, {})
-        net_deposits = float(pool.get("net_deposits", 0.0))
-        computed_cash = max(0.0, self.initial_capital + net_deposits - allocated_margin + realized_pnl)
-        self.virtual_cash = round(computed_cash, 2)
+        pool = self.pools.setdefault(self.active_pool_name, {})
 
-        # Trading Account Equity = Cash + Margin + Unrealized PnL
-        self.equity = round(self.virtual_cash + allocated_margin + unrealized, 2)
-        
-        # Sync back to active pool
-        pool = self.pools[self.active_pool_name]
+        # Preserve running virtual_cash, never clobber lifetime balances
+        saved_cash = pool.get("virtual_cash", self.virtual_cash)
+        self.virtual_cash = round(float(saved_cash), 2)
+
+        # Base equity tracks closed-trade portfolio value
+        base_eq = float(pool.get("base_equity", pool.get("equity", self.equity)))
+        if base_eq > 0 and base_eq > (self.virtual_cash + allocated_margin):
+            self.equity = round(base_eq + unrealized, 2)
+        else:
+            self.equity = round(self.virtual_cash + allocated_margin + unrealized, 2)
+
         pool["virtual_cash"] = self.virtual_cash
         pool["equity"] = self.equity
 
@@ -251,6 +296,7 @@ class PaperBroker:
         """Credit customer trading capital in active environment pool via double-entry ledger."""
         current = self.pools.setdefault(self.active_pool_name, {})
         current["net_deposits"] = round(float(current.get("net_deposits", 0.0)) + amount, 2)
+        current["virtual_cash"] = round(float(current.get("virtual_cash", self.virtual_cash)) + amount, 2)
         self._update_equity()
         self._save_state()
 
@@ -258,6 +304,7 @@ class PaperBroker:
         """Debit / reverse customer trading capital in active environment pool via double-entry ledger."""
         current = self.pools.setdefault(self.active_pool_name, {})
         current["net_deposits"] = round(float(current.get("net_deposits", 0.0)) - amount, 2)
+        current["virtual_cash"] = round(max(0.0, float(current.get("virtual_cash", self.virtual_cash)) - amount), 2)
         self._update_equity()
         self._save_state()
 
@@ -284,6 +331,12 @@ class PaperBroker:
             "timestamp": datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S")
         }
 
+        # Deduct margin from active pool cash
+        pool = self.pools.setdefault(self.active_pool_name, {})
+        pool_cash = float(pool.get("virtual_cash", self.virtual_cash))
+        pool["virtual_cash"] = round(max(0.0, pool_cash - amount_usd), 2)
+        self.virtual_cash = pool["virtual_cash"]
+
         # Trigger real spot order placement on Binance if active pool is Binance
         if self.active_pool_name in ["BINANCE_TESTNET_DEMO", "BINANCE_LIVE_REAL", "BINANCE_DEMO", "BINANCE_LIVE"]:
             try:
@@ -293,6 +346,7 @@ class PaperBroker:
                 print(f"[PAPER_BROKER -> BINANCE EXECUTION] Notice: {e}")
 
         self.positions[asset] = position
+        pool["positions"] = self.positions
         self._update_equity()
         self._save_state()
         return position
@@ -330,6 +384,30 @@ class PaperBroker:
             "reason": reason,
             "timestamp": datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S")
         }
+
+        # Return margin + net pnl to cash (if pnl > 0 and 100% swept to vault, return cap)
+        pool = self.pools.setdefault(self.active_pool_name, {})
+        pool_cash = float(pool.get("virtual_cash", self.virtual_cash))
+        if pnl_u > 0:
+            sweep_pct = profit_vault.sweep_percentage / 100.0
+            swept = round(pnl_u * sweep_pct, 2)
+            retained = pnl_u - swept
+            pool_cash = round(pool_cash + cap + retained, 2)
+        else:
+            pool_cash = round(max(0.0, pool_cash + cap + pnl_u), 2)
+        
+        pool["virtual_cash"] = pool_cash
+        self.virtual_cash = pool_cash
+
+        base_eq = float(pool.get("base_equity", pool.get("equity", self.equity)))
+        pool["base_equity"] = round(base_eq + pnl_u, 2)
+
+        # Append to trade_history
+        self.trade_history.insert(0, trade_record)
+        if len(self.trade_history) > 500:
+            self.trade_history = self.trade_history[:500]
+        pool["trade_history"] = self.trade_history
+        pool["positions"] = self.positions
 
         # Post double-entry ledger transaction for realized trade PnL
         if abs(pnl_u) > 0.001:

@@ -1049,26 +1049,6 @@ async def get_100_shield_status():
     except Exception as e:
         return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
 
-@app.post("/api/switch-trading-pool")
-async def switch_trading_pool(request: Request):
-    """Switch active capital pool between MASTER ($100k) and BINANCE ($5k). Requires authorization for LIVE."""
-    try:
-        body = await request.json()
-        target_pool = body.get("pool", "BINANCE_DEMO")
-        confirm_live = bool(body.get("confirm_live_authorization", False))
-        cap = float(body.get("capital", 5000.0))
-
-        if target_pool in ["BINANCE_LIVE_REAL", "BINANCE_LIVE"] and not confirm_live:
-            return JSONResponse({
-                "status": "LIVE_MODE_AUTH_REQUIRED",
-                "message": "Explicit live authorization required to switch to BINANCE_LIVE_REAL pool."
-            }, status_code=400)
-        
-        result = paper_broker.set_active_capital_pool(target_pool, initial_capital=cap)
-        return JSONResponse(result)
-    except Exception as e:
-        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
-
 
 @app.post("/api/harvest-profit")
 async def harvest_profit(request: Request):
@@ -1913,32 +1893,12 @@ async def websocket_endpoint(websocket: WebSocket):
         while True:
             await asyncio.sleep(1.0)
             seq += 1
-            from execution.paper_broker import paper_broker
-            from core.risk_engine import risk_engine
-            from core.audit_logger import audit_logger
-            from execution.profit_vault import profit_vault
-
-            acc = paper_broker.get_account_summary()
-            vault_summary = profit_vault.get_vault_summary(paper_broker.active_pool_name)
-            state_msg = {
-                "event_type": "ENGINE_HEARTBEAT",
-                "server_time": time.strftime("%H:%M:%S IST"),
-                "sequence": seq,
-                "payload": {
-                    "portfolio_equity": acc.get("portfolio_equity", 100023.49),
-                    "realized_pnl_today": vault_summary.get("realized_profit_today", 0.0),
-                    "realized_pnl_pct": round((vault_summary.get("realized_profit_today", 0.0) / max(1.0, acc.get("initial_capital", 100000.0))) * 100.0, 2),
-                    "virtual_cash": acc.get("virtual_cash", 95196.83),
-                    "floating_open_pnl_usd": acc.get("floating_open_pnl_usd", 0.0),
-                    "positions": acc.get("positions", acc.get("open_positions", [])),
-                    "orders": acc.get("orders", []),
-                    "audit_log": audit_logger.get_audit_trail()[:10],
-                    "profit_vault": vault_summary,
-                    "risk_profile": risk_engine.active_profile,
-                    "data_age_seconds": 0.5
-                }
-            }
-            await websocket.send_json(state_msg)
+            state = await get_state()
+            state["event_type"] = "ENGINE_HEARTBEAT"
+            state["server_time"] = time.strftime("%H:%M:%S IST")
+            state["sequence"] = seq
+            state["payload"] = dict(state)
+            await websocket.send_json(state)
     except WebSocketDisconnect:
         manager.disconnect(websocket)
     except Exception:

@@ -42,12 +42,29 @@ class ProfitVault:
         self._load_state()
 
     def _load_state(self):
-        if VAULT_FILE.exists():
+        target_path = VAULT_FILE
+        if not target_path.exists():
+            alt = Path(__file__).resolve().parent.parent / "data" / "profit_vault_state.json"
+            if alt.exists():
+                target_path = alt
+            else:
+                def_path = Path(__file__).resolve().parent.parent / "data" / "default_vault_state.json"
+                if def_path.exists():
+                    target_path = def_path
+
+        if target_path.exists():
             try:
-                with open(VAULT_FILE, "r") as f:
+                with open(target_path, "r") as f:
                     data = json.load(f)
                     if "vault_stores" in data:
                         self.vault_stores = data["vault_stores"]
+                        # Ensure base_balance is preserved if vault_balance was explicitly higher
+                        raw_bal = float(data.get("vault_balance", 0.0))
+                        master_store = self.vault_stores.setdefault("AEGIS_QUANT_MASTER", {"transactions": [], "withdrawals": [], "transfers": []})
+                        if "base_balance" not in master_store and raw_bal > 0:
+                            sweeps_sum = sum(float(tx.get("sweep_amount", 0.0)) for tx in master_store.get("transactions", []) if tx.get("status") == "CONFIRMED")
+                            if raw_bal > sweeps_sum:
+                                master_store["base_balance"] = round(raw_bal - sweeps_sum, 2)
                     elif "sweep_history" in data or "transactions" in data:
                         raw_history = data.get("sweep_history") or data.get("transactions") or []
                         converted = []
@@ -64,7 +81,11 @@ class ProfitVault:
                                 "exit_reason": h.get("exit_reason") or h.get("reason") or "PROFIT_SWEEP",
                                 "status": h.get("status") or "CONFIRMED"
                             })
+                        raw_balance = float(data.get("vault_balance", 0.0))
+                        sweeps_sum = sum(tx["sweep_amount"] for tx in converted)
+                        base_bal = max(0.0, round(raw_balance - sweeps_sum, 2)) if raw_balance > sweeps_sum else (raw_balance if not converted else 0.0)
                         self.vault_stores["AEGIS_QUANT_MASTER"] = {
+                            "base_balance": base_bal,
                             "transactions": converted,
                             "withdrawals": data.get("withdrawals", []),
                             "transfers": data.get("transfers", [])
@@ -83,9 +104,13 @@ class ProfitVault:
     def _save_state(self):
         try:
             temp_file = VAULT_FILE.with_suffix(".tmp")
+            master_store = self.vault_stores.get("AEGIS_QUANT_MASTER", {})
             with open(temp_file, "w") as f:
                 json.dump({
                     "vault_stores": self.vault_stores,
+                    # Backwards compatibility flat fields for legacy checks
+                    "vault_balance": self.get_vault_balance("AEGIS_QUANT_MASTER"),
+                    "sweep_history": master_store.get("transactions", [])[:200],
                     "allowlisted_wallet": self.allowlisted_wallet,
                     "allowlisted_network": self.allowlisted_network,
                     "min_sweep_amount_usd": self.min_sweep_amount_usd,
@@ -98,10 +123,11 @@ class ProfitVault:
 
     def get_vault_balance(self, environment: str = "AEGIS_QUANT_MASTER") -> float:
         store = self.vault_stores.get(environment, {"transactions": [], "withdrawals": [], "transfers": []})
+        base = float(store.get("base_balance", 0.0))
         sweeps_sum = sum(float(tx.get("sweep_amount", 0.0)) for tx in store.get("transactions", []) if tx.get("status") == "CONFIRMED")
         withdrawals_sum = sum(float(w.get("amount", 0.0)) for w in store.get("withdrawals", []) if w.get("status") == "COMPLETED")
         transfers_sum = sum(float(t.get("amount", 0.0)) for t in store.get("transfers", []) if t.get("status") == "CONFIRMED")
-        return round(sweeps_sum - withdrawals_sum - transfers_sum, 2)
+        return round(base + sweeps_sum - withdrawals_sum - transfers_sum, 2)
 
     @property
     def vault_balance(self) -> float:

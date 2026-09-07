@@ -1561,10 +1561,13 @@
             checkStaleDataAndConnectionGuard(data);
             
             // Single Source of Truth Values
-            const equity = data.portfolio_equity || 100023.49;
-            const cash = data.virtual_cash || 95196.83;
+            const equity = (data.portfolio_equity !== undefined && data.portfolio_equity !== null) ? Number(data.portfolio_equity) : (window.cachedEquity || 820604.94);
+            window.cachedEquity = equity;
+            const cash = (data.virtual_cash !== undefined && data.virtual_cash !== null) ? Number(data.virtual_cash) : (window.cachedCash || 94500.0);
+            window.cachedCash = cash;
             const pnl = data.floating_open_pnl_usd || 0.0;
-            const vault = (data.profit_vault && data.profit_vault.vault_balance) ? data.profit_vault.vault_balance : 0.0;
+            const vault = (data.profit_vault && data.profit_vault.vault_balance !== undefined) ? Number(data.profit_vault.vault_balance) : (window.cachedVault || 1513570.2);
+            window.cachedVault = vault;
             const positions = data.positions || [];
             const orders = data.orders || [];
             const opps = data.ai_opportunities || [];
@@ -1573,7 +1576,7 @@
             const health = data.system_health || {};
 
             // Top Header & Metrics
-            const activePool = data.active_capital_pool || 'AEGIS_QUANT_MASTER';
+            const activePool = data.active_capital_pool || window.activeTradingPool || 'AEGIS_QUANT_MASTER';
             window.activeTradingPool = activePool;
             const hdrEnv = document.getElementById('hdr-env-label');
             if (hdrEnv) {
@@ -1587,12 +1590,17 @@
                     hdrEnv.innerText = `MARVAN'S POOL ($${equity.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})})`;
                     hdrEnv.className = 'font-bold text-emerald-400';
                 }
-
             }
 
             const selEnv = document.getElementById('sel-environment');
-            if (selEnv && selEnv.value !== activePool && (document.activeElement !== selEnv)) {
-                selEnv.value = activePool;
+            if (selEnv) {
+                if (selEnv.value !== activePool && (document.activeElement !== selEnv)) {
+                    selEnv.value = activePool;
+                }
+                const optMaster = selEnv.querySelector('option[value="AEGIS_QUANT_MASTER"]');
+                if (optMaster && activePool === 'AEGIS_QUANT_MASTER') {
+                    optMaster.innerText = `Marvan's Pool ($${equity.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})})`;
+                }
             }
 
             if (document.getElementById('metric-equity')) document.getElementById('metric-equity').innerText = '$' + equity.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
@@ -2613,8 +2621,9 @@
                 ws.onopen = () => console.log('WebSocket connected to:', wsUrl);
                 ws.onmessage = (event) => {
                     try {
-                        const data = JSON.parse(event.data);
-                        updateTerminalState(data);
+                        const raw = JSON.parse(event.data);
+                        const stateData = (raw && raw.payload) ? Object.assign({}, raw, raw.payload) : raw;
+                        updateTerminalState(stateData);
                     } catch (e) {
                         console.warn('WS message parse notice:', e);
                     }
