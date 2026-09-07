@@ -17,22 +17,22 @@ if [ -f "./venv/bin/python3" ]; then
     ./venv/bin/python3 -c "import dashboard.app; print('✓ Python imports verified')"
 fi
 
-echo "[3/3] Restarting Aegis-Quant background service..."
-if systemctl is-active --quiet aegis-quant; then
+echo "[3/3] Restarting Aegis-Quant background service on port 8888..."
+if systemctl is-active --quiet marvan_quant || [ -f /etc/systemd/system/marvan_quant.service ]; then
+    systemctl restart marvan_quant
+    echo "✓ Systemd service 'marvan_quant' restarted successfully on PORT 8888!"
+elif systemctl is-active --quiet aegis-quant; then
     systemctl restart aegis-quant
     echo "✓ Service 'aegis-quant' restarted successfully!"
 elif systemctl is-active --quiet quantum_trading; then
     systemctl restart quantum_trading
     echo "✓ Service 'quantum_trading' restarted successfully!"
-elif systemctl is-active --quiet uvicorn; then
-    systemctl restart uvicorn
-    echo "✓ Service 'uvicorn' restarted successfully!"
 else
-    echo "Killing existing main.py processes..."
+    echo "Killing existing python processes..."
     pkill -f "python.*main.py" || true
     sleep 1
-    nohup ./venv/bin/python3 main.py --mode run > server.log 2>&1 &
-    echo "✓ Process restarted with nohup in background!"
+    PORT=8888 nohup ./venv/bin/python3 main.py --mode run > server.log 2>&1 &
+    echo "✓ Process restarted with nohup on PORT 8888!"
 fi
 
 echo "=========================================="
