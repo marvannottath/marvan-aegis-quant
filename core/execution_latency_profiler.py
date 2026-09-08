@@ -24,15 +24,15 @@ IST_TZ = timezone(timedelta(hours=5, minutes=30))
 LATENCY_LOG_FILE = Path(__file__).resolve().parent.parent / "data" / "execution_latency_log.json"
 
 PIPELINE_STAGES = [
-    "Market Tick Received",
-    "Market Data Validation",
+    "Market Tick",
+    "Validation",
     "Feature Calculation",
-    "AI Agent Processing",
-    "Ensemble Decision",
-    "Risk Evaluation",
-    "Execution Gate",
+    "AI Processing",
+    "Ensemble",
+    "Risk",
+    "Security Gate",
     "Order Submission",
-    "Fill / Execution Confirmation",
+    "Exchange/Fills",
     "Ledger Write"
 ]
 
@@ -41,15 +41,15 @@ class ExecutionLatencyProfiler:
     def __init__(self):
         self.executions: List[Dict[str, Any]] = []
         self._load_log()
-        if not self.executions:
-            self._seed_initial_benchmarks()
 
     def _load_log(self):
         if LATENCY_LOG_FILE.exists():
             try:
                 with open(LATENCY_LOG_FILE, "r") as f:
                     data = json.load(f)
-                    self.executions = data.get("executions", [])
+                    # Filter out any legacy synthetic seed executions
+                    raw = data.get("executions", [])
+                    self.executions = [e for e in raw if e.get("execution_id") != "EXEC-INIT-001"]
             except Exception as e:
                 print(f"[LATENCY PROFILER] Load notice: {e}")
 
@@ -62,31 +62,6 @@ class ExecutionLatencyProfiler:
             tmp.replace(LATENCY_LOG_FILE)
         except Exception as e:
             print(f"[LATENCY PROFILER] Save notice: {e}")
-
-    def _seed_initial_benchmarks(self):
-        """Seed initial baseline institutional stage benchmarks if fresh system init."""
-        now = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S IST")
-        base_stages = [
-            {"stage": "Market Tick Received", "duration_ms": 0.4, "status": "PASS"},
-            {"stage": "Market Data Validation", "duration_ms": 0.3, "status": "PASS"},
-            {"stage": "Feature Calculation", "duration_ms": 1.2, "status": "PASS"},
-            {"stage": "AI Agent Processing", "duration_ms": 8.5, "status": "PASS"},
-            {"stage": "Ensemble Decision", "duration_ms": 2.1, "status": "PASS"},
-            {"stage": "Risk Evaluation", "duration_ms": 1.6, "status": "PASS"},
-            {"stage": "Execution Gate", "duration_ms": 0.5, "status": "PASS"},
-            {"stage": "Order Submission", "duration_ms": 7.4, "status": "PASS"},
-            {"stage": "Fill / Execution Confirmation", "duration_ms": 2.2, "status": "PASS"},
-            {"stage": "Ledger Write", "duration_ms": 0.9, "status": "PASS"}
-        ]
-        total = round(sum(s["duration_ms"] for s in base_stages), 2)
-        self.record_execution(
-            execution_id="EXEC-INIT-001",
-            symbol="BTCUSDT",
-            status="PASS",
-            stages=base_stages,
-            risk_result="APPROVED",
-            order_id="ORD-PAP-INIT-001"
-        )
 
     def record_execution(
         self,
@@ -120,14 +95,15 @@ class ExecutionLatencyProfiler:
 
     def get_summary(self, environment: str = "PAPER") -> Dict[str, Any]:
         """Compute P50, P95, P99, min, max, avg, and stage averages from authoritative traces."""
-        all_totals = [float(e["total_latency_ms"]) for e in self.executions]
+        env_execs = [e for e in self.executions if e.get("environment") == environment] if environment and environment != "ALL" else self.executions
+        all_totals = [float(e["total_latency_ms"]) for e in env_execs if e.get("total_latency_ms") is not None]
         if not all_totals:
             return {
                 "status": "NO_DATA",
-                "message": "NO EXECUTION DATA AVAILABLE",
+                "message": "NO EXECUTIONS YET — PROFILER ARMED",
                 "sample_count": 0,
-                "p50": 0.0, "p95": 0.0, "p99": 0.0,
-                "avg": 0.0, "min": 0.0, "max": 0.0,
+                "p50": None, "p95": None, "p99": None,
+                "avg": None, "min": None, "max": None,
                 "stage_averages": [],
                 "recent_executions": []
             }

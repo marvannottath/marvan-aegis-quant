@@ -83,7 +83,12 @@ class BinanceBroker:
     def verify_connection(self) -> Dict[str, Any]:
         """Verify API signature and fetch real live balance."""
         if not self.api_key or not self.secret_key:
-            return {"status": "UNAUTHENTICATED", "connected": False}
+            self.status = "UNAUTHENTICATED"
+            return {
+                "status": "UNAUTHENTICATED",
+                "connected": False,
+                "error": "Binance API Key or Secret Key not configured."
+            }
 
         headers = {"X-MBX-APIKEY": self.api_key}
         base_url = "https://testnet.binance.vision" if self.testnet else "https://api.binance.com"
@@ -117,12 +122,26 @@ class BinanceBroker:
                     "balance_usd": self.account_balance_usd,
                     "usdt_free": self.account_balance_usd
                 }
+            else:
+                err_msg = resp.text
+                try:
+                    err_json = resp.json()
+                    err_msg = err_json.get("msg", err_msg)
+                except Exception:
+                    pass
+                self.status = "AUTHENTICATION_FAILED"
+                return {
+                    "status": "AUTHENTICATION_FAILED",
+                    "connected": False,
+                    "error": f"Binance API rejected: {err_msg} (HTTP {resp.status_code})"
+                }
         except Exception as e:
-            print(f"[BINANCE] Verification notice: {e}")
-
-        # Fallback cached active state
-        self.status = "DEMO_AUTHENTICATED" if self.testnet else "LIVE_TRADING_ACTIVE"
-        return {"status": self.status, "connected": True, "balance_usd": self.account_balance_usd}
+            self.status = "CONNECTION_ERROR"
+            return {
+                "status": "CONNECTION_ERROR",
+                "connected": False,
+                "error": f"Binance connection failed: {str(e)}"
+            }
 
     def place_spot_market_order(self, symbol: str, side: str, quote_order_qty: float = 25.0) -> Dict[str, Any]:
         """Send authentic Real Market Order directly to Binance Spot API."""
@@ -278,19 +297,23 @@ class BinanceBroker:
         demo_masked = (self.demo_api_key[:4] + "••••••••" + self.demo_api_key[-4:]) if len(self.demo_api_key) > 8 else ("••••••••" if self.demo_api_key else "")
         live_masked = (self.live_api_key[:4] + "••••••••" + self.live_api_key[-4:]) if len(self.live_api_key) > 8 else ("••••••••" if self.live_api_key else "")
 
+        demo_configured = bool(self.demo_api_key and self.demo_secret_key)
+        demo_status = self.status if (self.testnet and demo_configured) else ("CONFIGURED" if demo_configured else "NOT_CONFIGURED")
+        demo_balance = self.account_balance_usd if (self.testnet and self.status == "DEMO_AUTHENTICATED") else 0.0
+
         return {
             "status": self.status,
             "is_testnet": self.testnet,
             "demo": {
-                "configured": bool(self.demo_api_key and self.demo_secret_key),
-                "status": "DEMO_AUTHENTICATED" if (self.demo_api_key and self.demo_secret_key) else "DEMO_READY",
+                "configured": demo_configured,
+                "status": demo_status,
                 "masked_api_key": demo_masked,
                 "endpoint": "https://testnet.binance.vision",
-                "balance_usd": 19950.55
+                "balance_usd": demo_balance
             },
             "live": {
                 "configured": bool(self.live_api_key and self.live_secret_key),
-                "status": "LIVE_AUTHENTICATED" if (self.live_api_key and self.live_secret_key) else "NOT_CONFIGURED",
+                "status": "LIVE_AUTHENTICATED" if (self.live_api_key and self.live_secret_key and self.status == "LIVE_TRADING_ACTIVE") else ("CONFIGURED" if (self.live_api_key and self.live_secret_key) else "NOT_CONFIGURED"),
                 "masked_api_key": live_masked,
                 "endpoint": "https://api.binance.com",
                 "balance_usd": getattr(self, '_cached_live_bal', 0.0)

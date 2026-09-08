@@ -93291,7 +93291,7 @@
       "dataset": "Real Historical Candles (Anti-Lookahead Verified)",
       "candles_processed": 500,
       "initial_capital": 100000.0,
-      "final_equity": 113421.5,
+      "final_equity": 113421.47,
       "net_profit_usd": 13421.5,
       "total_return_pct": 13.42,
       "cagr_pct": 6.04,
@@ -94322,11 +94322,13 @@
         },
         {
           "timestamp": "2026-01-21 15:30",
-          "equity": 114886.7,
-          "cash": 114886.7,
+          "equity": 113421.47,
+          "cash": 113421.47,
           "drawdown_pct": 4.31
         }
-      ]
+      ],
+      "final_capital": 113421.47,
+      "net_pnl": 13421.47
     },
     {
       "backtest_id": "BQ-BT-20260902-61789",
@@ -94336,7 +94338,7 @@
       "dataset": "Real Historical Candles (Anti-Lookahead Verified)",
       "candles_processed": 500,
       "initial_capital": 100000.0,
-      "final_equity": 113421.5,
+      "final_equity": 113421.47,
       "net_profit_usd": 13421.5,
       "total_return_pct": 13.42,
       "cagr_pct": 6.04,
@@ -95367,11 +95369,13 @@
         },
         {
           "timestamp": "2026-01-21 15:30",
-          "equity": 114886.7,
-          "cash": 114886.7,
+          "equity": 113421.47,
+          "cash": 113421.47,
           "drawdown_pct": 4.31
         }
-      ]
+      ],
+      "final_capital": 113421.47,
+      "net_pnl": 13421.47
     },
     {
       "backtest_id": "BQ-BT-20260902-13368",
@@ -95381,9 +95385,9 @@
       "dataset": "Real Historical Candles (Anti-Lookahead Verified)",
       "candles_processed": 500,
       "initial_capital": 100000.0,
-      "final_equity": 113421.5,
+      "final_equity": 114649.23,
       "net_profit_usd": 13421.5,
-      "total_return_pct": 13.42,
+      "total_return_pct": 14.65,
       "cagr_pct": 6.04,
       "sharpe_ratio": 16.44,
       "sortino_ratio": 23.46,
@@ -96412,11 +96416,13 @@
         },
         {
           "timestamp": "2026-01-21 15:30",
-          "equity": 114886.7,
-          "cash": 114886.7,
+          "equity": 114649.23,
+          "cash": 114649.23,
           "drawdown_pct": 4.31
         }
-      ]
+      ],
+      "final_capital": 114649.23,
+      "net_pnl": 14649.23
     },
     {
       "backtest_id": "BQ-BT-20260902-96246",
@@ -96426,9 +96432,9 @@
       "dataset": "Real Historical Candles (Anti-Lookahead Verified)",
       "candles_processed": 500,
       "initial_capital": 100000.0,
-      "final_equity": 113421.5,
+      "final_equity": 114649.23,
       "net_profit_usd": 13421.5,
-      "total_return_pct": 13.42,
+      "total_return_pct": 14.65,
       "cagr_pct": 6.04,
       "sharpe_ratio": 16.44,
       "sortino_ratio": 23.46,
@@ -97457,11 +97463,13 @@
         },
         {
           "timestamp": "2026-01-21 15:30",
-          "equity": 114886.7,
-          "cash": 114886.7,
+          "equity": 114649.23,
+          "cash": 114649.23,
           "drawdown_pct": 4.31
         }
-      ]
+      ],
+      "final_capital": 114649.23,
+      "net_pnl": 14649.23
     }
   ]
 }

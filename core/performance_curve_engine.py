@@ -64,13 +64,14 @@ class PerformanceCurveEngine:
             opening_amt = paper_broker.pools[environment].get("initial_capital", 100000.0)
 
         # Collect closed trades & vault sweeps strictly for the requested environment
-        if environment in paper_broker.pools and environment != "AEGIS_QUANT_MASTER":
+        sweeps = profit_vault.get_sweep_history(environment)
+        if environment == "AEGIS_QUANT_MASTER":
+            trades = list(paper_broker.trade_history)
+        elif environment in paper_broker.pools:
             pool_data = paper_broker.pools[environment]
             trades = pool_data.get("trade_history", [])
         else:
-            trades = list(paper_broker.trade_history)
-
-        sweeps = profit_vault.get_sweep_history(environment)
+            trades = []
 
         def _parse_ts(ts_str: str) -> Optional[datetime]:
             try:
@@ -80,41 +81,77 @@ class PerformanceCurveEngine:
             except Exception:
                 return None
 
+        # Build clean non-double-counted event series
         events = []
-        for t in trades:
-            ts_val = t.get("timestamp", now_str)
-            dt_val = _parse_ts(ts_val)
-            if time_range != "ALL" and dt_val and dt_val < cutoff_dt:
-                continue
-            events.append({
-                "timestamp": ts_val,
-                "pnl": float(t.get("pnl_usd") or t.get("realized_pnl") or 0.0)
-            })
-        for s in sweeps:
-            ts_val = s.get("timestamp", now_str)
-            dt_val = _parse_ts(ts_val)
-            if time_range != "ALL" and dt_val and dt_val < cutoff_dt:
-                continue
-            events.append({
-                "timestamp": ts_val,
-                "pnl": float(s.get("sweep_amount") or s.get("realized_profit") or 0.0)
-            })
+        if environment == "AEGIS_QUANT_MASTER":
+            sweep_timestamps = set(s.get("timestamp") for s in sweeps)
+            # Sweeps represent all realized profitable trade sweeps
+            for s in sweeps:
+                ts_val = s.get("timestamp", now_str)
+                amt = float(s.get("sweep_amount") or s.get("realized_profit") or 0.0)
+                if amt != 0.0:
+                    events.append({"timestamp": ts_val, "pnl": amt})
+            # Include non-swept losing trades
+            for t in trades:
+                ts_val = t.get("timestamp", now_str)
+                pnl = float(t.get("pnl_usd") or t.get("realized_pnl") or 0.0)
+                if pnl < 0.0 and ts_val not in sweep_timestamps:
+                    events.append({"timestamp": ts_val, "pnl": pnl})
+        else:
+            # Pool-specific trades
+            for t in trades:
+                ts_val = t.get("timestamp", now_str)
+                pnl = float(t.get("pnl_usd") or t.get("realized_pnl") or 0.0)
+                events.append({"timestamp": ts_val, "pnl": pnl})
+            for s in sweeps:
+                ts_val = s.get("timestamp", now_str)
+                amt = float(s.get("sweep_amount") or s.get("realized_profit") or 0.0)
+                if amt > 0.0:
+                    events.append({"timestamp": ts_val, "pnl": amt})
 
-        sorted_events = sorted(events, key=lambda x: x.get("timestamp", ""))
+        if not events:
+            return {
+                "status": "NO_DATA",
+                "metric": metric,
+                "range": time_range,
+                "environment": environment,
+                "points": [],
+                "latest": opening_amt if metric == "equity" else 0.0,
+                "min": 0.0,
+                "max": 0.0,
+                "point_count": 0
+            }
+
+        # Sort chronologically
+        events.sort(key=lambda x: x.get("timestamp", ""))
+
+        # Pre-cutoff accumulation
+        pre_cutoff_pnl = 0.0
+        window_events = []
+
+        for ev in events:
+            ev_dt = _parse_ts(ev["timestamp"])
+            if time_range != "ALL" and ev_dt and ev_dt < cutoff_dt:
+                pre_cutoff_pnl += ev["pnl"]
+            else:
+                window_events.append(ev)
+
+        # Baseline equity at the start of the timeframe window
+        start_equity = round(opening_amt + pre_cutoff_pnl, 2)
+        start_ts = cutoff_dt.strftime("%Y-%m-%d %H:%M:%S") if time_range != "ALL" else (events[0]["timestamp"] if events else now_str)
 
         points = []
-        running_equity = opening_amt
+        running_equity = start_equity
         running_pnl = 0.0
-        peak_equity = opening_amt
+        peak_equity = start_equity
 
-        # Initial starting point
-        start_time = sorted_events[0]["timestamp"] if sorted_events else now_str
+        # First anchor point of the timeframe
         points.append({
-            "timestamp": start_time,
-            "value": opening_amt if metric == "equity" else 0.0
+            "timestamp": start_ts,
+            "value": start_equity if metric == "equity" else 0.0
         })
 
-        for ev in sorted_events:
+        for ev in window_events:
             pnl_amt = ev["pnl"]
             running_pnl += pnl_amt
             running_equity += pnl_amt
@@ -135,23 +172,21 @@ class PerformanceCurveEngine:
                 "value": val
             })
 
-        # Environment-specific live equity & PnL
+        # Current live terminal point
         if environment in paper_broker.pools and environment != "AEGIS_QUANT_MASTER":
             pool_data = paper_broker.pools[environment]
-            cur_broker_equity = round(float(pool_data.get("portfolio_equity", pool_data.get("virtual_cash", opening_amt))), 2)
-            cur_total_pnl = round(sum(float(t.get("pnl_usd", 0.0)) for t in trades), 2)
+            cur_equity = round(float(pool_data.get("portfolio_equity", pool_data.get("virtual_cash", opening_amt))), 2)
         else:
-            cur_broker_equity = round(float(paper_broker.equity), 2)
-            cur_total_pnl = round(sum(float(t.get("pnl_usd", 0.0)) for t in paper_broker.trade_history), 2)
+            cur_equity = round(float(paper_broker.equity) + float(profit_vault.vault_balance), 2)
 
-        if cur_broker_equity > peak_equity:
-            peak_equity = cur_broker_equity
-        live_dd = round(((peak_equity - cur_broker_equity) / peak_equity * 100.0), 2) if peak_equity > 0 else 0.0
+        if cur_equity > peak_equity:
+            peak_equity = cur_equity
+        live_dd = round(((peak_equity - cur_equity) / peak_equity * 100.0), 2) if peak_equity > 0 else 0.0
 
         if metric == "equity":
-            live_val = cur_broker_equity
+            live_val = cur_equity
         elif metric == "pnl":
-            live_val = cur_total_pnl
+            live_val = round(running_pnl, 2)
         else:
             live_val = live_dd
 
@@ -168,10 +203,10 @@ class PerformanceCurveEngine:
                 seen.add(p["timestamp"])
                 filtered_points.append(p)
 
-        # Downsample points to a maximum of 100 points for smooth sub-millisecond Chart.js rendering
+        # Downsample points to a maximum of 100 points for smooth Chart.js rendering
         if len(filtered_points) > 100:
-            step = len(filtered_points) / 99.0
-            downsampled = [filtered_points[int(i * step)] for i in range(99)]
+            step = (len(filtered_points) - 1) / 99.0
+            downsampled = [filtered_points[int(round(i * step))] for i in range(99)]
             if filtered_points[-1] not in downsampled:
                 downsampled.append(filtered_points[-1])
             filtered_points = downsampled

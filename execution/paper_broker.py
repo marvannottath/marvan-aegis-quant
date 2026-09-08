@@ -351,6 +351,12 @@ class PaperBroker:
         self._save_state()
         return position
 
+    def place_order(self, symbol: str, side: str, amount_usd: float = 1000.0, price: float = 0.0, **kwargs) -> Dict[str, Any]:
+        """Convenience method for placing order in paper environment."""
+        p = price if price > 0 else 65000.0
+        pos = self.execute_order(asset=symbol, action=side, amount_usd=amount_usd, current_price=p, **kwargs)
+        return {"status": "SUCCESS", "entry_price": pos.get("entry_price", p), "position": pos}
+
     def close_position(self, asset: str, exit_price: float, current_indicators: Optional[dict] = None, sentiment_score: float = 0.5, reason: str = "MANUAL_CLOSE") -> Optional[dict]:
         """Close position and sweep profit if positive into active environment vault."""
         if asset not in self.positions:
