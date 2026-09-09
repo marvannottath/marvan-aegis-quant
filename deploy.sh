@@ -10,7 +10,8 @@ if [ -d "$APP_DIR" ]; then
 fi
 
 echo "[1/3] Pulling latest code from GitHub main..."
-git pull origin main
+git fetch origin main
+git reset --hard origin/main
 
 echo "[2/3] Checking python virtual environment..."
 if [ -f "./venv/bin/python3" ]; then

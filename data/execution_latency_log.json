@@ -1,0 +1,66 @@
+{
+  "executions": [
+    {
+      "execution_id": "EXEC-1788932210087",
+      "timestamp": "2026-09-09 11:06:50 IST",
+      "environment": "AEGIS_QUANT_MASTER",
+      "symbol": "ETHUSD",
+      "status": "PASS",
+      "risk_result": "APPROVED",
+      "order_id": "ORD-AEG-1788932209995-A3AF9D",
+      "total_latency_ms": 84.5,
+      "stages": [
+        {
+          "stage": "Market Tick",
+          "duration_ms": 0.551,
+          "status": "PASS"
+        },
+        {
+          "stage": "Validation",
+          "duration_ms": 0.01,
+          "status": "PASS"
+        },
+        {
+          "stage": "Feature Calculation",
+          "duration_ms": 0.01,
+          "status": "PASS"
+        },
+        {
+          "stage": "AI Processing",
+          "duration_ms": 0.01,
+          "status": "PASS"
+        },
+        {
+          "stage": "Ensemble",
+          "duration_ms": 0.01,
+          "status": "PASS"
+        },
+        {
+          "stage": "Risk",
+          "duration_ms": 0.01,
+          "status": "PASS"
+        },
+        {
+          "stage": "Security Gate",
+          "duration_ms": 1.384,
+          "status": "PASS"
+        },
+        {
+          "stage": "Order Submission",
+          "duration_ms": 24.424,
+          "status": "PASS"
+        },
+        {
+          "stage": "Exchange/Fills",
+          "duration_ms": 0.01,
+          "status": "PASS"
+        },
+        {
+          "stage": "Ledger Write",
+          "duration_ms": 58.085,
+          "status": "PASS"
+        }
+      ]
+    }
+  ]
+}

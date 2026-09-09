@@ -778,7 +778,7 @@
                     </div>
 
                     <div class="flex justify-between items-center text-xs font-mono pt-2 text-gray-400">
-                        <span id="bt-trades-count-label">Showing 0 of 0 trades</span>
+                        <span id="bt-trades-count-label">Loading trade history...</span>
                         <div class="flex space-x-2" id="bt-trades-pagination">
                             <!-- Dynamic Pagination -->
                         </div>
@@ -1142,6 +1142,23 @@
 
             if (targetTab) targetTab.classList.add('active');
             if (targetNav) targetNav.classList.add('active');
+
+            if (tabId === 'overview' && chartInstance) {
+                setTimeout(() => chartInstance.resize(), 50);
+            }
+            if (tabId === 'analytics') {
+                if (currentBacktestDetail) {
+                    setTimeout(() => {
+                        renderBacktestEquityChart(currentBacktestDetail.equity_curve || []);
+                        renderBacktestTradeLogs();
+                    }, 50);
+                } else {
+                    fetchBacktestRuns();
+                }
+            }
+            if (tabId === 'execution') {
+                fetchExecutionLatency();
+            }
         }
 
         function toggleSidebar() {
@@ -1856,16 +1873,23 @@
             const startIndex = (auditPage - 1) * AUDIT_PAGE_SIZE;
             const paginatedItems = items.slice(startIndex, startIndex + AUDIT_PAGE_SIZE);
 
-            tbody.innerHTML = paginatedItems.map(a => `
+            tbody.innerHTML = paginatedItems.map(a => {
+                const actorName = a.actor || a.user_id || 'SYSTEM_CORE';
+                const actorIp = a.ip || a.ip_address || 'INTERNAL';
+                const actionName = a.action || a.event_type || 'AUDIT_LOG';
+                const objectName = a.object || a.asset || a.reference_id || 'SYSTEM';
+                const resultStatus = a.result || a.status || 'CONFIRMED';
+                const eventId = a.event_id || a.id || '--';
+                return `
                 <tr class="border-b border-gray-800/60 hover:bg-gray-900/50 text-xs">
                     <td class="py-2.5 px-3 text-gray-400">${a.timestamp || '2026-09-03'}</td>
-                    <td class="py-2.5 px-3 text-white font-bold">${a.actor || 'SYSTEM_CORE'} (${a.ip || 'INTERNAL'})</td>
-                    <td class="py-2.5 px-3 text-amber-400 font-bold">${a.action || 'AUDIT_LOG'}</td>
-                    <td class="py-2.5 px-3 text-white">${a.object || a.asset || 'USDT'}</td>
-                    <td class="py-2.5 px-3 text-emerald-400 font-bold">${a.result || 'CONFIRMED'}</td>
-                    <td class="py-2.5 px-3 text-gray-500 font-mono">${a.event_id || a.id || '--'}</td>
-                </tr>
-            `).join('');
+                    <td class="py-2.5 px-3 text-white font-bold">${actorName} <span class="text-gray-500 font-normal">(${actorIp})</span></td>
+                    <td class="py-2.5 px-3 text-amber-400 font-bold">${actionName}</td>
+                    <td class="py-2.5 px-3 text-white">${objectName}</td>
+                    <td class="py-2.5 px-3 text-emerald-400 font-bold">${resultStatus}</td>
+                    <td class="py-2.5 px-3 text-gray-500 font-mono">${eventId}</td>
+                </tr>`;
+            }).join('');
 
             const pagin = document.getElementById('audit-pagination');
             if (pagin) {
