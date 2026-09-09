@@ -137,9 +137,23 @@ class ProfitVault:
     def sweep_history(self) -> List[Dict[str, Any]]:
         return self.get_sweep_history("AEGIS_QUANT_MASTER")
 
-    def get_sweep_history(self, environment: str = "AEGIS_QUANT_MASTER") -> List[Dict[str, Any]]:
+    def get_sweep_history(self, environment: str = "AEGIS_QUANT_MASTER", limit: Optional[int] = None) -> List[Dict[str, Any]]:
         store = self.vault_stores.get(environment, {"transactions": [], "withdrawals": [], "transfers": []})
-        return store.get("transactions", [])
+        txs = store.get("transactions", [])
+        for t in txs:
+            amt = float(t.get("sweep_amount", t.get("profit_swept", t.get("realized_profit", 0.0))))
+            t["sweep_amount"] = amt
+            t["profit_swept"] = amt
+            t["amount"] = amt
+            t.setdefault("source_trade_id", t.get("source_trade_id") or f"TRD-{t.get('asset', 'GEN')}-{t.get('transaction_id', '0')}")
+            t.setdefault("environment", environment)
+            t.setdefault("account_id", f"VAULT-{environment}")
+            t.setdefault("reason", t.get("exit_reason", "PROFIT_SWEEP"))
+            t.setdefault("previous_balance", t.get("previous_vault_balance", 0.0))
+            t.setdefault("new_balance", t.get("resulting_vault_balance", amt))
+        if limit is not None and limit > 0:
+            return txs[:limit]
+        return txs
 
     def get_full_sweep_history(self, environment: str = "AEGIS_QUANT_MASTER") -> List[Dict[str, Any]]:
         return self.get_sweep_history(environment)
@@ -179,6 +193,11 @@ class ProfitVault:
             "previous_vault_balance": prev_bal,
             "resulting_vault_balance": new_bal,
             "exit_reason": exit_reason,
+            "environment": environment,
+            "account_id": f"VAULT-{environment}",
+            "reason": exit_reason,
+            "previous_balance": prev_bal,
+            "new_balance": new_bal,
             "status": "CONFIRMED"
         }
 

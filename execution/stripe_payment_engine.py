@@ -139,29 +139,49 @@ class StripePaymentEngine:
             "payment_record": record
         }
 
-    def verify_webhook_signature(self, payload_bytes: bytes, sig_header: str) -> bool:
+    def create_internal_session_mapping(
+        self, deposit_id: str, user_id: str, amount: float, currency: str = "usd"
+    ) -> Dict[str, Any]:
+        """Create an immutable server-side session mapping for Stripe Checkout."""
+        session_id = f"cs_stripe_{int(time.time()*1000)}_{uuid.uuid4().hex[:8]}"
+        mapping = {
+            "session_id": session_id,
+            "deposit_id": deposit_id,
+            "user_id": user_id,
+            "amount": round(amount, 2),
+            "currency": currency.lower(),
+            "status": "INITIALIZED",
+            "created_at": datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S")
+        }
+        return mapping
+
+    def verify_webhook_signature(self, payload_bytes: bytes, sig_header: str, secret: Optional[str] = None) -> bool:
         """Verify HMAC-SHA256 signature using Stripe SDK or HMAC fallback."""
-        if not sig_header or not self.webhook_secret:
+        effective_secret = secret or self.webhook_secret
+        if not sig_header or not effective_secret:
             return False
         try:
-            event = stripe.Webhook.construct_event(
-                payload_bytes, sig_header, self.webhook_secret
-            )
-            return True
+            if stripe and hasattr(stripe, 'Webhook'):
+                event = stripe.Webhook.construct_event(
+                    payload_bytes, sig_header, effective_secret
+                )
+                return True
         except Exception:
-            # Fallback custom HMAC check for test runner
-            try:
-                pairs = dict(item.split("=") for item in sig_header.split(","))
-                t = pairs.get("t")
-                v1 = pairs.get("v1")
-                if not t or not v1:
-                    return False
-                signed_payload = f"{t}.".encode("utf-8") + payload_bytes
-                import hmac, hashlib
-                expected_sig = hmac.new(self.webhook_secret.encode("utf-8"), signed_payload, hashlib.sha256).hexdigest()
-                return hmac.compare_digest(expected_sig, v1)
-            except Exception:
+            pass
+
+        # Fallback custom HMAC check for test runner
+        try:
+            pairs = dict(item.split("=") for item in sig_header.split(","))
+            t = pairs.get("t")
+            v1 = pairs.get("v1")
+            if not t or not v1:
                 return False
+            signed_payload = f"{t}.".encode("utf-8") + payload_bytes
+            import hmac, hashlib
+            expected_sig = hmac.new(effective_secret.encode("utf-8"), signed_payload, hashlib.sha256).hexdigest()
+            return hmac.compare_digest(expected_sig, v1)
+        except Exception:
+            return False
 
     def process_webhook_event(self, event_data: Dict[str, Any]) -> Dict[str, Any]:
         """

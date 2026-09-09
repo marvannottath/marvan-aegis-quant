@@ -134,5 +134,13 @@ class ReconciliationSentinel:
         self.last_check_time = time.time()
         return self.last_report
 
+    def run_comprehensive_audit(self, broker=None, vault=None, risk=None) -> Dict[str, Any]:
+        """Execute full mathematical reconciliation audit and return discrepancy report."""
+        rep = self.validate_all(broker=broker, vault=vault, risk=risk)
+        rep["total_discrepancy"] = len(rep.get("discrepancies", []))
+        return rep
+
+
 # Global Singleton Watchdog
 reconciliation_sentinel = ReconciliationSentinel()
+

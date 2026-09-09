@@ -202,7 +202,38 @@ class RiskEngine:
             return False, RISK_REJECTED_DRAWDOWN, msg
 
         # Gate 7: Stop-loss configured
+        sl_pct = float(self.active_profile.get("stop_loss_pct", 0.0))
+        if sl_pct <= 0.0:
+            return False, RISK_REJECTED_INVALID_SL, "Stop-loss percentage must be configured and > 0.0%"
+
         return True, RISK_OK, "Order passed all 7 risk gates."
+
+    def get_risk_status(self) -> Dict[str, Any]:
+        """Centralized risk status for Phase 11 /api/risk/status endpoint."""
+        news_status = "NEWS DATA NOT CONFIGURED"
+        try:
+            from core.macro_news_engine import macro_engine
+            news = macro_engine.scan_macro_news()
+            if news.get("configured", False):
+                news_status = "ACTIVE"
+        except Exception:
+            pass
+
+        return {
+            "active_profile": self.active_profile_name,
+            "profile_details": self.active_profile,
+            "max_leverage": self.active_profile.get("max_leverage"),
+            "max_open_positions": self.active_profile.get("max_open_positions"),
+            "custom_trade_cap_usd": self.custom_trade_cap_usd,
+            "daily_loss_limit_usd": self.daily_loss_limit_usd,
+            "daily_realized_loss": self.daily_realized_loss,
+            "circuit_tripped": self.circuit_tripped,
+            "trip_reason": self.trip_reason,
+            "stop_loss_pct": self.active_profile.get("stop_loss_pct"),
+            "take_profit_target_pct": self.active_profile.get("take_profit_target_pct"),
+            "news_lock_status": news_status,
+            "news_lock": {"status": news_status}
+        }
 
     def evaluate_100_shield_gate(
         self,

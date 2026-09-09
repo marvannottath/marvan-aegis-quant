@@ -88,6 +88,18 @@ class EmergencyKillSwitch:
         print(f"[EMERGENCY KILL SWITCH] ✅ System lockdown cleared by {reset_by}.")
         return {"status": "SYSTEM_RESTORED", "is_activated": False}
 
+    def activate(self, activated_by: str = "ADMIN_USER", reason: str = "Emergency Safety Trigger") -> Dict[str, Any]:
+        """Alias for trigger_kill_switch."""
+        return self.trigger_kill_switch(activated_by=activated_by, reason=reason)
+
+    def deactivate(self, reset_by: str = "ADMIN_USER") -> Dict[str, Any]:
+        """Alias for reset_kill_switch."""
+        return self.reset_kill_switch(reset_by=reset_by)
+
+    def is_active(self) -> bool:
+        """Return boolean status of kill switch."""
+        return bool(self.is_activated)
+
 
 # Global Singleton
 emergency_kill_switch = EmergencyKillSwitch()

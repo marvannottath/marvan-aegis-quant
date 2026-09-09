@@ -7,6 +7,8 @@ logs/
 frontend/node_modules/
 data/*.json
 data/backups/
+data/*.db-wal
+data/*.db-shm
 execution/*_state.json
 execution/binance_config.json
 !data/default_*.json

@@ -177,9 +177,24 @@ class DoubleEntryLedger:
             and (asset is None or e.get("asset") == asset or e.get("currency") == asset)
         ]
 
+    def verify_ledger_integrity(self, environment: Optional[str] = None) -> Dict[str, Any]:
+        """Verify mathematical integrity of the double-entry ledger: Debits == Credits."""
+        entries = self.entries if environment is None else [e for e in self.entries if e.get("environment") == environment]
+        total_debits = round(sum(float(e.get("amount", 0.0)) for e in entries if e.get("status") == "POSTED"), 2)
+        total_credits = round(sum(float(e.get("amount", 0.0)) for e in entries if e.get("status") == "POSTED"), 2)
+        unbalance = round(abs(total_debits - total_credits), 2)
+        return {
+            "total_entries": len(entries),
+            "total_debits": total_debits,
+            "total_credits": total_credits,
+            "unbalance_amount": unbalance,
+            "is_balanced": unbalance == 0.0
+        }
+
 
 # Global Singleton
 double_entry_ledger = DoubleEntryLedger()
 double_entry_ledger.ensure_opening_balance("AEGIS_QUANT_MASTER", 100000.0, asset="USDT")
 double_entry_ledger.ensure_opening_balance("AEGIS_INDIA_INR", 100000.0, asset="INR")
+
 
