@@ -1,6 +1,378 @@
 {
   "executions": [
     {
+      "execution_id": "EXEC-1788933439014",
+      "timestamp": "2026-09-09 11:27:19 IST",
+      "environment": "AEGIS_QUANT_MASTER",
+      "symbol": "BTCUSD",
+      "status": "PASS",
+      "risk_result": "APPROVED",
+      "order_id": "ORD-AEG-1788933438929-2899AA",
+      "total_latency_ms": 73.95,
+      "stages": [
+        {
+          "stage": "Market Tick",
+          "duration_ms": 0.047,
+          "status": "PASS"
+        },
+        {
+          "stage": "Validation",
+          "duration_ms": 0.01,
+          "status": "PASS"
+        },
+        {
+          "stage": "Feature Calculation",
+          "duration_ms": 0.01,
+          "status": "PASS"
+        },
+        {
+          "stage": "AI Processing",
+          "duration_ms": 0.01,
+          "status": "PASS"
+        },
+        {
+          "stage": "Ensemble",
+          "duration_ms": 0.01,
+          "status": "PASS"
+        },
+        {
+          "stage": "Risk",
+          "duration_ms": 0.01,
+          "status": "PASS"
+        },
+        {
+          "stage": "Security Gate",
+          "duration_ms": 0.221,
+          "status": "PASS"
+        },
+        {
+          "stage": "Order Submission",
+          "duration_ms": 22.636,
+          "status": "PASS"
+        },
+        {
+          "stage": "Exchange/Fills",
+          "duration_ms": 5.258,
+          "status": "PASS"
+        },
+        {
+          "stage": "Ledger Write",
+          "duration_ms": 45.739,
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "execution_id": "EXEC-1788933420991",
+      "timestamp": "2026-09-09 11:27:00 IST",
+      "environment": "AEGIS_QUANT_MASTER",
+      "symbol": "SOLUSD",
+      "status": "PASS",
+      "risk_result": "APPROVED",
+      "order_id": "ORD-AEG-1788933420891-1293CB",
+      "total_latency_ms": 92.07,
+      "stages": [
+        {
+          "stage": "Market Tick",
+          "duration_ms": 0.134,
+          "status": "PASS"
+        },
+        {
+          "stage": "Validation",
+          "duration_ms": 0.01,
+          "status": "PASS"
+        },
+        {
+          "stage": "Feature Calculation",
+          "duration_ms": 0.01,
+          "status": "PASS"
+        },
+        {
+          "stage": "AI Processing",
+          "duration_ms": 0.01,
+          "status": "PASS"
+        },
+        {
+          "stage": "Ensemble",
+          "duration_ms": 0.01,
+          "status": "PASS"
+        },
+        {
+          "stage": "Risk",
+          "duration_ms": 0.01,
+          "status": "PASS"
+        },
+        {
+          "stage": "Security Gate",
+          "duration_ms": 1.973,
+          "status": "PASS"
+        },
+        {
+          "stage": "Order Submission",
+          "duration_ms": 36.617,
+          "status": "PASS"
+        },
+        {
+          "stage": "Exchange/Fills",
+          "duration_ms": 6.191,
+          "status": "PASS"
+        },
+        {
+          "stage": "Ledger Write",
+          "duration_ms": 47.104,
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "execution_id": "EXEC-1788933400431",
+      "timestamp": "2026-09-09 11:26:40 IST",
+      "environment": "AEGIS_QUANT_MASTER",
+      "symbol": "USDJPY",
+      "status": "PASS",
+      "risk_result": "APPROVED",
+      "order_id": "ORD-AEG-1788933400346-C34049",
+      "total_latency_ms": 74.32,
+      "stages": [
+        {
+          "stage": "Market Tick",
+          "duration_ms": 0.013,
+          "status": "PASS"
+        },
+        {
+          "stage": "Validation",
+          "duration_ms": 0.01,
+          "status": "PASS"
+        },
+        {
+          "stage": "Feature Calculation",
+          "duration_ms": 0.01,
+          "status": "PASS"
+        },
+        {
+          "stage": "AI Processing",
+          "duration_ms": 0.01,
+          "status": "PASS"
+        },
+        {
+          "stage": "Ensemble",
+          "duration_ms": 0.01,
+          "status": "PASS"
+        },
+        {
+          "stage": "Risk",
+          "duration_ms": 0.01,
+          "status": "PASS"
+        },
+        {
+          "stage": "Security Gate",
+          "duration_ms": 0.114,
+          "status": "PASS"
+        },
+        {
+          "stage": "Order Submission",
+          "duration_ms": 21.957,
+          "status": "PASS"
+        },
+        {
+          "stage": "Exchange/Fills",
+          "duration_ms": 5.227,
+          "status": "PASS"
+        },
+        {
+          "stage": "Ledger Write",
+          "duration_ms": 46.955,
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "execution_id": "EXEC-1788933400039",
+      "timestamp": "2026-09-09 11:26:40 IST",
+      "environment": "AEGIS_QUANT_MASTER",
+      "symbol": "BANKNIFTY",
+      "status": "PASS",
+      "risk_result": "APPROVED",
+      "order_id": "ORD-AEG-1788933399954-6B7B19",
+      "total_latency_ms": 74.43,
+      "stages": [
+        {
+          "stage": "Market Tick",
+          "duration_ms": 0.023,
+          "status": "PASS"
+        },
+        {
+          "stage": "Validation",
+          "duration_ms": 0.01,
+          "status": "PASS"
+        },
+        {
+          "stage": "Feature Calculation",
+          "duration_ms": 0.01,
+          "status": "PASS"
+        },
+        {
+          "stage": "AI Processing",
+          "duration_ms": 0.01,
+          "status": "PASS"
+        },
+        {
+          "stage": "Ensemble",
+          "duration_ms": 0.01,
+          "status": "PASS"
+        },
+        {
+          "stage": "Risk",
+          "duration_ms": 0.01,
+          "status": "PASS"
+        },
+        {
+          "stage": "Security Gate",
+          "duration_ms": 0.138,
+          "status": "PASS"
+        },
+        {
+          "stage": "Order Submission",
+          "duration_ms": 21.951,
+          "status": "PASS"
+        },
+        {
+          "stage": "Exchange/Fills",
+          "duration_ms": 5.341,
+          "status": "PASS"
+        },
+        {
+          "stage": "Ledger Write",
+          "duration_ms": 46.924,
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "execution_id": "EXEC-1788933399945",
+      "timestamp": "2026-09-09 11:26:39 IST",
+      "environment": "AEGIS_QUANT_MASTER",
+      "symbol": "SOLUSD",
+      "status": "PASS",
+      "risk_result": "APPROVED",
+      "order_id": "ORD-AEG-1788933399837-D0FD23",
+      "total_latency_ms": 98.82,
+      "stages": [
+        {
+          "stage": "Market Tick",
+          "duration_ms": 0.168,
+          "status": "PASS"
+        },
+        {
+          "stage": "Validation",
+          "duration_ms": 0.01,
+          "status": "PASS"
+        },
+        {
+          "stage": "Feature Calculation",
+          "duration_ms": 0.01,
+          "status": "PASS"
+        },
+        {
+          "stage": "AI Processing",
+          "duration_ms": 0.01,
+          "status": "PASS"
+        },
+        {
+          "stage": "Ensemble",
+          "duration_ms": 0.01,
+          "status": "PASS"
+        },
+        {
+          "stage": "Risk",
+          "duration_ms": 0.01,
+          "status": "PASS"
+        },
+        {
+          "stage": "Security Gate",
+          "duration_ms": 1.388,
+          "status": "PASS"
+        },
+        {
+          "stage": "Order Submission",
+          "duration_ms": 40.741,
+          "status": "PASS"
+        },
+        {
+          "stage": "Exchange/Fills",
+          "duration_ms": 6.189,
+          "status": "PASS"
+        },
+        {
+          "stage": "Ledger Write",
+          "duration_ms": 50.282,
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "execution_id": "EXEC-1788933386949",
+      "timestamp": "2026-09-09 11:26:26 IST",
+      "environment": "AEGIS_QUANT_MASTER",
+      "symbol": "SOLUSD",
+      "status": "PASS",
+      "risk_result": "APPROVED",
+      "order_id": "ORD-AEG-1788933386861-67CE77",
+      "total_latency_ms": 84.19,
+      "stages": [
+        {
+          "stage": "Market Tick",
+          "duration_ms": 2.702,
+          "status": "PASS"
+        },
+        {
+          "stage": "Validation",
+          "duration_ms": 0.01,
+          "status": "PASS"
+        },
+        {
+          "stage": "Feature Calculation",
+          "duration_ms": 0.01,
+          "status": "PASS"
+        },
+        {
+          "stage": "AI Processing",
+          "duration_ms": 0.01,
+          "status": "PASS"
+        },
+        {
+          "stage": "Ensemble",
+          "duration_ms": 0.01,
+          "status": "PASS"
+        },
+        {
+          "stage": "Risk",
+          "duration_ms": 0.01,
+          "status": "PASS"
+        },
+        {
+          "stage": "Security Gate",
+          "duration_ms": 2.149,
+          "status": "PASS"
+        },
+        {
+          "stage": "Order Submission",
+          "duration_ms": 27.1,
+          "status": "PASS"
+        },
+        {
+          "stage": "Exchange/Fills",
+          "duration_ms": 5.706,
+          "status": "PASS"
+        },
+        {
+          "stage": "Ledger Write",
+          "duration_ms": 46.485,
+          "status": "PASS"
+        }
+      ]
+    },
+    {
       "execution_id": "EXEC-1788932210087",
       "timestamp": "2026-09-09 11:06:50 IST",
       "environment": "AEGIS_QUANT_MASTER",

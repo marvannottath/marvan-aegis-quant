@@ -93,9 +93,16 @@ class ExecutionLatencyProfiler:
         self._save_log()
         return record
 
-    def get_summary(self, environment: str = "PAPER") -> Dict[str, Any]:
+    def get_summary(self, environment: str = "ALL") -> Dict[str, Any]:
         """Compute P50, P95, P99, min, max, avg, and stage averages from authoritative traces."""
-        env_execs = [e for e in self.executions if e.get("environment") == environment] if environment and environment != "ALL" else self.executions
+        if environment and environment not in ["ALL", ""]:
+            if environment in ["PAPER", "AEGIS_QUANT_MASTER"]:
+                env_execs = [e for e in self.executions if e.get("environment") in ["PAPER", "AEGIS_QUANT_MASTER"]]
+            else:
+                env_execs = [e for e in self.executions if e.get("environment") == environment]
+        else:
+            env_execs = self.executions
+
         all_totals = [float(e["total_latency_ms"]) for e in env_execs if e.get("total_latency_ms") is not None]
         if not all_totals:
             return {
