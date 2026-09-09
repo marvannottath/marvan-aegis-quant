@@ -419,6 +419,8 @@ async def get_state():
 
     return {
         "active_capital_pool": paper_broker.active_pool_name,
+        "currency": acc.get("currency", "USD"),
+        "currency_symbol": acc.get("currency_symbol", "$"),
         "portfolio_equity": equity_val,
         "initial_capital": init_cap,
         "realized_pnl_today": today_pnl,
@@ -2511,4 +2513,235 @@ async def get_backtest_equity(backtest_id: str):
         })
     except Exception as e:
         return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+# =====================================================================
+# INDIA & MULTI-VENUE FIRST-CLASS TRADING API ROUTES
+# =====================================================================
+
+# 18. Indian Market Session Status
+@app.get("/api/india/market-status")
+async def get_india_market_status():
+    """Return current NSE/BSE session state, trading hours, and holiday status."""
+    try:
+        from core.indian_market_data import indian_market_data
+        session = indian_market_data.get_market_session()
+        return JSONResponse({"status": "SUCCESS", "session": session})
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+# 19. Indian Market Data Quotes
+@app.get("/api/india/market-data")
+async def get_india_market_data():
+    """Return real-time quotes, spreads, and OHLC for Indian equities & ETFs."""
+    try:
+        from core.indian_market_data import indian_market_data
+        quotes = indian_market_data.get_quotes()
+        return JSONResponse(quotes)
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+# 20. Indian Market Scanner
+@app.get("/api/india/scanner")
+async def get_india_scanner(filter: str = "ALL"):
+    """Return quantitative scanner results for top NSE/BSE stocks and ETFs."""
+    try:
+        from core.india_market_scanner import india_market_scanner
+        results = india_market_scanner.scan_markets(filter_by=filter)
+        return JSONResponse({"status": "SUCCESS", "filter": filter, "count": len(results), "data": results})
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+# 21. India 7-Agent Signals
+@app.get("/api/india/signals")
+async def get_india_signals():
+    """Return calibrated 7-agent strategy ensemble signals for Indian markets."""
+    try:
+        from core.india_strategy_ensemble import india_strategy_ensemble
+        signals = india_strategy_ensemble.evaluate_all()
+        return JSONResponse({"status": "SUCCESS", "count": len(signals), "signals": signals})
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+# 22. Upstox Indian Brokerage Status & Funds
+@app.get("/api/india/broker/status")
+async def get_upstox_status():
+    """Return Upstox connection health, available INR funds, and ledger reconciliation."""
+    try:
+        from execution.upstox_broker import upstox_broker
+        funds = upstox_broker.get_funds()
+        reconciliation = upstox_broker.reconcile()
+        return JSONResponse({
+            "broker": "UPSTOX",
+            "status": upstox_broker.status,
+            "funds": funds,
+            "reconciliation": reconciliation
+        })
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+# 23. Indian Equity Holdings & Positions
+@app.get("/api/india/holdings")
+async def get_india_holdings():
+    """Return long-term delivery holdings in INR."""
+    try:
+        from execution.upstox_broker import upstox_broker
+        holdings = upstox_broker.get_holdings()
+        return JSONResponse({"status": "SUCCESS", "count": len(holdings), "holdings": holdings})
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+@app.get("/api/india/positions")
+async def get_india_positions():
+    """Return intraday/short-term positions in INR."""
+    try:
+        from execution.upstox_broker import upstox_broker
+        positions = upstox_broker.get_positions()
+        return JSONResponse({"status": "SUCCESS", "count": len(positions), "positions": positions})
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+# 24. Submit Indian Equity Order
+@app.post("/api/india/orders/submit")
+async def submit_india_order(request: Request):
+    """Place Indian equity order through Smart Router, session check, and double-entry ledger."""
+    try:
+        body = await request.json()
+        symbol = body.get("symbol", "RELIANCE").upper()
+        quantity = int(body.get("quantity", 1))
+        side = body.get("side", "BUY").upper()
+        order_type = body.get("order_type", "MARKET").upper()
+        product = body.get("product", "CNC").upper()
+        price = float(body.get("price", 0.0))
+
+        # 1. Route via Smart Order Router
+        from core.smart_order_router import smart_order_router
+        order_intent = {
+            "symbol": symbol,
+            "asset_class": "INDIAN_EQUITY",
+            "amount": price * quantity if price > 0 else 2500.0 * quantity,
+            "side": side,
+            "is_amo": body.get("is_amo", False)
+        }
+        routing = smart_order_router.route_order(order_intent)
+        if not routing.get("allowed"):
+            return JSONResponse({"status": "BLOCKED", "reason": routing.get("reason")}, status_code=403)
+
+        # 2. Execute via Upstox Broker Adapter
+        from execution.upstox_broker import upstox_broker
+        exec_res = upstox_broker.place_order({
+            "symbol": symbol,
+            "quantity": quantity,
+            "side": side,
+            "order_type": order_type,
+            "product": product,
+            "price": price
+        })
+
+        # 3. Double-Entry Ledger Entry
+        from core.double_entry_ledger import double_entry_ledger
+        order_val = exec_res.get("price", 2500.0) * quantity
+        double_entry_ledger.post_entry(
+            ledger_type="TRADE_EXECUTION",
+            debit_account="CUSTOMER_TRADING_ACCOUNT",
+            credit_account="MARKET_MAKER_CLEARING",
+            amount=order_val,
+            asset="INR",
+            reference_id=exec_res.get("order_id", f"ORD-IND-{int(time.time()*1000)}"),
+            environment="AEGIS_INDIA_INR",
+            metadata={"symbol": symbol, "side": side, "quantity": quantity, "product": product, "currency": "INR"}
+        )
+
+        return JSONResponse(exec_res)
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+# 25. Indian Corporate Actions
+@app.get("/api/india/corporate-actions")
+async def get_india_corporate_actions(symbol: Optional[str] = None):
+    """Return corporate actions (dividends, splits, bonuses, mergers)."""
+    try:
+        from core.corporate_action_engine import corporate_action_engine
+        actions = corporate_action_engine.list_actions(symbol)
+        return JSONResponse({"status": "SUCCESS", "count": len(actions), "actions": actions})
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+# 26. Indian Trade & Tax Statement
+@app.get("/api/india/tax-statement")
+async def get_india_tax_statement():
+    """Return exportable Indian trade & tax statement with itemized statutory levies."""
+    try:
+        from core.india_statement_engine import india_statement_engine
+        statement = india_statement_engine.generate_statement()
+        return JSONResponse({"status": "SUCCESS", "statement": statement})
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+# 27. INR Funding & Settlement Status
+@app.get("/api/india/funding/status")
+async def get_inr_funding_status():
+    """Return status of domestic INR funding rails (UPI, NetBanking, Upstox Payin)."""
+    try:
+        from execution.inr_funding_router import inr_funding_router
+        rails = inr_funding_router.get_supported_rails()
+        return JSONResponse({"status": "SUCCESS", "rails": rails})
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+@app.get("/api/india/settlement/status")
+async def get_inr_settlement_status():
+    """Return truthful settlement capability status."""
+    try:
+        from execution.inr_settlement_router import inr_settlement_router
+        report = inr_settlement_router.get_settlement_status()
+        return JSONResponse({"status": "SUCCESS", "report": report})
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+# 28. Forex & Commodities APIs
+@app.get("/api/forex/market-data")
+async def get_forex_market_data():
+    """Return live quotes for global Forex pairs and Gold spot."""
+    try:
+        from core.forex_market_data import forex_market_data
+        return JSONResponse(forex_market_data.get_quotes())
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+@app.get("/api/forex/scanner")
+async def get_forex_scanner():
+    """Return quantitative scanner and 7-agent signals for Forex & Gold."""
+    try:
+        from core.forex_market_scanner import forex_market_scanner
+        results = forex_market_scanner.scan_markets()
+        return JSONResponse({"status": "SUCCESS", "count": len(results), "data": results})
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+# 29. 13-Point Binance Diagnostic Suite
+@app.get("/api/binance/diagnostics")
+async def get_binance_diagnostics(environment: str = "TESTNET"):
+    """Return comprehensive 13-point diagnostic suite for Binance."""
+    try:
+        from execution.binance_diagnostics import binance_diagnostics
+        report = binance_diagnostics.run_diagnostics(environment=environment)
+        return JSONResponse(report)
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
 

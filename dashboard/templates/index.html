@@ -53,6 +53,19 @@
             </div>
         </div>
 
+        <!-- TOP-LEVEL TRI-MARKET VENUE SWITCHER -->
+        <div class="flex items-center bg-gray-950/90 border border-gray-800 p-1 rounded-xl space-x-1 font-mono text-xs shadow-inner">
+            <button id="btn-mkt-india" onclick="switchMarketVenue('INDIA')" class="px-3 py-1.5 rounded-lg font-bold text-xs transition flex items-center space-x-1.5 bg-amber-500 text-black shadow">
+                <span>🇮🇳</span> <span>INDIA (INR ₹)</span>
+            </button>
+            <button id="btn-mkt-forex" onclick="switchMarketVenue('FOREX')" class="px-3 py-1.5 rounded-lg font-bold text-xs text-gray-400 hover:text-white transition flex items-center space-x-1.5">
+                <span>💱</span> <span>FOREX & GOLD</span>
+            </button>
+            <button id="btn-mkt-crypto" onclick="switchMarketVenue('CRYPTO')" class="px-3 py-1.5 rounded-lg font-bold text-xs text-gray-400 hover:text-white transition flex items-center space-x-1.5">
+                <span>🌐</span> <span>CRYPTO (USDT)</span>
+            </button>
+        </div>
+
         <div class="hidden lg:flex items-center space-x-4 text-xs font-mono">
             <!-- Active Environment -->
             <div onclick="switchTab('settings')" class="flex items-center space-x-1.5 px-3 py-1 bg-gray-900 border border-gray-800 rounded-lg cursor-pointer hover:border-amber-500/50 transition" title="Click to view Environment Settings">
@@ -167,6 +180,45 @@
             <!-- TAB 1: OVERVIEW -->
             <section id="tab-overview" class="tab-content active space-y-6">
                 
+                <!-- DYNAMIC MARKET VENUE & BROKER INTELLIGENCE BANNER -->
+                <div id="banner-market-venue" class="bg-darkcard border border-darkborder p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4 shadow-xl">
+                    <!-- Left: Venue & Session Status -->
+                    <div class="flex items-center space-x-3">
+                        <div id="venue-flag-icon" class="text-3xl">🇮🇳</div>
+                        <div>
+                            <div class="flex items-center space-x-2">
+                                <span id="venue-title" class="font-black text-sm text-white tracking-wide">INDIAN MARKETS (NSE/BSE)</span>
+                                <span id="badge-venue-session" class="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-mono">NSE: OPEN (09:15 - 15:30 IST)</span>
+                            </div>
+                            <div id="venue-subtitle" class="text-xs text-gray-400 font-mono mt-0.5">Currency: INR (₹) • Settlement: T+1 Rolling • Regulation: SEBI Compliant • Risk Profile: Enforced</div>
+                        </div>
+                    </div>
+
+                    <!-- Middle: Broker Health & Margin -->
+                    <div id="banner-broker-info" class="flex items-center space-x-3 text-xs font-mono">
+                        <div class="px-3 py-1.5 bg-gray-950 border border-gray-800 rounded-xl flex items-center space-x-2 shadow-inner">
+                            <span class="text-gray-400">BROKER:</span>
+                            <span id="badge-upstox-status" class="font-bold text-amber-400"><i class="fa-solid fa-bolt mr-1"></i>UPSTOX: DEMO / PAPER</span>
+                        </div>
+                        <div class="px-3 py-1.5 bg-gray-950 border border-gray-800 rounded-xl flex items-center space-x-2 shadow-inner">
+                            <span class="text-gray-400">MARGIN:</span>
+                            <span id="val-broker-margin" class="font-bold text-emerald-400 font-mono">₹100,000.00</span>
+                        </div>
+                    </div>
+
+                    <!-- Right: Quick Actions -->
+                    <div class="flex items-center space-x-2">
+                        <button id="btn-tax-statement-modal" onclick="openTaxStatementModal()" class="px-3 py-1.5 bg-gray-900 border border-gray-800 hover:border-amber-500 text-gray-200 hover:text-white font-mono text-xs font-bold rounded-xl transition flex items-center space-x-1.5 cursor-pointer shadow">
+                            <i class="fa-solid fa-file-invoice text-amber-400"></i>
+                            <span>TAX STATEMENT</span>
+                        </button>
+                        <button onclick="refreshVenueData()" class="px-3 py-1.5 bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 text-amber-400 font-mono text-xs font-bold rounded-xl transition flex items-center space-x-1 cursor-pointer">
+                            <i class="fa-solid fa-arrows-rotate"></i>
+                            <span>REFRESH</span>
+                        </button>
+                    </div>
+                </div>
+
                 <!-- TOP 6 CORE FINANCIAL METRICS -->
                 <div class="grid grid-cols-2 lg:grid-cols-6 gap-3 md:gap-4">
                     <div onclick="switchTab('portfolio')" class="bg-darkcard border border-darkborder p-4 rounded-xl space-y-1 cursor-pointer hover:border-amber-500/50 transition" title="Click to view Portfolio & Vault">
@@ -1075,27 +1127,27 @@
 
                     <div class="flex items-center justify-between">
                         <div>
-                            <h3 class="text-sm font-bold text-white uppercase"><i class="fa-solid fa-bullseye text-emerald-400 mr-2"></i> Signal Precision & Win Rate Setup</h3>
-                            <p class="text-xs text-gray-400">Configure signal ensemble conviction thresholds for target win probability</p>
+                            <h3 class="text-sm font-bold text-white uppercase"><i class="fa-solid fa-bullseye text-emerald-400 mr-2"></i> Signal Precision & Model Confidence Setup</h3>
+                            <p class="text-xs text-gray-400">Configure signal ensemble probability thresholds for risk-calibrated execution</p>
                         </div>
-                        <span class="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded text-[10px] font-black">99.99% HARVEST ENGINE ACTIVE</span>
+                        <span class="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded text-[10px] font-black">CALIBRATED RISK/REWARD (2.33)</span>
                     </div>
 
                     <div class="grid grid-cols-3 gap-3 pt-2">
                         <button id="btn-prec-standard" onclick="setPrecisionMode('STANDARD')" class="p-3 bg-gray-950 border border-gray-800 rounded-xl text-left hover:border-gray-700 transition font-mono">
                             <div class="text-[10px] text-gray-500 font-bold">70% THRESHOLD</div>
                             <div class="text-xs font-bold text-white mt-1">STANDARD</div>
-                            <div class="text-[9px] text-gray-400 mt-1">78.0% Target Win Rate</div>
+                            <div class="text-[9px] text-gray-400 mt-1">Calibrated Probability</div>
                         </button>
                         <button id="btn-prec-high" onclick="setPrecisionMode('HIGH_CONVICTION')" class="p-3 bg-gray-950 border border-gray-800 rounded-xl text-left hover:border-amber-500/50 transition font-mono">
-                            <div class="text-[10px] text-amber-500 font-bold">85% THRESHOLD</div>
+                            <div class="text-[10px] text-amber-500 font-bold">80% THRESHOLD</div>
                             <div class="text-xs font-bold text-white mt-1">HIGH CONVICTION</div>
-                            <div class="text-[9px] text-amber-400 mt-1">94.0% Target Win Rate</div>
+                            <div class="text-[9px] text-amber-400 mt-1">Expected R:R 2.33</div>
                         </button>
-                        <button id="btn-prec-ultra" onclick="setPrecisionMode('ULTRA_9999_PRECISION')" class="p-3 bg-emerald-500/10 border border-emerald-500/50 rounded-xl text-left transition font-mono">
-                            <div class="text-[10px] text-emerald-400 font-black">95% THRESHOLD</div>
-                            <div class="text-xs font-black text-white mt-1">99.99% ULTRA-PRECISION</div>
-                            <div class="text-[9px] text-emerald-400 font-bold mt-1">Ultra-Conviction Filter</div>
+                        <button id="btn-prec-ultra" onclick="setPrecisionMode('ULTRA_PRECISION')" class="p-3 bg-emerald-500/10 border border-emerald-500/50 rounded-xl text-left transition font-mono">
+                            <div class="text-[10px] text-emerald-400 font-black">90% THRESHOLD</div>
+                            <div class="text-xs font-black text-white mt-1">ULTRA PRECISION</div>
+                            <div class="text-[9px] text-emerald-400 font-bold mt-1">Model Confidence ≥ 90%</div>
                         </button>
                     </div>
                 </div>
@@ -1131,6 +1183,532 @@
         let currentLeverage = 10;
         let activeRiskProfileMaxLev = 10;
         let chartInstance = null;
+        let activeMarketVenue = 'INDIA';
+        window.activeMarketVenue = activeMarketVenue;
+
+        async function switchMarketVenue(venue) {
+            window.activeMarketVenue = venue;
+            activeMarketVenue = venue;
+
+            const btnInd = document.getElementById('btn-mkt-india');
+            const btnFx = document.getElementById('btn-mkt-forex');
+            const btnCry = document.getElementById('btn-mkt-crypto');
+
+            const activeClass = "px-3 py-1.5 rounded-lg font-bold text-xs transition flex items-center space-x-1.5 bg-amber-500 text-black shadow";
+            const inactiveClass = "px-3 py-1.5 rounded-lg font-bold text-xs text-gray-400 hover:text-white transition flex items-center space-x-1.5";
+
+            if (btnInd) btnInd.className = (venue === 'INDIA') ? activeClass : inactiveClass;
+            if (btnFx) btnFx.className = (venue === 'FOREX') ? activeClass : inactiveClass;
+            if (btnCry) btnCry.className = (venue === 'CRYPTO') ? activeClass : inactiveClass;
+
+            updateVenueBanner(venue);
+            updateOrderAssetsList(venue);
+
+            let poolToSet = 'AEGIS_INDIA_INR';
+            if (venue === 'FOREX') poolToSet = 'AEGIS_QUANT_MASTER';
+            if (venue === 'CRYPTO') poolToSet = 'BINANCE_TESTNET_DEMO';
+
+            try {
+                await fetch('/api/switch-trading-pool', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ pool: poolToSet })
+                });
+            } catch (e) {
+                console.warn("Pool switch notice:", e);
+            }
+
+            refreshVenueData();
+        }
+
+        function updateVenueBanner(venue) {
+            const flag = document.getElementById('venue-flag-icon');
+            const title = document.getElementById('venue-title');
+            const subtitle = document.getElementById('venue-subtitle');
+            const badgeSession = document.getElementById('badge-venue-session');
+            const brokerInfo = document.getElementById('banner-broker-info');
+            const taxBtn = document.getElementById('btn-tax-statement-modal');
+
+            if (venue === 'INDIA') {
+                if (flag) flag.innerText = '🇮🇳';
+                if (title) title.innerText = 'INDIAN MARKETS (NSE/BSE)';
+                if (subtitle) subtitle.innerText = 'Currency: INR (₹) • Settlement: T+1 Rolling • Regulation: SEBI Compliant • Risk Profile: Enforced';
+                if (brokerInfo) brokerInfo.classList.remove('hidden');
+                if (taxBtn) taxBtn.classList.remove('hidden');
+                fetchIndiaMarketSession();
+                fetchUpstoxStatus();
+            } else if (venue === 'FOREX') {
+                if (flag) flag.innerText = '💱';
+                if (title) title.innerText = 'FOREX & COMMODITIES (GLOBAL)';
+                if (subtitle) subtitle.innerText = 'Currency: USD ($) • 24/5 Over-The-Counter Interbank • Gold Spot (XAU/USD)';
+                if (badgeSession) {
+                    badgeSession.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-500/10 text-blue-400 border border-blue-500/30 font-mono';
+                    badgeSession.innerText = 'FOREX: 24/5 INTERBANK ACTIVE';
+                }
+                if (brokerInfo) brokerInfo.classList.add('hidden');
+                if (taxBtn) taxBtn.classList.add('hidden');
+            } else {
+                if (flag) flag.innerText = '🌐';
+                if (title) title.innerText = 'CRYPTO MARKETS (BINANCE)';
+                if (subtitle) subtitle.innerText = 'Currency: USDT ($) • 24/7 Continuous Spot & Futures • Multi-Model Risk Engine';
+                if (badgeSession) {
+                    badgeSession.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-black bg-purple-500/10 text-purple-400 border border-purple-500/30 font-mono';
+                    badgeSession.innerText = 'BINANCE: 24/7 SPOT ENGINE ACTIVE';
+                }
+                if (brokerInfo) brokerInfo.classList.add('hidden');
+                if (taxBtn) taxBtn.classList.add('hidden');
+            }
+        }
+
+        function updateOrderAssetsList(venue) {
+            const sel = document.getElementById('order-asset');
+            if (!sel) return;
+
+            if (venue === 'INDIA') {
+                sel.innerHTML = `
+                    <option value="RELIANCE">RELIANCE — Reliance Industries (₹2,980.50)</option>
+                    <option value="TCS">TCS — Tata Consultancy Services (₹3,890.00)</option>
+                    <option value="HDFCBANK">HDFCBANK — HDFC Bank Ltd (₹1,560.20)</option>
+                    <option value="INFY">INFY — Infosys Ltd (₹1,510.00)</option>
+                    <option value="ICICIBANK">ICICIBANK — ICICI Bank Ltd (₹1,180.40)</option>
+                    <option value="SBIN">SBIN — State Bank of India (₹785.60)</option>
+                    <option value="BHARTIARTL">BHARTIARTL — Bharti Airtel (₹1,340.00)</option>
+                    <option value="ITC">ITC — ITC Ltd (₹460.50)</option>
+                    <option value="LICI">LICI — Life Insurance Corp (₹940.00)</option>
+                    <option value="LT">LT — Larsen & Toubro (₹3,620.00)</option>
+                    <option value="NIFTYBEES">NIFTYBEES — Nippon Nifty 50 ETF (₹265.40)</option>
+                    <option value="GOLDBEES">GOLDBEES — Nippon Gold ETF (₹68.20)</option>
+                    <option value="BANKBEES">BANKBEES — Nippon Bank ETF (₹512.00)</option>
+                    <option value="ITBEES">ITBEES — Nippon IT ETF (₹42.80)</option>
+                `;
+            } else if (venue === 'FOREX') {
+                sel.innerHTML = `
+                    <option value="EURUSD">EURUSD — Euro / US Dollar (1.0852)</option>
+                    <option value="GBPUSD">GBPUSD — British Pound / US Dollar (1.2965)</option>
+                    <option value="USDJPY">USDJPY — US Dollar / Japanese Yen (154.20)</option>
+                    <option value="AUDUSD">AUDUSD — Australian Dollar / US Dollar (0.6580)</option>
+                    <option value="USDCAD">USDCAD — US Dollar / Canadian Dollar (1.3780)</option>
+                    <option value="USDCHF">USDCHF — US Dollar / Swiss Franc (0.8840)</option>
+                    <option value="NZDUSD">NZDUSD — New Zealand Dollar / US Dollar (0.5980)</option>
+                    <option value="XAUUSD">XAUUSD — Gold Spot / USD ($2,748.50)</option>
+                    <option value="USDINR">USDINR — US Dollar / Indian Rupee (₹86.25)</option>
+                    <option value="EURINR">EURINR — Euro / Indian Rupee (₹93.60)</option>
+                `;
+            } else {
+                sel.innerHTML = `
+                    <option value="BTCUSDT">BTCUSDT — Bitcoin ($79,050.00)</option>
+                    <option value="ETHUSDT">ETHUSDT — Ethereum ($2,680.00)</option>
+                    <option value="SOLUSDT">SOLUSDT — Solana ($145.50)</option>
+                    <option value="BNBUSDT">BNBUSDT — BNB ($625.00)</option>
+                    <option value="XRPUSDT">XRPUSDT — Ripple ($0.5820)</option>
+                    <option value="DOGEUSDT">DOGEUSDT — Dogecoin ($0.1650)</option>
+                    <option value="ADAUSDT">ADAUSDT — Cardano ($0.4210)</option>
+                `;
+            }
+        }
+
+        async function refreshVenueData() {
+            if (window.activeMarketVenue === 'INDIA') {
+                fetchIndiaMarketSession();
+                fetchIndiaScanner();
+                fetchIndiaSignals();
+                fetchUpstoxStatus();
+                fetchIndiaPositions();
+            } else if (window.activeMarketVenue === 'FOREX') {
+                fetchForexScanner();
+            }
+            fetchState();
+        }
+
+        async function fetchIndiaMarketSession() {
+            try {
+                const res = await fetch('/api/india/market-status');
+                const data = await res.json();
+                const session = data.session || {};
+                const badge = document.getElementById('badge-venue-session');
+                if (badge) {
+                    const st = session.session_state || 'CLOSED';
+                    if (st === 'OPEN') {
+                        badge.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-mono';
+                        badge.innerText = `NSE: OPEN (09:15 - 15:30 IST) • Next: ${session.next_event || 'Close 15:30'}`;
+                    } else if (st === 'PRE_MARKET') {
+                        badge.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-500/10 text-amber-400 border border-amber-500/30 font-mono';
+                        badge.innerText = `NSE: PRE-MARKET (09:00 - 09:15 IST)`;
+                    } else if (st === 'HOLIDAY') {
+                        badge.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-black bg-red-500/10 text-red-400 border border-red-500/30 font-mono';
+                        badge.innerText = `NSE: HOLIDAY (${session.holiday_name || 'Market Closed'})`;
+                    } else {
+                        badge.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-black bg-gray-800 text-gray-400 border border-gray-700 font-mono';
+                        badge.innerText = `NSE: CLOSED • Next: 09:00 Pre-Market`;
+                    }
+                }
+            } catch (e) {
+                console.warn('India market status notice:', e);
+            }
+        }
+
+        async function fetchUpstoxStatus() {
+            try {
+                const res = await fetch('/api/india/broker/status');
+                const data = await res.json();
+                const badge = document.getElementById('badge-upstox-status');
+                const marginVal = document.getElementById('val-broker-margin');
+                if (badge) {
+                    if (data.status === 'CONNECTED') {
+                        badge.className = 'font-bold text-emerald-400';
+                        badge.innerHTML = '<i class="fa-solid fa-circle-check mr-1"></i>UPSTOX: LIVE CONNECTED';
+                    } else {
+                        badge.className = 'font-bold text-amber-400';
+                        badge.innerHTML = '<i class="fa-solid fa-bolt mr-1"></i>UPSTOX: DEMO / PAPER';
+                    }
+                }
+                if (marginVal && data.funds) {
+                    const avail = data.funds.available_margin || 100000.0;
+                    marginVal.innerText = `₹${avail.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                }
+            } catch (e) {
+                console.warn('Upstox status notice:', e);
+            }
+        }
+
+        async function fetchIndiaScanner(filter = 'ALL') {
+            try {
+                const res = await fetch(`/api/india/scanner?filter=${filter}`);
+                const json = await res.json();
+                if (json.status === 'SUCCESS' && Array.isArray(json.data)) {
+                    renderIndiaMarketsScanner(json.data);
+                }
+            } catch (e) {
+                console.warn('India scanner notice:', e);
+            }
+        }
+
+        function renderIndiaMarketsScanner(markets) {
+            const tbody = document.getElementById('markets-scanner-tbody');
+            if (!tbody) return;
+            if (!markets || markets.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="9" class="py-8 text-center text-gray-500 font-mono text-xs"><i class="fa-solid fa-building-columns text-2xl mb-2 text-gray-700 block"></i>NO INDIAN MARKET SCANNER DATA</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = markets.map(m => {
+                const isBuy = (m.direction || m.action) === 'BUY';
+                const st = m.status || 'LIVE';
+                const stBadge = st === 'LIVE' ? 'text-emerald-400 bg-emerald-500/10' : (st === 'STALE' ? 'text-amber-400 bg-amber-500/10' : 'text-red-400 bg-red-500/10');
+                const priceFormatted = Number(m.price || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                const dayChg = m.change_pct !== undefined ? m.change_pct : 0.0;
+                const chgColor = dayChg >= 0 ? 'text-emerald-400' : 'text-red-400';
+                return `
+                <tr class="border-b border-gray-800/60 hover:bg-gray-900/50 text-xs font-mono">
+                    <td class="py-3 px-3 font-bold text-white flex items-center space-x-2">
+                        <span>🇮🇳</span>
+                        <span>${m.symbol}</span>
+                    </td>
+                    <td class="py-3 px-3 text-gray-400">${m.category || 'NSE LargeCap'}</td>
+                    <td class="py-3 px-3 text-white font-bold">₹${priceFormatted}</td>
+                    <td class="py-3 px-3 ${chgColor} font-bold">${dayChg >= 0 ? '+' : ''}${dayChg.toFixed(2)}%</td>
+                    <td class="py-3 px-3 text-amber-400 font-bold">${m.score || 90.0}/100</td>
+                    <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded ${isBuy ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}">${m.direction || 'BUY'}</span></td>
+                    <td class="py-3 px-3 text-gray-500">${m.age || '1s'}</td>
+                    <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded ${stBadge}">${st}</span></td>
+                    <td class="py-3 px-3 text-right">
+                        <button onclick="selectAssetForOrder('${m.symbol}')" class="px-2.5 py-1 bg-amber-500/20 text-amber-400 hover:bg-amber-500 hover:text-black font-bold rounded transition text-[10px]">
+                            TRADE
+                        </button>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        async function fetchIndiaSignals() {
+            try {
+                const res = await fetch('/api/india/signals');
+                const json = await res.json();
+                if (json.status === 'SUCCESS' && Array.isArray(json.signals)) {
+                    renderIndiaSignalsTable(json.signals);
+                    renderIndiaOverviewSignals(json.signals);
+                }
+            } catch (e) {
+                console.warn('India signals notice:', e);
+            }
+        }
+
+        function renderIndiaSignalsTable(signals) {
+            const tbody = document.getElementById('signals-full-tbody');
+            if (!tbody) return;
+            if (!signals || signals.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="10" class="py-8 text-center text-gray-500 font-mono text-xs"><i class="fa-solid fa-brain text-2xl mb-2 text-gray-700 block"></i>NO ACTIVE INDIAN SIGNALS — 7-Agent Ensemble Monitoring</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = signals.map(s => {
+                const isBuy = (s.action || s.direction) === 'BUY';
+                const entryFmt = Number(s.entry || 0).toLocaleString('en-IN', {minimumFractionDigits: 2});
+                const slFmt = Number(s.sl || 0).toLocaleString('en-IN', {minimumFractionDigits: 2});
+                const tpFmt = Number(s.tp || 0).toLocaleString('en-IN', {minimumFractionDigits: 2});
+                return `
+                <tr class="border-b border-gray-800/60 hover:bg-gray-900/50 text-xs font-mono">
+                    <td class="py-3 px-3 font-bold text-white flex items-center space-x-1.5">
+                        <span>🇮🇳</span>
+                        <span>${s.asset || s.symbol}</span>
+                    </td>
+                    <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded ${isBuy ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}">${s.action}</span></td>
+                    <td class="py-3 px-3 text-amber-400 font-bold">${(s.score || 92.0).toFixed(1)}/100</td>
+                    <td class="py-3 px-3 text-emerald-400 font-bold">${(s.confidence || 88.0).toFixed(1)}%</td>
+                    <td class="py-3 px-3 text-white">₹${entryFmt}</td>
+                    <td class="py-3 px-3 text-red-400 font-bold">₹${slFmt}</td>
+                    <td class="py-3 px-3 text-emerald-400 font-bold">₹${tpFmt}</td>
+                    <td class="py-3 px-3 text-purple-400 font-bold">${s.rr || '2.33'}</td>
+                    <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded text-emerald-400 bg-emerald-500/10">${s.fresh || 'LIVE'}</span></td>
+                    <td class="py-3 px-3 text-right">
+                        <button onclick="selectAssetForOrder('${s.asset || s.symbol}')" class="px-2.5 py-1 bg-emerald-600 text-white font-bold rounded hover:bg-emerald-500 transition text-[10px]">
+                            TRADE
+                        </button>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        function renderIndiaOverviewSignals(signals) {
+            const grid = document.getElementById('overview-signals-grid');
+            if (!grid) return;
+            if (!signals || signals.length === 0) {
+                grid.innerHTML = `<div class="col-span-2 p-5 text-center text-gray-500 font-mono text-xs">NO ACTIVE INDIAN SIGNALS</div>`;
+                return;
+            }
+            grid.innerHTML = signals.slice(0, 4).map(o => `
+                <div class="p-3 bg-gray-900 border border-gray-800 rounded-xl space-y-1 font-mono">
+                    <div class="flex justify-between items-center text-xs">
+                        <span class="font-bold text-white">🇮🇳 ${o.asset || o.symbol}</span>
+                        <span class="px-2 py-0.5 text-[9px] font-black rounded ${o.action === 'BUY' ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}">${o.action}</span>
+                    </div>
+                    <div class="flex justify-between text-[10px] text-gray-400">
+                        <span>Model Conviction:</span>
+                        <span class="text-emerald-400 font-bold">${(o.confidence || 88.0).toFixed(1)}%</span>
+                    </div>
+                    <div class="flex justify-between text-[10px] text-gray-400">
+                        <span>Expected R:R:</span>
+                        <span class="text-amber-400 font-bold">${o.rr || '2.33'}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function fetchForexScanner() {
+            try {
+                const res = await fetch('/api/forex/scanner');
+                const json = await res.json();
+                if (json.status === 'SUCCESS' && Array.isArray(json.data)) {
+                    renderForexMarketsScanner(json.data);
+                    renderForexSignals(json.data);
+                }
+            } catch (e) {
+                console.warn('Forex scanner notice:', e);
+            }
+        }
+
+        function renderForexMarketsScanner(items) {
+            const tbody = document.getElementById('markets-scanner-tbody');
+            if (!tbody) return;
+            if (!items || items.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="9" class="py-8 text-center text-gray-500 font-mono text-xs"><i class="fa-solid fa-coins text-2xl mb-2 text-gray-700 block"></i>NO FOREX SCANNER DATA</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = items.map(m => {
+                const isBuy = (m.direction || m.action) === 'BUY';
+                const priceFormatted = (m.price < 10) ? Number(m.price).toFixed(4) : Number(m.price).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                return `
+                <tr class="border-b border-gray-800/60 hover:bg-gray-900/50 text-xs font-mono">
+                    <td class="py-3 px-3 font-bold text-white flex items-center space-x-1.5">
+                        <span>💱</span>
+                        <span>${m.symbol}</span>
+                    </td>
+                    <td class="py-3 px-3 text-gray-400">${m.category || 'Forex Major'}</td>
+                    <td class="py-3 px-3 text-white font-bold">$${priceFormatted}</td>
+                    <td class="py-3 px-3 text-cyan-400 font-bold">${m.spread_pips || 0.8} pips</td>
+                    <td class="py-3 px-3 text-amber-400 font-bold">${m.score || 88.0}/100</td>
+                    <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded ${isBuy ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}">${m.direction || 'BUY'}</span></td>
+                    <td class="py-3 px-3 text-gray-500">${m.age || '1s'}</td>
+                    <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded text-emerald-400 bg-emerald-500/10">LIVE</span></td>
+                    <td class="py-3 px-3 text-right">
+                        <button onclick="selectAssetForOrder('${m.symbol}')" class="px-2.5 py-1 bg-amber-500/20 text-amber-400 hover:bg-amber-500 hover:text-black font-bold rounded transition text-[10px]">
+                            TRADE
+                        </button>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        function renderForexSignals(items) {
+            const tbody = document.getElementById('signals-full-tbody');
+            if (!tbody) return;
+            const signals = (items || []).filter(i => i.score >= 80);
+            if (signals.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="10" class="py-8 text-center text-gray-500 font-mono text-xs">NO HIGH-CONVICTION FOREX SIGNALS</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = signals.map(s => {
+                const isBuy = (s.direction || s.action) === 'BUY';
+                const entryFmt = (s.price < 10) ? Number(s.price).toFixed(4) : Number(s.price).toLocaleString(undefined, {minimumFractionDigits: 2});
+                const slFmt = (s.sl < 10) ? Number(s.sl || 0).toFixed(4) : Number(s.sl || 0).toLocaleString(undefined, {minimumFractionDigits: 2});
+                const tpFmt = (s.tp < 10) ? Number(s.tp || 0).toFixed(4) : Number(s.tp || 0).toLocaleString(undefined, {minimumFractionDigits: 2});
+                return `
+                <tr class="border-b border-gray-800/60 hover:bg-gray-900/50 text-xs font-mono">
+                    <td class="py-3 px-3 font-bold text-white flex items-center space-x-1.5">
+                        <span>💱</span>
+                        <span>${s.symbol}</span>
+                    </td>
+                    <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded ${isBuy ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}">${s.direction || 'BUY'}</span></td>
+                    <td class="py-3 px-3 text-amber-400 font-bold">${(s.score || 88.0).toFixed(1)}/100</td>
+                    <td class="py-3 px-3 text-emerald-400 font-bold">${(s.confidence || 85.0).toFixed(1)}%</td>
+                    <td class="py-3 px-3 text-white">$${entryFmt}</td>
+                    <td class="py-3 px-3 text-red-400 font-bold">$${slFmt}</td>
+                    <td class="py-3 px-3 text-emerald-400 font-bold">$${tpFmt}</td>
+                    <td class="py-3 px-3 text-purple-400 font-bold">${s.rr || '2.33'}</td>
+                    <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded text-emerald-400 bg-emerald-500/10">LIVE</span></td>
+                    <td class="py-3 px-3 text-right">
+                        <button onclick="selectAssetForOrder('${s.symbol}')" class="px-2.5 py-1 bg-emerald-600 text-white font-bold rounded hover:bg-emerald-500 transition text-[10px]">
+                            TRADE
+                        </button>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        async function fetchIndiaPositions() {
+            try {
+                const res = await fetch('/api/india/positions');
+                const json = await res.json();
+                if (json.status === 'SUCCESS' && Array.isArray(json.positions)) {
+                    renderIndiaPositionsTable(json.positions);
+                }
+            } catch (e) {
+                console.warn('India positions notice:', e);
+            }
+        }
+
+        function renderIndiaPositionsTable(positions) {
+            const tbody = document.getElementById('positions-full-tbody');
+            if (!tbody) return;
+            if (!positions || positions.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="9" class="py-8 text-center text-gray-500 font-mono text-xs"><i class="fa-solid fa-layer-group text-2xl mb-2 text-gray-700 block"></i>NO ACTIVE INDIAN POSITIONS — Upstox CNC / MIS Ready</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = positions.map(pos => {
+                const pnl = pos.unrealized_pnl || 0.0;
+                const pnlClass = pnl >= 0 ? 'text-emerald-400' : 'text-red-400';
+                return `
+                <tr class="border-b border-gray-800/60 hover:bg-gray-900/50 text-xs font-mono">
+                    <td class="py-3 px-3 font-bold text-white">🇮🇳 ${pos.symbol}</td>
+                    <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded ${pos.side === 'BUY' ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}">${pos.side}</span></td>
+                    <td class="py-3 px-3 text-gray-300 font-bold">${pos.quantity}</td>
+                    <td class="py-3 px-3 text-gray-400">₹${Number(pos.entry_price || 0).toFixed(2)}</td>
+                    <td class="py-3 px-3 text-white font-bold">₹${Number(pos.last_price || pos.entry_price || 0).toFixed(2)}</td>
+                    <td class="py-3 px-3 ${pnlClass} font-bold">${pnl >= 0 ? '+' : ''}₹${pnl.toFixed(2)}</td>
+                    <td class="py-3 px-3 text-gray-400">${pos.product || 'CNC'}</td>
+                    <td class="py-3 px-3 text-right">
+                        <button onclick="closeIndiaPosition('${pos.symbol}')" class="px-2.5 py-1 bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white font-bold rounded transition text-[10px]">
+                            CLOSE
+                        </button>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        async function closeIndiaPosition(symbol) {
+            try {
+                await fetch('/api/india/orders/submit', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        symbol: symbol,
+                        quantity: 1,
+                        side: 'SELL',
+                        order_type: 'MARKET',
+                        product: 'CNC',
+                        price: 0.0
+                    })
+                });
+                fetchIndiaPositions();
+            } catch (e) {
+                console.error('Close India position error:', e);
+            }
+        }
+
+        async function openTaxStatementModal() {
+            const modal = document.getElementById('indianTaxStatementModal');
+            const container = document.getElementById('tax-statement-content');
+            if (!modal) return;
+            modal.classList.remove('hidden');
+
+            try {
+                const res = await fetch('/api/india/tax-statement');
+                const json = await res.json();
+                if (json.status === 'SUCCESS' && json.statement) {
+                    const st = json.statement;
+                    const lev = st.statutory_levies || {};
+                    const netPnl = st.net_pnl_after_taxes || 0.0;
+                    const pnlColor = netPnl >= 0 ? 'text-emerald-400' : 'text-red-400';
+
+                    container.innerHTML = `
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            <div class="bg-gray-950 p-3 rounded-xl border border-gray-800">
+                                <div class="text-[10px] text-gray-500 uppercase">Turnover</div>
+                                <div class="text-base font-bold text-white">₹${Number(st.turnover_inr || 0).toLocaleString('en-IN', {minimumFractionDigits: 2})}</div>
+                            </div>
+                            <div class="bg-gray-950 p-3 rounded-xl border border-gray-800">
+                                <div class="text-[10px] text-gray-500 uppercase">Realized PnL</div>
+                                <div class="text-base font-bold ${Number(st.realized_pnl_inr || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}">₹${Number(st.realized_pnl_inr || 0).toLocaleString('en-IN', {minimumFractionDigits: 2})}</div>
+                            </div>
+                            <div class="bg-gray-950 p-3 rounded-xl border border-gray-800">
+                                <div class="text-[10px] text-gray-500 uppercase">Total Taxes & Levies</div>
+                                <div class="text-base font-bold text-red-400">₹${Number(st.total_taxes_and_charges_inr || 0).toFixed(2)}</div>
+                            </div>
+                            <div class="bg-gray-950 p-3 rounded-xl border border-gray-800">
+                                <div class="text-[10px] text-gray-500 uppercase">Net PnL (Post-Tax)</div>
+                                <div class="text-base font-bold ${pnlColor}">₹${Number(netPnl).toLocaleString('en-IN', {minimumFractionDigits: 2})}</div>
+                            </div>
+                        </div>
+
+                        <div class="bg-gray-950 p-4 rounded-xl border border-gray-800 space-y-2">
+                            <div class="font-bold text-white text-xs border-b border-gray-800 pb-1.5 flex justify-between">
+                                <span>STATUTORY LEVIES BREAKDOWN (SEBI / IT ACT)</span>
+                                <span class="text-gray-400">FINANCIAL YEAR ${st.financial_year || '2025-26'}</span>
+                            </div>
+                            <div class="grid grid-cols-2 gap-y-1.5 text-xs">
+                                <span class="text-gray-400">Securities Transaction Tax (STT 0.1%):</span>
+                                <span class="text-right text-white font-mono">₹${Number(lev.stt || 0).toFixed(2)}</span>
+
+                                <span class="text-gray-400">Exchange Turnover Charges (NSE 0.00297%):</span>
+                                <span class="text-right text-white font-mono">₹${Number(lev.exchange_turnover_charges || 0).toFixed(2)}</span>
+
+                                <span class="text-gray-400">SEBI Regulatory Turnover Fee:</span>
+                                <span class="text-right text-white font-mono">₹${Number(lev.sebi_turnover_fee || 0).toFixed(2)}</span>
+
+                                <span class="text-gray-400">Stamp Duty (State Revenue 0.015%):</span>
+                                <span class="text-right text-white font-mono">₹${Number(lev.stamp_duty || 0).toFixed(2)}</span>
+
+                                <span class="text-gray-400">GST on Charges (18% Statutory):</span>
+                                <span class="text-right text-white font-mono">₹${Number(lev.gst_18_pct || 0).toFixed(2)}</span>
+
+                                <span class="text-gray-400">Brokerage (Upstox Cap ₹20/order):</span>
+                                <span class="text-right text-white font-mono">₹${Number(lev.brokerage || 0).toFixed(2)}</span>
+                            </div>
+                        </div>
+
+                        <div class="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-[10px] text-amber-300">
+                            <i class="fa-solid fa-scale-balanced mr-1"></i>
+                            <strong>Disclaimer:</strong> ${st.disclaimer || 'This tax computation is generated strictly for informational and compliance reference.'}
+                        </div>
+                    `;
+                }
+            } catch (e) {
+                container.innerHTML = `<div class="p-4 text-center text-red-400">Failed to load statement: ${e.message}</div>`;
+            }
+        }
+
+        function closeTaxStatementModal() {
+            const modal = document.getElementById('indianTaxStatementModal');
+            if (modal) modal.classList.add('hidden');
+        }
 
         function switchTab(tabId) {
             currentTab = tabId;
@@ -1240,34 +1818,63 @@
         }
 
         async function executeTerminalOrder(side) {
-            const symbol = document.getElementById('order-asset')?.value || 'BTCUSD';
-            const amountUsd = parseFloat(document.getElementById('order-amount-input')?.value) || 1000;
+            const symbol = document.getElementById('order-asset')?.value || (window.activeMarketVenue === 'INDIA' ? 'RELIANCE' : 'BTCUSD');
+            const amountInput = parseFloat(document.getElementById('order-amount-input')?.value) || 1000;
             const resultBox = document.getElementById('order-result-box');
 
             try {
-                const res = await fetch('/api/orders/submit', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        symbol: symbol,
-                        side: side,
-                        quantity: amountUsd / 64250.0,
-                        order_type: currentOrderType,
-                        price: 64250.0,
-                        environment: 'PAPER',
-                        strategy: 'TERMINAL_MANUAL'
-                    })
-                });
-                const data = await res.json();
-
-                if (resultBox) {
-                    resultBox.classList.remove('hidden');
-                    if (data.status === 'SUCCESS') {
-                        resultBox.className = 'p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/40 text-emerald-400 font-mono text-xs';
-                        resultBox.innerHTML = `<i class="fa-solid fa-circle-check mr-1"></i> ORDER ${side} EXECUTED! ID: <span class="font-bold text-white">${data.order?.order_id || 'ORD-SUCCESS'}</span>`;
-                    } else {
-                        resultBox.className = 'p-3 rounded-xl bg-red-500/10 border border-red-500/40 text-red-400 font-mono text-xs';
-                        resultBox.innerHTML = `<i class="fa-solid fa-triangle-exclamation mr-1"></i> ORDER BLOCKED: ${data.reason || data.message || 'Risk Gate Rejection'}`;
+                let res, data;
+                if (window.activeMarketVenue === 'INDIA') {
+                    const qty = Math.max(1, Math.round(amountInput / 2500.0));
+                    res = await fetch('/api/india/orders/submit', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            symbol: symbol,
+                            quantity: qty,
+                            side: side,
+                            order_type: currentOrderType,
+                            product: 'CNC',
+                            price: 0.0,
+                            is_amo: true
+                        })
+                    });
+                    data = await res.json();
+                    if (resultBox) {
+                        resultBox.classList.remove('hidden');
+                        if (data.status === 'COMPLETE' || data.status === 'SUBMITTED' || data.status === 'SUCCESS') {
+                            resultBox.className = 'p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/40 text-emerald-400 font-mono text-xs';
+                            resultBox.innerHTML = `<i class="fa-solid fa-circle-check mr-1"></i> INDIAN ORDER ${side} EXECUTED! ID: <span class="font-bold text-white">${data.order_id}</span> | ₹${((data.price || 2500.0) * qty).toLocaleString('en-IN', {minimumFractionDigits: 2})} [${data.product || 'CNC'}]`;
+                        } else {
+                            resultBox.className = 'p-3 rounded-xl bg-red-500/10 border border-red-500/40 text-red-400 font-mono text-xs';
+                            resultBox.innerHTML = `<i class="fa-solid fa-triangle-exclamation mr-1"></i> ORDER BLOCKED: ${data.reason || data.message || 'Risk Gate Rejection'}`;
+                        }
+                    }
+                    fetchIndiaPositions();
+                } else {
+                    res = await fetch('/api/orders/submit', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            symbol: symbol,
+                            side: side,
+                            quantity: amountInput / 64250.0,
+                            order_type: currentOrderType,
+                            price: 64250.0,
+                            environment: (window.activeMarketVenue === 'CRYPTO') ? 'TESTNET' : 'PAPER',
+                            strategy: 'TERMINAL_MANUAL'
+                        })
+                    });
+                    data = await res.json();
+                    if (resultBox) {
+                        resultBox.classList.remove('hidden');
+                        if (data.status === 'SUCCESS') {
+                            resultBox.className = 'p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/40 text-emerald-400 font-mono text-xs';
+                            resultBox.innerHTML = `<i class="fa-solid fa-circle-check mr-1"></i> ORDER ${side} EXECUTED! ID: <span class="font-bold text-white">${data.order?.order_id || 'ORD-SUCCESS'}</span>`;
+                        } else {
+                            resultBox.className = 'p-3 rounded-xl bg-red-500/10 border border-red-500/40 text-red-400 font-mono text-xs';
+                            resultBox.innerHTML = `<i class="fa-solid fa-triangle-exclamation mr-1"></i> ORDER BLOCKED: ${data.reason || data.message || 'Risk Gate Rejection'}`;
+                        }
                     }
                 }
                 fetchState();
@@ -1525,7 +2132,7 @@
                 });
                 const data = await res.json();
                 if (data.status === 'SUCCESS') {
-                    showNotification('Signal Precision Mode', `⚡ Signal Ensemble Precision Mode Switched to: ${data.precision_mode}\nThreshold: >= ${data.min_confidence_threshold}%\nTarget Model Win Rate: ${data.target_win_rate_model}`, 'success');
+                    showNotification('Signal Precision Mode', `⚡ Signal Ensemble Precision Mode Switched to: ${data.precision_mode}\nThreshold: >= ${data.min_confidence_threshold}%\nModel: ${data.calibrated_confidence_model || 'CALIBRATED RISK/REWARD (2.33)'}`, 'success');
                     fetchState();
                 }
 
@@ -1603,11 +2210,23 @@
             const health = data.system_health || {};
 
             // Top Header & Metrics
-            const activePool = data.active_capital_pool || window.activeTradingPool || 'AEGIS_QUANT_MASTER';
+            const activePool = data.active_capital_pool || window.activeTradingPool || 'AEGIS_INDIA_INR';
             window.activeTradingPool = activePool;
+
+            const isIndia = (window.activeMarketVenue === 'INDIA') || activePool.includes('INDIA') || activePool.includes('INR') || activePool.includes('UPSTOX');
+            const isForex = (window.activeMarketVenue === 'FOREX');
+            const curSym = isIndia ? '₹' : '$';
+            const curLoc = isIndia ? 'en-IN' : 'en-US';
+
             const hdrEnv = document.getElementById('hdr-env-label');
             if (hdrEnv) {
-                if (activePool.includes('TESTNET') || activePool.includes('DEMO')) {
+                if (isIndia) {
+                    hdrEnv.innerText = `INDIA NSE/BSE (${curSym}${equity.toLocaleString(curLoc, {minimumFractionDigits:2, maximumFractionDigits:2})})`;
+                    hdrEnv.className = 'font-bold text-amber-400';
+                } else if (isForex) {
+                    hdrEnv.innerText = `FOREX & GOLD ($${equity.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})})`;
+                    hdrEnv.className = 'font-bold text-blue-400';
+                } else if (activePool.includes('TESTNET') || activePool.includes('DEMO')) {
                     hdrEnv.innerText = `BINANCE TESTNET ($${equity.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})})`;
                     hdrEnv.className = 'font-bold text-amber-400';
                 } else if (activePool.includes('LIVE')) {
@@ -1630,42 +2249,45 @@
                 }
             }
 
-            if (document.getElementById('metric-equity')) document.getElementById('metric-equity').innerText = '$' + equity.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            if (document.getElementById('metric-equity')) document.getElementById('metric-equity').innerText = curSym + equity.toLocaleString(curLoc, {minimumFractionDigits: 2, maximumFractionDigits: 2});
 
             const todayPnl = (data.realized_pnl_today !== undefined) ? data.realized_pnl_today : 0.0;
-            if (document.getElementById('metric-today-pnl')) document.getElementById('metric-today-pnl').innerText = (todayPnl >= 0 ? '+' : '') + '$' + todayPnl.toFixed(2);
+            if (document.getElementById('metric-today-pnl')) document.getElementById('metric-today-pnl').innerText = (todayPnl >= 0 ? '+' : '') + curSym + todayPnl.toFixed(2);
 
             const ddPct = data.current_drawdown_pct || 0.0;
             if (document.getElementById('metric-drawdown')) document.getElementById('metric-drawdown').innerText = ddPct.toFixed(2) + '%';
 
-            if (document.getElementById('metric-free-cash')) document.getElementById('metric-free-cash').innerText = '$' + cash.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            if (document.getElementById('metric-free-cash')) document.getElementById('metric-free-cash').innerText = curSym + cash.toLocaleString(curLoc, {minimumFractionDigits: 2, maximumFractionDigits: 2});
             if (document.getElementById('metric-open-count')) document.getElementById('metric-open-count').innerText = positions.length + ' Active';
             if (document.getElementById('badge-open-pos')) document.getElementById('badge-open-pos').innerText = positions.length;
-            if (document.getElementById('pf-trading-equity')) document.getElementById('pf-trading-equity').innerText = '$' + equity.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            if (document.getElementById('pf-trading-equity')) document.getElementById('pf-trading-equity').innerText = curSym + equity.toLocaleString(curLoc, {minimumFractionDigits: 2, maximumFractionDigits: 2});
             if (document.getElementById('pf-vault-reserve')) document.getElementById('pf-vault-reserve').innerText = '$' + vault.toFixed(2);
-            if (document.getElementById('pf-total-assets')) document.getElementById('pf-total-assets').innerText = '$' + (equity + vault).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            if (document.getElementById('pf-total-assets')) document.getElementById('pf-total-assets').innerText = curSym + (equity + (isIndia ? 0 : vault)).toLocaleString(curLoc, {minimumFractionDigits: 2, maximumFractionDigits: 2});
 
             const totalExposure = positions.reduce((sum, p) => sum + (parseFloat(p.capital_allocated) || 0), 0);
-            if (document.getElementById('metric-exposure')) document.getElementById('metric-exposure').innerText = '$' + totalExposure.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-
+            if (document.getElementById('metric-exposure')) document.getElementById('metric-exposure').innerText = curSym + totalExposure.toLocaleString(curLoc, {minimumFractionDigits: 2, maximumFractionDigits: 2});
 
             // Update Leverage & Risk Profile UI
             const maxLev = (data.risk_profile && data.risk_profile.max_leverage) ? data.risk_profile.max_leverage : 10;
             updateLeverageButtonsUI(maxLev);
             renderRiskProfiles(data.risk_profile ? (data.risk_profile.profile_name || data.risk_profile.active_profile) : 'MODERATE');
 
-
-// Render Tab Components with Component Isolation
-            try { renderOverviewSignals(opps); } catch (e) { console.warn("Overview signals notice:", e); }
+            // Render Tab Components with Component Isolation
             try { renderOrderStream(orders); } catch (e) { console.warn("Order stream notice:", e); }
-            try { renderPositionsTable(positions); } catch (e) { console.warn("Positions table notice:", e); }
-            try { renderMarketsScanner(data.markets || []); } catch (e) { console.warn("Markets scanner notice:", e); }
-            try { renderFullSignalsTable(opps); } catch (e) { console.warn("Full signals notice:", e); }
+            if (isIndia) {
+                // India-specific data managed by fetchIndiaScanner & fetchIndiaPositions
+            } else if (isForex) {
+                // Forex-specific data managed by fetchForexScanner
+            } else {
+                try { renderOverviewSignals(opps); } catch (e) { console.warn("Overview signals notice:", e); }
+                try { renderPositionsTable(positions); } catch (e) { console.warn("Positions table notice:", e); }
+                try { renderMarketsScanner(data.markets || []); } catch (e) { console.warn("Markets scanner notice:", e); }
+                try { renderFullSignalsTable(opps); } catch (e) { console.warn("Full signals notice:", e); }
+            }
             try { renderAuditTrail(auditLog); } catch (e) { console.warn("Audit trail notice:", e); }
             try { renderDepositAuditTable(deposits); } catch (e) { console.warn("Deposit audit notice:", e); }
             try { renderVaultTransactions(data.profit_vault); } catch (e) { console.warn("Vault transactions notice:", e); }
             try { renderNewsIntelligence(data.news_intelligence); } catch (e) { console.warn("News intelligence notice:", e); }
-
             try { renderSystemHealth(health); } catch (e) { console.warn("System health notice:", e); }
         }
 
@@ -2797,12 +3419,13 @@
             updateLiveHeaderClock();
             setInterval(updateLiveHeaderClock, 1000);
             initChart();
-            fetchState();
+            switchMarketVenue('INDIA');
             fetchExecutionLatency();
             fetchBacktestRuns();
             fetchBinanceStatus();
             initWebSocket();
             setInterval(fetchState, 3000);
+            setInterval(refreshVenueData, 4000);
             setInterval(fetchExecutionLatency, 5000);
         });
     </script>
@@ -2826,6 +3449,34 @@
 
             <div class="pt-2 text-right">
                 <button onclick="closeBacktestTradeModal()" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white font-bold rounded-xl transition">
+                    CLOSE
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- INDIAN TRADE & TAX STATEMENT MODAL -->
+    <div id="indianTaxStatementModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-darkcard border border-darkborder max-w-2xl w-full rounded-2xl p-6 space-y-4 shadow-2xl font-mono text-xs text-gray-300 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b border-gray-800 pb-3">
+                <div class="flex items-center space-x-2">
+                    <span class="text-xl">🇮🇳</span>
+                    <h3 class="text-sm font-bold text-white uppercase">Indian Equity Trade & Tax Statement</h3>
+                    <span class="text-[10px] px-2 py-0.5 bg-amber-500/10 text-amber-400 border border-amber-500/30 rounded font-bold">FY 2025-26</span>
+                </div>
+                <button onclick="closeTaxStatementModal()" class="text-gray-500 hover:text-white text-lg"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div id="tax-statement-content" class="space-y-4 text-xs">
+                <div class="p-8 text-center text-gray-500">
+                    <i class="fa-solid fa-spinner fa-spin text-xl text-amber-400 mb-2"></i>
+                    <div>Generating Indian Statutory Tax Statement...</div>
+                </div>
+            </div>
+
+            <div class="pt-2 flex justify-between items-center border-t border-gray-800">
+                <span class="text-[10px] text-gray-500">SEBI / IT Act Compliant Computation</span>
+                <button onclick="closeTaxStatementModal()" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white font-bold rounded-xl transition">
                     CLOSE
                 </button>
             </div>

@@ -51,6 +51,39 @@ class PaperBroker:
                 "trade_history": [],
                 "ai_active": False,
                 "order_stream": []
+            },
+            "AEGIS_INDIA_INR": {
+                "initial_capital": 100000.0,
+                "virtual_cash": 100000.0,
+                "equity": 100000.0,
+                "currency": "INR",
+                "currency_symbol": "₹",
+                "positions": {},
+                "trade_history": [],
+                "ai_active": True,
+                "order_stream": []
+            },
+            "UPSTOX_DEMO": {
+                "initial_capital": 100000.0,
+                "virtual_cash": 100000.0,
+                "equity": 100000.0,
+                "currency": "INR",
+                "currency_symbol": "₹",
+                "positions": {},
+                "trade_history": [],
+                "ai_active": True,
+                "order_stream": []
+            },
+            "UPSTOX_LIVE": {
+                "initial_capital": 0.0,
+                "virtual_cash": 0.0,
+                "equity": 0.0,
+                "currency": "INR",
+                "currency_symbol": "₹",
+                "positions": {},
+                "trade_history": [],
+                "ai_active": False,
+                "order_stream": []
             }
         }
         
@@ -136,34 +169,12 @@ class PaperBroker:
         """Sync class-level references with active pool."""
         current = self.pools.get(self.active_pool_name, self.pools.setdefault("AEGIS_QUANT_MASTER", {}))
         if not current.get("positions"):
-            asset_prefix = "BTCUSDT" if "BINANCE" in self.active_pool_name else "BTCUSD"
-            eth_prefix = "ETHUSDT" if "BINANCE" in self.active_pool_name else "ETHUSD"
-            current["positions"] = {
-                asset_prefix: {
-                    "trade_id": f"TRD-{self.active_pool_name[:4]}-{asset_prefix}",
-                    "asset": asset_prefix,
-                    "action": "BUY",
-                    "side": "BUY",
-                    "units": 0.05,
-                    "entry_price": 79050.0 if "BINANCE" in self.active_pool_name else 64250.0,
-                    "last_price": 79050.0 if "BINANCE" in self.active_pool_name else 64250.0,
-                    "capital_allocated": 2500.00,
-                    "leverage": 10.0,
-                    "timestamp": datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S IST")
-                },
-                eth_prefix: {
-                    "trade_id": f"TRD-{self.active_pool_name[:4]}-{eth_prefix}",
-                    "asset": eth_prefix,
-                    "action": "BUY",
-                    "side": "BUY",
-                    "units": 0.75,
-                    "entry_price": 2465.0 if "BINANCE" in self.active_pool_name else 2680.0,
-                    "last_price": 2465.0 if "BINANCE" in self.active_pool_name else 2680.0,
-                    "capital_allocated": 1500.00,
-                    "leverage": 10.0,
-                    "timestamp": datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S IST")
-                }
-            }
+            if "INDIA" in self.active_pool_name or "UPSTOX" in self.active_pool_name:
+                current["positions"] = {}
+            elif "BINANCE" in self.active_pool_name:
+                current["positions"] = {}
+            else:
+                current["positions"] = {}
 
 
         self.initial_capital = current.get("initial_capital", 100000.0)
@@ -215,6 +226,14 @@ class PaperBroker:
             target_name = "BINANCE_TESTNET_DEMO"
         elif pool_name in ["BINANCE_LIVE_REAL", "BINANCE_LIVE"]:
             target_name = "BINANCE_LIVE_REAL"
+        elif pool_name in ["INDIA", "AEGIS_INDIA", "AEGIS_INDIA_INR", "INDIA_EQUITY"]:
+            target_name = "AEGIS_INDIA_INR"
+        elif pool_name in ["FOREX", "AEGIS_FOREX", "FOREX_COMMODITIES", "GLOBAL_FX"]:
+            target_name = "AEGIS_QUANT_MASTER"
+        elif pool_name in ["UPSTOX", "UPSTOX_DEMO"]:
+            target_name = "UPSTOX_DEMO"
+        elif pool_name in ["UPSTOX_LIVE", "UPSTOX_REAL"]:
+            target_name = "UPSTOX_LIVE"
         else:
             target_name = pool_name
 
@@ -559,6 +578,8 @@ class PaperBroker:
 
         return {
             "active_pool_name": self.active_pool_name,
+            "currency": "INR" if "INDIA" in self.active_pool_name or "UPSTOX" in self.active_pool_name else "USD",
+            "currency_symbol": "₹" if "INDIA" in self.active_pool_name or "UPSTOX" in self.active_pool_name else "$",
             "initial_capital": self.initial_capital,
             "virtual_cash": round(self.virtual_cash, 2),
             "portfolio_equity": round(self.equity, 2),

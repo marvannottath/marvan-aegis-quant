@@ -73,6 +73,18 @@ class DoubleEntryLedger:
 
         entry_id = f"DEL-{ledger_type[:3]}-{int(time.time()*1000)}-{uuid.uuid4().hex[:6].upper()}"
 
+        entry_metadata = {
+            "currency": asset,
+            "amount": round(amount, 2),
+            "exchange_rate": float(metadata.get("exchange_rate", 1.0) if metadata else 1.0),
+            "fee": float(metadata.get("fee", 0.0) if metadata else 0.0),
+            "timestamp": get_ist_str(),
+            "provider": metadata.get("provider", "INTERNAL") if metadata else "INTERNAL",
+            "account": credit_account,
+            "transaction_id": entry_id,
+            **(metadata or {})
+        }
+
         record = {
             "entry_id": entry_id,
             "timestamp": get_ist_str(),
@@ -82,8 +94,9 @@ class DoubleEntryLedger:
             "credit_account": credit_account,
             "amount": round(amount, 2),
             "asset": asset,
+            "currency": asset,
             "reference_id": reference_id or entry_id,
-            "metadata": metadata or {},
+            "metadata": entry_metadata,
             "status": "POSTED"
         }
 
@@ -91,11 +104,16 @@ class DoubleEntryLedger:
         self._save_ledger()
         return record
 
-    def ensure_opening_balance(self, environment: str = "AEGIS_QUANT_MASTER", amount: float = 100000.0) -> Dict[str, Any]:
+    def ensure_opening_balance(
+        self,
+        environment: str = "AEGIS_QUANT_MASTER",
+        amount: float = 100000.0,
+        asset: str = "USDT"
+    ) -> Dict[str, Any]:
         """
         Idempotently record the OPENING_BALANCE ledger transaction.
-        DEBIT: Broker/Trading Asset ($100,000)
-        CREDIT: Customer Trading Account ($100,000)
+        DEBIT: Broker/Trading Asset
+        CREDIT: Customer Trading Account
         """
         existing = [
             e for e in self.entries
@@ -106,27 +124,62 @@ class DoubleEntryLedger:
         if existing:
             return existing[0]
 
+        curr_symbol = "₹" if asset == "INR" else "$"
         return self.post_entry(
             ledger_type="OPENING_BALANCE",
             debit_account="BROKER_TRADING_ASSET",
             credit_account="CUSTOMER_TRADING_ACCOUNT",
             amount=amount,
-            asset="USDT",
+            asset=asset,
             reference_id=f"OPENING_BALANCE_{environment}",
             environment=environment,
-            metadata={"description": "Initial Opening Capital Seed", "is_opening_balance": True}
+            metadata={
+                "description": f"Initial Opening Capital Seed ({curr_symbol}{amount:,.2f})",
+                "is_opening_balance": True,
+                "currency": asset,
+                "provider": "INTERNAL"
+            }
         )
 
-    def get_account_balance(self, account_name: str, environment: str = "AEGIS_QUANT_MASTER") -> float:
-        """Dynamically compute account balance = Total Credits - Total Debits."""
-        credits = sum(e["amount"] for e in self.entries if e.get("environment") == environment and e.get("credit_account") == account_name and e.get("status") == "POSTED")
-        debits = sum(e["amount"] for e in self.entries if e.get("environment") == environment and e.get("debit_account") == account_name and e.get("status") == "POSTED")
+    def get_account_balance(
+        self,
+        account_name: str,
+        environment: str = "AEGIS_QUANT_MASTER",
+        asset: Optional[str] = None
+    ) -> float:
+        """Dynamically compute account balance = Total Credits - Total Debits, optionally filtered by asset/currency."""
+        credits = sum(
+            e["amount"] for e in self.entries
+            if e.get("environment") == environment
+            and e.get("credit_account") == account_name
+            and e.get("status") == "POSTED"
+            and (asset is None or e.get("asset") == asset or e.get("currency") == asset)
+        )
+        debits = sum(
+            e["amount"] for e in self.entries
+            if e.get("environment") == environment
+            and e.get("debit_account") == account_name
+            and e.get("status") == "POSTED"
+            and (asset is None or e.get("asset") == asset or e.get("currency") == asset)
+        )
         return round(credits - debits, 2)
 
-    def get_ledger_history(self, ledger_type: Optional[str] = None, environment: str = "AEGIS_QUANT_MASTER") -> List[Dict[str, Any]]:
-        return [e for e in self.entries if e.get("environment") == environment and (ledger_type is None or e.get("ledger_type") == ledger_type)]
+    def get_ledger_history(
+        self,
+        ledger_type: Optional[str] = None,
+        environment: str = "AEGIS_QUANT_MASTER",
+        asset: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        return [
+            e for e in self.entries
+            if e.get("environment") == environment
+            and (ledger_type is None or e.get("ledger_type") == ledger_type)
+            and (asset is None or e.get("asset") == asset or e.get("currency") == asset)
+        ]
 
 
 # Global Singleton
 double_entry_ledger = DoubleEntryLedger()
-double_entry_ledger.ensure_opening_balance("AEGIS_QUANT_MASTER", 100000.0)
+double_entry_ledger.ensure_opening_balance("AEGIS_QUANT_MASTER", 100000.0, asset="USDT")
+double_entry_ledger.ensure_opening_balance("AEGIS_INDIA_INR", 100000.0, asset="INR")
+
