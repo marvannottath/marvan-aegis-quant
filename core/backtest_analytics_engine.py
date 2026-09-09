@@ -80,6 +80,7 @@ class BacktestAnalyticsEngine:
             "total_slippage_usd": float(r.get("total_slippage_usd", 0.0)),
             "integrity_status": integrity["status"],
             "integrity_message": integrity["message"],
+            "provenance_verified": integrity["status"] == "VERIFIED",
             "created_at": r.get("created_at", "2026-09-02")
         }
 
