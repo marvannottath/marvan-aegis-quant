@@ -2889,4 +2889,194 @@ async def post_telegram_test_endpoint():
         return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
 
 
+# ------------------------------------------------------------------
+# 35. Binance Unified Architecture APIs (Testnet & Live)
+# ------------------------------------------------------------------
+@app.get("/api/binance/live-gates")
+async def get_binance_live_gates_endpoint(environment: str = "BINANCE_LIVE"):
+    """Evaluate and report on all 12 Mandatory Live Activation Gates."""
+    try:
+        from core.environment_gate import environment_gate
+        report = environment_gate.check_live_activation_gates(environment=environment)
+        return JSONResponse(report)
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+@app.get("/api/binance/reconciliation")
+async def get_binance_reconciliation_endpoint(environment: str = "BINANCE_TESTNET"):
+    """Periodic forensic reconciliation of Binance balances & positions vs AEGIS ledger & wallet."""
+    try:
+        from core.live_reconciliation_sentinel import live_reconciliation_sentinel
+        report = live_reconciliation_sentinel.reconcile_environment(environment=environment)
+        return JSONResponse(report)
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+@app.get("/api/binance/events")
+async def get_binance_events_endpoint(limit: int = 50, environment: Optional[str] = None, event_type: Optional[str] = None):
+    """Fetch dedicated execution and audit event stream."""
+    try:
+        from core.execution_event_pipeline import execution_event_pipeline
+        events = execution_event_pipeline.get_events(limit=limit, environment=environment, event_type=event_type)
+        return JSONResponse({"status": "SUCCESS", "count": len(events), "events": events})
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+@app.get("/api/binance/account")
+async def get_binance_account_endpoint(environment: str = "BINANCE_TESTNET"):
+    """Fetch canonical account details, permissions, and balances for target environment."""
+    try:
+        from execution.binance_broker import binance_broker
+        acc = binance_broker.get_account_info(environment=environment)
+        return JSONResponse(acc)
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+@app.post("/api/binance/order/test")
+async def post_binance_order_test_endpoint(request: Request):
+    """Execute official non-destructive order validation via POST /api/v3/order/test."""
+    try:
+        data = await request.json()
+        env = data.get("environment", "BINANCE_TESTNET")
+        symbol = str(data.get("symbol", "BTCUSDT")).upper()
+        side = str(data.get("side", "BUY")).upper()
+        quantity = float(data.get("quantity", 0.001))
+        price = float(data.get("price", 0.0))
+        order_type = str(data.get("order_type", "MARKET")).upper()
+
+        from execution.binance_broker import binance_broker
+        res = binance_broker.test_order_preflight(
+            environment=env,
+            symbol=symbol,
+            side=side,
+            quantity=quantity,
+            price=price,
+            order_type=order_type
+        )
+        return JSONResponse(res)
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+@app.post("/api/binance/orders/submit")
+async def submit_binance_order_endpoint(request: Request):
+    """
+    Submit order through the canonical state machine:
+    CREATED -> RISK_PENDING -> APPROVED -> SUBMITTED -> ACKNOWLEDGED -> FILLED
+    """
+    try:
+        data = await request.json()
+        symbol = str(data.get("symbol", "BTCUSDT")).upper()
+        side = str(data.get("side", "BUY")).upper()
+        quantity = float(data.get("quantity", 0.0))
+        price = float(data.get("price", 0.0))
+        order_type = str(data.get("order_type", "MARKET")).upper()
+        environment = str(data.get("environment", "BINANCE_TESTNET")).upper()
+        allocated_margin = float(data.get("allocated_margin", price * quantity if price > 0 else 50.0))
+
+        # 1. Environment Gate Check
+        from core.environment_gate import environment_gate
+        allowed, reason = environment_gate.check_order_allowed(environment)
+        if not allowed:
+            return JSONResponse({"status": "REJECTED", "reason": reason}, status_code=400)
+
+        # 2. Risk Engine Validation
+        from core.risk_engine import risk_engine
+        passed, r_code, r_msg = risk_engine.validate_order_pipeline(
+            amount=allocated_margin,
+            leverage=1.0,
+            current_open_positions=0,
+            available_cash=100000.0
+        )
+        if not passed:
+            return JSONResponse({"status": "RISK_REJECTED", "code": r_code, "message": r_msg}, status_code=400)
+
+        # 3. Order State Machine: CREATED
+        from core.order_state_machine import order_state_machine
+        order = order_state_machine.create_order(
+            symbol=symbol,
+            side=side,
+            quantity=quantity,
+            price=price,
+            order_type=order_type,
+            environment=environment,
+            provider="BINANCE"
+        )
+        order_id = order["order_id"]
+
+        # 4. Transitions: RISK_PENDING -> APPROVED -> SUBMITTED
+        order_state_machine.transition(order_id, "RISK_PENDING", "Submitting to risk engine")
+        order_state_machine.transition(order_id, "APPROVED", "Risk engine checks passed")
+        order_state_machine.transition(order_id, "SUBMITTED", "Dispatching to Binance API")
+
+        # 5. Execute via Unified Binance Provider Adapter
+        from execution.binance_broker import binance_broker
+        exec_res = binance_broker.create_order(
+            environment=environment,
+            symbol=symbol,
+            side=side,
+            quantity=quantity,
+            price=price,
+            order_type=order_type,
+            client_order_id=order_id
+        )
+
+        if exec_res.get("status") == "SUCCESS":
+            prov_id = exec_res.get("provider_order_id", "")
+            exec_qty = exec_res.get("executed_quantity", quantity)
+            avg_price = exec_res.get("average_fill_price", price)
+
+            order_state_machine.transition(
+                order_id, "ACKNOWLEDGED",
+                reason="Binance venue acknowledged order",
+                provider_order_id=prov_id
+            )
+            order_state_machine.transition(
+                order_id, "FILLED",
+                reason="Execution confirmed by Binance venue",
+                execution_record=exec_res,
+                fill_qty=exec_qty,
+                avg_fill_price=avg_price,
+                provider_order_id=prov_id
+            )
+
+            # Record event in execution pipeline
+            from core.execution_event_pipeline import execution_event_pipeline
+            execution_event_pipeline.record_event(
+                event_type="complete_fill",
+                environment=environment,
+                provider="BINANCE",
+                internal_reference=order_id,
+                provider_reference=prov_id,
+                severity="INFO",
+                status="FILLED",
+                metadata={"symbol": symbol, "side": side, "quantity": exec_qty, "price": avg_price}
+            )
+
+            return JSONResponse({
+                "status": "SUCCESS",
+                "internal_order_id": order_id,
+                "provider_order_id": prov_id,
+                "order": order_state_machine.get_order(order_id)
+            })
+        else:
+            order_state_machine.transition(
+                order_id, "FAILED",
+                reason=f"Binance rejected: {exec_res.get('message')}"
+            )
+            return JSONResponse({
+                "status": "FAILED",
+                "internal_order_id": order_id,
+                "message": exec_res.get("message")
+            }, status_code=400)
+
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+
 

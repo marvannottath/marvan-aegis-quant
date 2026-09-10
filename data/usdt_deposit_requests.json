@@ -1,6 +1,70 @@
 {
   "requests": [
     {
+      "deposit_id": "DEP-TRC20-1789000787411-F4C4D8",
+      "timestamp": "2026-09-10 06:09:47",
+      "environment": "AEGIS_QUANT_MASTER",
+      "asset": "USDT",
+      "network": "TRC20",
+      "network_name": "TRON (TRC20)",
+      "deposit_address": "TQn9Y2khEsLJW1ChV8m3N9K7xPnR2J4vLm",
+      "expected_amount": 100.0,
+      "actual_received_amount": 100.0,
+      "tx_hash": "0x99a8_1789000787412_5da1",
+      "confirmations": 19,
+      "required_confirmations": 19,
+      "status": "CREDITED",
+      "warning": "Send ONLY USDT via TRON (TRC20) network. Sending any other currency or using wrong network will result in permanent loss."
+    },
+    {
+      "deposit_id": "DEP-TRC20-1789000787058-0E9318",
+      "timestamp": "2026-09-10 06:09:47",
+      "environment": "AEGIS_QUANT_MASTER",
+      "asset": "USDT",
+      "network": "TRC20",
+      "network_name": "TRON (TRC20)",
+      "deposit_address": "TQn9Y2khEsLJW1ChV8m3N9K7xPnR2J4vLm",
+      "expected_amount": 250.0,
+      "actual_received_amount": 250.0,
+      "tx_hash": "0xp6_tx_1789000787060",
+      "confirmations": 19,
+      "required_confirmations": 19,
+      "status": "CREDITED",
+      "warning": "Send ONLY USDT via TRON (TRC20) network. Sending any other currency or using wrong network will result in permanent loss."
+    },
+    {
+      "deposit_id": "DEP-TRC20-1789000786784-885FD4",
+      "timestamp": "2026-09-10 06:09:46",
+      "environment": "AEGIS_QUANT_MASTER",
+      "asset": "USDT",
+      "network": "TRC20",
+      "network_name": "TRON (TRC20)",
+      "deposit_address": "TQn9Y2khEsLJW1ChV8m3N9K7xPnR2J4vLm",
+      "expected_amount": 100.0,
+      "actual_received_amount": 100.0,
+      "tx_hash": "0xcert_1789000786785",
+      "confirmations": 19,
+      "required_confirmations": 19,
+      "status": "CREDITED",
+      "warning": "Send ONLY USDT via TRON (TRC20) network. Sending any other currency or using wrong network will result in permanent loss."
+    },
+    {
+      "deposit_id": "DEP-TRC20-1789000784159-D330D5",
+      "timestamp": "2026-09-10 06:09:44",
+      "environment": "AEGIS_QUANT_MASTER",
+      "asset": "USDT",
+      "network": "TRC20",
+      "network_name": "TRON (TRC20)",
+      "deposit_address": "TQn9Y2khEsLJW1ChV8m3N9K7xPnR2J4vLm",
+      "expected_amount": 150.0,
+      "actual_received_amount": 150.0,
+      "tx_hash": "0xreplay_1789000784160",
+      "confirmations": 19,
+      "required_confirmations": 19,
+      "status": "CREDITED",
+      "warning": "Send ONLY USDT via TRON (TRC20) network. Sending any other currency or using wrong network will result in permanent loss."
+    },
+    {
       "deposit_id": "DEP-TRC20-1788977931971-FEB78D",
       "timestamp": "2026-09-09 23:48:51",
       "environment": "AEGIS_QUANT_MASTER",
@@ -731,6 +795,10 @@
     "0xreplay_1788977928287_TRC20_USDT": "DEP-TRC20-1788977928285-818081",
     "0x99a8_1788977931170_1191_TRC20_USDT": "DEP-TRC20-1788977931168-160B81",
     "0xp6_tx_1788977931516_TRC20_USDT": "DEP-TRC20-1788977931514-AA812D",
-    "0xcert_1788977931973_TRC20_USDT": "DEP-TRC20-1788977931971-FEB78D"
+    "0xcert_1788977931973_TRC20_USDT": "DEP-TRC20-1788977931971-FEB78D",
+    "0xreplay_1789000784160_TRC20_USDT": "DEP-TRC20-1789000784159-D330D5",
+    "0xcert_1789000786785_TRC20_USDT": "DEP-TRC20-1789000786784-885FD4",
+    "0xp6_tx_1789000787060_TRC20_USDT": "DEP-TRC20-1789000787058-0E9318",
+    "0x99a8_1789000787412_5da1_TRC20_USDT": "DEP-TRC20-1789000787411-F4C4D8"
   }
 }

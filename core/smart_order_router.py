@@ -102,15 +102,21 @@ class SmartOrderRouter:
             "BTCUSD", "ETHUSD", "SOLUSD", "BNBUSD", "BTCUSDT", "ETHUSDT"
         ):
             from execution.binance_broker import binance_broker
+            req_env = order_intent.get("environment")
+            if req_env:
+                target_env = "BINANCE_LIVE_REAL" if ("LIVE" in req_env.upper() or "REAL" in req_env.upper()) else "BINANCE_TESTNET_DEMO"
+            else:
+                target_env = "BINANCE_TESTNET_DEMO" if binance_broker.testnet else "BINANCE_LIVE_REAL"
+
             return {
                 "allowed": True,
                 "target_venue": "BINANCE",
-                "environment": "BINANCE_TESTNET_DEMO" if binance_broker.testnet else "BINANCE_LIVE_REAL",
+                "environment": target_env,
                 "exchange": "BINANCE",
                 "currency": "USDT",
                 "currency_symbol": "$",
                 "routing_algorithm": "SMART_ORDER_ROUTER_BINANCE",
-                "reason": "Routed to Binance Spot Execution Engine"
+                "reason": f"Routed to Binance Spot Execution Engine ({target_env})"
             }
 
         else:

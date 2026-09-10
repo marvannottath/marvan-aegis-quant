@@ -177,6 +177,10 @@ class DoubleEntryLedger:
             and (asset is None or e.get("asset") == asset or e.get("currency") == asset)
         ]
 
+    def get_entries_by_environment(self, environment: str) -> List[Dict[str, Any]]:
+        """Return all ledger entries for a given environment."""
+        return [e for e in self.entries if e.get("environment") == environment]
+
     def verify_ledger_integrity(self, environment: Optional[str] = None) -> Dict[str, Any]:
         """Verify mathematical integrity of the double-entry ledger: Debits == Credits."""
         entries = self.entries if environment is None else [e for e in self.entries if e.get("environment") == environment]
