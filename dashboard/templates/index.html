@@ -216,6 +216,10 @@
                             <i class="fa-solid fa-arrows-rotate"></i>
                             <span>REFRESH</span>
                         </button>
+                        <button onclick="resetWorkspaceCapital()" title="Reset workspace capital pool to clean initial state" class="px-3 py-1.5 bg-gray-900 border border-gray-800 hover:border-red-500 text-gray-400 hover:text-red-400 font-mono text-xs font-bold rounded-xl transition flex items-center space-x-1 cursor-pointer">
+                            <i class="fa-solid fa-rotate-left"></i>
+                            <span>RESET CAPITAL</span>
+                        </button>
                     </div>
                 </div>
 
@@ -2257,26 +2261,47 @@
             window.activeTradingPool = activePool;
 
             const isIndia = (window.activeMarketVenue === 'INDIA') || activePool.includes('INDIA') || activePool.includes('INR') || activePool.includes('UPSTOX');
-            const isForex = (window.activeMarketVenue === 'FOREX');
-            const curSym = isIndia ? '₹' : '$';
+            const isForex = (window.activeMarketVenue === 'FOREX') || (window.activeMarketVenue === 'FOREX_GOLD');
+            const isCrypto = (window.activeMarketVenue === 'CRYPTO') || activePool.includes('BINANCE') || activePool.includes('CRYPTO');
+            const curSym = isIndia ? '₹' : (isCrypto ? '' : '$');
             const curLoc = isIndia ? 'en-IN' : 'en-US';
+
+            function formatMoney(val) {
+                const num = Number(val) || 0.0;
+                const sign = num < 0 ? '-' : '';
+                const formatted = Math.abs(num).toLocaleString(curLoc, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                if (isCrypto) {
+                    return `${sign}${formatted} USDT`;
+                } else {
+                    return `${sign}${curSym}${formatted}`;
+                }
+            }
+
+            function formatSignedMoney(val) {
+                const num = Number(val) || 0.0;
+                const sign = num > 0.001 ? '+' : (num < -0.001 ? '-' : '+');
+                const formatted = Math.abs(num).toLocaleString(curLoc, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                if (isCrypto) {
+                    return `${sign}${formatted} USDT`;
+                } else {
+                    return `${sign}${curSym}${formatted}`;
+                }
+            }
 
             const hdrEnv = document.getElementById('hdr-env-label');
             if (hdrEnv) {
                 if (isIndia) {
-                    hdrEnv.innerText = `INDIA NSE/BSE (${curSym}${equity.toLocaleString(curLoc, {minimumFractionDigits:2, maximumFractionDigits:2})})`;
+                    hdrEnv.innerText = `INDIA NSE/BSE (${formatMoney(equity)})`;
                     hdrEnv.className = 'font-bold text-amber-400';
                 } else if (isForex) {
-                    hdrEnv.innerText = `FOREX & GOLD ($${equity.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})})`;
+                    hdrEnv.innerText = `FOREX & GOLD (${formatMoney(equity)})`;
                     hdrEnv.className = 'font-bold text-blue-400';
-                } else if (activePool.includes('TESTNET') || activePool.includes('DEMO')) {
-                    hdrEnv.innerText = `BINANCE TESTNET ($${equity.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})})`;
+                } else if (isCrypto) {
+                    const bType = activePool.includes('LIVE') ? 'BINANCE LIVE' : 'BINANCE TESTNET';
+                    hdrEnv.innerText = `${bType} (${formatMoney(equity)})`;
                     hdrEnv.className = 'font-bold text-amber-400';
-                } else if (activePool.includes('LIVE')) {
-                    hdrEnv.innerText = `BINANCE LIVE ($${equity.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})})`;
-                    hdrEnv.className = 'font-bold text-emerald-400';
                 } else {
-                    hdrEnv.innerText = `MARVAN'S POOL ($${equity.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})})`;
+                    hdrEnv.innerText = `MARVAN'S POOL (${formatMoney(equity)})`;
                     hdrEnv.className = 'font-bold text-emerald-400';
                 }
             }
@@ -2292,23 +2317,43 @@
                 }
             }
 
-            if (document.getElementById('metric-equity')) document.getElementById('metric-equity').innerText = curSym + equity.toLocaleString(curLoc, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            if (document.getElementById('metric-equity')) document.getElementById('metric-equity').innerText = formatMoney(equity);
 
-            const todayPnl = (data.realized_pnl_today !== undefined) ? data.realized_pnl_today : 0.0;
-            if (document.getElementById('metric-today-pnl')) document.getElementById('metric-today-pnl').innerText = (todayPnl >= 0 ? '+' : '') + curSym + todayPnl.toFixed(2);
+            const todayPnl = (data.realized_pnl_today !== undefined) ? Number(data.realized_pnl_today) : 0.0;
+            const pnlElem = document.getElementById('metric-today-pnl');
+            if (pnlElem) {
+                pnlElem.innerText = formatSignedMoney(todayPnl);
+                if (todayPnl > 0.001) {
+                    pnlElem.className = 'text-xl md:text-2xl font-black text-emerald-400 font-mono';
+                } else if (todayPnl < -0.001) {
+                    pnlElem.className = 'text-xl md:text-2xl font-black text-red-400 font-mono';
+                } else {
+                    pnlElem.className = 'text-xl md:text-2xl font-black text-gray-300 font-mono';
+                }
+            }
 
             const ddPct = data.current_drawdown_pct || 0.0;
-            if (document.getElementById('metric-drawdown')) document.getElementById('metric-drawdown').innerText = ddPct.toFixed(2) + '%';
+            const ddElem = document.getElementById('metric-drawdown');
+            if (ddElem) {
+                ddElem.innerText = ddPct.toFixed(2) + '%';
+                if (ddPct > 10.0) {
+                    ddElem.className = 'text-xl md:text-2xl font-black text-red-400 font-mono';
+                } else if (ddPct > 5.0) {
+                    ddElem.className = 'text-xl md:text-2xl font-black text-amber-400 font-mono';
+                } else {
+                    ddElem.className = 'text-xl md:text-2xl font-black text-emerald-400 font-mono';
+                }
+            }
 
-            if (document.getElementById('metric-free-cash')) document.getElementById('metric-free-cash').innerText = curSym + cash.toLocaleString(curLoc, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            if (document.getElementById('metric-free-cash')) document.getElementById('metric-free-cash').innerText = formatMoney(cash);
             if (document.getElementById('metric-open-count')) document.getElementById('metric-open-count').innerText = positions.length + ' Active';
             if (document.getElementById('badge-open-pos')) document.getElementById('badge-open-pos').innerText = positions.length;
-            if (document.getElementById('pf-trading-equity')) document.getElementById('pf-trading-equity').innerText = curSym + equity.toLocaleString(curLoc, {minimumFractionDigits: 2, maximumFractionDigits: 2});
-            if (document.getElementById('pf-vault-reserve')) document.getElementById('pf-vault-reserve').innerText = '$' + vault.toFixed(2);
-            if (document.getElementById('pf-total-assets')) document.getElementById('pf-total-assets').innerText = curSym + (equity + (isIndia ? 0 : vault)).toLocaleString(curLoc, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            if (document.getElementById('pf-trading-equity')) document.getElementById('pf-trading-equity').innerText = formatMoney(equity);
+            if (document.getElementById('pf-vault-reserve')) document.getElementById('pf-vault-reserve').innerText = formatMoney(vault);
+            if (document.getElementById('pf-total-assets')) document.getElementById('pf-total-assets').innerText = formatMoney(equity + (isIndia ? 0 : vault));
 
             const totalExposure = positions.reduce((sum, p) => sum + (parseFloat(p.capital_allocated) || 0), 0);
-            if (document.getElementById('metric-exposure')) document.getElementById('metric-exposure').innerText = curSym + totalExposure.toLocaleString(curLoc, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            if (document.getElementById('metric-exposure')) document.getElementById('metric-exposure').innerText = formatMoney(totalExposure);
 
             // Update Leverage & Risk Profile UI
             const maxLev = (data.risk_profile && data.risk_profile.max_leverage) ? data.risk_profile.max_leverage : 10;
@@ -2703,6 +2748,26 @@
                 }
             } catch (e) {
                 console.error('Error toggling live trading:', e);
+            }
+        async function resetWorkspaceCapital() {
+            const ws = window.activeMarketVenue || 'INDIA';
+            if (!confirm(`Are you sure you want to reset ${ws} capital back to its clean initial balance? This will clear stale drawdown and restore the baseline account equity.`)) return;
+            try {
+                const res = await fetch('/api/workspace/reset-pool', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ workspace: ws })
+                });
+                const data = await res.json();
+                if (data.status === 'SUCCESS') {
+                    showSystemNotification(`${ws} capital pool restored to clean initial balance!`, 'CAPITAL RESET');
+                    await fetchState();
+                } else {
+                    showSystemNotification(data.message || 'Reset failed', 'ERROR');
+                }
+            } catch (e) {
+                console.error('Reset pool error:', e);
+                showSystemNotification('Failed to reset capital', 'ERROR');
             }
         }
 

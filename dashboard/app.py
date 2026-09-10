@@ -592,6 +592,24 @@ async def switch_workspace_endpoint(request: Request):
     except Exception as e:
         return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=400)
 
+@app.post("/api/workspace/reset-pool")
+async def reset_workspace_pool(request: Request):
+    """Reset the current workspace capital pool back to initial clean state."""
+    from core.workspace_manager import workspace_manager
+    from execution.paper_broker import paper_broker
+    try:
+        body = await request.json()
+        target_ws = body.get("workspace", "").upper()
+    except Exception:
+        target_ws = ""
+    if not target_ws:
+        target_ws = workspace_manager.get_active_workspace()
+    meta = workspace_manager.get_workspace_meta(target_ws)
+    pool = meta.get("default_pool", "AEGIS_INDIA_INR")
+    cap = meta.get("initial_capital", 100000.0)
+    res = paper_broker.reset_pool(pool, cap)
+    return JSONResponse({"status": "SUCCESS", "workspace": target_ws, "pool": pool, "reset_equity": cap, "virtual_cash": cap}, status_code=200)
+
 @app.api_route("/api/state", methods=["GET", "HEAD"])
 async def get_state(workspace: Optional[str] = None):
     """Authoritative backend single source of truth state scoped strictly to the active workspace."""
@@ -722,10 +740,12 @@ async def get_state(workspace: Optional[str] = None):
     news_intel = macro_engine.get_workspace_news(ws)
 
     peak_eq = max(init_cap, equity_val)
-    drawdown_pct = round(((peak_eq - equity_val) / peak_eq) * 100.0, 2) if peak_eq > 0 else 0.0
+    drawdown_pct = max(0.0, round(((peak_eq - equity_val) / peak_eq) * 100.0, 2)) if peak_eq > 0 else 0.0
 
+    today_str = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d")
     active_trades = pool_data.get("trade_history", [])
-    pool_realized_pnl = round(sum(t.get("realized_pnl", 0.0) or t.get("pnl_usd", 0.0) for t in active_trades), 2)
+    today_trades = [t for t in active_trades if str(t.get("timestamp", "")).startswith(today_str)]
+    pool_realized_pnl = round(sum(t.get("realized_pnl", 0.0) or t.get("pnl_usd", 0.0) for t in today_trades), 2)
     today_pnl = pool_realized_pnl if pool_realized_pnl != 0.0 else vault_summary.get("realized_profit_today", 0.0)
 
     # Complete 13-Component Infrastructure Health Matrix with Workspace Venue Awareness

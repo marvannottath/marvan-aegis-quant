@@ -273,6 +273,37 @@ class PaperBroker:
     def switch_pool(self, pool_name: str, initial_capital: Optional[float] = None) -> Dict[str, Any]:
         return self.set_active_capital_pool(pool_name, initial_capital)
 
+    def reset_pool(self, pool_name: str, capital: Optional[float] = None) -> Dict[str, Any]:
+        """Reset a capital pool to clean initial state."""
+        target_name = pool_name
+        if pool_name in ["MASTER_SIMULATION", "AEGIS_QUANT_MASTER", "FOREX", "FOREX_GOLD"]:
+            target_name = "AEGIS_QUANT_MASTER"
+        elif pool_name in ["BINANCE_DEMO", "BINANCE_TESTNET_DEMO", "CRYPTO"]:
+            target_name = "BINANCE_TESTNET_DEMO"
+        elif pool_name in ["INDIA", "AEGIS_INDIA", "AEGIS_INDIA_INR"]:
+            target_name = "AEGIS_INDIA_INR"
+
+        cap = capital or (19950.55 if target_name == "BINANCE_TESTNET_DEMO" else 100000.0)
+        self.pools[target_name] = {
+            "initial_capital": cap,
+            "virtual_cash": cap,
+            "equity": cap,
+            "positions": {},
+            "trade_history": [],
+            "ai_active": True,
+            "order_stream": []
+        }
+        if self.active_pool_name == target_name:
+            self._sync_active_pool_refs()
+            self._update_equity()
+        self._save_state()
+        return {
+            "status": "SUCCESS",
+            "pool": target_name,
+            "equity": cap,
+            "virtual_cash": cap
+        }
+
     def _update_equity(self):
         """
         Dynamically compute account equity strictly for active pool:
