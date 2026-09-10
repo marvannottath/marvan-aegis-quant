@@ -270,6 +270,9 @@ class PaperBroker:
             "virtual_cash": self.virtual_cash
         }
 
+    def switch_pool(self, pool_name: str, initial_capital: Optional[float] = None) -> Dict[str, Any]:
+        return self.set_active_capital_pool(pool_name, initial_capital)
+
     def _update_equity(self):
         """
         Dynamically compute account equity strictly for active pool:

@@ -150,6 +150,9 @@ class WorkspaceManager:
         ws = self._normalize_workspace(workspace)
         return self.METADATA.get(ws, self.METADATA[self.WORKSPACE_INDIA])
 
+    def get_metadata(self, workspace: Optional[str] = None) -> Dict[str, Any]:
+        return self.get_workspace_meta(workspace)
+
     def get_workspace_for_symbol(self, symbol: str) -> Optional[str]:
         if not symbol:
             return None

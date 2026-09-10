@@ -182,3 +182,4 @@ class MultiMarketScanner:
 
 # Global Multi-Market Scanner Instance
 multi_scanner = MultiMarketScanner()
+multi_market_scanner = multi_scanner
