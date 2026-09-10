@@ -55,13 +55,13 @@
 
         <!-- TOP-LEVEL TRI-MARKET VENUE SWITCHER -->
         <div class="flex items-center bg-gray-950/90 border border-gray-800 p-1 rounded-xl space-x-1 font-mono text-xs shadow-inner">
-            <button id="btn-mkt-india" onclick="switchMarketVenue('INDIA')" class="{{ BTN_INDIA_CLASS }}">
+            <button id="btn-mkt-india" onclick="switchMarketVenue('INDIA')" class="px-3 py-1.5 rounded-lg font-bold text-xs transition flex items-center space-x-1.5 bg-amber-500 text-black shadow">
                 <span>🇮🇳</span> <span>INDIA (INR ₹)</span>
             </button>
-            <button id="btn-mkt-forex" onclick="switchMarketVenue('FOREX')" class="{{ BTN_FOREX_CLASS }}">
+            <button id="btn-mkt-forex" onclick="switchMarketVenue('FOREX')" class="px-3 py-1.5 rounded-lg font-bold text-xs text-gray-400 hover:text-white transition flex items-center space-x-1.5">
                 <span>💱</span> <span>FOREX & GOLD</span>
             </button>
-            <button id="btn-mkt-crypto" onclick="switchMarketVenue('CRYPTO')" class="{{ BTN_CRYPTO_CLASS }}">
+            <button id="btn-mkt-crypto" onclick="switchMarketVenue('CRYPTO')" class="px-3 py-1.5 rounded-lg font-bold text-xs text-gray-400 hover:text-white transition flex items-center space-x-1.5">
                 <span>🌐</span> <span>CRYPTO (USDT)</span>
             </button>
         </div>
@@ -71,7 +71,7 @@
             <div onclick="switchTab('settings')" class="flex items-center space-x-1.5 px-3 py-1 bg-gray-900 border border-gray-800 rounded-lg cursor-pointer hover:border-amber-500/50 transition" title="Click to view Environment Settings">
                 <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                 <span class="text-gray-400">ACTIVE:</span>
-                <span id="hdr-env-label" class="font-bold text-emerald-400">{{ HDR_ENV_LABEL }}</span>
+                <span id="hdr-env-label" class="font-bold text-emerald-400">AEGIS INDIA POOL (₹100,000.00)</span>
             </div>
 
             <!-- Live Trading ON/OFF Toggle Button -->
@@ -187,10 +187,10 @@
                         <div id="venue-flag-icon" class="text-3xl">🇮🇳</div>
                         <div>
                             <div class="flex items-center space-x-2">
-                                <span id="venue-title" class="font-black text-sm text-white tracking-wide">{{ VENUE_TITLE }}</span>
-                                <span id="badge-venue-session" class="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-mono">{{ VENUE_SESSION_BADGE }}</span>
+                                <span id="venue-title" class="font-black text-sm text-white tracking-wide">INDIAN MARKETS (NSE/BSE)</span>
+                                <span id="badge-venue-session" class="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-mono">NSE/BSE (INDIA ACTIVE)</span>
                             </div>
-                            <div id="venue-subtitle" class="text-xs text-gray-400 font-mono mt-0.5">{{ VENUE_SUBTITLE }}</div>
+                            <div id="venue-subtitle" class="text-xs text-gray-400 font-mono mt-0.5">Currency: INR (₹) • Settlement: T+1 Rolling • Regulation: SEBI Compliant • Risk Profile: Enforced</div>
                         </div>
                     </div>
 
@@ -198,11 +198,11 @@
                     <div id="banner-broker-info" class="flex items-center space-x-3 text-xs font-mono">
                         <div class="px-3 py-1.5 bg-gray-950 border border-gray-800 rounded-xl flex items-center space-x-2 shadow-inner">
                             <span class="text-gray-400">BROKER:</span>
-                            <span id="badge-upstox-status" class="font-bold text-amber-400">{{ BROKER_BADGE_TEXT }}</span>
+                            <span id="badge-upstox-status" class="font-bold text-amber-400"><i class="fa-solid fa-bolt mr-1"></i>UPSTOX: NSE/BSE ACTIVE</span>
                         </div>
                         <div class="px-3 py-1.5 bg-gray-950 border border-gray-800 rounded-xl flex items-center space-x-2 shadow-inner">
                             <span class="text-gray-400">MARGIN:</span>
-                            <span id="val-broker-margin" class="font-bold text-emerald-400 font-mono">{{ BROKER_MARGIN }}</span>
+                            <span id="val-broker-margin" class="font-bold text-emerald-400 font-mono">₹100,000.00</span>
                         </div>
                     </div>
 
@@ -227,37 +227,37 @@
                 <div class="grid grid-cols-2 lg:grid-cols-6 gap-3 md:gap-4">
                     <div onclick="switchTab('portfolio')" class="bg-darkcard border border-darkborder p-4 rounded-xl space-y-1 cursor-pointer hover:border-amber-500/50 transition" title="Click to view Portfolio & Vault">
                         <div class="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Total Equity</div>
-                        <div id="metric-equity" class="text-xl md:text-2xl font-black text-white font-mono">{{ PORTFOLIO_EQUITY }}</div>
+                        <div id="metric-equity" class="text-xl md:text-2xl font-black text-white font-mono">₹100,000.00</div>
                         <div class="text-[10px] text-emerald-400 font-mono font-bold">Authoritative Ledger</div>
                     </div>
 
                     <div onclick="switchTab('analytics')" class="bg-darkcard border border-darkborder p-4 rounded-xl space-y-1 cursor-pointer hover:border-emerald-500/50 transition" title="Click to view Performance Analytics">
                         <div class="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Today's Realized PnL</div>
-                        <div id="metric-today-pnl" class="text-xl md:text-2xl font-black text-emerald-400 font-mono">{{ TODAY_PNL }}</div>
+                        <div id="metric-today-pnl" class="text-xl md:text-2xl font-black text-emerald-400 font-mono">+₹0.00</div>
                         <div class="text-[10px] text-gray-400 font-mono">+0.00% Daily Return</div>
                     </div>
 
                     <div onclick="switchTab('portfolio')" class="bg-darkcard border border-darkborder p-4 rounded-xl space-y-1 cursor-pointer hover:border-blue-500/50 transition" title="Click to view Available Cash">
                         <div class="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Free Cash</div>
-                        <div id="metric-free-cash" class="text-xl md:text-2xl font-black text-white font-mono">{{ VIRTUAL_CASH }}</div>
+                        <div id="metric-free-cash" class="text-xl md:text-2xl font-black text-white font-mono">₹100,000.00</div>
                         <div class="text-[10px] text-gray-400 font-mono">Available Margin</div>
                     </div>
 
                     <div onclick="switchTab('positions')" class="bg-darkcard border border-darkborder p-4 rounded-xl space-y-1 cursor-pointer hover:border-amber-500/50 transition" title="Click to view Open Positions">
                         <div class="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Open Positions</div>
-                        <div id="metric-open-count" class="text-xl md:text-2xl font-black text-amber-400 font-mono">{{ OPEN_POSITIONS_COUNT }} Active</div>
+                        <div id="metric-open-count" class="text-xl md:text-2xl font-black text-amber-400 font-mono">0 Active</div>
                         <div class="text-[10px] text-gray-400 font-mono">Max Profile: 8</div>
                     </div>
 
                     <div onclick="switchTab('positions')" class="bg-darkcard border border-darkborder p-4 rounded-xl space-y-1 cursor-pointer hover:border-blue-500/50 transition" title="Click to view Exposure Details">
                         <div class="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Total Exposure</div>
-                        <div id="metric-exposure" class="text-xl md:text-2xl font-black text-blue-400 font-mono">{{ TOTAL_EXPOSURE }}</div>
+                        <div id="metric-exposure" class="text-xl md:text-2xl font-black text-blue-400 font-mono">₹0.00</div>
                         <div class="text-[10px] text-gray-400 font-mono">Allocated Margin</div>
                     </div>
 
                     <div onclick="switchTab('risk')" class="bg-darkcard border border-darkborder p-4 rounded-xl space-y-1 cursor-pointer hover:border-red-500/50 transition" title="Click to view Risk Center">
                         <div class="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Current Drawdown</div>
-                        <div id="metric-drawdown" class="text-xl md:text-2xl font-black text-emerald-400 font-mono">{{ DRAWDOWN_PCT }}</div>
+                        <div id="metric-drawdown" class="text-xl md:text-2xl font-black text-emerald-400 font-mono">0.00%</div>
                         <div class="text-[10px] text-gray-400 font-mono">Max Circuit: 10.0%</div>
                     </div>
                 </div>
@@ -337,7 +337,7 @@
                 <div class="flex items-center justify-between border-b border-gray-800 pb-4">
                     <div>
                         <h2 class="text-xl font-black text-white"><i class="fa-solid fa-earth-americas text-blue-400 mr-2"></i> Multi-Asset Market Scanner</h2>
-                        <p id="scanner-subtitle" class="text-xs text-gray-400">{{ SCANNER_SUBTITLE }}</p>
+                        <p id="scanner-subtitle" class="text-xs text-gray-400">Real-time market scanning across Indian Equities & Indices (NSE / BSE)</p>
                     </div>
                 </div>
 
@@ -411,11 +411,11 @@
                             <tr class="border-b border-gray-800 text-gray-400 uppercase font-mono font-semibold">
                                 <th class="py-3 px-3">Symbol</th>
                                 <th class="py-3 px-3">Side</th>
-                                <th id="th-pos-alloc" class="py-3 px-3">{{ POS_ALLOCATED_LABEL }}</th>
+                                <th id="th-pos-alloc" class="py-3 px-3">Allocated Margin (₹)</th>
                                 <th class="py-3 px-3">Leverage</th>
                                 <th class="py-3 px-3">Entry Price</th>
                                 <th class="py-3 px-3">Mark Price</th>
-                                <th id="th-pos-pnl" class="py-3 px-3">{{ POS_UNREALIZED_PNL_LABEL }}</th>
+                                <th id="th-pos-pnl" class="py-3 px-3">Unrealized PnL (₹)</th>
                                 <th class="py-3 px-3">PnL %</th>
                                 <th class="py-3 px-3 text-right">Actions</th>
                             </tr>
@@ -432,8 +432,8 @@
             <section id="tab-orders" class="tab-content space-y-6">
                 <div class="flex items-center justify-between border-b border-gray-800 pb-4">
                     <div>
-                        <h2 id="order-terminal-title" class="text-xl font-black text-white"><i class="fa-solid fa-bolt text-amber-400 mr-2"></i> {{ ORDER_TERMINAL_TITLE }}</h2>
-                        <p id="order-terminal-subtitle" class="text-xs text-gray-400">{{ ORDER_TERMINAL_SUBTITLE }}</p>
+                        <h2 id="order-terminal-title" class="text-xl font-black text-white"><i class="fa-solid fa-bolt text-amber-400 mr-2"></i> Fast Order Execution Terminal — Upstox NSE / BSE</h2>
+                        <p id="order-terminal-subtitle" class="text-xs text-gray-400">Server-side 7-Gate Risk Engine validates all parameters before execution (SEBI Compliant)</p>
                     </div>
                 </div>
 
@@ -449,12 +449,21 @@
                             <div>
                                 <label class="block text-xs font-bold text-gray-400 uppercase mb-1">Select Asset Symbol</label>
                                 <select id="order-asset" class="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2.5 text-sm font-bold text-white focus:outline-none focus:border-amber-500">
-                                    {{ ORDER_ASSET_OPTIONS }}
+                                    <option value="RELIANCE">RELIANCE — Reliance Industries (NSE)</option>
+                                    <option value="TCS">TCS — Tata Consultancy Services (NSE)</option>
+                                    <option value="HDFCBANK">HDFCBANK — HDFC Bank Ltd (NSE)</option>
+                                    <option value="INFY">INFY — Infosys Ltd (NSE)</option>
+                                    <option value="ICICIBANK">ICICIBANK — ICICI Bank Ltd (NSE)</option>
+                                    <option value="SBIN">SBIN — State Bank of India (NSE)</option>
+                                    <option value="BHARTIARTL">BHARTIARTL — Bharti Airtel (NSE)</option>
+                                    <option value="ITC">ITC — ITC Ltd (NSE)</option>
+                                    <option value="NIFTY50">NIFTY50 — Nifty 50 Index (NSE)</option>
+                                    <option value="BANKNIFTY">BANKNIFTY — Bank Nifty Index (NSE)</option>
                                 </select>
                             </div>
 
                             <div>
-                                <label id="lbl-trade-capital-alloc" class="block text-xs font-bold text-gray-400 uppercase mb-1">{{ ORDER_ALLOCATION_LABEL }}</label>
+                                <label id="lbl-trade-capital-alloc" class="block text-xs font-bold text-gray-400 uppercase mb-1">Trade Capital Allocation (₹)</label>
                                 <input type="number" id="order-amount-input" value="1000" class="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2.5 text-sm font-bold text-white font-mono focus:outline-none focus:border-amber-500">
                             </div>
                         </div>
@@ -527,22 +536,22 @@
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div class="bg-darkcard border border-darkborder p-4 rounded-xl space-y-1">
                         <div class="text-[10px] text-gray-400 uppercase font-semibold">P50 Latency</div>
-                        <div id="exec-kpi-p50" class="text-2xl font-black text-emerald-400 font-mono">{{ PROFILER_P50 }}</div>
+                        <div id="exec-kpi-p50" class="text-2xl font-black text-emerald-400 font-mono">484.8 ms</div>
                         <div class="text-[10px] text-gray-400">Median Execution</div>
                     </div>
                     <div class="bg-darkcard border border-darkborder p-4 rounded-xl space-y-1">
                         <div class="text-[10px] text-gray-400 uppercase font-semibold">P95 Latency</div>
-                        <div id="exec-kpi-p95" class="text-2xl font-black text-amber-400 font-mono">{{ PROFILER_P95 }}</div>
+                        <div id="exec-kpi-p95" class="text-2xl font-black text-amber-400 font-mono">530.3 ms</div>
                         <div class="text-[10px] text-gray-400">95th Percentile</div>
                     </div>
                     <div class="bg-darkcard border border-darkborder p-4 rounded-xl space-y-1">
                         <div class="text-[10px] text-gray-400 uppercase font-semibold">P99 Latency</div>
-                        <div id="exec-kpi-p99" class="text-2xl font-black text-red-400 font-mono">{{ PROFILER_P99 }}</div>
+                        <div id="exec-kpi-p99" class="text-2xl font-black text-red-400 font-mono">660.7 ms</div>
                         <div class="text-[10px] text-gray-400">99th Percentile</div>
                     </div>
                     <div class="bg-darkcard border border-darkborder p-4 rounded-xl space-y-1">
                         <div class="text-[10px] text-gray-400 uppercase font-semibold">Average Engine Latency</div>
-                        <div id="exec-kpi-avg" class="text-2xl font-black text-cyan-400 font-mono">{{ PROFILER_AVG }}</div>
+                        <div id="exec-kpi-avg" class="text-2xl font-black text-cyan-400 font-mono">494.6 ms</div>
                         <div class="text-[10px] text-gray-400">10-Stage Pipeline Mean</div>
                     </div>
                 </div>
@@ -657,15 +666,15 @@
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div class="bg-darkcard border border-darkborder p-5 rounded-2xl space-y-2">
                         <div class="text-xs text-gray-400 font-bold">Trading Account Equity</div>
-                        <div id="pf-trading-equity" class="text-2xl font-black text-white font-mono">{{ PORTFOLIO_EQUITY }}</div>
+                        <div id="pf-trading-equity" class="text-2xl font-black text-white font-mono">₹100,000.00</div>
                     </div>
                     <div class="bg-darkcard border border-darkborder p-5 rounded-2xl space-y-2">
                         <div class="text-xs text-gray-400 font-bold">Secured Profit Vault</div>
-                        <div id="pf-vault-reserve" class="text-2xl font-black text-emerald-400 font-mono">{{ VAULT_BALANCE }}</div>
+                        <div id="pf-vault-reserve" class="text-2xl font-black text-emerald-400 font-mono">₹0.00</div>
                     </div>
                     <div class="bg-darkcard border border-darkborder p-5 rounded-2xl space-y-2">
                         <div class="text-xs text-gray-400 font-bold">Total Platform Assets</div>
-                        <div id="pf-total-assets" class="text-2xl font-black text-amber-400 font-mono">{{ TOTAL_ASSETS }}</div>
+                        <div id="pf-total-assets" class="text-2xl font-black text-amber-400 font-mono">₹100,000.00</div>
                     </div>
                 </div>
             <div class="bg-darkcard border border-darkborder p-5 rounded-2xl space-y-4 shadow-xl">
@@ -2749,6 +2758,8 @@
             } catch (e) {
                 console.error('Error toggling live trading:', e);
             }
+        }
+
         async function resetWorkspaceCapital() {
             const ws = window.activeMarketVenue || 'INDIA';
             if (!confirm(`Are you sure you want to reset ${ws} capital back to its clean initial balance? This will clear stale drawdown and restore the baseline account equity.`)) return;
@@ -3550,7 +3561,7 @@
             initChart();
             const urlParams = new URLSearchParams(window.location.search);
             const wsParam = urlParams.get('workspace');
-            const initWs = (wsParam ? ((wsParam === 'FOREX' || wsParam === 'FOREX_GOLD') ? 'FOREX_GOLD' : wsParam.toUpperCase()) : null) || localStorage.getItem('aegis_active_workspace') || '{{ INITIAL_WORKSPACE }}' || 'INDIA';
+            const initWs = (wsParam ? ((wsParam === 'FOREX' || wsParam === 'FOREX_GOLD') ? 'FOREX_GOLD' : wsParam.toUpperCase()) : null) || localStorage.getItem('aegis_active_workspace') || 'INDIA';
             switchMarketVenue(initWs);
             renderSystemHealth();
             fetchState(initWs);

@@ -1,6 +1,52 @@
 {
   "entries": [
     {
+      "entry_id": "DEL-BIN-1789060243491-942D42",
+      "timestamp": "2026-09-10 22:40:43",
+      "ledger_type": "BINANCE_PAY_DEPOSIT",
+      "environment": "TEST_ENV",
+      "debit_account": "BINANCE_PAY_INFLOW",
+      "credit_account": "CUSTOMER_TRADING_ACCOUNT",
+      "amount": 500.0,
+      "asset": "USDT",
+      "currency": "USDT",
+      "reference_id": "TEST-ARCH-001",
+      "metadata": {
+        "currency": "USDT",
+        "amount": 500.0,
+        "exchange_rate": 1.0,
+        "fee": 0.0,
+        "timestamp": "2026-09-10 22:40:43",
+        "provider": "INTERNAL",
+        "account": "CUSTOMER_TRADING_ACCOUNT",
+        "transaction_id": "DEL-BIN-1789060243491-942D42"
+      },
+      "status": "POSTED"
+    },
+    {
+      "entry_id": "DEL-BIN-1789059756239-E045D2",
+      "timestamp": "2026-09-10 22:32:36",
+      "ledger_type": "BINANCE_PAY_DEPOSIT",
+      "environment": "TEST_ENV",
+      "debit_account": "BINANCE_PAY_INFLOW",
+      "credit_account": "CUSTOMER_TRADING_ACCOUNT",
+      "amount": 500.0,
+      "asset": "USDT",
+      "currency": "USDT",
+      "reference_id": "TEST-ARCH-001",
+      "metadata": {
+        "currency": "USDT",
+        "amount": 500.0,
+        "exchange_rate": 1.0,
+        "fee": 0.0,
+        "timestamp": "2026-09-10 22:32:36",
+        "provider": "INTERNAL",
+        "account": "CUSTOMER_TRADING_ACCOUNT",
+        "transaction_id": "DEL-BIN-1789059756239-E045D2"
+      },
+      "status": "POSTED"
+    },
+    {
       "entry_id": "DEL-TRA-1789010527280-F0D441",
       "timestamp": "2026-09-10 08:52:07",
       "ledger_type": "TRADING_LEDGER",

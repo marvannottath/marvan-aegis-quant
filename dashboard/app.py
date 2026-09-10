@@ -550,6 +550,32 @@ async def read_dashboard(request: Request):
     # Guard against any stale $100,023.49 lingering in the string
     content = content.replace("$100,023.49", eq_str)
 
+    # Replace static India defaults if active workspace is not India
+    if not is_india:
+        content = content.replace("AEGIS INDIA POOL (₹100,000.00)", hdr_env_label)
+        content = content.replace("INDIAN MARKETS (NSE/BSE)", venue_title)
+        content = content.replace("NSE/BSE (INDIA ACTIVE)", venue_badge)
+        content = content.replace("Currency: INR (₹) • Settlement: T+1 Rolling • Regulation: SEBI Compliant • Risk Profile: Enforced", venue_subtitle)
+        content = content.replace('<i class="fa-solid fa-bolt mr-1"></i>UPSTOX: NSE/BSE ACTIVE', broker_badge)
+        content = content.replace("₹100,000.00", eq_str)
+        content = content.replace("+₹0.00", today_pnl_str)
+        content = content.replace("Real-time market scanning across Indian Equities & Indices (NSE / BSE)", scanner_subtitle)
+        content = content.replace("Fast Order Execution Terminal — Upstox NSE / BSE", order_title)
+        content = content.replace("Server-side 7-Gate Risk Engine validates all parameters before execution (SEBI Compliant)", order_subtitle)
+        content = content.replace("Trade Capital Allocation (₹)", order_alloc_label)
+        content = content.replace("Allocated Margin (₹)", pos_alloc_label)
+        content = content.replace("Unrealized PnL (₹)", pos_pnl_label)
+        
+        default_btn_active = 'class="px-3 py-1.5 rounded-lg font-bold text-xs transition flex items-center space-x-1.5 bg-amber-500 text-black shadow"'
+        default_btn_inactive = 'class="px-3 py-1.5 rounded-lg font-bold text-xs text-gray-400 hover:text-white transition flex items-center space-x-1.5"'
+        content = content.replace(f'id="btn-mkt-india" onclick="switchMarketVenue(\'INDIA\')" {default_btn_active}', f'id="btn-mkt-india" onclick="switchMarketVenue(\'INDIA\')" class="{btn_india_class}"')
+        content = content.replace(f'id="btn-mkt-forex" onclick="switchMarketVenue(\'FOREX\')" {default_btn_inactive}', f'id="btn-mkt-forex" onclick="switchMarketVenue(\'FOREX\')" class="{btn_forex_class}"')
+        content = content.replace(f'id="btn-mkt-crypto" onclick="switchMarketVenue(\'CRYPTO\')" {default_btn_inactive}', f'id="btn-mkt-crypto" onclick="switchMarketVenue(\'CRYPTO\')" class="{btn_crypto_class}"')
+
+    # Ultimate safety net: scrub ANY remaining unreplaced {{ ... }} placeholders
+    import re
+    content = re.sub(r'\{\{\s*[A-Z0-9_]+\s*\}\}', '', content)
+
     resp = HTMLResponse(content=content)
     resp.set_cookie(key="aegis_active_workspace", value=active_ws, max_age=86400 * 30, path="/")
     return resp
