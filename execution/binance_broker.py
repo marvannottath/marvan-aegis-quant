@@ -413,8 +413,16 @@ class BinanceBroker:
         if environment == "PAPER":
             from execution.paper_broker import paper_broker
             val = price * quantity if price > 0 else 50.0
-            p_res = paper_broker.execute_market_order(symbol=symbol, action=side.upper(), current_price=price or 65000.0, allocated_margin=val)
-            return {"status": "SUCCESS", "provider_order_id": f"PAP-{int(time.time()*1000)}", "client_order_id": client_order_id, "data": p_res}
+            fill_price = price if price > 0 else 65000.0
+            p_res = paper_broker.execute_order(asset=symbol, action=side.upper(), amount_usd=val, current_price=fill_price, leverage=1.0)
+            return {
+                "status": "SUCCESS",
+                "provider_order_id": f"PAP-{int(time.time()*1000)}",
+                "client_order_id": client_order_id,
+                "executed_quantity": quantity if quantity > 0 else round(val / fill_price, 6),
+                "average_fill_price": fill_price,
+                "data": p_res
+            }
 
         api_k, sec_k, base_url, is_testnet = self._get_credentials_for_env(environment)
         if not api_k or not sec_k:

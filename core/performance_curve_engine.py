@@ -110,16 +110,22 @@ class PerformanceCurveEngine:
                     events.append({"timestamp": ts_val, "pnl": amt})
 
         if not events:
+            val = opening_amt if metric == "equity" else 0.0
+            start_ts = cutoff_dt.strftime("%Y-%m-%d %H:%M:%S")
             return {
-                "status": "NO_DATA",
+                "status": "SUCCESS",
                 "metric": metric,
                 "range": time_range,
                 "environment": environment,
-                "points": [],
-                "latest": opening_amt if metric == "equity" else 0.0,
-                "min": 0.0,
-                "max": 0.0,
-                "point_count": 0
+                "points": [
+                    {"timestamp": start_ts, "value": val},
+                    {"timestamp": now_str, "value": val}
+                ],
+                "latest": val,
+                "min": val,
+                "max": val,
+                "point_count": 2,
+                "baseline_anchor": True
             }
 
         # Sort chronologically

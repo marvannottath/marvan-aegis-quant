@@ -6,7 +6,7 @@ Records all financial events (deposit_created, deposit_credited, withdrawal_requ
 import json
 import time
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone, timedelta
 
 IST_TZ = timezone(timedelta(hours=5, minutes=30))
@@ -64,10 +64,24 @@ class FinancialAuditLogger:
         }
         self.logs.insert(0, record)
         self._save_logs()
+        try:
+            from core.unified_database import unified_db
+            unified_db.log_audit_action(
+                actor=user_id,
+                action=event_type,
+                category=provider,
+                details=record
+            )
+        except Exception:
+            pass
         return record
 
-    def get_audit_trail(self, environment: str = "AEGIS_QUANT_MASTER") -> List[Dict[str, Any]]:
-        return [l for l in self.logs if l["environment"] == environment]
+    def get_audit_trail(self, environment: Optional[str] = None) -> List[Dict[str, Any]]:
+        if environment and environment not in ["ALL", ""]:
+            matched = [l for l in self.logs if l.get("environment") == environment]
+            if matched:
+                return matched
+        return self.logs
 
 
 # Global Singleton

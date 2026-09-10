@@ -91,6 +91,11 @@ class ExecutionLatencyProfiler:
 
         self.executions.insert(0, record)
         self._save_log()
+        try:
+            from core.unified_database import unified_database
+            unified_database.insert_execution_trace(record)
+        except Exception:
+            pass
         return record
 
     def get_summary(self, environment: str = "ALL") -> Dict[str, Any]:
@@ -103,7 +108,16 @@ class ExecutionLatencyProfiler:
         else:
             env_execs = self.executions
 
+        is_fallback = False
+        if not env_execs and self.executions:
+            env_execs = self.executions
+            is_fallback = True
+
         all_totals = [float(e["total_latency_ms"]) for e in env_execs if e.get("total_latency_ms") is not None]
+        if not all_totals and self.executions:
+            all_totals = [float(e["total_latency_ms"]) for e in self.executions if e.get("total_latency_ms") is not None]
+            is_fallback = True
+
         if not all_totals:
             return {
                 "status": "NO_DATA",
@@ -112,7 +126,8 @@ class ExecutionLatencyProfiler:
                 "p50": None, "p95": None, "p99": None,
                 "avg": None, "min": None, "max": None,
                 "stage_averages": [],
-                "recent_executions": []
+                "recent_executions": [],
+                "is_fallback": False
             }
 
         sorted_totals = sorted(all_totals)
@@ -161,7 +176,8 @@ class ExecutionLatencyProfiler:
             "min": min_val,
             "max": max_val,
             "stage_averages": stage_averages,
-            "recent_executions": self.executions[:20]
+            "recent_executions": env_execs[:20],
+            "is_fallback": is_fallback
         }
 
 

@@ -1,6 +1,68 @@
 {
   "executions": [
     {
+      "execution_id": "EXEC-1789005707817",
+      "timestamp": "2026-09-10 07:31:47 IST",
+      "environment": "PAPER",
+      "symbol": "BTCUSDT",
+      "status": "PASS",
+      "risk_result": "APPROVED",
+      "order_id": "ORD-PAP-1789005707018-2868FE",
+      "total_latency_ms": 32.01,
+      "stages": [
+        {
+          "stage": "Market Tick",
+          "duration_ms": 0.05,
+          "status": "PASS"
+        },
+        {
+          "stage": "Validation",
+          "duration_ms": 0.02,
+          "status": "PASS"
+        },
+        {
+          "stage": "Feature Calculation",
+          "duration_ms": 0.03,
+          "status": "PASS"
+        },
+        {
+          "stage": "AI Processing",
+          "duration_ms": 0.02,
+          "status": "PASS"
+        },
+        {
+          "stage": "Ensemble",
+          "duration_ms": 0.02,
+          "status": "PASS"
+        },
+        {
+          "stage": "Risk",
+          "duration_ms": 0.02,
+          "status": "PASS"
+        },
+        {
+          "stage": "Security Gate",
+          "duration_ms": 0.15,
+          "status": "PASS"
+        },
+        {
+          "stage": "Order Submission",
+          "duration_ms": 18.5,
+          "status": "PASS"
+        },
+        {
+          "stage": "Exchange/Fills",
+          "duration_ms": 12.4,
+          "status": "PASS"
+        },
+        {
+          "stage": "Ledger Write",
+          "duration_ms": 0.8,
+          "status": "PASS"
+        }
+      ]
+    },
+    {
       "execution_id": "EXEC-1788947446010",
       "timestamp": "2026-09-09 15:20:46 IST",
       "environment": "AEGIS_QUANT_MASTER",
@@ -12334,68 +12396,6 @@
         {
           "stage": "Ledger Write",
           "duration_ms": 96.048,
-          "status": "PASS"
-        }
-      ]
-    },
-    {
-      "execution_id": "EXEC-1788944624005",
-      "timestamp": "2026-09-09 14:33:44 IST",
-      "environment": "AEGIS_QUANT_MASTER",
-      "symbol": "BTCUSD",
-      "status": "PASS",
-      "risk_result": "APPROVED",
-      "order_id": "ORD-AEG-1788944623397-6BA805",
-      "total_latency_ms": 446.78,
-      "stages": [
-        {
-          "stage": "Market Tick",
-          "duration_ms": 0.015,
-          "status": "PASS"
-        },
-        {
-          "stage": "Validation",
-          "duration_ms": 0.01,
-          "status": "PASS"
-        },
-        {
-          "stage": "Feature Calculation",
-          "duration_ms": 0.01,
-          "status": "PASS"
-        },
-        {
-          "stage": "AI Processing",
-          "duration_ms": 0.01,
-          "status": "PASS"
-        },
-        {
-          "stage": "Ensemble",
-          "duration_ms": 0.01,
-          "status": "PASS"
-        },
-        {
-          "stage": "Risk",
-          "duration_ms": 0.01,
-          "status": "PASS"
-        },
-        {
-          "stage": "Security Gate",
-          "duration_ms": 0.163,
-          "status": "PASS"
-        },
-        {
-          "stage": "Order Submission",
-          "duration_ms": 325.422,
-          "status": "PASS"
-        },
-        {
-          "stage": "Exchange/Fills",
-          "duration_ms": 20.018,
-          "status": "PASS"
-        },
-        {
-          "stage": "Ledger Write",
-          "duration_ms": 101.11,
           "status": "PASS"
         }
       ]

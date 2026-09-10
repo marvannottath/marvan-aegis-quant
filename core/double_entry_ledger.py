@@ -102,6 +102,11 @@ class DoubleEntryLedger:
 
         self.entries.insert(0, record)
         self._save_ledger()
+        try:
+            from core.unified_database import unified_db
+            unified_db.insert_ledger_entry(record)
+        except Exception:
+            pass
         return record
 
     def ensure_opening_balance(

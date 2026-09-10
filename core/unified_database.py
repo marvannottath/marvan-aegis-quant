@@ -462,17 +462,121 @@ class UnifiedDatabase:
             return cursor.lastrowid
 
     def get_audit_logs(self, limit: int = 50) -> List[Dict[str, Any]]:
-        """Retrieve latest audit logs."""
-        with self._get_connection() as conn:
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-            rows = cursor.execute("""
-                SELECT id, timestamp, actor, action, category, details_json
-                FROM financial_audit_logs
-                ORDER BY id DESC
-                LIMIT ?
-            """, (limit,)).fetchall()
-            return [dict(r) for r in rows]
+        """Retrieve latest audit records from financial_audit_logs."""
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT id, timestamp, actor, action, category, details_json
+                    FROM financial_audit_logs
+                    ORDER BY id DESC LIMIT ?
+                """, (limit,))
+                rows = cursor.fetchall()
+                result = []
+                for r in rows:
+                    details = {}
+                    try:
+                        details = json.loads(r[5]) if r[5] else {}
+                    except Exception:
+                        pass
+                    item = {
+                        "id": r[0],
+                        "timestamp": r[1],
+                        "actor": r[2],
+                        "action": r[3],
+                        "category": r[4],
+                        "details": details,
+                    }
+                    item.update(details)
+                    result.append(item)
+                return result
+        except Exception as e:
+            print(f"[UNIFIED_DB] Error getting audit logs: {e}")
+            return []
+
+    def insert_ledger_entry(self, entry: Dict[str, Any]):
+        """Insert a single ledger transaction into SQLite with WAL mode."""
+        try:
+            with self._get_connection() as conn:
+                conn.execute("""
+                    INSERT OR IGNORE INTO ledger_entries (
+                        entry_id, timestamp, ledger_type, environment,
+                        debit_account, credit_account, amount, asset, currency,
+                        reference_id, metadata_json, status, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    entry.get("entry_id"),
+                    entry.get("timestamp", get_ist_now()),
+                    entry.get("ledger_type", "TRADING_LEDGER"),
+                    entry.get("environment", "AEGIS_QUANT_MASTER"),
+                    entry.get("debit_account", ""),
+                    entry.get("credit_account", ""),
+                    float(entry.get("amount", 0.0)),
+                    entry.get("asset", "USDT"),
+                    entry.get("currency", "USDT"),
+                    entry.get("reference_id", ""),
+                    json.dumps(entry.get("metadata", {})),
+                    entry.get("status", "POSTED"),
+                    get_ist_now()
+                ))
+                conn.commit()
+        except Exception as e:
+            print(f"[UNIFIED_DB] Error inserting ledger entry: {e}")
+
+    def insert_or_update_order(self, order: Dict[str, Any]):
+        """Insert or update order in SQLite database."""
+        try:
+            with self._get_connection() as conn:
+                conn.execute("""
+                    INSERT OR REPLACE INTO orders (
+                        order_id, symbol, side, quantity, price, order_type,
+                        environment, strategy, status, fill_qty, avg_fill_price,
+                        created_at, updated_at, execution_record_json, transitions_json, metadata_json
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    order.get("order_id"),
+                    order.get("symbol", ""),
+                    order.get("side", "BUY"),
+                    float(order.get("quantity", 0.0)),
+                    float(order.get("price", 0.0)),
+                    order.get("order_type", "MARKET"),
+                    order.get("environment", "PAPER"),
+                    order.get("strategy", ""),
+                    order.get("status", "CREATED"),
+                    float(order.get("fill_qty", 0.0)),
+                    float(order.get("avg_fill_price", 0.0)),
+                    order.get("created_at", get_ist_now()),
+                    order.get("updated_at", get_ist_now()),
+                    json.dumps(order.get("execution_record")),
+                    json.dumps(order.get("transitions", [])),
+                    json.dumps(order.get("metadata", {}))
+                ))
+                conn.commit()
+        except Exception as e:
+            print(f"[UNIFIED_DB] Error inserting order: {e}")
+
+    def insert_execution_trace(self, trace: Dict[str, Any]):
+        """Insert execution latency trace into SQLite database."""
+        try:
+            with self._get_connection() as conn:
+                conn.execute("""
+                    INSERT OR IGNORE INTO execution_latencies (
+                        execution_id, symbol, side, quantity, total_latency_ms,
+                        stages_json, environment, timestamp
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    trace.get("execution_id"),
+                    trace.get("symbol", ""),
+                    trace.get("side", ""),
+                    float(trace.get("quantity", 0.0)),
+                    float(trace.get("total_latency_ms", 0.0)),
+                    json.dumps(trace.get("stages", [])),
+                    trace.get("environment", "PAPER"),
+                    trace.get("timestamp", get_ist_now())
+                ))
+                conn.commit()
+        except Exception as e:
+            print(f"[UNIFIED_DB] Error inserting latency trace: {e}")
 
 
 # Global singleton

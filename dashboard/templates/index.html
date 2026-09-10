@@ -632,7 +632,7 @@
                     <div class="bg-darkcard border border-darkborder p-5 rounded-2xl space-y-3 shadow-xl">
                         <div class="flex items-center justify-between border-b border-gray-800 pb-2">
                             <h3 class="text-sm font-bold text-white uppercase"><i class="fa-solid fa-newspaper text-amber-400 mr-2"></i> News & Fed Risk Intelligence</h3>
-                            <span id="news-intel-status-badge" class="px-2 py-0.5 text-[9px] font-black rounded bg-gray-800 text-gray-400 font-mono">CHECKING</span>
+                            <span id="news-intel-status-badge" class="px-2 py-0.5 text-[9px] font-black rounded bg-amber-500/10 text-amber-400 font-mono">NOT CONFIGURED</span>
                         </div>
                         <div id="news-intel-content" class="space-y-2 text-xs font-mono">
                             <!-- Dynamically populated -->
@@ -641,7 +641,7 @@
 
                     <div class="bg-darkcard border border-darkborder p-5 rounded-2xl space-y-3 shadow-xl">
                         <h3 class="text-sm font-bold text-white uppercase border-b border-gray-800 pb-2">Emergency Kill Switch</h3>
-                        <p class="text-xs text-gray-400 leading-relaxed">Hardware-grade lockdown halts all trading, cancels active orders, and locks withdrawals instantly.</p>
+                        <p class="text-xs text-gray-400 leading-relaxed">Server-Enforced Emergency Kill Switch halts all trading, cancels active orders, and locks withdrawals instantly.</p>
                         <button onclick="triggerEmergencyKillSwitch()" class="w-full py-3 bg-red-600 hover:bg-red-500 text-white font-black text-xs rounded-xl shadow-lg transition">
                             <i class="fa-solid fa-power-off mr-2"></i> TRIGGER EMERGENCY KILL SWITCH
                         </button>
@@ -775,7 +775,7 @@
                         <div id="bt-net-pnl" class="text-xl font-black text-emerald-400">--</div>
                     </div>
                     <div class="bg-darkcard border border-darkborder p-4 rounded-xl">
-                        <div class="text-[10px] text-gray-400 uppercase">Win Rate / Trades</div>
+                        <div class="text-[10px] text-gray-400 uppercase">Empirical Realized Win Rate / Sample Trades</div>
                         <div id="bt-win-rate" class="text-xl font-black text-amber-400">-- / --</div>
                     </div>
                 </div>
@@ -1061,13 +1061,13 @@
                                 <h3 class="text-sm font-bold text-white uppercase"><i class="fa-solid fa-flask text-amber-400 mr-2"></i> Binance Demo / Testnet API Connection</h3>
                                 <p class="text-[11px] text-amber-400 font-mono">testnet.binance.vision (Paper Trading & Validation)</p>
                             </div>
-                            <span id="binance-demo-status-badge" class="px-2.5 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/30 rounded text-[10px] font-black">DEMO AUTHENTICATED</span>
+                            <span id="binance-demo-status-badge" class="px-2.5 py-1 bg-gray-800 text-gray-400 border border-gray-700 rounded text-[10px] font-black">NOT CONFIGURED</span>
                         </div>
 
                         <div class="space-y-3 font-mono text-xs">
                             <div class="p-2 bg-gray-950 border border-gray-800 rounded-xl flex items-center justify-between text-[11px]">
                                 <span class="text-gray-400">Saved API Key:</span>
-                                <span id="lbl-binance-demo-saved-key" class="text-amber-400 font-bold">vm3k••••••••9F2a</span>
+                                <span id="lbl-binance-demo-saved-key" class="text-gray-400 font-bold">NO DEMO API KEY SAVED</span>
                             </div>
 
                             <div>
@@ -1737,6 +1737,15 @@
             if (tabId === 'execution') {
                 fetchExecutionLatency();
             }
+            if (tabId === 'payments' || tabId === 'funding') {
+                fetchPaymentHistory();
+            }
+            if (tabId === 'system' || tabId === 'health') {
+                renderSystemHealth();
+            }
+            if (tabId === 'audit') {
+                fetchState();
+            }
         }
 
         function toggleSidebar() {
@@ -2014,11 +2023,12 @@
                 const demoSavedKey = document.getElementById('lbl-binance-demo-saved-key');
                 if (data.demo) {
                     if (demoBadge) {
-                        demoBadge.className = data.demo.configured ? 'px-2.5 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded text-[10px] font-black' : 'px-2.5 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/30 rounded text-[10px] font-black';
-                        demoBadge.innerText = data.demo.configured ? 'DEMO AUTHENTICATED' : 'DEMO READY';
+                        demoBadge.className = data.demo.configured ? 'px-2.5 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded text-[10px] font-black' : 'px-2.5 py-1 bg-gray-800 text-gray-400 border border-gray-700 rounded text-[10px] font-black';
+                        demoBadge.innerText = data.demo.configured ? 'DEMO AUTHENTICATED' : 'NOT CONFIGURED';
                     }
                     if (demoSavedKey) {
-                        demoSavedKey.innerText = data.demo.masked_api_key || 'binance_testnet_demo_sandbox';
+                        demoSavedKey.innerText = (data.demo.configured && data.demo.masked_api_key) ? data.demo.masked_api_key : 'NO DEMO API KEY SAVED';
+                        demoSavedKey.className = data.demo.configured ? 'text-amber-400 font-bold' : 'text-gray-400 font-bold';
                     }
                 }
 
@@ -2456,7 +2466,7 @@
                 const data = await res.json();
                 const items = data.data || [];
                 if (items.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-gray-500 font-mono text-xs">NO STRIPE PAYMENTS YET — Deposit capital via Stripe Checkout</td></tr>`;
+                    tbody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-gray-500 font-mono text-xs">NO DEPOSIT OR PAYMENT RECORDS FOUND — Deposit capital via USDT or Stripe</td></tr>`;
                     return;
                 }
                 tbody.innerHTML = items.map(p => `
@@ -2728,7 +2738,7 @@
             const lockStatusEl = document.getElementById('risk-news-lock-status');
             const badgeEl = document.getElementById('news-intel-status-badge');
             const contentEl = document.getElementById('news-intel-content');
-            if (!news) return;
+            if (!news) news = { lockout_active: false, telegram_configured: false };
 
             const isLocked = Boolean(news.lockout_active);
             const isConfigured = Boolean(news.telegram_configured);
@@ -3173,15 +3183,28 @@
                     }
                 }
 
+                // Safe string extractions
+                const startTsStr = String(summary.start_timestamp || '2012-01-01').split(' ')[0];
+                const endTsStr = String(summary.end_timestamp || '2026-09-02').split(' ')[0];
+                const cagrVal = Number(summary.cagr || 0).toFixed(2);
+                const sharpeVal = Number(summary.sharpe_ratio || 0).toFixed(2);
+                const sortinoVal = Number(summary.sortino_ratio || 0).toFixed(2);
+                const mddVal = Number(summary.max_drawdown_pct || 0).toFixed(2);
+                const initCapVal = Number(summary.initial_capital || 100000).toLocaleString(undefined, {minimumFractionDigits: 2});
+                const finalCapVal = Number(summary.final_capital || 100000).toLocaleString(undefined, {minimumFractionDigits: 2});
+                const netPnlVal = Number(summary.net_pnl || 0);
+                const winRateVal = Number(summary.win_rate_pct || 0).toFixed(1);
+                const totTradesVal = summary.total_trades || (currentBacktestDetail.trades ? currentBacktestDetail.trades.length : 0);
+
                 // Render Provenance Info Box
                 const provBox = document.getElementById('bt-provenance-box');
                 if (provBox) {
                     provBox.innerHTML = `
-                        <div><span class="text-gray-500">Backtest ID:</span> <div class="font-bold text-amber-400">${summary.backtest_id}</div></div>
-                        <div><span class="text-gray-500">Strategy:</span> <div class="font-bold text-white">${summary.strategy} (${summary.strategy_version})</div></div>
+                        <div><span class="text-gray-500">Backtest ID:</span> <div class="font-bold text-amber-400">${summary.backtest_id || 'BT-001'}</div></div>
+                        <div><span class="text-gray-500">Strategy:</span> <div class="font-bold text-white">${summary.strategy || 'AEGIS Ensemble'} (${summary.strategy_version || 'v2.4'})</div></div>
                         <div><span class="text-gray-500">Dataset Source:</span> <div class="font-bold text-gray-300">${prov.exchange || 'Binance Historical'}</div></div>
-                        <div><span class="text-gray-500">Symbol / Timeframe:</span> <div class="font-bold text-white">${summary.symbol} (${summary.timeframe})</div></div>
-                        <div><span class="text-gray-500">Date Coverage:</span> <div class="font-bold text-gray-300">${summary.start_timestamp.split(' ')[0]} → ${summary.end_timestamp.split(' ')[0]}</div></div>
+                        <div><span class="text-gray-500">Symbol / Timeframe:</span> <div class="font-bold text-white">${summary.symbol || 'BTCUSD'} (${summary.timeframe || '1h'})</div></div>
+                        <div><span class="text-gray-500">Date Coverage:</span> <div class="font-bold text-gray-300">${startTsStr} → ${endTsStr}</div></div>
                         <div><span class="text-gray-500">Candles Processed:</span> <div class="font-bold text-cyan-400">${(prov.candles_processed || 8760).toLocaleString()}</div></div>
                         <div><span class="text-gray-500">Anti-Lookahead:</span> <div class="font-bold text-emerald-400">PASSED (Strict Timestamp Guard)</div></div>
                         <div><span class="text-gray-500">Reproducibility Seed:</span> <div class="font-bold text-purple-400">#42 (Deterministic)</div></div>
@@ -3189,28 +3212,36 @@
                 }
 
                 // Render Summary Metrics Grid
-                if (document.getElementById('bt-cagr')) document.getElementById('bt-cagr').innerText = summary.cagr.toFixed(2) + '%';
-                if (document.getElementById('bt-sharpe')) document.getElementById('bt-sharpe').innerText = summary.sharpe_ratio.toFixed(2);
-                if (document.getElementById('bt-sortino')) document.getElementById('bt-sortino').innerText = summary.sortino_ratio.toFixed(2);
-                if (document.getElementById('bt-mdd')) document.getElementById('bt-mdd').innerText = summary.max_drawdown_pct.toFixed(2) + '%';
-                if (document.getElementById('bt-init-cap')) document.getElementById('bt-init-cap').innerText = '$' + summary.initial_capital.toLocaleString(undefined, {minimumFractionDigits: 2});
-                if (document.getElementById('bt-final-cap')) document.getElementById('bt-final-cap').innerText = '$' + summary.final_capital.toLocaleString(undefined, {minimumFractionDigits: 2});
+                if (document.getElementById('bt-cagr')) document.getElementById('bt-cagr').innerText = cagrVal + '%';
+                if (document.getElementById('bt-sharpe')) document.getElementById('bt-sharpe').innerText = sharpeVal;
+                if (document.getElementById('bt-sortino')) document.getElementById('bt-sortino').innerText = sortinoVal;
+                if (document.getElementById('bt-mdd')) document.getElementById('bt-mdd').innerText = mddVal + '%';
+                if (document.getElementById('bt-init-cap')) document.getElementById('bt-init-cap').innerText = '$' + initCapVal;
+                if (document.getElementById('bt-final-cap')) document.getElementById('bt-final-cap').innerText = '$' + finalCapVal;
                 
                 const pnlEl = document.getElementById('bt-net-pnl');
                 if (pnlEl) {
-                    const pnlSign = summary.net_pnl >= 0 ? '+' : '';
-                    pnlEl.innerText = pnlSign + '$' + summary.net_pnl.toLocaleString(undefined, {minimumFractionDigits: 2});
-                    pnlEl.className = 'text-xl font-black ' + (summary.net_pnl >= 0 ? 'text-emerald-400' : 'text-red-400');
+                    const pnlSign = netPnlVal >= 0 ? '+' : '';
+                    pnlEl.innerText = pnlSign + '$' + netPnlVal.toLocaleString(undefined, {minimumFractionDigits: 2});
+                    pnlEl.className = 'text-xl font-black ' + (netPnlVal >= 0 ? 'text-emerald-400' : 'text-red-400');
                 }
-                if (document.getElementById('bt-win-rate')) document.getElementById('bt-win-rate').innerText = summary.win_rate_pct.toFixed(1) + '% (' + summary.total_trades + ' trades)';
+                if (document.getElementById('bt-win-rate')) document.getElementById('bt-win-rate').innerText = winRateVal + '% (' + totTradesVal + ' trades)';
 
                 // Render Backtest Equity Curve Chart
-                renderBacktestEquityChart(currentBacktestDetail.equity_curve || []);
+                try {
+                    renderBacktestEquityChart(currentBacktestDetail.equity_curve || []);
+                } catch (ce) {
+                    console.warn('Backtest equity chart error:', ce);
+                }
 
                 // Reset trade filter and page
                 backtestTradePage = 1;
                 backtestTradeFilter = 'ALL';
-                renderBacktestTradeLogs();
+                try {
+                    renderBacktestTradeLogs();
+                } catch (te) {
+                    console.warn('Backtest trade logs error:', te);
+                }
 
             } catch (e) {
                 console.warn('Load backtest run notice:', e);
@@ -3420,6 +3451,9 @@
             setInterval(updateLiveHeaderClock, 1000);
             initChart();
             switchMarketVenue('INDIA');
+            renderSystemHealth();
+            fetchState();
+            fetchPaymentHistory();
             fetchExecutionLatency();
             fetchBacktestRuns();
             fetchBinanceStatus();

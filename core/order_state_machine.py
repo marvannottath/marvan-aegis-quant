@@ -62,7 +62,7 @@ class OrderStateMachine:
             except Exception as e:
                 print(f"[ORDER_SM] Load error: {e}")
 
-    def _save(self):
+    def _save(self, order: Optional[Dict[str, Any]] = None):
         try:
             tmp = ORDERS_DB.with_suffix(".tmp")
             with open(tmp, "w") as f:
@@ -70,6 +70,12 @@ class OrderStateMachine:
             tmp.replace(ORDERS_DB)
         except Exception as e:
             print(f"[ORDER_SM] Save error: {e}")
+        if order:
+            try:
+                from core.unified_database import unified_db
+                unified_db.insert_or_update_order(order)
+            except Exception:
+                pass
 
     def create_order(
         self,
@@ -119,7 +125,7 @@ class OrderStateMachine:
             "metadata":                     metadata or {},
         }
         self.orders[order_id] = order
-        self._save()
+        self._save(order)
         return order
 
     def transition(
@@ -208,7 +214,7 @@ class OrderStateMachine:
             "reason": reason,
         })
 
-        self._save()
+        self._save(order)
         return order
 
     def get_order(self, order_id: str) -> Optional[Dict[str, Any]]:

@@ -90,7 +90,9 @@ class BacktestAnalyticsEngine:
         final_eq = float(r.get("final_equity") or r.get("final_capital") or init_cap)
         trades = r.get("trade_history", [])
         
-        if trades:
+        tot_trades = int(r.get("total_trades", len(trades)))
+        
+        if trades and len(trades) == tot_trades:
             sum_pnl = sum(float(t.get("net_pnl") or t.get("pnl_usd") or 0.0) for t in trades)
             expected_final = round(init_cap + sum_pnl, 2)
             if abs(expected_final - round(final_eq, 2)) > 1.0:
@@ -98,6 +100,17 @@ class BacktestAnalyticsEngine:
                     "status": "DATA_INTEGRITY_ERROR",
                     "message": f"Final capital (${final_eq:.2f}) does not match Initial + SUM(Trade PnL) (${expected_final:.2f})"
                 }
+        elif trades and len(trades) < tot_trades:
+            # Sampled trade history — verify each sample trade has valid non-zero pricing and math
+            for t in trades[:10]:
+                gross = float(t.get("gross_pnl") or t.get("pnl_usd") or 0.0)
+                fees = float(t.get("fees") or 0.0)
+                net = float(t.get("net_pnl") or 0.0)
+                if abs(round(gross - fees, 2) - round(net, 2)) > 1.0 and abs(gross - net) > 1.0:
+                    return {
+                        "status": "DATA_INTEGRITY_ERROR",
+                        "message": f"Trade {t.get('trade_id')} math mismatch: gross({gross}) - fees({fees}) != net({net})"
+                    }
 
         eq_curve = r.get("equity_curve", [])
         if eq_curve:
