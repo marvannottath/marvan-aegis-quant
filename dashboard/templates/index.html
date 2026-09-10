@@ -1183,12 +1183,19 @@
         let currentLeverage = 10;
         let activeRiskProfileMaxLev = 10;
         let chartInstance = null;
-        let activeMarketVenue = 'INDIA';
+        let activeMarketVenue = localStorage.getItem('aegis_active_workspace') || 'INDIA';
         window.activeMarketVenue = activeMarketVenue;
+        window.ACTIVE_WORKSPACE = activeMarketVenue;
+        let workspaceSwitchSequence = 0;
 
         async function switchMarketVenue(venue) {
-            window.activeMarketVenue = venue;
-            activeMarketVenue = venue;
+            const normVenue = (venue === 'FOREX' || venue === 'FOREX_GOLD') ? 'FOREX_GOLD' : venue;
+            window.activeMarketVenue = normVenue;
+            activeMarketVenue = normVenue;
+            window.ACTIVE_WORKSPACE = normVenue;
+            localStorage.setItem('aegis_active_workspace', normVenue);
+
+            const currentSeq = ++workspaceSwitchSequence;
 
             const btnInd = document.getElementById('btn-mkt-india');
             const btnFx = document.getElementById('btn-mkt-forex');
@@ -1197,28 +1204,28 @@
             const activeClass = "px-3 py-1.5 rounded-lg font-bold text-xs transition flex items-center space-x-1.5 bg-amber-500 text-black shadow";
             const inactiveClass = "px-3 py-1.5 rounded-lg font-bold text-xs text-gray-400 hover:text-white transition flex items-center space-x-1.5";
 
-            if (btnInd) btnInd.className = (venue === 'INDIA') ? activeClass : inactiveClass;
-            if (btnFx) btnFx.className = (venue === 'FOREX') ? activeClass : inactiveClass;
-            if (btnCry) btnCry.className = (venue === 'CRYPTO') ? activeClass : inactiveClass;
+            if (btnInd) btnInd.className = (normVenue === 'INDIA') ? activeClass : inactiveClass;
+            if (btnFx) btnFx.className = (normVenue === 'FOREX_GOLD' || normVenue === 'FOREX') ? activeClass : inactiveClass;
+            if (btnCry) btnCry.className = (normVenue === 'CRYPTO') ? activeClass : inactiveClass;
 
-            updateVenueBanner(venue);
-            updateOrderAssetsList(venue);
+            updateVenueBanner(normVenue);
+            updateOrderAssetsList(normVenue);
 
             let poolToSet = 'AEGIS_INDIA_INR';
-            if (venue === 'FOREX') poolToSet = 'AEGIS_QUANT_MASTER';
-            if (venue === 'CRYPTO') poolToSet = 'BINANCE_TESTNET_DEMO';
+            if (normVenue === 'FOREX_GOLD' || normVenue === 'FOREX') poolToSet = 'AEGIS_QUANT_MASTER';
+            if (normVenue === 'CRYPTO') poolToSet = 'BINANCE_TESTNET_DEMO';
 
             try {
-                await fetch('/api/switch-trading-pool', {
+                await fetch('/api/workspace/switch', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ pool: poolToSet })
+                    body: JSON.stringify({ workspace: normVenue })
                 });
             } catch (e) {
-                console.warn("Pool switch notice:", e);
+                console.warn("Workspace switch notice:", e);
             }
 
-            refreshVenueData();
+            refreshVenueData(currentSeq);
         }
 
         function updateVenueBanner(venue) {
@@ -1237,7 +1244,7 @@
                 if (taxBtn) taxBtn.classList.remove('hidden');
                 fetchIndiaMarketSession();
                 fetchUpstoxStatus();
-            } else if (venue === 'FOREX') {
+            } else if (venue === 'FOREX' || venue === 'FOREX_GOLD') {
                 if (flag) flag.innerText = '💱';
                 if (title) title.innerText = 'FOREX & COMMODITIES (GLOBAL)';
                 if (subtitle) subtitle.innerText = 'Currency: USD ($) • 24/5 Over-The-Counter Interbank • Gold Spot (XAU/USD)';
@@ -1281,7 +1288,7 @@
                     <option value="BANKBEES">BANKBEES — Nippon Bank ETF (₹512.00)</option>
                     <option value="ITBEES">ITBEES — Nippon IT ETF (₹42.80)</option>
                 `;
-            } else if (venue === 'FOREX') {
+            } else if (venue === 'FOREX' || venue === 'FOREX_GOLD') {
                 sel.innerHTML = `
                     <option value="EURUSD">EURUSD — Euro / US Dollar (1.0852)</option>
                     <option value="GBPUSD">GBPUSD — British Pound / US Dollar (1.2965)</option>
@@ -1307,17 +1314,13 @@
             }
         }
 
-        async function refreshVenueData() {
+        async function refreshVenueData(seq) {
             if (window.activeMarketVenue === 'INDIA') {
                 fetchIndiaMarketSession();
-                fetchIndiaScanner();
-                fetchIndiaSignals();
                 fetchUpstoxStatus();
-                fetchIndiaPositions();
-            } else if (window.activeMarketVenue === 'FOREX') {
-                fetchForexScanner();
             }
-            fetchState();
+            fetchState(window.activeMarketVenue, seq);
+            fetchPerformanceCurve();
         }
 
         async function fetchIndiaMarketSession() {
@@ -2167,10 +2170,18 @@
             if (document.getElementById('est-max-loss')) document.getElementById('est-max-loss').innerText = '$' + maxLoss;
         }
 
-        async function fetchState() {
+        async function fetchState(requestedWorkspace, seq) {
+            const ws = requestedWorkspace || window.activeMarketVenue || 'INDIA';
             try {
-                const res = await fetch('/api/state');
+                const res = await fetch(`/api/state?workspace=${encodeURIComponent(ws)}`);
                 const data = await res.json();
+                if (seq !== undefined && seq < workspaceSwitchSequence) {
+                    return; // Out-of-order stale response discarded
+                }
+                const curNorm = (window.activeMarketVenue === 'FOREX' || window.activeMarketVenue === 'FOREX_GOLD') ? 'FOREX_GOLD' : window.activeMarketVenue;
+                if (data.active_workspace && data.active_workspace !== curNorm) {
+                    return; // Mismatch discard
+                }
                 updateTerminalState(data);
             } catch (e) {
                 console.error("Fetch state error:", e);
@@ -2282,18 +2293,12 @@
             updateLeverageButtonsUI(maxLev);
             renderRiskProfiles(data.risk_profile ? (data.risk_profile.profile_name || data.risk_profile.active_profile) : 'MODERATE');
 
-            // Render Tab Components with Component Isolation
+            // Render Tab Components with Universal Workspace Scoping
             try { renderOrderStream(orders); } catch (e) { console.warn("Order stream notice:", e); }
-            if (isIndia) {
-                // India-specific data managed by fetchIndiaScanner & fetchIndiaPositions
-            } else if (isForex) {
-                // Forex-specific data managed by fetchForexScanner
-            } else {
-                try { renderOverviewSignals(opps); } catch (e) { console.warn("Overview signals notice:", e); }
-                try { renderPositionsTable(positions); } catch (e) { console.warn("Positions table notice:", e); }
-                try { renderMarketsScanner(data.markets || []); } catch (e) { console.warn("Markets scanner notice:", e); }
-                try { renderFullSignalsTable(opps); } catch (e) { console.warn("Full signals notice:", e); }
-            }
+            try { renderOverviewSignals(opps); } catch (e) { console.warn("Overview signals notice:", e); }
+            try { renderPositionsTable(positions); } catch (e) { console.warn("Positions table notice:", e); }
+            try { renderMarketsScanner(data.markets || []); } catch (e) { console.warn("Markets scanner notice:", e); }
+            try { renderFullSignalsTable(opps); } catch (e) { console.warn("Full signals notice:", e); }
             try { renderAuditTrail(auditLog); } catch (e) { console.warn("Audit trail notice:", e); }
             try { renderDepositAuditTable(deposits); } catch (e) { console.warn("Deposit audit notice:", e); }
             try { renderVaultTransactions(data.profit_vault); } catch (e) { console.warn("Vault transactions notice:", e); }
@@ -2304,6 +2309,8 @@
         function renderOrderStream(orders) {
             const stream = document.getElementById('overview-orders-stream');
             if (!stream) return;
+            const curSym = (window.activeMarketVenue === 'INDIA') ? '₹' : '$';
+            const curLoc = (window.activeMarketVenue === 'INDIA') ? 'en-IN' : 'en-US';
             // Filter out any lingering synthetic fallback orders
             const realOrders = (orders || []).filter(o => !String(o.order_id || '').startsWith('ORD-AI-990'));
             if (realOrders.length === 0) {
@@ -2333,16 +2340,16 @@
                                 <span class="font-bold text-white">${asset}</span>
                                 <span class="px-1.5 py-0.2 rounded text-[9px] font-black ${isBuy ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}">${action}</span>
                             </div>
-                            <span class="text-amber-400 font-bold">$${amt.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                            <span class="text-amber-400 font-bold">${curSym}${amt.toLocaleString(curLoc, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                         </div>
                         <div class="flex justify-between items-center text-[10px]">
                             <div class="flex items-center space-x-1.5">
                                 <span class="text-gray-500">Risk:</span>
                                 <span class="px-1 py-0.2 rounded font-black ${riskDecision === 'APPROVED' ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}">${riskDecision}</span>
                                 <span class="text-gray-500 ml-1">State:</span>
-                                <span class="px-1 py-0.2 rounded font-bold bg-gray-900 text-gray-300 border border-gray-800">${status}</span>
+                                <span class="text-gray-400 font-bold">${status}</span>
                             </div>
-                            ${rejReason ? `<span class="text-red-400 text-[9px] truncate max-w-[120px]" title="${rejReason}">${rejReason}</span>` : `<span class="text-emerald-400 text-[9px]">FILLED</span>`}
+                            ${rejReason ? `<span class="text-red-400 text-[9px] truncate max-w-[140px]">${rejReason}</span>` : ''}
                         </div>
                     </div>
                 `;
@@ -2353,6 +2360,8 @@
         function renderPositionsTable(positions) {
             const tbody = document.getElementById('positions-full-tbody');
             if (!tbody) return;
+            const curSym = (window.activeMarketVenue === 'INDIA') ? '₹' : '$';
+            const curLoc = (window.activeMarketVenue === 'INDIA') ? 'en-IN' : 'en-US';
             if (!positions || positions.length === 0) {
                 tbody.innerHTML = `
                     <tr>
@@ -2384,16 +2393,16 @@
 
                 return `
                     <tr class="border-b border-gray-800/60 hover:bg-gray-900/50 text-xs">
-                        <td class="py-3 px-3 font-bold text-white">${pos.asset}</td>
+                        <td class="py-3 px-3 font-bold text-white">${pos.asset || pos.symbol || pos.ticker}</td>
                         <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded ${side === 'BUY' ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}">${side}</span></td>
-                        <td class="py-3 px-3">$${allocated.toFixed(2)}</td>
+                        <td class="py-3 px-3">${curSym}${allocated.toLocaleString(curLoc, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                         <td class="py-3 px-3 text-amber-400 font-bold">${lev}x</td>
-                        <td class="py-3 px-3">$${entry.toLocaleString()}</td>
-                        <td class="py-3 px-3">$${mark.toLocaleString()}</td>
-                        <td class="py-3 px-3 ${colorClass} font-bold">${pnlSign}$${pnlUsd.toFixed(2)}</td>
+                        <td class="py-3 px-3">${curSym}${entry.toLocaleString(curLoc, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                        <td class="py-3 px-3">${curSym}${mark.toLocaleString(curLoc, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                        <td class="py-3 px-3 ${colorClass} font-bold">${pnlSign}${curSym}${Math.abs(pnlUsd).toFixed(2)}</td>
                         <td class="py-3 px-3 ${colorClass} font-bold">${pctSign}${pnlPct.toFixed(2)}%</td>
                         <td class="py-3 px-3 text-right">
-                            <button onclick="closePosition('${pos.asset}')" class="px-2.5 py-1 bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white font-bold rounded transition text-[10px]">
+                            <button onclick="closePosition('${pos.asset || pos.symbol || pos.ticker}')" class="px-2.5 py-1 bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white font-bold rounded transition text-[10px]">
                                 CLOSE
                             </button>
                         </td>
@@ -2816,6 +2825,7 @@
         function renderMarketsScanner(markets) {
             const tbody = document.getElementById('markets-scanner-tbody');
             if (!tbody) return;
+            const curSym = (window.activeMarketVenue === 'INDIA') ? '₹' : '$';
             if (!markets || markets.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="9" class="py-8 text-center text-gray-500 font-mono text-xs"><i class="fa-solid fa-earth-americas text-2xl mb-2 text-gray-700 block"></i>NO MARKET SCANNER DATA AVAILABLE — Watchdog Monitoring</td></tr>`;
                 return;
@@ -2829,7 +2839,7 @@
                 <tr class="border-b border-gray-800/60 hover:bg-gray-900/50 text-xs font-mono">
                     <td class="py-3 px-3 font-bold text-white">${m.symbol}</td>
                     <td class="py-3 px-3 text-gray-400">${m.category || 'Global'}</td>
-                    <td class="py-3 px-3 text-white font-bold">$${priceFormatted}</td>
+                    <td class="py-3 px-3 text-white font-bold">${curSym}${priceFormatted}</td>
                     <td class="py-3 px-3 text-emerald-400 font-bold">${m.volatility || '1.5%'}</td>
                     <td class="py-3 px-3 text-amber-400 font-bold">${m.score || 90.0}/100</td>
                     <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded ${isBuy ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}">${m.direction || m.action || 'BUY'}</span></td>
@@ -2853,6 +2863,7 @@
         function renderFullSignalsTable(opps) {
             const tbody = document.getElementById('signals-full-tbody');
             if (!tbody) return;
+            const curSym = (window.activeMarketVenue === 'INDIA') ? '₹' : '$';
             if (!opps || opps.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="10" class="py-8 text-center text-gray-500 font-mono text-xs"><i class="fa-solid fa-brain text-2xl mb-2 text-gray-700 block"></i>NO VALID SIGNAL — ENGINE MONITORING</td></tr>`;
                 return;
@@ -2870,9 +2881,9 @@
                     <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded ${isBuy ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}">${s.action}</span></td>
                     <td class="py-3 px-3 text-amber-400 font-bold">${(s.score || 95.0).toFixed(1)}/100</td>
                     <td class="py-3 px-3 text-emerald-400 font-bold">${(s.confidence || 90.0).toFixed(1)}%</td>
-                    <td class="py-3 px-3 text-white">$${entryFmt}</td>
-                    <td class="py-3 px-3 text-red-400 font-bold">$${slFmt}</td>
-                    <td class="py-3 px-3 text-emerald-400 font-bold">$${tpFmt}</td>
+                    <td class="py-3 px-3 text-white">${curSym}${entryFmt}</td>
+                    <td class="py-3 px-3 text-red-400 font-bold">${curSym}${slFmt}</td>
+                    <td class="py-3 px-3 text-emerald-400 font-bold">${curSym}${tpFmt}</td>
                     <td class="py-3 px-3 text-purple-400 font-bold">${s.rr || '2.33'}</td>
                     <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded ${stBadge}">${st}</span></td>
                     <td class="py-3 px-3 text-right">
@@ -2928,8 +2939,8 @@
             if (!canvas) return;
 
             try {
-                const env = window.activeTradingPool || 'AEGIS_QUANT_MASTER';
-                const res = await fetch(`/api/performance/curve?metric=${currentChartMetric}&range=${currentChartTF}&environment=${env}`);
+                const ws = window.activeMarketVenue || 'INDIA';
+                const res = await fetch(`/api/performance/curve?metric=${currentChartMetric}&range=${currentChartTF}&workspace=${encodeURIComponent(ws)}`);
                 const data = await res.json();
                 const points = data.points || [];
 
@@ -3450,16 +3461,17 @@
             updateLiveHeaderClock();
             setInterval(updateLiveHeaderClock, 1000);
             initChart();
-            switchMarketVenue('INDIA');
+            const initWs = localStorage.getItem('aegis_active_workspace') || 'INDIA';
+            switchMarketVenue(initWs);
             renderSystemHealth();
-            fetchState();
+            fetchState(initWs);
             fetchPaymentHistory();
             fetchExecutionLatency();
             fetchBacktestRuns();
             fetchBinanceStatus();
             initWebSocket();
-            setInterval(fetchState, 3000);
-            setInterval(refreshVenueData, 4000);
+            setInterval(() => fetchState(window.activeMarketVenue), 3000);
+            setInterval(() => refreshVenueData(), 4000);
             setInterval(fetchExecutionLatency, 5000);
         });
     </script>

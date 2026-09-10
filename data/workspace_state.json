@@ -1,0 +1,54 @@
+{
+  "active_workspace": "INDIA",
+  "switch_count": 10,
+  "updated_at": "2026-09-10 08:51:50 IST",
+  "metadata": {
+    "name": "Indian Markets (NSE/BSE)",
+    "workspace": "INDIA",
+    "currency": "INR",
+    "currency_symbol": "\u20b9",
+    "default_pool": "AEGIS_INDIA_INR",
+    "allowed_pools": [
+      "AEGIS_INDIA_INR",
+      "UPSTOX_DEMO",
+      "UPSTOX_LIVE"
+    ],
+    "venue_name": "Upstox / NSE / BSE",
+    "settlement": "T+1 Rolling",
+    "regulation": "SEBI Compliant",
+    "initial_capital": 100000.0,
+    "max_leverage": 5.0,
+    "instruments": [
+      "RELIANCE",
+      "TCS",
+      "HDFCBANK",
+      "INFY",
+      "ICICIBANK",
+      "SBIN",
+      "BHARTIARTL",
+      "ITC",
+      "LICI",
+      "LT",
+      "NIFTY50",
+      "BANKNIFTY",
+      "NIFTYBEES",
+      "GOLDBEES",
+      "BANKBEES",
+      "ITBEES"
+    ],
+    "asset_categories": [
+      "INDIAN_STOCKS",
+      "INDIAN_EQUITY",
+      "INDIAN_ETF",
+      "INDIAN_INDEX"
+    ],
+    "funding_methods": [
+      "UPI",
+      "NetBanking",
+      "NEFT",
+      "RTGS"
+    ],
+    "flag": "\ud83c\uddee\ud83c\uddf3",
+    "badge_text": "UPSTOX: NSE/BSE ACTIVE"
+  }
+}
