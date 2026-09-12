@@ -406,7 +406,15 @@ class PaperBroker:
 
     def place_order(self, symbol: str, side: str, amount_usd: float = 1000.0, price: float = 0.0, **kwargs) -> Dict[str, Any]:
         """Convenience method for placing order in paper environment."""
-        p = price if price > 0 else 65000.0
+        p = price
+        if p <= 0:
+            from core.multi_market_scanner import multi_scanner
+            for reg in [multi_scanner.INDIA_REGISTRY, multi_scanner.FOREX_GOLD_REGISTRY, multi_scanner.CRYPTO_REGISTRY, multi_scanner.ASSETS_REGISTRY]:
+                if symbol in reg:
+                    p = float(reg[symbol].get("base_price", 100.0))
+                    break
+        if p <= 0:
+            p = 65000.0 if "BTC" in symbol else 100.0
         pos = self.execute_order(asset=symbol, action=side, amount_usd=amount_usd, current_price=p, **kwargs)
         return {"status": "SUCCESS", "entry_price": pos.get("entry_price", p), "position": pos}
 

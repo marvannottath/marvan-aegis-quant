@@ -1449,7 +1449,7 @@
                     <td class="py-3 px-3 text-gray-500">${m.age || '1s'}</td>
                     <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded ${stBadge}">${st}</span></td>
                     <td class="py-3 px-3 text-right">
-                        <button onclick="selectAssetForOrder('${m.symbol}')" class="px-2.5 py-1 bg-amber-500/20 text-amber-400 hover:bg-amber-500 hover:text-black font-bold rounded transition text-[10px]">
+                        <button onclick="prefillOrder('${m.symbol}', '${m.direction || 'BUY'}', ${m.price || 0})" class="px-2.5 py-1 bg-amber-500/20 text-amber-400 hover:bg-amber-500 hover:text-black font-bold rounded transition text-[10px]">
                             TRADE
                         </button>
                     </td>
@@ -1497,7 +1497,7 @@
                     <td class="py-3 px-3 text-purple-400 font-bold">${s.rr || '2.33'}</td>
                     <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded text-emerald-400 bg-emerald-500/10">${s.fresh || 'LIVE'}</span></td>
                     <td class="py-3 px-3 text-right">
-                        <button onclick="selectAssetForOrder('${s.asset || s.symbol}')" class="px-2.5 py-1 bg-emerald-600 text-white font-bold rounded hover:bg-emerald-500 transition text-[10px]">
+                        <button onclick="prefillOrder('${s.asset || s.symbol}', '${s.action || 'BUY'}', ${s.entry || 0})" class="px-2.5 py-1 bg-emerald-600 text-white font-bold rounded hover:bg-emerald-500 transition text-[10px]">
                             TRADE
                         </button>
                     </td>
@@ -1513,19 +1513,12 @@
                 return;
             }
             grid.innerHTML = signals.slice(0, 4).map(o => `
-                <div class="p-3 bg-gray-900 border border-gray-800 rounded-xl space-y-1 font-mono">
+                <div class="p-3 bg-gray-950 border border-gray-800 rounded-xl space-y-1 font-mono">
                     <div class="flex justify-between items-center text-xs">
-                        <span class="font-bold text-white">🇮🇳 ${o.asset || o.symbol}</span>
-                        <span class="px-2 py-0.5 text-[9px] font-black rounded ${o.action === 'BUY' ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}">${o.action}</span>
+                        <span class="font-bold text-white flex items-center space-x-1"><span>🇮🇳</span><span>${o.asset || o.symbol}</span></span>
+                        <span class="px-1.5 py-0.5 text-[9px] font-black rounded ${o.action === 'BUY' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}">${o.action}</span>
                     </div>
-                    <div class="flex justify-between text-[10px] text-gray-400">
-                        <span>Model Conviction:</span>
-                        <span class="text-emerald-400 font-bold">${(o.confidence || 88.0).toFixed(1)}%</span>
-                    </div>
-                    <div class="flex justify-between text-[10px] text-gray-400">
-                        <span>Expected R:R:</span>
-                        <span class="text-amber-400 font-bold">${o.rr || '2.33'}</span>
-                    </div>
+                    <div class="text-[11px] text-gray-400">Entry: ₹${Number(o.entry || 0).toLocaleString('en-IN', {minimumFractionDigits: 2})} | Conf: ${(o.confidence || 90).toFixed(0)}%</div>
                 </div>
             `).join('');
         }
@@ -1534,28 +1527,28 @@
             try {
                 const res = await fetch('/api/forex/scanner');
                 const json = await res.json();
-                if (json.status === 'SUCCESS' && Array.isArray(json.data)) {
-                    renderForexMarketsScanner(json.data);
-                    renderForexSignals(json.data);
+                if (json.status === 'SUCCESS' && Array.isArray(json.instruments)) {
+                    renderForexScanner(json.instruments);
+                    renderForexSignals(json.instruments);
                 }
             } catch (e) {
                 console.warn('Forex scanner notice:', e);
             }
         }
 
-        function renderForexMarketsScanner(items) {
+        function renderForexScanner(instruments) {
             const tbody = document.getElementById('markets-scanner-tbody');
             if (!tbody) return;
-            if (!items || items.length === 0) {
+            if (!instruments || instruments.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="9" class="py-8 text-center text-gray-500 font-mono text-xs"><i class="fa-solid fa-coins text-2xl mb-2 text-gray-700 block"></i>NO FOREX SCANNER DATA</td></tr>`;
                 return;
             }
-            tbody.innerHTML = items.map(m => {
+            tbody.innerHTML = instruments.map(m => {
                 const isBuy = (m.direction || m.action) === 'BUY';
                 const priceFormatted = (m.price < 10) ? Number(m.price).toFixed(4) : Number(m.price).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
                 return `
                 <tr class="border-b border-gray-800/60 hover:bg-gray-900/50 text-xs font-mono">
-                    <td class="py-3 px-3 font-bold text-white flex items-center space-x-1.5">
+                    <td class="py-3 px-3 font-bold text-white flex items-center space-x-2">
                         <span>💱</span>
                         <span>${m.symbol}</span>
                     </td>
@@ -1567,7 +1560,7 @@
                     <td class="py-3 px-3 text-gray-500">${m.age || '1s'}</td>
                     <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded text-emerald-400 bg-emerald-500/10">LIVE</span></td>
                     <td class="py-3 px-3 text-right">
-                        <button onclick="selectAssetForOrder('${m.symbol}')" class="px-2.5 py-1 bg-amber-500/20 text-amber-400 hover:bg-amber-500 hover:text-black font-bold rounded transition text-[10px]">
+                        <button onclick="prefillOrder('${m.symbol}', '${m.direction || 'BUY'}', ${m.price || 0})" class="px-2.5 py-1 bg-amber-500/20 text-amber-400 hover:bg-amber-500 hover:text-black font-bold rounded transition text-[10px]">
                             TRADE
                         </button>
                     </td>
@@ -1603,7 +1596,7 @@
                     <td class="py-3 px-3 text-purple-400 font-bold">${s.rr || '2.33'}</td>
                     <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded text-emerald-400 bg-emerald-500/10">LIVE</span></td>
                     <td class="py-3 px-3 text-right">
-                        <button onclick="selectAssetForOrder('${s.symbol}')" class="px-2.5 py-1 bg-emerald-600 text-white font-bold rounded hover:bg-emerald-500 transition text-[10px]">
+                        <button onclick="prefillOrder('${s.symbol}', '${s.direction || 'BUY'}', ${s.price || 0})" class="px-2.5 py-1 bg-emerald-600 text-white font-bold rounded hover:bg-emerald-500 transition text-[10px]">
                             TRADE
                         </button>
                     </td>
@@ -1872,7 +1865,8 @@
             try {
                 let res, data;
                 if (window.activeMarketVenue === 'INDIA') {
-                    const qty = Math.max(1, Math.round(amountInput / 2500.0));
+                    const approxPx = window.selectedAssetPrice || 2500.0;
+                    const qty = Math.max(1, Math.round(amountInput / approxPx));
                     res = await fetch('/api/india/orders/submit', {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
@@ -1891,7 +1885,7 @@
                         resultBox.classList.remove('hidden');
                         if (data.status === 'COMPLETE' || data.status === 'SUBMITTED' || data.status === 'SUCCESS') {
                             resultBox.className = 'p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/40 text-emerald-400 font-mono text-xs';
-                            resultBox.innerHTML = `<i class="fa-solid fa-circle-check mr-1"></i> INDIAN ORDER ${side} EXECUTED! ID: <span class="font-bold text-white">${data.order_id}</span> | ₹${((data.price || 2500.0) * qty).toLocaleString('en-IN', {minimumFractionDigits: 2})} [${data.product || 'CNC'}]`;
+                            resultBox.innerHTML = `<i class="fa-solid fa-circle-check mr-1"></i> INDIAN ORDER ${side} EXECUTED! ID: <span class="font-bold text-white">${data.order_id}</span> | ₹${((data.price || approxPx) * qty).toLocaleString('en-IN', {minimumFractionDigits: 2})} [${data.product || 'CNC'}]`;
                         } else {
                             resultBox.className = 'p-3 rounded-xl bg-red-500/10 border border-red-500/40 text-red-400 font-mono text-xs';
                             resultBox.innerHTML = `<i class="fa-solid fa-triangle-exclamation mr-1"></i> ORDER BLOCKED: ${data.reason || data.message || 'Risk Gate Rejection'}`;
@@ -1899,16 +1893,29 @@
                     }
                     fetchIndiaPositions();
                 } else {
+                    let assetPrice = window.selectedAssetPrice;
+                    if (!assetPrice || assetPrice <= 0) {
+                        const fallbackPrices = {
+                            'BTCUSDT': 79050.0, 'BTCUSD': 64250.0, 'ETHUSDT': 2680.0, 'ETHUSD': 3450.0,
+                            'SOLUSDT': 145.50, 'SOLUSD': 155.0, 'BNBUSDT': 625.0, 'XRPUSDT': 0.582,
+                            'DOGEUSDT': 0.165, 'ADAUSDT': 0.421, 'EURUSD': 1.0852, 'GBPUSD': 1.2965,
+                            'USDJPY': 154.20, 'AUDUSD': 0.6580, 'USDCAD': 1.3780, 'USDCHF': 0.8840,
+                            'NZDUSD': 0.5980, 'XAUUSD': 2748.50, 'USDINR': 86.25, 'EURINR': 93.60
+                        };
+                        assetPrice = fallbackPrices[symbol] || 100.0;
+                    }
+                    const calculatedQty = Number((amountInput / assetPrice).toFixed(6));
                     res = await fetch('/api/orders/submit', {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
                         body: JSON.stringify({
                             symbol: symbol,
                             side: side,
-                            quantity: amountInput / 64250.0,
+                            quantity: calculatedQty,
                             order_type: currentOrderType,
-                            price: 64250.0,
+                            price: assetPrice,
                             environment: (window.activeMarketVenue === 'CRYPTO') ? 'TESTNET' : 'PAPER',
+                            workspace: window.activeMarketVenue,
                             strategy: 'TERMINAL_MANUAL'
                         })
                     });
@@ -1916,8 +1923,10 @@
                     if (resultBox) {
                         resultBox.classList.remove('hidden');
                         if (data.status === 'SUCCESS') {
+                            const curPrefix = (window.activeMarketVenue === 'CRYPTO') ? '' : '$';
+                            const curSuffix = (window.activeMarketVenue === 'CRYPTO') ? ' USDT' : '';
                             resultBox.className = 'p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/40 text-emerald-400 font-mono text-xs';
-                            resultBox.innerHTML = `<i class="fa-solid fa-circle-check mr-1"></i> ORDER ${side} EXECUTED! ID: <span class="font-bold text-white">${data.order?.order_id || 'ORD-SUCCESS'}</span>`;
+                            resultBox.innerHTML = `<i class="fa-solid fa-circle-check mr-1"></i> ORDER ${side} EXECUTED! ID: <span class="font-bold text-white">${data.order?.order_id || 'ORD-SUCCESS'}</span> | ${curPrefix}${amountInput.toLocaleString(undefined, {minimumFractionDigits: 2})}${curSuffix} [${symbol}]`;
                         } else {
                             resultBox.className = 'p-3 rounded-xl bg-red-500/10 border border-red-500/40 text-red-400 font-mono text-xs';
                             resultBox.innerHTML = `<i class="fa-solid fa-triangle-exclamation mr-1"></i> ORDER BLOCKED: ${data.reason || data.message || 'Risk Gate Rejection'}`;
@@ -1979,11 +1988,17 @@
                 const res = await fetch('/api/close-position', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ asset: symbol, exit_price: 64300.0, reason: 'MANUAL_CLOSE_BTN' })
+                    body: JSON.stringify({ asset: symbol, reason: 'MANUAL_CLOSE_BTN' })
                 });
                 const data = await res.json();
                 if (data.status === 'SUCCESS' || data.status === 'CLOSED') {
-                    showNotification('Position Closed', `Position ${symbol} Closed! Realized PnL: +$${(data.realized_pnl || 0).toFixed(2)}`, 'success');
+                    const pnl = data.realized_pnl || 0;
+                    const isIndia = (window.activeMarketVenue === 'INDIA');
+                    const isCrypto = (window.activeMarketVenue === 'CRYPTO');
+                    const curSym = isIndia ? '₹' : (isCrypto ? '' : '$');
+                    const curSuffix = isCrypto ? ' USDT' : '';
+                    const sign = pnl >= 0 ? '+' : '-';
+                    showNotification('Position Closed', `Position ${symbol} Closed! Realized PnL: ${sign}${curSym}${Math.abs(pnl).toFixed(2)}${curSuffix}`, 'success');
                 } else {
                     showNotification('Position Action', `Close Position notice: ${data.message || data.status}`, 'warning');
                 }
@@ -2200,9 +2215,14 @@
             const fee = (amt * 0.0005).toFixed(2);
             const maxLoss = (amt * (slPct / 100)).toFixed(2);
 
-            if (document.getElementById('est-margin')) document.getElementById('est-margin').innerText = '$' + margin;
-            if (document.getElementById('est-fee')) document.getElementById('est-fee').innerText = '$' + fee;
-            if (document.getElementById('est-max-loss')) document.getElementById('est-max-loss').innerText = '$' + maxLoss;
+            const isIndia = (window.activeMarketVenue === 'INDIA');
+            const isCrypto = (window.activeMarketVenue === 'CRYPTO');
+            const curSym = isIndia ? '₹' : (isCrypto ? '' : '$');
+            const curSuffix = isCrypto ? ' USDT' : '';
+
+            if (document.getElementById('est-margin')) document.getElementById('est-margin').innerText = `${curSym}${margin}${curSuffix}`;
+            if (document.getElementById('est-fee')) document.getElementById('est-fee').innerText = `${curSym}${fee}${curSuffix}`;
+            if (document.getElementById('est-max-loss')) document.getElementById('est-max-loss').innerText = `${curSym}${maxLoss}${curSuffix}`;
         }
 
         async function fetchState(requestedWorkspace, seq) {
@@ -2251,12 +2271,19 @@
             checkStaleDataAndConnectionGuard(data);
             
             // Single Source of Truth Values
-            const equity = (data.portfolio_equity !== undefined && data.portfolio_equity !== null) ? Number(data.portfolio_equity) : (window.cachedEquity || 820604.94);
+            const activePool = data.active_capital_pool || window.activeTradingPool || 'AEGIS_INDIA_INR';
+            window.activeTradingPool = activePool;
+
+            const isIndiaWs = (window.activeMarketVenue === 'INDIA') || activePool.includes('INDIA') || activePool.includes('INR') || activePool.includes('UPSTOX');
+            const isCryptoWs = (window.activeMarketVenue === 'CRYPTO') || activePool.includes('BINANCE') || activePool.includes('CRYPTO');
+            const baseCap = isIndiaWs ? 100000.0 : (isCryptoWs ? 19950.55 : 100000.0);
+
+            const equity = (data.portfolio_equity !== undefined && data.portfolio_equity !== null) ? Number(data.portfolio_equity) : (window.cachedEquity || baseCap);
             window.cachedEquity = equity;
-            const cash = (data.virtual_cash !== undefined && data.virtual_cash !== null) ? Number(data.virtual_cash) : (window.cachedCash || 94500.0);
+            const cash = (data.virtual_cash !== undefined && data.virtual_cash !== null) ? Number(data.virtual_cash) : (window.cachedCash || baseCap);
             window.cachedCash = cash;
             const pnl = data.floating_open_pnl_usd || 0.0;
-            const vault = (data.profit_vault && data.profit_vault.vault_balance !== undefined) ? Number(data.profit_vault.vault_balance) : (window.cachedVault || 1513570.2);
+            const vault = (data.profit_vault && data.profit_vault.vault_balance !== undefined) ? Number(data.profit_vault.vault_balance) : (window.cachedVault || 0.0);
             window.cachedVault = vault;
             const positions = data.positions || [];
             const orders = data.orders || [];
@@ -2266,18 +2293,15 @@
             const health = data.system_health || {};
 
             // Top Header & Metrics
-            const activePool = data.active_capital_pool || window.activeTradingPool || 'AEGIS_INDIA_INR';
-            window.activeTradingPool = activePool;
-
-            const isIndia = (window.activeMarketVenue === 'INDIA') || activePool.includes('INDIA') || activePool.includes('INR') || activePool.includes('UPSTOX');
+            const isIndia = isIndiaWs;
             const isForex = (window.activeMarketVenue === 'FOREX') || (window.activeMarketVenue === 'FOREX_GOLD');
-            const isCrypto = (window.activeMarketVenue === 'CRYPTO') || activePool.includes('BINANCE') || activePool.includes('CRYPTO');
+            const isCrypto = isCryptoWs;
             const curSym = isIndia ? '₹' : (isCrypto ? '' : '$');
             const curLoc = isIndia ? 'en-IN' : 'en-US';
 
             function formatMoney(val) {
                 const num = Number(val) || 0.0;
-                const sign = num < 0 ? '-' : '';
+                const sign = num < -0.001 ? '-' : '';
                 const formatted = Math.abs(num).toLocaleString(curLoc, {minimumFractionDigits: 2, maximumFractionDigits: 2});
                 if (isCrypto) {
                     return `${sign}${formatted} USDT`;
@@ -2288,7 +2312,7 @@
 
             function formatSignedMoney(val) {
                 const num = Number(val) || 0.0;
-                const sign = num > 0.001 ? '+' : (num < -0.001 ? '-' : '+');
+                const sign = num > 0.001 ? '+' : (num < -0.001 ? '-' : '');
                 const formatted = Math.abs(num).toLocaleString(curLoc, {minimumFractionDigits: 2, maximumFractionDigits: 2});
                 if (isCrypto) {
                     return `${sign}${formatted} USDT`;
@@ -2463,9 +2487,9 @@
                 }
                 const pnlPct = (pos.pnl_pct !== undefined) ? parseFloat(pos.pnl_pct) : (allocated > 0 ? (pnlUsd / allocated) * 100 : 0);
 
-                const colorClass = pnlUsd > 0 ? 'text-emerald-400' : (pnlUsd < 0 ? 'text-red-400' : 'text-gray-400');
-                const pnlSign = pnlUsd >= 0 ? '+' : '';
-                const pctSign = pnlPct >= 0 ? '+' : '';
+                const colorClass = pnlUsd > 0.001 ? 'text-emerald-400' : (pnlUsd < -0.001 ? 'text-red-400' : 'text-gray-400');
+                const pnlSign = pnlUsd > 0.001 ? '+' : (pnlUsd < -0.001 ? '-' : '');
+                const pctSign = pnlPct > 0.001 ? '+' : (pnlPct < -0.001 ? '-' : '');
 
                 return `
                     <tr class="border-b border-gray-800/60 hover:bg-gray-900/50 text-xs">
@@ -2476,7 +2500,7 @@
                         <td class="py-3 px-3">${curSym}${entry.toLocaleString(curLoc, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                         <td class="py-3 px-3">${curSym}${mark.toLocaleString(curLoc, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                         <td class="py-3 px-3 ${colorClass} font-bold">${pnlSign}${curSym}${Math.abs(pnlUsd).toFixed(2)}</td>
-                        <td class="py-3 px-3 ${colorClass} font-bold">${pctSign}${pnlPct.toFixed(2)}%</td>
+                        <td class="py-3 px-3 ${colorClass} font-bold">${pctSign}${Math.abs(pnlPct).toFixed(2)}%</td>
                         <td class="py-3 px-3 text-right">
                             <button onclick="closePosition('${pos.asset || pos.symbol || pos.ticker}')" class="px-2.5 py-1 bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white font-bold rounded transition text-[10px]">
                                 CLOSE
@@ -2944,7 +2968,7 @@
                     <td class="py-3 px-3 text-gray-500">${m.age || '1s'}</td>
                     <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded ${stBadge}">${st}</span></td>
                     <td class="py-3 px-3 text-right">
-                        <button onclick="selectAssetForOrder('${m.symbol}')" class="px-2.5 py-1 bg-amber-500/20 text-amber-400 hover:bg-amber-500 hover:text-black font-bold rounded transition text-[10px]">
+                        <button onclick="prefillOrder('${m.symbol}', '${m.direction || m.action || 'BUY'}', ${m.price || 0})" class="px-2.5 py-1 bg-amber-500/20 text-amber-400 hover:bg-amber-500 hover:text-black font-bold rounded transition text-[10px]">
                             TRADE
                         </button>
                     </td>
@@ -2952,10 +2976,47 @@
             }).join('');
         }
 
-        function selectAssetForOrder(symbol) {
+        function prefillOrder(sym, action = 'BUY', px = null) {
+            if (!sym) return;
+            const cleanSym = String(sym).trim().toUpperCase();
             const sel = document.getElementById('order-asset');
-            if (sel) sel.value = symbol;
+            if (sel) {
+                let exists = false;
+                for (let i = 0; i < sel.options.length; i++) {
+                    if (sel.options[i].value === cleanSym) {
+                        exists = true;
+                        sel.selectedIndex = i;
+                        break;
+                    }
+                }
+                if (!exists) {
+                    const opt = document.createElement('option');
+                    opt.value = cleanSym;
+                    opt.innerText = `${cleanSym} — Market Asset`;
+                    sel.appendChild(opt);
+                    sel.value = cleanSym;
+                }
+            }
+
+            if (px && Number(px) > 0) {
+                window.selectedAssetPrice = Number(px);
+            }
+            window.selectedOrderSide = (action || 'BUY').toUpperCase();
+
             switchTab('orders');
+
+            const orderBox = document.getElementById('order-asset');
+            if (orderBox) {
+                try {
+                    orderBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    orderBox.classList.add('ring-2', 'ring-amber-400');
+                    setTimeout(() => orderBox.classList.remove('ring-2', 'ring-amber-400'), 1500);
+                } catch (e) {}
+            }
+        }
+
+        function selectAssetForOrder(symbol, action = 'BUY', px = null) {
+            prefillOrder(symbol, action, px);
         }
 
         function renderFullSignalsTable(opps) {
@@ -2985,7 +3046,7 @@
                     <td class="py-3 px-3 text-purple-400 font-bold">${s.rr || '2.33'}</td>
                     <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded ${stBadge}">${st}</span></td>
                     <td class="py-3 px-3 text-right">
-                        <button onclick="selectAssetForOrder('${s.asset || s.ticker}')" class="px-2.5 py-1 bg-emerald-600 text-white font-bold rounded hover:bg-emerald-500 transition text-[10px]">
+                        <button onclick="prefillOrder('${s.asset || s.ticker}', '${s.action || 'BUY'}', ${s.entry || 0})" class="px-2.5 py-1 bg-emerald-600 text-white font-bold rounded hover:bg-emerald-500 transition text-[10px]">
                             EXECUTE
                         </button>
                     </td>
@@ -3071,14 +3132,18 @@
                 });
                 const values = points.map(p => p.value);
 
+                const isIndia = (window.activeMarketVenue === 'INDIA');
+                const isCrypto = (window.activeMarketVenue === 'CRYPTO');
+                const curLabelSym = isIndia ? '₹' : (isCrypto ? 'USDT' : '$');
+
                 let borderColor = '#f59e0b';
                 let bgGradient = 'rgba(245, 158, 11, 0.08)';
-                let labelName = 'Portfolio Equity ($)';
+                let labelName = `Portfolio Equity (${curLabelSym})`;
 
                 if (currentChartMetric === 'pnl') {
                     borderColor = '#10b981';
                     bgGradient = 'rgba(16, 185, 129, 0.08)';
-                    labelName = 'Realized PnL ($)';
+                    labelName = `Realized PnL (${curLabelSym})`;
                 } else if (currentChartMetric === 'drawdown') {
                     borderColor = '#ef4444';
                     bgGradient = 'rgba(239, 68, 68, 0.08)';
@@ -3115,6 +3180,8 @@
                                     label: function(context) {
                                         let val = context.parsed.y;
                                         if (currentChartMetric === 'drawdown') return `Drawdown: ${val.toFixed(2)}%`;
+                                        if (isCrypto) return `${labelName}: ${val.toLocaleString(undefined, {minimumFractionDigits: 2})} USDT`;
+                                        if (isIndia) return `${labelName}: ₹${val.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
                                         return `${labelName}: $${val.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
                                     }
                                 }
@@ -3250,9 +3317,11 @@
 
                 const selector = document.getElementById('backtest-run-selector');
                 if (selector && allBacktestRuns.length > 0) {
-                    selector.innerHTML = allBacktestRuns.map(r => `
-                        <option value="${r.backtest_id}">${r.backtest_id} (${r.symbol} ${r.timeframe} — Net: $${r.net_pnl.toLocaleString()})</option>
-                    `).join('');
+                    selector.innerHTML = allBacktestRuns.map(r => {
+                        const pnlVal = Number(r.net_pnl !== undefined ? r.net_pnl : (r.net_profit_usd || 0));
+                        const pnlFmt = pnlVal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                        return `<option value="${r.backtest_id}">${r.backtest_id} (${r.symbol || 'BTCUSD'} ${r.timeframe || '1h'} — Net: $${pnlFmt})</option>`;
+                    }).join('');
                     loadBacktestRun(allBacktestRuns[0].backtest_id);
                 }
             } catch (e) {
@@ -3425,21 +3494,28 @@
                 tbody.innerHTML = `<tr><td colspan="12" class="py-6 text-center text-gray-500 font-mono text-xs">NO TRADES MATCHING FILTER</td></tr>`;
             } else {
                 tbody.innerHTML = paged.map(t => {
-                    const pnlSign = t.net_pnl >= 0 ? '+' : '';
-                    const pnlColor = t.net_pnl >= 0 ? 'text-emerald-400' : 'text-red-400';
+                    const netPnl = Number(t.net_pnl !== undefined ? t.net_pnl : 0);
+                    const grossPnl = Number(t.gross_pnl !== undefined ? t.gross_pnl : 0);
+                    const entryPx = Number(t.entry_price !== undefined ? t.entry_price : 0);
+                    const exitPx = Number(t.exit_price !== undefined ? t.exit_price : 0);
+                    const feeVal = Number(t.fees !== undefined ? t.fees : 0);
+                    const slipVal = Number(t.slippage !== undefined ? t.slippage : 0);
+                    const feesSlip = feeVal + slipVal;
+                    const pnlSign = netPnl > 0.001 ? '+' : (netPnl < -0.001 ? '-' : '');
+                    const pnlColor = netPnl > 0.001 ? 'text-emerald-400' : (netPnl < -0.001 ? 'text-red-400' : 'text-gray-400');
                     return `
                         <tr class="border-b border-gray-800/60 hover:bg-gray-900/50 text-xs font-mono">
-                            <td class="py-2.5 px-3 text-gray-500">${t.trade_number}</td>
-                            <td class="py-2.5 px-3 text-gray-400">${t.entry_timestamp}</td>
-                            <td class="py-2.5 px-3 text-amber-400 font-bold">${t.trade_id}</td>
-                            <td class="py-2.5 px-3 text-white font-bold">${t.symbol}</td>
-                            <td class="py-2.5 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded ${t.side === 'BUY' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}">${t.side}</span></td>
-                            <td class="py-2.5 px-3 text-gray-300">$${t.entry_price.toLocaleString()}</td>
-                            <td class="py-2.5 px-3 text-white font-bold">$${t.exit_price.toLocaleString()}</td>
-                            <td class="py-2.5 px-3 text-gray-400">${t.quantity}</td>
-                            <td class="py-2.5 px-3 ${pnlColor} font-bold">${pnlSign}$${t.gross_pnl.toFixed(2)}</td>
-                            <td class="py-2.5 px-3 text-gray-400">$${(t.fees + t.slippage).toFixed(2)}</td>
-                            <td class="py-2.5 px-3 ${pnlColor} font-bold">${pnlSign}$${t.net_pnl.toFixed(2)}</td>
+                            <td class="py-2.5 px-3 text-gray-500">${t.trade_number || '-'}</td>
+                            <td class="py-2.5 px-3 text-gray-400">${t.entry_timestamp || '-'}</td>
+                            <td class="py-2.5 px-3 text-amber-400 font-bold">${t.trade_id || '-'}</td>
+                            <td class="py-2.5 px-3 text-white font-bold">${t.symbol || '-'}</td>
+                            <td class="py-2.5 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded ${t.side === 'BUY' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}">${t.side || 'BUY'}</span></td>
+                            <td class="py-2.5 px-3 text-gray-300">$${entryPx.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                            <td class="py-2.5 px-3 text-white font-bold">$${exitPx.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                            <td class="py-2.5 px-3 text-gray-400">${t.quantity || 0}</td>
+                            <td class="py-2.5 px-3 ${grossPnl >= 0 ? 'text-emerald-400' : 'text-red-400'} font-bold">${grossPnl >= 0 ? '+' : '-'}$${Math.abs(grossPnl).toFixed(2)}</td>
+                            <td class="py-2.5 px-3 text-gray-400">$${feesSlip.toFixed(2)}</td>
+                            <td class="py-2.5 px-3 ${pnlColor} font-bold">${pnlSign}$${Math.abs(netPnl).toFixed(2)}</td>
                             <td class="py-2.5 px-3 text-right">
                                 <button onclick="showBacktestTradeDetail('${t.trade_id}')" class="px-2 py-0.5 bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500 hover:text-white font-bold rounded transition text-[10px]">
                                     INSPECT
@@ -3479,33 +3555,40 @@
             const content = document.getElementById('btd-content');
             if (!modal || !content) return;
 
-            const pnlSign = trade.net_pnl >= 0 ? '+' : '';
-            const pnlColor = trade.net_pnl >= 0 ? 'text-emerald-400' : 'text-red-400';
+            const netPnl = Number(trade.net_pnl !== undefined ? trade.net_pnl : 0);
+            const grossPnl = Number(trade.gross_pnl !== undefined ? trade.gross_pnl : 0);
+            const entryPx = Number(trade.entry_price !== undefined ? trade.entry_price : 0);
+            const exitPx = Number(trade.exit_price !== undefined ? trade.exit_price : 0);
+            const feeVal = Number(trade.fees !== undefined ? trade.fees : 0);
+            const slipVal = Number(trade.slippage !== undefined ? trade.slippage : 0);
+            const pnlSign = netPnl > 0.001 ? '+' : (netPnl < -0.001 ? '-' : '');
+            const pnlColor = netPnl > 0.001 ? 'text-emerald-400' : (netPnl < -0.001 ? 'text-red-400' : 'text-gray-400');
+            const confPct = Number(trade.confidence || 0) * 100;
 
             content.innerHTML = `
                 <div class="p-3 bg-gray-950 border border-gray-800 rounded-xl space-y-2">
-                    <div class="flex justify-between"><span class="text-gray-500">Trade ID:</span><span class="text-amber-400 font-bold">${trade.trade_id}</span></div>
-                    <div class="flex justify-between"><span class="text-gray-500">Order ID:</span><span class="text-gray-300 font-mono">${trade.order_id}</span></div>
-                    <div class="flex justify-between"><span class="text-gray-500">Symbol / Side:</span><span class="text-white font-bold">${trade.symbol} ${trade.side}</span></div>
-                    <div class="flex justify-between"><span class="text-gray-500">Entry Timestamp:</span><span class="text-gray-300">${trade.entry_timestamp}</span></div>
-                    <div class="flex justify-between"><span class="text-gray-500">Exit Timestamp:</span><span class="text-gray-300">${trade.exit_timestamp}</span></div>
-                    <div class="flex justify-between"><span class="text-gray-500">Holding Time:</span><span class="text-cyan-400 font-bold">${trade.holding_time}</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">Trade ID:</span><span class="text-amber-400 font-bold">${trade.trade_id || '-'}</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">Order ID:</span><span class="text-gray-300 font-mono">${trade.order_id || '-'}</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">Symbol / Side:</span><span class="text-white font-bold">${trade.symbol || '-'} ${trade.side || 'BUY'}</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">Entry Timestamp:</span><span class="text-gray-300">${trade.entry_timestamp || '-'}</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">Exit Timestamp:</span><span class="text-gray-300">${trade.exit_timestamp || '-'}</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">Holding Time:</span><span class="text-cyan-400 font-bold">${trade.holding_time || '-'}</span></div>
                 </div>
 
                 <div class="p-3 bg-gray-950 border border-gray-800 rounded-xl space-y-2">
-                    <div class="flex justify-between"><span class="text-gray-500">Entry Price:</span><span class="text-white font-bold">$${trade.entry_price.toLocaleString()}</span></div>
-                    <div class="flex justify-between"><span class="text-gray-500">Exit Price:</span><span class="text-white font-bold">$${trade.exit_price.toLocaleString()}</span></div>
-                    <div class="flex justify-between"><span class="text-gray-500">Quantity:</span><span class="text-gray-300">${trade.quantity}</span></div>
-                    <div class="flex justify-between"><span class="text-gray-500">Gross PnL:</span><span class="${pnlColor} font-bold">${pnlSign}$${trade.gross_pnl.toFixed(2)}</span></div>
-                    <div class="flex justify-between"><span class="text-gray-500">Execution Fees:</span><span class="text-gray-400">$${trade.fees.toFixed(2)}</span></div>
-                    <div class="flex justify-between"><span class="text-gray-500">Estimated Slippage:</span><span class="text-gray-400">$${trade.slippage.toFixed(2)}</span></div>
-                    <div class="flex justify-between border-t border-gray-800 pt-2"><span class="text-white font-bold">Net Realized PnL:</span><span class="${pnlColor} font-black text-sm">${pnlSign}$${trade.net_pnl.toFixed(2)}</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">Entry Price:</span><span class="text-white font-bold">$${entryPx.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">Exit Price:</span><span class="text-white font-bold">$${exitPx.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">Quantity:</span><span class="text-gray-300">${trade.quantity || 0}</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">Gross PnL:</span><span class="${grossPnl >= 0 ? 'text-emerald-400' : 'text-red-400'} font-bold">${grossPnl >= 0 ? '+' : '-'}$${Math.abs(grossPnl).toFixed(2)}</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">Execution Fees:</span><span class="text-gray-400">$${feeVal.toFixed(2)}</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">Estimated Slippage:</span><span class="text-gray-400">$${slipVal.toFixed(2)}</span></div>
+                    <div class="flex justify-between border-t border-gray-800 pt-2"><span class="text-white font-bold">Net Realized PnL:</span><span class="${pnlColor} font-black text-sm">${pnlSign}$${Math.abs(netPnl).toFixed(2)}</span></div>
                 </div>
 
                 <div class="p-3 bg-gray-950 border border-gray-800 rounded-xl space-y-1 text-[11px]">
-                    <div><span class="text-gray-500">Entry Signal Reason:</span> <span class="text-indigo-400 font-bold">${trade.entry_reason}</span></div>
-                    <div><span class="text-gray-500">Exit Target Reason:</span> <span class="text-amber-400 font-bold">${trade.exit_reason}</span></div>
-                    <div><span class="text-gray-500">Signal Confidence:</span> <span class="text-emerald-400 font-bold">${(trade.confidence * 100).toFixed(1)}%</span></div>
+                    <div><span class="text-gray-500">Entry Signal Reason:</span> <span class="text-indigo-400 font-bold">${trade.entry_reason || '-'}</span></div>
+                    <div><span class="text-gray-500">Exit Target Reason:</span> <span class="text-amber-400 font-bold">${trade.exit_reason || '-'}</span></div>
+                    <div><span class="text-gray-500">Signal Confidence:</span> <span class="text-emerald-400 font-bold">${confPct.toFixed(1)}%</span></div>
                 </div>
             `;
 
