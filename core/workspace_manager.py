@@ -222,7 +222,10 @@ class WorkspaceManager:
                 amount=0.0,
                 asset=meta['currency'],
                 reference_id=f'SWITCH_{prev_ws}_TO_{target_ws}',
-                environment=target_pool
+                environment=target_pool,
+                workspace=target_ws,
+                venue=meta['venue_name'],
+                result='SUCCESS'
             )
         except Exception as e:
             print(f'[WORKSPACE_MGR] Audit log notice: {e}')

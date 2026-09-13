@@ -131,6 +131,8 @@ class MultiMarketScanner:
         results.sort(key=lambda x: x["opportunity_score"], reverse=True)
         return results
 
+    scan_markets = scan_workspace
+
     def get_top_opportunity_workspace(self, workspace: str, sentiment_bias: float = 0.35) -> Dict[str, Any]:
         """Fetch the single #1 Best Opportunity Asset for the specified workspace."""
         scanned = self.scan_workspace(workspace, sentiment_bias)

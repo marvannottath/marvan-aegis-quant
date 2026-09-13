@@ -39,29 +39,63 @@ class FinancialAuditLogger:
     def log_event(
         self,
         event_type: str,
-        user_id: str,
-        amount: float,
-        asset: str = "USDT",
-        network: str = "TRC20",
-        provider: str = "BINANCE",
+        user_id: str = "USER-MAIN",
+        amount: float = 0.0,
+        asset: str = "INR",
+        network: str = "NSE",
+        provider: str = "UPSTOX",
         reference_id: str = "",
         ip_address: str = "127.0.0.1",
-        environment: str = "AEGIS_QUANT_MASTER"
+        environment: str = "AEGIS_INDIA_INR",
+        workspace: Optional[str] = None,
+        venue: Optional[str] = None,
+        symbol: Optional[str] = None,
+        result: str = "SUCCESS",
+        correlation_id: Optional[str] = None,
+        **kwargs
     ) -> Dict[str, Any]:
         event_id = f"AUD-{int(time.time()*1000)}-{event_type[:4].upper()}"
+        now_str = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S")
+        corr_id = correlation_id or reference_id or event_id
+
+        # Determine workspace & venue intelligently if not explicitly provided
+        ws = workspace
+        if not ws:
+            if "INDIA" in environment or asset == "INR" or network in ["NSE", "BSE"] or provider == "UPSTOX":
+                ws = "INDIA"
+            elif "BINANCE" in environment or asset in ["USDT", "BTC", "ETH", "SOL"] or provider == "BINANCE":
+                ws = "CRYPTO"
+            else:
+                ws = "FOREX_GOLD"
+
+        vn = venue
+        if not vn:
+            vn = "NSE/BSE" if ws == "INDIA" else ("BINANCE" if ws == "CRYPTO" else "GLOBAL_FX")
+
+        sym = symbol or asset
+
         record = {
             "event_id": event_id,
-            "timestamp": datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S"),
+            "timestamp": now_str,
             "event_type": event_type,
             "user_id": user_id,
             "environment": environment,
-            "amount": round(amount, 2),
+            "workspace": ws,
+            "venue": vn,
+            "symbol": sym,
+            "result": result,
+            "amount": round(float(amount or 0.0), 2),
             "asset": asset,
             "network": network,
             "provider": provider,
-            "reference_id": reference_id,
+            "reference_id": reference_id or corr_id,
+            "correlation_id": corr_id,
             "ip_address": ip_address
         }
+        for k, v in kwargs.items():
+            if k not in record:
+                record[k] = v
+
         self.logs.insert(0, record)
         self._save_logs()
         try:
@@ -76,12 +110,17 @@ class FinancialAuditLogger:
             pass
         return record
 
-    def get_audit_trail(self, environment: Optional[str] = None) -> List[Dict[str, Any]]:
+    def get_audit_trail(self, environment: Optional[str] = None, workspace: Optional[str] = None) -> List[Dict[str, Any]]:
+        logs = self.logs
+        if workspace and workspace not in ["ALL", ""]:
+            ws_norm = "INDIA" if "IND" in workspace.upper() else ("CRYPTO" if "CRYP" in workspace.upper() or "BINANCE" in workspace.upper() else "FOREX_GOLD")
+            matched = [l for l in logs if l.get("workspace") == ws_norm or (ws_norm == "INDIA" and l.get("asset") == "INR")]
+            return matched
         if environment and environment not in ["ALL", ""]:
-            matched = [l for l in self.logs if l.get("environment") == environment]
+            matched = [l for l in logs if l.get("environment") == environment]
             if matched:
                 return matched
-        return self.logs
+        return logs
 
 
 # Global Singleton

@@ -12,3 +12,4 @@ data/*.db-shm
 execution/*_state.json
 execution/binance_config.json
 !data/default_*.json
+scratch/

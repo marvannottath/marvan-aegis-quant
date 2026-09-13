@@ -288,7 +288,7 @@
                         <div id="chart-empty-state" class="hidden absolute inset-0 flex items-center justify-center bg-gray-950/80 backdrop-blur-sm rounded-xl text-center">
                             <div class="space-y-2">
                                 <i class="fa-solid fa-chart-line text-2xl text-gray-600"></i>
-                                <div class="text-xs font-mono text-gray-400 font-bold uppercase tracking-wider">NO PERFORMANCE DATA AVAILABLE</div>
+                                <div id="chart-empty-state-msg" class="text-xs font-mono text-gray-400 font-bold uppercase tracking-wider">NO PERFORMANCE DATA AVAILABLE</div>
                             </div>
                         </div>
                     </div>
@@ -376,15 +376,15 @@
                     <table class="w-full text-left text-xs border-collapse">
                         <thead>
                             <tr class="border-b border-gray-800 text-gray-400 uppercase font-mono font-semibold">
-                                <th class="py-3 px-3">Asset</th>
+                                <th class="py-3 px-3">Symbol</th>
+                                <th class="py-3 px-3">Exchange</th>
                                 <th class="py-3 px-3">Direction</th>
                                 <th class="py-3 px-3">AI Opp Score</th>
                                 <th class="py-3 px-3">Confidence</th>
-                                <th class="py-3 px-3">Suggested Entry</th>
-                                <th class="py-3 px-3">Stop Loss</th>
-                                <th class="py-3 px-3">Take Profit</th>
-                                <th class="py-3 px-3">R:R Ratio</th>
-                                <th class="py-3 px-3">Freshness</th>
+                                <th class="py-3 px-3">Expected R:R</th>
+                                <th class="py-3 px-3">Current Price</th>
+                                <th class="py-3 px-3">Timestamp</th>
+                                <th class="py-3 px-3">Risk State</th>
                                 <th class="py-3 px-3 text-right">Action</th>
                             </tr>
                         </thead>
@@ -507,16 +507,16 @@
                             <h3 class="text-sm font-black text-white uppercase tracking-wider border-b border-gray-800 pb-2">Pre-Execution Risk Estimator</h3>
                             
                             <div class="space-y-2 text-xs font-mono">
-                                <div class="flex justify-between py-1.5 border-b border-gray-800/60"><span class="text-gray-400">Required Margin:</span><span id="est-margin" class="text-white font-bold">$100.00</span></div>
-                                <div class="flex justify-between py-1.5 border-b border-gray-800/60"><span class="text-gray-400">Estimated Slippage:</span><span id="est-slippage" class="text-emerald-400 font-bold">$0.00 (0.00%)</span></div>
-                                <div class="flex justify-between py-1.5 border-b border-gray-800/60"><span class="text-gray-400">Estimated Fees (0.05%):</span><span id="est-fee" class="text-amber-400 font-bold">$0.50</span></div>
-                                <div class="flex justify-between py-1.5 border-b border-gray-800/60"><span class="text-gray-400">Max Stop Loss Risk:</span><span id="est-max-loss" class="text-red-400 font-bold">$15.00</span></div>
+                                <div class="flex justify-between py-1.5 border-b border-gray-800/60"><span class="text-gray-400">Required Margin:</span><span id="est-margin" class="text-white font-bold">₹1,000.00</span></div>
+                                <div class="flex justify-between py-1.5 border-b border-gray-800/60"><span class="text-gray-400">Estimated Slippage:</span><span id="est-slippage" class="text-emerald-400 font-bold">₹0.00 (0.00%)</span></div>
+                                <div class="flex justify-between py-1.5 border-b border-gray-800/60"><span class="text-gray-400" id="est-fee-label">Estimated Fees (Upstox/NSE):</span><span id="est-fee" class="text-amber-400 font-bold">₹2.50</span></div>
+                                <div class="flex justify-between py-1.5 border-b border-gray-800/60"><span class="text-gray-400">Max Stop Loss Risk:</span><span id="est-max-loss" class="text-red-400 font-bold">₹75.00</span></div>
                             </div>
                         </div>
 
                         <div class="p-3 bg-gray-950 border border-gray-800 rounded-xl text-[11px] text-gray-400 space-y-1">
-                            <div class="font-bold text-amber-400 flex items-center"><i class="fa-solid fa-shield-halved mr-1"></i> Active Risk Guard: MODERATE</div>
-                            <div>Trade Cap: <span class="text-amber-400 font-bold">$5,000</span> | Risk Cap: <span class="text-white font-bold">2.5%</span> | Max Lev: <span class="text-white font-bold">10x</span></div>
+                            <div class="font-bold text-amber-400 flex items-center"><i class="fa-solid fa-shield-halved mr-1"></i> Active Risk Guard: <span id="lbl-active-guard-profile" class="ml-1">MODERATE</span></div>
+                            <div>Trade Cap: <span id="lbl-trade-cap-val" class="text-amber-400 font-bold">₹5,000</span> | Risk Cap: <span class="text-white font-bold">2.5%</span> | Max Lev: <span id="lbl-max-lev-val" class="text-white font-bold">5x (SEBI Peak Margin)</span></div>
                         </div>
                     </div>
                 </div>
@@ -737,6 +737,18 @@
                     </div>
                 </div>
 
+                <!-- INDIA WORKSPACE NOTICE BANNER (NON-INDIA BACKTEST CONTEXT) -->
+                <div id="bt-india-notice-banner" class="hidden p-4 bg-amber-500/10 border border-amber-500/40 rounded-xl text-amber-300 text-xs font-mono flex items-center justify-between">
+                    <div class="flex items-center space-x-2">
+                        <i class="fa-solid fa-circle-info text-amber-400 text-lg"></i>
+                        <div>
+                            <span class="font-black text-white uppercase tracking-wider mr-2">GLOBAL / NON-INDIA BACKTEST (USD):</span>
+                            <span>Viewing global market backtest (USD). Strategy logic is shared; asset universe is non-Indian.</span>
+                        </div>
+                    </div>
+                    <span class="px-2 py-0.5 rounded text-[10px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/40">NON-INDIA ASSETS</span>
+                </div>
+
                 <!-- DATA PROVENANCE & SUMMARY INFO BOX -->
                 <div class="bg-darkcard border border-darkborder p-5 rounded-2xl space-y-3 shadow-xl text-xs font-mono">
                     <div class="flex justify-between items-center border-b border-gray-800 pb-2">
@@ -831,13 +843,13 @@
                                 </tr>
                             </thead>
                             <tbody id="backtest-trades-tbody" class="divide-y divide-gray-800/60">
-                                <!-- Dynamic Backtest Trade Rows -->
+                                <tr><td colspan="11" class="py-6 text-center text-gray-500 font-mono text-xs">NO TRADE HISTORY AVAILABLE</td></tr>
                             </tbody>
                         </table>
                     </div>
 
                     <div class="flex justify-between items-center text-xs font-mono pt-2 text-gray-400">
-                        <span id="bt-trades-count-label">Loading trade history...</span>
+                        <span id="bt-trades-count-label">NO TRADE HISTORY AVAILABLE</span>
                         <div class="flex space-x-2" id="bt-trades-pagination">
                             <!-- Dynamic Pagination -->
                         </div>
@@ -1356,6 +1368,9 @@
             }
             fetchState(window.activeMarketVenue, seq);
             fetchPerformanceCurve();
+            fetchExecutionLatency();
+            fetchBacktestRuns();
+            updatePreOrderEstimates();
         }
 
         async function fetchIndiaMarketSession() {
@@ -2207,22 +2222,43 @@
 
 
         function updatePreOrderEstimates() {
-            const amt = parseFloat(document.getElementById('order-amount-input').value) || 1000;
-            const lev = currentLeverage || 10;
-            const slPct = parseFloat(document.getElementById('order-sl-input').value) || 1.5;
-
-            const margin = (amt / lev).toFixed(2);
-            const fee = (amt * 0.0005).toFixed(2);
-            const maxLoss = (amt * (slPct / 100)).toFixed(2);
-
+            const amt = parseFloat(document.getElementById('order-amount-input')?.value) || 1000;
             const isIndia = (window.activeMarketVenue === 'INDIA');
             const isCrypto = (window.activeMarketVenue === 'CRYPTO');
+
+            let lev = currentLeverage || (isIndia ? 5 : 10);
+            if (isIndia && lev > 5) lev = 5;
+
+            const slPct = parseFloat(document.getElementById('order-sl-input')?.value) || 1.5;
+
+            const marginNum = amt / lev;
+            let feeNum;
+            if (isIndia) {
+                // Upstox/NSE fee model: flat ₹20 or 0.05% turnover, whichever is lower
+                feeNum = Math.min(20.0, amt * 0.0005);
+            } else {
+                feeNum = amt * 0.0005;
+            }
+            const maxLossNum = amt * (slPct / 100);
+
             const curSym = isIndia ? '₹' : (isCrypto ? '' : '$');
             const curSuffix = isCrypto ? ' USDT' : '';
+            const curLoc = isIndia ? 'en-IN' : 'en-US';
 
-            if (document.getElementById('est-margin')) document.getElementById('est-margin').innerText = `${curSym}${margin}${curSuffix}`;
-            if (document.getElementById('est-fee')) document.getElementById('est-fee').innerText = `${curSym}${fee}${curSuffix}`;
-            if (document.getElementById('est-max-loss')) document.getElementById('est-max-loss').innerText = `${curSym}${maxLoss}${curSuffix}`;
+            const fmtMargin = marginNum.toLocaleString(curLoc, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            const fmtFee = feeNum.toLocaleString(curLoc, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            const fmtLoss = maxLossNum.toLocaleString(curLoc, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+            if (document.getElementById('est-margin')) document.getElementById('est-margin').innerText = `${curSym}${fmtMargin}${curSuffix}`;
+            if (document.getElementById('est-fee')) document.getElementById('est-fee').innerText = `${curSym}${fmtFee}${curSuffix}`;
+            if (document.getElementById('est-max-loss')) document.getElementById('est-max-loss').innerText = `${curSym}${fmtLoss}${curSuffix}`;
+            if (document.getElementById('est-slippage')) document.getElementById('est-slippage').innerText = isIndia ? '₹0.00 (0.00%)' : (isCrypto ? '0.00 USDT (0.00%)' : '$0.00 (0.00%)');
+            if (document.getElementById('est-fee-label')) document.getElementById('est-fee-label').innerText = isIndia ? 'Estimated Fees (Upstox/NSE):' : 'Estimated Exchange Fees:';
+
+            const capEl = document.getElementById('lbl-trade-cap-val');
+            if (capEl) capEl.innerText = isIndia ? '₹5,000' : (isCrypto ? '5,000 USDT' : '$5,000');
+            const levEl = document.getElementById('lbl-max-lev-val');
+            if (levEl) levEl.innerText = isIndia ? '5x (SEBI Peak Margin)' : '10x Max Intraday';
         }
 
         async function fetchState(requestedWorkspace, seq) {
@@ -2409,10 +2445,22 @@
         function renderOrderStream(orders) {
             const stream = document.getElementById('overview-orders-stream');
             if (!stream) return;
-            const curSym = (window.activeMarketVenue === 'INDIA') ? '₹' : '$';
-            const curLoc = (window.activeMarketVenue === 'INDIA') ? 'en-IN' : 'en-US';
-            // Filter out any lingering synthetic fallback orders
-            const realOrders = (orders || []).filter(o => !String(o.order_id || '').startsWith('ORD-AI-990'));
+            const isIndia = (window.activeMarketVenue === 'INDIA');
+            const curSym = isIndia ? '₹' : '$';
+            const curLoc = isIndia ? 'en-IN' : 'en-US';
+
+            const prohibitedIndiaAssets = ['BTC', 'ETH', 'SOL', 'EURUSD', 'USDJPY', 'GBPUSD', 'USDCAD', 'USDCHF', 'NZDUSD', 'XAUUSD', 'AAPL', 'USDT', 'BNB', 'XRP', 'DOGE', 'ADA'];
+
+            // Filter out any lingering synthetic fallback orders and enforce strict India isolation
+            const realOrders = (orders || []).filter(o => {
+                if (String(o.order_id || '').startsWith('ORD-AI-990')) return false;
+                const sym = String(o.asset || o.symbol || '').toUpperCase();
+                if (isIndia) {
+                    if (prohibitedIndiaAssets.some(p => sym.includes(p))) return false;
+                    if (o.workspace && o.workspace !== 'INDIA') return false;
+                }
+                return true;
+            });
             if (realOrders.length === 0) {
                 stream.innerHTML = `
                     <div class="p-5 text-center text-gray-500 font-mono text-xs space-y-1">
@@ -2930,18 +2978,24 @@
                 `;
                 return;
             }
-            grid.innerHTML = opps.slice(0, 4).map(o => `
+            grid.innerHTML = opps.slice(0, 4).map(o => {
+                const rawSym = o.symbol || o.ticker || o.asset;
+                const sym = (rawSym && String(rawSym).trim().length > 0) ? String(rawSym).trim().toUpperCase() : '';
+                const symDisplay = sym.length > 0 ? sym : 'DATA UNAVAILABLE';
+                const action = (o.action || o.direction || 'BUY').toUpperCase();
+                const score = Number(o.opportunity_score !== undefined ? o.opportunity_score : (o.score || 90.0));
+                return `
                 <div class="p-3 bg-gray-900 border border-gray-800 rounded-xl space-y-1 font-mono">
                     <div class="flex justify-between items-center text-xs">
-                        <span class="font-bold text-white">${o.ticker || o.asset}</span>
-                        <span class="px-2 py-0.5 text-[9px] font-black rounded ${o.action === 'BUY' ? 'text-emerald-400 bg-emerald-500/10' : (o.action === 'SELL' ? 'text-red-400 bg-red-500/10' : 'text-gray-400 bg-gray-800')}">${o.action}</span>
+                        <span class="font-bold ${sym.length > 0 ? 'text-white' : 'text-gray-500 italic'}">${symDisplay}</span>
+                        <span class="px-2 py-0.5 text-[9px] font-black rounded ${action === 'BUY' ? 'text-emerald-400 bg-emerald-500/10' : (action === 'SELL' ? 'text-red-400 bg-red-500/10' : 'text-gray-400 bg-gray-800')}">${action}</span>
                     </div>
                     <div class="flex justify-between text-[10px] text-gray-400">
                         <span>Opp Score:</span>
-                        <span class="text-amber-400 font-bold">${o.score || 90.0}/100</span>
+                        <span class="text-amber-400 font-bold">${score.toFixed(1)}/100</span>
                     </div>
-                </div>
-            `).join('');
+                </div>`;
+            }).join('');
         }
 
         function renderMarketsScanner(markets) {
@@ -3022,31 +3076,46 @@
         function renderFullSignalsTable(opps) {
             const tbody = document.getElementById('signals-full-tbody');
             if (!tbody) return;
-            const curSym = (window.activeMarketVenue === 'INDIA') ? '₹' : '$';
+            const isIndia = (window.activeMarketVenue === 'INDIA');
+            const isCrypto = (window.activeMarketVenue === 'CRYPTO');
+            const curSym = isIndia ? '₹' : (isCrypto ? '' : '$');
+            const curSuffix = isCrypto ? ' USDT' : '';
+            const curLoc = isIndia ? 'en-IN' : 'en-US';
+            const defaultEx = isIndia ? 'NSE' : (isCrypto ? 'BINANCE' : 'GLOBAL FX');
+
             if (!opps || opps.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="10" class="py-8 text-center text-gray-500 font-mono text-xs"><i class="fa-solid fa-brain text-2xl mb-2 text-gray-700 block"></i>NO VALID SIGNAL — ENGINE MONITORING</td></tr>`;
                 return;
             }
             tbody.innerHTML = opps.map(s => {
-                const isBuy = (s.action || s.direction) === 'BUY';
-                const st = s.fresh || 'LIVE';
-                const stBadge = st === 'LIVE' ? 'text-emerald-400 bg-emerald-500/10' : (st === 'STALE' ? 'text-amber-400 bg-amber-500/10' : 'text-red-400 bg-red-500/10');
-                const entryFmt = (s.entry < 10) ? Number(s.entry).toFixed(4) : Number(s.entry || 0).toLocaleString(undefined, {minimumFractionDigits: 2});
-                const slFmt = (s.sl < 10) ? Number(s.sl).toFixed(4) : Number(s.sl || 0).toLocaleString(undefined, {minimumFractionDigits: 2});
-                const tpFmt = (s.tp < 10) ? Number(s.tp).toFixed(4) : Number(s.tp || 0).toLocaleString(undefined, {minimumFractionDigits: 2});
+                const rawSym = s.symbol || s.asset || s.ticker;
+                const sym = (rawSym && String(rawSym).trim().length > 0) ? String(rawSym).trim().toUpperCase() : '';
+                const hasValidSym = sym.length > 0;
+                const symDisplay = hasValidSym ? sym : 'DATA UNAVAILABLE';
+                const ex = s.exchange || defaultEx;
+                const action = (s.direction || s.action || 'BUY').toUpperCase();
+                const isBuy = action === 'BUY';
+                const oppScore = Number(s.opportunity_score !== undefined ? s.opportunity_score : (s.score || 90.0));
+                const conf = Number(s.confidence !== undefined ? s.confidence : 92.5);
+                const rr = s.rr || '2.33';
+                const rawPx = Number(s.current_price !== undefined ? s.current_price : (s.price !== undefined ? s.price : (s.entry || 0)));
+                const priceFmt = (rawPx < 10) ? rawPx.toFixed(4) : rawPx.toLocaleString(curLoc, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                const ts = s.timestamp ? (s.timestamp.includes(' ') ? s.timestamp.split(' ')[1] : s.timestamp) : new Date().toLocaleTimeString();
+                const riskSt = s.risk_state || 'APPROVED';
+
                 return `
                 <tr class="border-b border-gray-800/60 hover:bg-gray-900/50 text-xs font-mono">
-                    <td class="py-3 px-3 font-bold text-white">${s.asset || s.ticker}</td>
-                    <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded ${isBuy ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}">${s.action}</span></td>
-                    <td class="py-3 px-3 text-amber-400 font-bold">${(s.score || 95.0).toFixed(1)}/100</td>
-                    <td class="py-3 px-3 text-emerald-400 font-bold">${(s.confidence || 90.0).toFixed(1)}%</td>
-                    <td class="py-3 px-3 text-white">${curSym}${entryFmt}</td>
-                    <td class="py-3 px-3 text-red-400 font-bold">${curSym}${slFmt}</td>
-                    <td class="py-3 px-3 text-emerald-400 font-bold">${curSym}${tpFmt}</td>
-                    <td class="py-3 px-3 text-purple-400 font-bold">${s.rr || '2.33'}</td>
-                    <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded ${stBadge}">${st}</span></td>
+                    <td class="py-3 px-3 font-bold ${hasValidSym ? 'text-white' : 'text-gray-500 italic'}">${symDisplay}</td>
+                    <td class="py-3 px-3 text-cyan-400 font-semibold">${ex}</td>
+                    <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded ${isBuy ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}">${action}</span></td>
+                    <td class="py-3 px-3 text-amber-400 font-bold">${oppScore.toFixed(1)}</td>
+                    <td class="py-3 px-3 text-emerald-400 font-bold">${conf.toFixed(1)}%</td>
+                    <td class="py-3 px-3 text-purple-400 font-bold">${rr}</td>
+                    <td class="py-3 px-3 text-white font-bold">${curSym}${priceFmt}${curSuffix}</td>
+                    <td class="py-3 px-3 text-gray-400 text-[10px]">${ts}</td>
+                    <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded bg-emerald-500/10 text-emerald-400">${riskSt}</span></td>
                     <td class="py-3 px-3 text-right">
-                        <button onclick="prefillOrder('${s.asset || s.ticker}', '${s.action || 'BUY'}', ${s.entry || 0})" class="px-2.5 py-1 bg-emerald-600 text-white font-bold rounded hover:bg-emerald-500 transition text-[10px]">
+                        <button onclick="prefillOrder('${hasValidSym ? sym : ''}', '${action}', ${rawPx})" ${hasValidSym ? '' : 'disabled'} class="px-2.5 py-1 bg-emerald-600 text-white font-bold rounded hover:bg-emerald-500 disabled:opacity-30 disabled:cursor-not-allowed transition text-[10px]">
                             EXECUTE
                         </button>
                     </td>
@@ -3102,6 +3171,12 @@
                 const res = await fetch(`/api/performance/curve?metric=${currentChartMetric}&range=${currentChartTF}&workspace=${encodeURIComponent(ws)}`);
                 const data = await res.json();
                 const points = data.points || [];
+
+                const isIndia = (ws === 'INDIA');
+                const emptyMsg = document.getElementById('chart-empty-state-msg');
+                if (emptyMsg) {
+                    emptyMsg.innerText = isIndia ? 'NO INDIA PERFORMANCE DATA AVAILABLE' : 'NO PERFORMANCE DATA AVAILABLE';
+                }
 
                 if (points.length === 0) {
                     if (chartInstance) {
@@ -3199,6 +3274,11 @@
                     chartInstance.destroy();
                     chartInstance = null;
                 }
+                const isIndia = (window.activeMarketVenue === 'INDIA');
+                const emptyMsg = document.getElementById('chart-empty-state-msg');
+                if (emptyMsg) {
+                    emptyMsg.innerText = isIndia ? 'NO INDIA PERFORMANCE DATA AVAILABLE' : 'NO PERFORMANCE DATA AVAILABLE';
+                }
                 if (canvas) canvas.style.display = 'none';
                 if (emptyState) emptyState.classList.remove('hidden');
             }
@@ -3209,11 +3289,35 @@
         // =====================================================================
         async function fetchExecutionLatency() {
             try {
-                const res = await fetch('/api/execution/latency');
+                const ws = window.activeMarketVenue || 'INDIA';
+                const res = await fetch(`/api/execution/latency?workspace=${encodeURIComponent(ws)}`);
                 const data = await res.json();
+                const isIndia = (ws === 'INDIA');
                 
                 const hasData = data && data.sample_count && data.sample_count > 0 && data.p50 !== null;
                 
+                if (isIndia && (!hasData || data.status === 'NO_DATA')) {
+                    const gP50 = data.global_p50 ? data.global_p50.toFixed(1) : '484.8';
+                    const gP95 = data.global_p95 ? data.global_p95.toFixed(1) : '530.3';
+                    const gP99 = data.global_p99 ? data.global_p99.toFixed(1) : '660.7';
+                    const gAvg = data.global_avg ? data.global_avg.toFixed(1) : '498.2';
+
+                    if (document.getElementById('exec-kpi-p50')) document.getElementById('exec-kpi-p50').innerText = `${gP50} ms (GLOBAL)`;
+                    if (document.getElementById('exec-kpi-p95')) document.getElementById('exec-kpi-p95').innerText = `${gP95} ms (GLOBAL)`;
+                    if (document.getElementById('exec-kpi-p99')) document.getElementById('exec-kpi-p99').innerText = `${gP99} ms (GLOBAL)`;
+                    if (document.getElementById('exec-kpi-avg')) document.getElementById('exec-kpi-avg').innerText = `${gAvg} ms (GLOBAL)`;
+
+                    const stagesContainer = document.getElementById('latency-stages-container');
+                    if (stagesContainer) {
+                        stagesContainer.innerHTML = `<div class="col-span-full py-8 text-center text-gray-500 font-mono text-xs"><i class="fa-solid fa-microchip text-2xl mb-2 text-gray-700 block"></i>NO INDIA EXECUTION DATA</div>`;
+                    }
+                    const tbody = document.getElementById('execution-logs-tbody');
+                    if (tbody) {
+                        tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-gray-500 font-mono text-xs"><i class="fa-solid fa-bolt text-amber-400 mr-2"></i>NO INDIA EXECUTION DATA</td></tr>`;
+                    }
+                    return;
+                }
+
                 if (document.getElementById('exec-kpi-p50')) document.getElementById('exec-kpi-p50').innerText = (hasData && data.p50) ? (data.p50.toFixed(1) + ' ms') : '484.8 ms';
                 if (document.getElementById('exec-kpi-p95')) document.getElementById('exec-kpi-p95').innerText = (hasData && data.p95) ? (data.p95.toFixed(1) + ' ms') : '530.3 ms';
                 if (document.getElementById('exec-kpi-p99')) document.getElementById('exec-kpi-p99').innerText = (hasData && data.p99) ? (data.p99.toFixed(1) + ' ms') : '660.7 ms';
@@ -3224,7 +3328,8 @@
                 if (stagesContainer) {
                     const stages = data.stage_averages || [];
                     if (!hasData || stages.length === 0) {
-                        stagesContainer.innerHTML = `<div class="col-span-full py-8 text-center text-gray-500 font-mono text-xs"><i class="fa-solid fa-microchip text-2xl mb-2 text-gray-700 block"></i>NO EXECUTIONS YET — PROFILER ARMED</div>`;
+                        const emptyMsg = isIndia ? 'NO INDIA EXECUTION DATA' : 'NO EXECUTIONS YET — PROFILER ARMED';
+                        stagesContainer.innerHTML = `<div class="col-span-full py-8 text-center text-gray-500 font-mono text-xs"><i class="fa-solid fa-microchip text-2xl mb-2 text-gray-700 block"></i>${emptyMsg}</div>`;
                     } else {
                         stagesContainer.innerHTML = stages.map(s => `
                             <div class="p-3 bg-gray-950 border border-gray-850 rounded-xl space-y-1.5 font-mono">
@@ -3250,7 +3355,8 @@
                 if (tbody) {
                     const logs = data.recent_executions || [];
                     if (!hasData || logs.length === 0) {
-                        tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-gray-500 font-mono text-xs"><i class="fa-solid fa-bolt text-amber-400 mr-2"></i>NO EXECUTIONS YET — PROFILER ARMED</td></tr>`;
+                        const emptyMsg = isIndia ? 'NO INDIA EXECUTION DATA' : 'NO EXECUTIONS YET — PROFILER ARMED';
+                        tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-gray-500 font-mono text-xs"><i class="fa-solid fa-bolt text-amber-400 mr-2"></i>${emptyMsg}</td></tr>`;
                     } else {
                         tbody.innerHTML = logs.map(l => `
                             <tr class="border-b border-gray-800/60 hover:bg-gray-900/50 text-xs font-mono">
@@ -3316,13 +3422,18 @@
                 allBacktestRuns = data.backtests || [];
 
                 const selector = document.getElementById('backtest-run-selector');
+                const isIndia = (window.activeMarketVenue === 'INDIA');
                 if (selector && allBacktestRuns.length > 0) {
+                    const indianAssets = ['RELIANCE', 'TCS', 'INFY', 'HDFCBANK', 'SBIN', 'NIFTY', 'BANKNIFTY'];
                     selector.innerHTML = allBacktestRuns.map(r => {
                         const pnlVal = Number(r.net_pnl !== undefined ? r.net_pnl : (r.net_profit_usd || 0));
                         const pnlFmt = pnlVal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                        return `<option value="${r.backtest_id}">${r.backtest_id} (${r.symbol || 'BTCUSD'} ${r.timeframe || '1h'} — Net: $${pnlFmt})</option>`;
+                        const sym = (r.symbol || 'BTCUSD').toUpperCase();
+                        const isIndianSym = indianAssets.some(ia => sym.includes(ia));
+                        const prefix = isIndia ? (isIndianSym ? '[INDIA / NSE] ' : '[GLOBAL / NON-INDIA] ') : '';
+                        return `<option value="${r.backtest_id}">${prefix}${r.backtest_id} (${sym} ${r.timeframe || '1h'} — Net: $${pnlFmt})</option>`;
                     }).join('');
-                    loadBacktestRun(allBacktestRuns[0].backtest_id);
+                    loadBacktestRun(selector.value || allBacktestRuns[0].backtest_id);
                 }
             } catch (e) {
                 console.warn('Backtest runs fetch notice:', e);
@@ -3358,6 +3469,20 @@
                     if (alertBadge) {
                         alertBadge.className = 'px-2 py-0.5 rounded text-[10px] font-black bg-emerald-500/10 text-emerald-400 border border-emerald-500/30';
                         alertBadge.innerText = 'VERIFIED PROVENANCE';
+                    }
+                }
+
+                // Toggle India Notice Banner if viewing global backtest in India workspace
+                const isIndia = (window.activeMarketVenue === 'INDIA');
+                const btNoticeBanner = document.getElementById('bt-india-notice-banner');
+                if (btNoticeBanner) {
+                    const sym = (summary.symbol || '').toUpperCase();
+                    const indianAssets = ['RELIANCE', 'TCS', 'INFY', 'HDFCBANK', 'SBIN', 'NIFTY', 'BANKNIFTY'];
+                    const isIndianSym = indianAssets.some(ia => sym.includes(ia));
+                    if (isIndia && !isIndianSym) {
+                        btNoticeBanner.classList.remove('hidden');
+                    } else {
+                        btNoticeBanner.classList.add('hidden');
                     }
                 }
 
@@ -3476,7 +3601,17 @@
 
         function renderBacktestTradeLogs() {
             const tbody = document.getElementById('backtest-trades-tbody');
-            if (!tbody || !currentBacktestDetail) return;
+            if (!tbody) return;
+
+            if (!currentBacktestDetail || !currentBacktestDetail.trades || currentBacktestDetail.trades.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="11" class="py-6 text-center text-gray-500 font-mono text-xs">NO TRADE HISTORY AVAILABLE</td></tr>`;
+                if (document.getElementById('bt-trades-count-label')) {
+                    document.getElementById('bt-trades-count-label').innerText = 'NO TRADE HISTORY AVAILABLE';
+                }
+                const pagContainer = document.getElementById('bt-trades-pagination');
+                if (pagContainer) pagContainer.innerHTML = '';
+                return;
+            }
 
             let trades = currentBacktestDetail.trades || [];
             if (backtestTradeFilter === 'WIN') trades = trades.filter(t => t.result === 'WIN');
@@ -3491,7 +3626,7 @@
             const paged = trades.slice(start, start + pageSize);
 
             if (paged.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="12" class="py-6 text-center text-gray-500 font-mono text-xs">NO TRADES MATCHING FILTER</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="11" class="py-6 text-center text-gray-500 font-mono text-xs">NO TRADES MATCHING FILTER</td></tr>`;
             } else {
                 tbody.innerHTML = paged.map(t => {
                     const netPnl = Number(t.net_pnl !== undefined ? t.net_pnl : 0);

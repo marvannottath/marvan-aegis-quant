@@ -150,6 +150,8 @@ class BacktestAnalyticsEngine:
 
         return None
 
+    get_backtest_run = get_backtest_detail
+
     def _build_full_detail(self, r: Dict[str, Any]) -> Dict[str, Any]:
         summary = self._summarize_run(r)
         prov = r.get("data_provenance", {
