@@ -126,17 +126,16 @@ class AutonomousTrader:
                     base_lev = 25.0
 
                 # 3. New Position Entry Evaluation (Pool-Aware Asset Filtering)
-                is_binance_pool = (self.broker.active_pool_name in ["BINANCE_TESTNET_DEMO", "BINANCE_LIVE_REAL", "BINANCE_DEMO"])
-                if is_binance_pool:
-                    crypto_pool = [
-                        {"ticker": "BTCUSDT", "price": 79050.0, "category": "Crypto", "rsi": 54.2, "volatility": 0.015, "ai_action": "BUY", "opportunity_score": 94.0},
-                        {"ticker": "ETHUSDT", "price": 2465.0, "category": "Crypto", "rsi": 49.8, "volatility": 0.018, "ai_action": "BUY", "opportunity_score": 91.5},
-                        {"ticker": "SOLUSDT", "price": 142.50, "category": "Crypto", "rsi": 61.0, "volatility": 0.022, "ai_action": "BUY", "opportunity_score": 89.0},
-                        {"ticker": "BNBUSDT", "price": 692.0, "category": "Crypto", "rsi": 52.0, "volatility": 0.012, "ai_action": "BUY", "opportunity_score": 87.0}
-                    ]
-                    filtered_scanned = crypto_pool
+                from core.workspace_manager import workspace_manager
+                active_ws = workspace_manager.get_active_workspace()
+                pool = self.broker.active_pool_name
+
+                if pool in ["AEGIS_INDIA_INR", "UPSTOX_DEMO", "UPSTOX_LIVE"] or active_ws == "INDIA":
+                    filtered_scanned = multi_scanner.scan_workspace("INDIA", sentiment_score)
+                elif pool in ["BINANCE_TESTNET_DEMO", "BINANCE_LIVE_REAL", "BINANCE_DEMO"] or active_ws == "CRYPTO":
+                    filtered_scanned = multi_scanner.scan_workspace("CRYPTO", sentiment_score)
                 else:
-                    filtered_scanned = scanned_assets
+                    filtered_scanned = multi_scanner.scan_workspace("FOREX_GOLD", sentiment_score)
 
                 if len(self.broker.positions) < target_capacity and filtered_scanned:
                     for item in filtered_scanned:
@@ -154,10 +153,15 @@ class AutonomousTrader:
 
                         act = "BUY" if action_signal != "SELL" else "SELL"
                         calc_leverage = base_lev if opp_score < 80.0 else min(50.0, base_lev * 1.5)
+                        if pool in ["AEGIS_INDIA_INR", "UPSTOX_DEMO", "UPSTOX_LIVE"] or active_ws == "INDIA":
+                            calc_leverage = min(5.0, calc_leverage)
+
                         size_usd = self.risk_engine.calculate_position_size(self.broker.virtual_cash, volatility, opp_score)
-                        
+                        if size_usd < 100.0 and self.broker.virtual_cash >= 200.0:
+                            size_usd = min(500.0, max(100.0, self.broker.virtual_cash * 0.1))
+
                         is_risk_valid, _ = self.risk_engine.validate_order(size_usd, calc_leverage, len(self.broker.positions))
-                        if is_risk_valid and size_usd >= 250.0:
+                        if is_risk_valid and size_usd >= 50.0:
                             order = self._execute_and_profile_order(
                                 ticker=ticker,
                                 action=act,
@@ -240,23 +244,17 @@ class AutonomousTrader:
                         self._log_action(pos_asset, "CLOSE", new_live_price, pos.get("capital_allocated", 1000.0), f"Position Closed & Swept ({close_reason})")
 
                         # Immediate Replenishment with next candidate
-                        if len(self.broker.positions) < target_capacity and scanned_assets:
-                            is_binance_pool = (self.broker.active_pool_name in ["BINANCE_TESTNET_DEMO", "BINANCE_LIVE_REAL", "BINANCE_DEMO"])
-                            if is_binance_pool:
-                                cand_pool = [
-                                    {"ticker": "BTCUSDT", "price": 79050.0, "rsi": 54.2, "volatility": 0.015, "ai_action": "BUY"},
-                                    {"ticker": "ETHUSDT", "price": 2465.0, "rsi": 49.8, "volatility": 0.018, "ai_action": "BUY"},
-                                    {"ticker": "SOLUSDT", "price": 142.50, "rsi": 61.0, "volatility": 0.022, "ai_action": "BUY"},
-                                    {"ticker": "BNBUSDT", "price": 692.0, "rsi": 52.0, "volatility": 0.012, "ai_action": "BUY"}
-                                ]
-                            else:
-                                cand_pool = scanned_assets
-                            candidates = [c for c in cand_pool if c["ticker"] not in self.broker.positions]
+                        if len(self.broker.positions) < target_capacity and filtered_scanned:
+                            candidates = [c for c in filtered_scanned if c["ticker"] not in self.broker.positions]
                             if candidates:
                                 top_c = candidates[0]
-                                c_act = "BUY" if top_c["ai_action"] != "SELL" else "SELL"
+                                c_act = "BUY" if top_c.get("ai_action") != "SELL" else "SELL"
                                 dyn_lev = float(np.random.choice(possible_leverages))
+                                if pool in ["AEGIS_INDIA_INR", "UPSTOX_DEMO", "UPSTOX_LIVE"] or active_ws == "INDIA":
+                                    dyn_lev = min(5.0, dyn_lev)
                                 dyn_margin = float(np.random.choice(possible_margins))
+                                if dyn_margin > self.broker.virtual_cash * 0.5:
+                                    dyn_margin = max(100.0, round(self.broker.virtual_cash * 0.1, 2))
                                 # All replenishment orders must pass full risk pipeline
                                 _ok, _code, _msg = self.risk_engine.validate_order_pipeline(
                                     amount_usd=dyn_margin,

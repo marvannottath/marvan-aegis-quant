@@ -55,44 +55,43 @@
 
         <!-- TOP-LEVEL TRI-MARKET VENUE SWITCHER -->
         <div class="flex items-center bg-gray-950/90 border border-gray-800 p-1 rounded-xl space-x-1 font-mono text-xs shadow-inner">
-            <button id="btn-mkt-india" onclick="switchMarketVenue('INDIA')" class="px-3 py-1.5 rounded-lg font-bold text-xs transition flex items-center space-x-1.5 bg-amber-500 text-black shadow">
-                <span>🇮🇳</span> <span>INDIA (INR ₹)</span>
+            <button id="btn-mkt-india" onclick="switchMarketVenue('INDIA')" class="px-3 py-1.5 rounded-lg font-bold text-xs transition flex items-center space-x-1.5 bg-amber-500 text-black shadow cursor-pointer">
+                <span>🇮🇳</span> <span>INDIA (₹)</span>
             </button>
-            <button id="btn-mkt-forex" onclick="switchMarketVenue('FOREX')" class="px-3 py-1.5 rounded-lg font-bold text-xs text-gray-400 hover:text-white transition flex items-center space-x-1.5">
-                <span>💱</span> <span>FOREX & GOLD</span>
-            </button>
-            <button id="btn-mkt-crypto" onclick="switchMarketVenue('CRYPTO')" class="px-3 py-1.5 rounded-lg font-bold text-xs text-gray-400 hover:text-white transition flex items-center space-x-1.5">
+            <button id="btn-mkt-crypto" onclick="switchMarketVenue('CRYPTO')" class="px-3 py-1.5 rounded-lg font-bold text-xs text-gray-400 hover:text-white transition flex items-center space-x-1.5 cursor-pointer">
                 <span>🌐</span> <span>CRYPTO (USDT)</span>
+            </button>
+            <button id="btn-mkt-forex" onclick="switchMarketVenue('FOREX')" class="px-3 py-1.5 rounded-lg font-bold text-xs text-gray-400 hover:text-white transition flex items-center space-x-1.5 cursor-pointer">
+                <span>💱</span> <span>FOREX & GOLD ($)</span>
             </button>
         </div>
 
-        <div class="hidden lg:flex items-center space-x-4 text-xs font-mono">
-            <!-- Active Environment -->
-            <div onclick="switchTab('settings')" class="flex items-center space-x-1.5 px-3 py-1 bg-gray-900 border border-gray-800 rounded-lg cursor-pointer hover:border-amber-500/50 transition" title="Click to view Environment Settings">
+        <div class="flex items-center space-x-3 text-xs font-mono">
+            <!-- Active Pool Indicator -->
+            <div onclick="switchTab('settings')" class="hidden xl:flex items-center space-x-1.5 px-3 py-1 bg-gray-900 border border-gray-800 rounded-lg cursor-pointer hover:border-amber-500/50 transition" title="Click to view Environment Settings">
                 <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                <span class="text-gray-400">ACTIVE:</span>
+                <span class="text-gray-400">POOL:</span>
                 <span id="hdr-env-label" class="font-bold text-emerald-400">AEGIS INDIA POOL (₹100,000.00)</span>
             </div>
 
-            <!-- Live Trading ON/OFF Toggle Button -->
-            <button id="btn-live-toggle" onclick="toggleLiveTradingState()" class="flex items-center space-x-1.5 px-3 py-1 bg-red-500/10 border border-red-500/40 text-red-400 font-black rounded-lg hover:bg-red-500/20 transition cursor-pointer" title="Click to Toggle Binance Live Trading Mode">
+            <!-- Live Trading ON/OFF Toggle -->
+            <button id="btn-live-toggle" onclick="toggleLiveTradingState()" class="hidden md:flex items-center space-x-1.5 px-2.5 py-1 bg-red-500/10 border border-red-500/40 text-red-400 font-bold rounded-lg hover:bg-red-500/20 transition cursor-pointer" title="Click to Toggle Live Trading Mode">
                 <i id="icon-live-toggle" class="fa-solid fa-toggle-off"></i>
-                <span id="lbl-live-toggle">LIVE TRADING: OFF</span>
+                <span id="lbl-live-toggle">LIVE: OFF</span>
             </button>
 
-            <!-- Connection Status -->
-            <div onclick="switchTab('system')" class="flex items-center space-x-1.5 text-emerald-400 font-bold cursor-pointer hover:underline" title="Click to view System Health">
-                <i class="fa-solid fa-wifi"></i>
-                <span id="lbl-conn-status">CONNECTED (WS)</span>
+            <!-- WebSocket Status -->
+            <div onclick="switchTab('system')" class="hidden sm:flex items-center space-x-1.5 text-emerald-400 font-bold cursor-pointer hover:underline" title="Click to view System Health">
+                <i class="fa-solid fa-wifi text-[11px]"></i>
+                <span id="lbl-conn-status">LIVE (WS)</span>
             </div>
-        </div>
 
-        <div class="flex items-center space-x-3 text-xs">
-            <div class="hidden sm:block text-right font-mono text-[11px]">
-                <div id="lbl-server-time" class="text-gray-300 font-bold">--:--:-- IST</div>
-            </div>
-            <button onclick="switchTab('orders')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-lg transition shadow flex items-center">
-                <i class="fa-solid fa-bolt mr-1"></i> ORDER (B/S)
+            <!-- Server Time Clock -->
+            <div id="lbl-server-time" class="font-bold text-gray-300 bg-gray-900 border border-gray-800 px-2.5 py-1 rounded-lg">--:--:-- IST</div>
+
+            <!-- Order Action Button -->
+            <button onclick="switchTab('orders')" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-lg transition shadow flex items-center cursor-pointer">
+                <i class="fa-solid fa-bolt mr-1"></i> ORDER
             </button>
         </div>
     </header>
@@ -1207,7 +1206,49 @@
         window.ACTIVE_WORKSPACE = activeMarketVenue;
         let workspaceSwitchSequence = 0;
 
-        async function switchMarketVenue(venue) {
+        function updateInstantMetrics(venue) {
+            const isInd = (venue === 'INDIA');
+            const isCry = (venue === 'CRYPTO');
+            const isFx = (venue === 'FOREX' || venue === 'FOREX_GOLD');
+
+            const curSym = isInd ? '₹' : (isCry ? '' : '$');
+            const curLoc = isInd ? 'en-IN' : 'en-US';
+
+            const defaultEq = isInd ? 100000.0 : (isCry ? 19940.75 : 100000.0);
+            const eqFmt = isCry ? `${defaultEq.toLocaleString('en-US', {minimumFractionDigits: 2})} USDT` : `${curSym}${defaultEq.toLocaleString(curLoc, {minimumFractionDigits: 2})}`;
+            const zeroFmt = isCry ? '0.00 USDT' : `${curSym}0.00`;
+            const signedZeroFmt = isCry ? '+0.00 USDT' : `+${curSym}0.00`;
+
+            const eqEl = document.getElementById('metric-equity');
+            const pnlEl = document.getElementById('metric-today-pnl');
+            const cashEl = document.getElementById('metric-free-cash');
+            const expEl = document.getElementById('metric-exposure');
+            const ddEl = document.getElementById('metric-drawdown');
+            const hdrEnv = document.getElementById('hdr-env-label');
+            const brokerMargin = document.getElementById('val-broker-margin');
+
+            if (eqEl) eqEl.innerText = eqFmt;
+            if (pnlEl) pnlEl.innerText = signedZeroFmt;
+            if (cashEl) cashEl.innerText = eqFmt;
+            if (expEl) expEl.innerText = zeroFmt;
+            if (ddEl) ddEl.innerText = '0.00%';
+            if (brokerMargin) brokerMargin.innerText = eqFmt;
+
+            if (hdrEnv) {
+                if (isInd) {
+                    hdrEnv.innerText = `INDIA POOL (${eqFmt})`;
+                    hdrEnv.className = 'font-bold text-emerald-400';
+                } else if (isCry) {
+                    hdrEnv.innerText = `BINANCE TESTNET (${eqFmt})`;
+                    hdrEnv.className = 'font-bold text-amber-400';
+                } else {
+                    hdrEnv.innerText = `MARVAN'S POOL (${eqFmt})`;
+                    hdrEnv.className = 'font-bold text-blue-400';
+                }
+            }
+        }
+
+        function switchMarketVenue(venue) {
             const normVenue = (venue === 'FOREX' || venue === 'FOREX_GOLD') ? 'FOREX_GOLD' : venue;
             window.activeMarketVenue = normVenue;
             activeMarketVenue = normVenue;
@@ -1220,8 +1261,8 @@
             const btnFx = document.getElementById('btn-mkt-forex');
             const btnCry = document.getElementById('btn-mkt-crypto');
 
-            const activeClass = "px-3 py-1.5 rounded-lg font-bold text-xs transition flex items-center space-x-1.5 bg-amber-500 text-black shadow";
-            const inactiveClass = "px-3 py-1.5 rounded-lg font-bold text-xs text-gray-400 hover:text-white transition flex items-center space-x-1.5";
+            const activeClass = "px-3 py-1.5 rounded-lg font-bold text-xs transition flex items-center space-x-1.5 bg-amber-500 text-black shadow cursor-pointer";
+            const inactiveClass = "px-3 py-1.5 rounded-lg font-bold text-xs text-gray-400 hover:text-white transition flex items-center space-x-1.5 cursor-pointer";
 
             if (btnInd) btnInd.className = (normVenue === 'INDIA') ? activeClass : inactiveClass;
             if (btnFx) btnFx.className = (normVenue === 'FOREX_GOLD' || normVenue === 'FOREX') ? activeClass : inactiveClass;
@@ -1231,22 +1272,18 @@
                 window.history.replaceState({}, '', '?workspace=' + normVenue);
             } catch (e) {}
 
+            // INSTANT UI UPDATES (0ms)
             updateVenueBanner(normVenue);
             updateOrderAssetsList(normVenue);
+            updateInstantMetrics(normVenue);
+            updatePreOrderEstimates();
 
-            let poolToSet = 'AEGIS_INDIA_INR';
-            if (normVenue === 'FOREX_GOLD' || normVenue === 'FOREX') poolToSet = 'AEGIS_QUANT_MASTER';
-            if (normVenue === 'CRYPTO') poolToSet = 'BINANCE_TESTNET_DEMO';
-
-            try {
-                await fetch('/api/workspace/switch', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ workspace: normVenue })
-                });
-            } catch (e) {
-                console.warn("Workspace switch notice:", e);
-            }
+            // Background server notification (Non-blocking)
+            fetch('/api/workspace/switch', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ workspace: normVenue })
+            }).catch(e => console.warn("Workspace switch notice:", e));
 
             refreshVenueData(currentSeq);
         }
@@ -1293,7 +1330,14 @@
                     badgeSession.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-500/10 text-blue-400 border border-blue-500/30 font-mono';
                     badgeSession.innerText = 'FOREX: 24/5 INTERBANK ACTIVE';
                 }
-                if (brokerInfo) brokerInfo.classList.add('hidden');
+                const upstoxBadge = document.getElementById('badge-upstox-status');
+                if (upstoxBadge) {
+                    upstoxBadge.className = 'font-bold text-blue-400';
+                    upstoxBadge.innerHTML = '<i class="fa-solid fa-earth-americas mr-1"></i>FOREX: 24/5 INTERBANK ACTIVE';
+                }
+                const brokerMargin = document.getElementById('val-broker-margin');
+                if (brokerMargin) brokerMargin.innerText = '$100,000.00';
+                if (brokerInfo) brokerInfo.classList.remove('hidden');
                 if (taxBtn) taxBtn.classList.add('hidden');
             } else {
                 if (flag) flag.innerText = '🌐';
@@ -1309,7 +1353,14 @@
                     badgeSession.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-black bg-purple-500/10 text-purple-400 border border-purple-500/30 font-mono';
                     badgeSession.innerText = 'BINANCE: 24/7 SPOT ENGINE ACTIVE';
                 }
-                if (brokerInfo) brokerInfo.classList.add('hidden');
+                const upstoxBadge = document.getElementById('badge-upstox-status');
+                if (upstoxBadge) {
+                    upstoxBadge.className = 'font-bold text-amber-400';
+                    upstoxBadge.innerHTML = '<i class="fa-solid fa-cube mr-1"></i>BINANCE: TESTNET DEMO ACTIVE';
+                }
+                const brokerMargin = document.getElementById('val-broker-margin');
+                if (brokerMargin) brokerMargin.innerText = '19,940.75 USDT';
+                if (brokerInfo) brokerInfo.classList.remove('hidden');
                 if (taxBtn) taxBtn.classList.add('hidden');
             }
         }
@@ -3172,10 +3223,10 @@
                 const data = await res.json();
                 const points = data.points || [];
 
-                const isIndia = (ws === 'INDIA');
+                const isWsIndia = (ws === 'INDIA');
                 const emptyMsg = document.getElementById('chart-empty-state-msg');
                 if (emptyMsg) {
-                    emptyMsg.innerText = isIndia ? 'NO INDIA PERFORMANCE DATA AVAILABLE' : 'NO PERFORMANCE DATA AVAILABLE';
+                    emptyMsg.innerText = isWsIndia ? 'NO INDIA PERFORMANCE DATA AVAILABLE' : 'NO PERFORMANCE DATA AVAILABLE';
                 }
 
                 if (points.length === 0) {

@@ -569,6 +569,9 @@ async def read_dashboard(request: Request):
 
     # Replace static India defaults if active workspace is not India
     if not is_india:
+        venue_flag = "🌐" if is_crypto else "💱"
+        content = content.replace('<div id="venue-flag-icon" class="text-3xl">🇮🇳</div>', f'<div id="venue-flag-icon" class="text-3xl">{venue_flag}</div>')
+        content = content.replace('<div id="metric-exposure" class="text-xl md:text-2xl font-black text-blue-400 font-mono">₹0.00</div>', f'<div id="metric-exposure" class="text-xl md:text-2xl font-black text-blue-400 font-mono">{exposure_str}</div>')
         content = content.replace("AEGIS INDIA POOL (₹100,000.00)", hdr_env_label)
         content = content.replace("INDIAN MARKETS (NSE/BSE)", venue_title)
         content = content.replace("NSE/BSE (INDIA ACTIVE)", venue_badge)
