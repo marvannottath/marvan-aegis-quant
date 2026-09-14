@@ -45,14 +45,20 @@ PROFILES = {
 }
 
 # Canonical rejection codes
-RISK_OK                      = "ORDER_APPROVED"
-RISK_REJECTED_POSITION_LIMIT = "RISK_REJECTED/MAX_POSITION_LIMIT_EXCEEDED"
-RISK_REJECTED_CAPITAL_CAP    = "RISK_REJECTED/MAX_CAPITAL_LIMIT_EXCEEDED"
-RISK_REJECTED_LEVERAGE       = "RISK_REJECTED/MAX_LEVERAGE_EXCEEDED"
-RISK_REJECTED_MARGIN         = "RISK_REJECTED/INSUFFICIENT_AVAILABLE_MARGIN"
-RISK_REJECTED_DAILY_LOSS     = "RISK_REJECTED/DAILY_LOSS_CIRCUIT_TRIPPED"
-RISK_REJECTED_DRAWDOWN       = "RISK_REJECTED/MAX_DRAWDOWN_CIRCUIT_TRIPPED"
-RISK_REJECTED_INVALID_SL     = "RISK_REJECTED/INVALID_STOP_LOSS_CONFIGURATION"
+RISK_OK                          = "ORDER_APPROVED"
+RISK_REJECTED_POSITION_LIMIT     = "RISK_REJECTED/MAX_POSITION_LIMIT_EXCEEDED"
+RISK_REJECTED_CAPITAL_CAP        = "RISK_REJECTED/MAX_CAPITAL_LIMIT_EXCEEDED"
+RISK_REJECTED_LEVERAGE           = "RISK_REJECTED/MAX_LEVERAGE_EXCEEDED"
+RISK_REJECTED_MARGIN             = "RISK_REJECTED/INSUFFICIENT_AVAILABLE_MARGIN"
+RISK_REJECTED_DAILY_LOSS         = "RISK_REJECTED/DAILY_LOSS_CIRCUIT_TRIPPED"
+RISK_REJECTED_DRAWDOWN           = "RISK_REJECTED/MAX_DRAWDOWN_CIRCUIT_TRIPPED"
+RISK_REJECTED_INVALID_SL         = "RISK_REJECTED/INVALID_STOP_LOSS_CONFIGURATION"
+RISK_REJECTED_WORKSPACE_MISMATCH = "RISK_REJECTED/WORKSPACE_ASSET_MISMATCH"
+RISK_REJECTED_CURRENCY_MISMATCH  = "RISK_REJECTED/CURRENCY_MISMATCH"
+RISK_REJECTED_SEBI_LEVERAGE_CAP  = "RISK_REJECTED/SEBI_5X_LEVERAGE_CAP_EXCEEDED"
+RISK_REJECTED_STALE_DATA         = "RISK_REJECTED/MARKET_DATA_STALE"
+RISK_REJECTED_INVALID_QUANTITY   = "RISK_REJECTED/INVALID_QUANTITY"
+RISK_REJECTED_INVALID_PRICE      = "RISK_REJECTED/INVALID_PRICE"
 
 
 class RiskEngine:
@@ -206,7 +212,77 @@ class RiskEngine:
         if sl_pct <= 0.0:
             return False, RISK_REJECTED_INVALID_SL, "Stop-loss percentage must be configured and > 0.0%"
 
-        return True, RISK_OK, "Order passed all 7 risk gates."
+        # Gate 8: Data freshness (if provided)
+        if data_age_seconds is not None and data_age_seconds > 5.0:
+            return False, RISK_REJECTED_STALE_DATA, f"Market data is stale ({data_age_seconds:.1f}s > 5.0s threshold)"
+
+        return True, RISK_OK, "Order passed all risk gates."
+
+    def validate_workspace_order(
+        self,
+        symbol: str,
+        workspace: str,
+        currency: str,
+        amount: float,
+        leverage: float,
+        current_open_positions: int,
+        available_cash: float,
+        price: float = 0.0,
+        quantity: float = 1.0,
+        data_age_seconds: Optional[float] = None,
+        stop_loss_pct: Optional[float] = None
+    ) -> Tuple[bool, str, str]:
+        """
+        Comprehensive Workspace-Aware Risk & Compliance Validation.
+        Validates:
+          1. Workspace instrument boundary
+          2. Workspace currency boundary (INDIA -> INR, CRYPTO -> USDT, FOREX_GOLD -> USD)
+          3. SEBI 5x peak leverage cap in India
+          4. Quantity & price positivity
+          5. Market data age (< 5.0s)
+          6. Standard 7-gate pipeline (positions, capital cap, leverage, margin, daily loss, drawdown, stop-loss)
+        """
+        from core.workspace_manager import workspace_manager
+        norm_ws = workspace_manager._normalize_workspace(workspace)
+
+        # 1. Symbol & Workspace Boundary
+        valid_ws, ws_msg = workspace_manager.validate_order_workspace(symbol, norm_ws)
+        if not valid_ws:
+            return False, RISK_REJECTED_WORKSPACE_MISMATCH, ws_msg
+
+        # 2. Currency Boundary
+        expected_currency = "INR" if norm_ws == "INDIA" else ("USDT" if norm_ws == "CRYPTO" else "USD")
+        if currency.upper() != expected_currency:
+            return False, RISK_REJECTED_CURRENCY_MISMATCH, f"Currency mismatch: {currency} provided, but {norm_ws} workspace requires {expected_currency}"
+
+        # 3. Quantity & Price Validation
+        if quantity <= 0:
+            return False, RISK_REJECTED_INVALID_QUANTITY, "Order quantity must be strictly positive"
+        if price < 0:
+            return False, RISK_REJECTED_INVALID_PRICE, "Order price cannot be negative"
+
+        # 4. SEBI Regulatory Leverage Cap (India strictly <= 5.0x)
+        if norm_ws == "INDIA" and leverage > 5.0:
+            return False, RISK_REJECTED_SEBI_LEVERAGE_CAP, f"Leverage {leverage}x exceeds SEBI intraday peak leverage limit of 5.0x for Indian equities"
+
+        # 5. Stale Market Data
+        if data_age_seconds is not None and data_age_seconds > 5.0:
+            return False, RISK_REJECTED_STALE_DATA, f"Market data for {symbol} is stale ({data_age_seconds:.1f}s > 5.0s threshold)"
+
+        # 6. Stop-loss configured
+        eff_sl = stop_loss_pct if stop_loss_pct is not None else float(self.active_profile.get("stop_loss_pct", 0.0))
+        if eff_sl <= 0.0:
+            return False, RISK_REJECTED_INVALID_SL, "Stop-loss percentage must be configured and > 0.0%"
+
+        # 7. Standard 7-Gate Risk Pipeline
+        approved, code, msg = self.validate_order_pipeline(
+            amount_usd=amount,
+            leverage=leverage,
+            current_open_positions=current_open_positions,
+            available_cash=available_cash,
+            data_age_seconds=data_age_seconds
+        )
+        return approved, code, msg
 
     def get_risk_status(self) -> Dict[str, Any]:
         """Centralized risk status for Phase 11 /api/risk/status endpoint."""

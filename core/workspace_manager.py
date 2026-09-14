@@ -146,6 +146,9 @@ class WorkspaceManager:
     def get_active_workspace(self) -> str:
         return self._active_workspace
 
+    def get_active_workspace_config(self) -> Dict[str, Any]:
+        return self.get_workspace_meta(self._active_workspace)
+
     def get_workspace_meta(self, workspace: Optional[str] = None) -> Dict[str, Any]:
         ws = self._normalize_workspace(workspace)
         return self.METADATA.get(ws, self.METADATA[self.WORKSPACE_INDIA])

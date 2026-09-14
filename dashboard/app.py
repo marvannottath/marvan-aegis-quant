@@ -2648,13 +2648,23 @@ async def submit_order(request: Request):
         price       = float(body.get("price", 0))
         environment = body.get("environment", "PAPER")
         strategy    = body.get("strategy", "MANUAL")
+        req_leverage = float(body.get("leverage", 1.0))
 
         # Check workspace asset boundary
         from core.workspace_manager import workspace_manager
+        from core.audit_logger import audit_logger
         req_ws = body.get("workspace")
         ws = req_ws or workspace_manager.get_active_workspace()
         valid_ws, ws_msg = workspace_manager.validate_order_workspace(symbol, ws)
         if not valid_ws:
+            audit_logger.log_event(
+                event_type="ORDER_REJECTED",
+                symbol=symbol,
+                workspace=ws,
+                environment=environment,
+                result="REJECTED",
+                reason=ws_msg
+            )
             return JSONResponse({
                 "status": "REJECTED",
                 "rejection_code": "WORKSPACE_ASSET_MISMATCH",
@@ -2691,12 +2701,20 @@ async def submit_order(request: Request):
         t5 = time.perf_counter()
         dur_ens = round((t5 - t4) * 1000, 2)
 
-        # Stage 6: Risk Engine Evaluation
+        # Stage 6: Risk Engine Evaluation (Comprehensive Workspace-Aware Risk Pipeline)
         amount_val = price * quantity if price > 0 else 1000.0
-        approved, _, risk_msg = risk_engine.validate_order_pipeline(
-            amount_usd=amount_val,
-            leverage=1.0, current_open_positions=len(paper_broker.positions),
-            available_cash=paper_broker.virtual_cash
+        req_curr = "INR" if ws == "INDIA" else ("USDT" if ws == "CRYPTO" else "USD")
+        approved, rej_code, risk_msg = risk_engine.validate_workspace_order(
+            symbol=symbol,
+            workspace=ws,
+            currency=req_curr,
+            amount=amount_val,
+            leverage=req_leverage,
+            current_open_positions=len(paper_broker.positions),
+            available_cash=paper_broker.virtual_cash,
+            price=price,
+            quantity=quantity,
+            data_age_seconds=data_age
         )
         t6 = time.perf_counter()
         dur_risk = round((t6 - t5) * 1000, 2)
@@ -2722,7 +2740,21 @@ async def submit_order(request: Request):
         osm.transition(order_id, "RISK_PENDING", reason="Entering risk pipeline")
         if not approved:
             osm.transition(order_id, "REJECTED", reason=f"Risk engine: {risk_msg}")
-            return JSONResponse({"status": "REJECTED", "order_id": order_id, "reason": risk_msg})
+            audit_logger.log_event(
+                event_type="RISK_REJECTED",
+                symbol=symbol,
+                workspace=ws,
+                environment=environment,
+                result="REJECTED",
+                reason=risk_msg
+            )
+            return JSONResponse({
+                "status": "REJECTED",
+                "order_id": order_id,
+                "rejection_code": rej_code,
+                "reason": risk_msg,
+                "message": risk_msg
+            }, status_code=400)
 
         osm.transition(order_id, "APPROVED", reason="Risk engine approved")
         t8 = time.perf_counter()
@@ -2746,7 +2778,7 @@ async def submit_order(request: Request):
         # Stage 10: Ledger Write
         try:
             from core.double_entry_ledger import double_entry_ledger
-            ledger_asset = "USDT" if (environment in ["TESTNET", "BINANCE_TESTNET", "BINANCE_TESTNET_DEMO"] or ws == "CRYPTO") else "USD"
+            ledger_asset = "INR" if (ws == "INDIA" or environment in ["AEGIS_INDIA_INR", "UPSTOX_DEMO", "UPSTOX_LIVE"]) else ("USDT" if (environment in ["TESTNET", "BINANCE_TESTNET", "BINANCE_TESTNET_DEMO"] or ws == "CRYPTO") else "USD")
             double_entry_ledger.post_entry(
                 ledger_type="TRADE_EXECUTION",
                 debit_account="CUSTOMER_TRADING_ACCOUNT",
@@ -2755,7 +2787,17 @@ async def submit_order(request: Request):
                 asset=ledger_asset,
                 reference_id=order_id,
                 environment=paper_broker.active_pool_name,
-                metadata={"symbol": symbol, "side": side, "fill_qty": quantity}
+                metadata={"symbol": symbol, "side": side, "fill_qty": quantity, "workspace": ws}
+            )
+            audit_logger.log_event(
+                event_type="ORDER_SUBMITTED",
+                symbol=symbol,
+                workspace=ws,
+                environment=environment,
+                amount=amount_val,
+                asset=ledger_asset,
+                reference_id=order_id,
+                result="SUCCESS"
             )
         except Exception:
             pass
@@ -2783,7 +2825,8 @@ async def submit_order(request: Request):
             stages=stages,
             risk_result="APPROVED" if approved else "REJECTED",
             order_id=order_id,
-            environment=environment
+            environment=environment,
+            workspace=ws
         )
 
         return JSONResponse({"status": "SUCCESS", "order": osm.get_order(order_id)})
@@ -3276,14 +3319,16 @@ async def get_india_corporate_actions(symbol: Optional[str] = None):
 
 # 26. Indian Trade & Tax Statement
 @app.get("/api/india/tax-statement")
-async def get_india_tax_statement():
+async def get_india_tax_statement(request: Request):
     """Return exportable Indian trade & tax statement with itemized statutory levies."""
     try:
         from core.india_statement_engine import india_statement_engine
         statement = india_statement_engine.generate_statement()
+        if not statement:
+            return JSONResponse({"status": "NOT_AVAILABLE", "message": "NOT AVAILABLE — REQUIRED DATA NOT READY"}, status_code=200)
         return JSONResponse({"status": "SUCCESS", "statement": statement})
     except Exception as e:
-        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+        return JSONResponse({"status": "NOT_AVAILABLE", "message": "NOT AVAILABLE — REQUIRED DATA NOT READY", "error": str(e)}, status_code=200)
 
 
 # 27. INR Funding & Settlement Status

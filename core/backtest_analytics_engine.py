@@ -55,14 +55,47 @@ class BacktestAnalyticsEngine:
 
         integrity = self._verify_integrity(r)
 
+        # Workspace & Asset Class Detection
+        indian_assets = ["RELIANCE", "TCS", "INFY", "HDFCBANK", "SBIN", "NIFTY", "BANKNIFTY", "TATAMOTORS"]
+        forex_assets = ["EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "USDCHF", "USDCAD", "NZDUSD", "XAUUSD"]
+
+        sym_upper = symbol.upper()
+        if any(ia in sym_upper for ia in indian_assets) or r.get("workspace") == "INDIA":
+            ws = "INDIA"
+            asset_class = "INDIAN_EQUITY"
+            venue = "NSE/BSE"
+            currency = "INR"
+            currency_symbol = "₹"
+        elif any(fa in sym_upper for fa in forex_assets) or r.get("workspace") == "FOREX_GOLD":
+            ws = "FOREX_GOLD"
+            asset_class = "COMMODITY" if "XAU" in sym_upper else "FOREX"
+            venue = "GLOBAL_FX / OANDA"
+            currency = "USD"
+            currency_symbol = "$"
+        else:
+            ws = "CRYPTO"
+            asset_class = "CRYPTO"
+            venue = "BINANCE"
+            currency = "USDT"
+            currency_symbol = "USDT"
+
+        trade_list = r.get("trade_history", [])
+        tot_trades = int(r.get("total_trades", len(trade_list)))
+
         return {
             "backtest_id": backtest_id,
+            "workspace": ws,
+            "asset_class": asset_class,
+            "venue": venue,
+            "currency": currency,
+            "currency_symbol": currency_symbol,
             "strategy": strategy,
             "strategy_version": r.get("strategy_version", "v2.4"),
             "symbol": symbol,
             "timeframe": timeframe,
             "start_timestamp": start_ts,
             "end_timestamp": end_ts,
+            "date_range": f"{str(start_ts).split(' ')[0]} → {str(end_ts).split(' ')[0]}",
             "initial_capital": round(init_cap, 2),
             "final_capital": round(final_eq, 2),
             "net_pnl": round(pnl, 2),
@@ -73,13 +106,19 @@ class BacktestAnalyticsEngine:
             "max_drawdown_pct": float(r.get("max_drawdown_pct", 0.0)),
             "profit_factor": float(r.get("profit_factor", 1.0)),
             "win_rate_pct": float(r.get("win_rate_pct", 0.0)),
-            "total_trades": int(r.get("total_trades", len(r.get("trade_history", [])))),
+            "total_trades": tot_trades,
+            "trade_count": tot_trades,
+            "has_trade_log": len(trade_list) > 0,
             "winning_trades": int(r.get("winning_trades", 0)),
             "losing_trades": int(r.get("losing_trades", 0)),
+            "fees": float(r.get("total_fees_usd", 0.0)),
+            "slippage": float(r.get("total_slippage_usd", 0.0)),
             "total_fees_usd": float(r.get("total_fees_usd", 0.0)),
             "total_slippage_usd": float(r.get("total_slippage_usd", 0.0)),
+            "reconciliation_status": integrity["status"],
             "integrity_status": integrity["status"],
             "integrity_message": integrity["message"],
+            "dataset_provenance": prov.get("exchange") or ("NSE Historical Data" if ws == "INDIA" else ("Binance Historical Archive" if ws == "CRYPTO" else "Global FX Tick Data")),
             "provenance_verified": integrity["status"] == "VERIFIED",
             "created_at": r.get("created_at", "2026-09-02")
         }
@@ -204,7 +243,8 @@ class BacktestAnalyticsEngine:
             "summary": summary,
             "provenance": prov,
             "trades": formatted_trades,
-            "equity_curve": formatted_equity
+            "equity_curve": formatted_equity,
+            "has_trade_log": len(formatted_trades) > 0
         }
 
 

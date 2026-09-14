@@ -92,12 +92,23 @@ class MacroNewsEngine:
             else:
                 self.sentiment_label = "NEUTRAL (Balanced Macro Indicators)"
 
+        import os
+        tg_token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
+        tg_chat = os.getenv("TELEGRAM_CHAT_ID", "").strip()
+        configured = bool(tg_token and tg_chat)
+
+        lock_status_msg = "NOT CONFIGURED" if not configured else ("LOCKED" if self.high_impact_news_active else "CLEAR")
+        lock_reason_msg = "NOT CONFIGURED: News feeds not active" if not configured else self.lockout_reason
+
         return {
+            "configured": configured,
+            "telegram_configured": configured,
+            "status": lock_status_msg,
             "sentiment_score": round(self.sentiment_score, 2),
             "sentiment_label": self.sentiment_label,
             "high_impact_news_active": self.high_impact_news_active,
             "lock_decision": self.lock_decision,
-            "lockout_reason": self.lockout_reason,
+            "lockout_reason": lock_reason_msg,
             "recent_headlines": self.recent_headlines,
             "telegram_channels": self.telegram_channels,
             "recent_events": self.ingested_news_events[:10],

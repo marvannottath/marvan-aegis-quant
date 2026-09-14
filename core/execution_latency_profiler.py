@@ -72,10 +72,17 @@ class ExecutionLatencyProfiler:
         risk_result: str = "APPROVED",
         order_id: str = "",
         environment: str = "PAPER",
+        workspace: Optional[str] = None,
         **kwargs
     ) -> Dict[str, Any]:
         """Record an authoritative 10-stage execution pipeline trace."""
         timestamp = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S IST")
+        from core.workspace_manager import workspace_manager
+
+        # Determine workspace
+        ws = workspace
+        if not ws or ws in ["ALL", "GLOBAL"]:
+            ws = workspace_manager.get_workspace_for_symbol(symbol) or ("INDIA" if "INR" in environment else "CRYPTO")
 
         # Normalize stages
         normalized_stages: List[Dict[str, Any]] = []
@@ -85,13 +92,16 @@ class ExecutionLatencyProfiler:
                 dur = float(v) if isinstance(v, (int, float)) else 0.5
                 normalized_stages.append({
                     "stage": clean_name,
-                    "duration_ms": round(dur, 2),
+                    "duration_ms": max(0.01, round(dur, 2)),
                     "status": "PASS"
                 })
         elif isinstance(stages, list):
             for s in stages:
                 if isinstance(s, dict):
-                    normalized_stages.append(s)
+                    dur = float(s.get("duration_ms", 0.5))
+                    s_copy = dict(s)
+                    s_copy["duration_ms"] = max(0.01, round(dur, 2))
+                    normalized_stages.append(s_copy)
         else:
             for s_name in PIPELINE_STAGES:
                 normalized_stages.append({
@@ -107,8 +117,10 @@ class ExecutionLatencyProfiler:
             "execution_id": exec_id,
             "timestamp": timestamp,
             "environment": environment,
+            "workspace": ws,
             "symbol": symbol,
             "status": status,
+            "result": status,
             "risk_result": risk_result,
             "order_id": order_id,
             "total_latency_ms": total_duration,
@@ -128,17 +140,18 @@ class ExecutionLatencyProfiler:
         """Compute P50, P95, P99, min, max, avg, and stage averages from authoritative traces."""
         from core.workspace_manager import workspace_manager
         
-        # 1. Scope executions by workspace if requested
-        if workspace and workspace not in ["ALL", "GLOBAL", ""]:
+        # 1. Scope executions by workspace if requested (and not GLOBAL)
+        if workspace and workspace.upper() not in ["ALL", "GLOBAL", ""]:
             norm_ws = workspace_manager._normalize_workspace(workspace)
             env_execs = [
                 e for e in self.executions
-                if workspace_manager.is_symbol_allowed(e.get("symbol", ""), norm_ws)
+                if (e.get("workspace") == norm_ws)
+                or workspace_manager.is_symbol_allowed(e.get("symbol", ""), norm_ws)
                 or (norm_ws == "INDIA" and e.get("environment") in ["AEGIS_INDIA_INR", "UPSTOX_DEMO", "UPSTOX_LIVE"])
             ]
             is_fallback = False
             if not env_execs:
-                msg = "NO INDIA EXECUTION DATA" if norm_ws == "INDIA" else "NO EXECUTION DATA"
+                msg = f"NO {norm_ws} EXECUTION DATA"
                 global_totals = sorted([float(e["total_latency_ms"]) for e in self.executions if e.get("total_latency_ms") is not None])
                 gn = len(global_totals)
                 g_p50 = global_totals[int(0.50 * gn)] if gn else 484.8
@@ -150,6 +163,7 @@ class ExecutionLatencyProfiler:
                     "message": msg,
                     "workspace": norm_ws,
                     "environment": environment,
+                    "view_scope": "WORKSPACE_SPECIFIC",
                     "sample_count": 0,
                     "p50": None, "p95": None, "p99": None,
                     "avg": None, "min": None, "max": None,
@@ -170,6 +184,10 @@ class ExecutionLatencyProfiler:
         else:
             env_execs = self.executions
             is_fallback = False
+
+        for e in env_execs:
+            if not e.get("workspace"):
+                e["workspace"] = workspace_manager.get_workspace_for_symbol(e.get("symbol", "")) or "CRYPTO"
 
         all_totals = [float(e["total_latency_ms"]) for e in env_execs if e.get("total_latency_ms") is not None]
 
@@ -234,6 +252,7 @@ class ExecutionLatencyProfiler:
             "avg": avg,
             "min": min_val,
             "max": max_val,
+            "view_scope": "GLOBAL" if (not workspace or workspace.upper() in ["ALL", "GLOBAL", ""]) else "WORKSPACE_SPECIFIC",
             "stage_averages": stage_averages,
             "recent_executions": env_execs[:20],
             "is_fallback": is_fallback

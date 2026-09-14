@@ -578,11 +578,12 @@
                                 <tr class="border-b border-gray-800 text-gray-400 uppercase">
                                     <th class="py-2.5 px-3">Timestamp</th>
                                     <th class="py-2.5 px-3">Execution ID</th>
+                                    <th class="py-2.5 px-3">Order ID</th>
                                     <th class="py-2.5 px-3">Symbol</th>
-                                    <th class="py-2.5 px-3">Status</th>
+                                    <th class="py-2.5 px-3">Workspace</th>
+                                    <th class="py-2.5 px-3">Result</th>
                                     <th class="py-2.5 px-3">Total Latency</th>
-                                    <th class="py-2.5 px-3">Risk Result</th>
-                                    <th class="py-2.5 px-3 text-right">Order ID</th>
+                                    <th class="py-2.5 px-3 text-right">Risk Gate</th>
                                 </tr>
                             </thead>
                             <tbody id="execution-logs-tbody" class="divide-y divide-gray-800/60">
@@ -628,7 +629,7 @@
                         <div class="space-y-2 text-xs font-mono">
                             <div class="p-2.5 bg-gray-950 border border-gray-800 rounded-xl flex justify-between"><span>Max Drawdown Breaker:</span><span class="text-emerald-400 font-bold">READY (10.0%)</span></div>
                             <div class="p-2.5 bg-gray-950 border border-gray-800 rounded-xl flex justify-between"><span>Daily Loss Limit:</span><span class="text-emerald-400 font-bold">$2,000.00 Limit</span></div>
-                            <div class="p-2.5 bg-gray-950 border border-gray-800 rounded-xl flex justify-between"><span>High Impact News Lock:</span><span id="risk-news-lock-status" class="text-emerald-400 font-bold">CLEAR</span></div>
+                            <div class="p-2.5 bg-gray-950 border border-gray-800 rounded-xl flex justify-between"><span>High Impact News Lock:</span><span id="risk-news-lock-status" class="text-amber-400 font-bold">NOT CONFIGURED</span></div>
                         </div>
                     </div>
 
@@ -1544,27 +1545,39 @@
                 return;
             }
             tbody.innerHTML = signals.map(s => {
-                const isBuy = (s.action || s.direction) === 'BUY';
-                const entryFmt = Number(s.entry || 0).toLocaleString('en-IN', {minimumFractionDigits: 2});
-                const slFmt = Number(s.sl || 0).toLocaleString('en-IN', {minimumFractionDigits: 2});
-                const tpFmt = Number(s.tp || 0).toLocaleString('en-IN', {minimumFractionDigits: 2});
+                const rawSym = s.asset || s.symbol || s.ticker;
+                const hasValidSym = Boolean(rawSym && String(rawSym).trim().length > 0 && rawSym !== 'DATA UNAVAILABLE' && rawSym !== 'NO DATA AVAILABLE');
+                const sym = hasValidSym ? String(rawSym).trim().toUpperCase() : '';
+                const symDisplay = hasValidSym ? sym : 'NO DATA AVAILABLE';
+                const ex = s.exchange || s.venue || 'NSE';
+                const action = (s.action || s.direction || 'BUY').toUpperCase();
+                const isBuy = action === 'BUY';
+                const score = Number(s.score !== undefined ? s.score : (s.opportunity_score || 92.0));
+                const conf = Number(s.confidence !== undefined ? s.confidence : 88.0);
+                const rr = s.rr || '1:2.33';
+                const rawPx = Number(s.entry !== undefined ? s.entry : (s.price || s.current_price || 0));
+                const entryFmt = Number(rawPx).toLocaleString('en-IN', {minimumFractionDigits: 2});
+                const ts = s.timestamp ? (s.timestamp.includes(' ') ? s.timestamp.split(' ')[1] : s.timestamp) : new Date().toLocaleTimeString();
+                const riskState = hasValidSym ? (s.risk_state || 'APPROVED') : 'BLOCKED';
+                const actionEnabled = hasValidSym && (riskState !== 'BLOCKED');
+
                 return `
                 <tr class="border-b border-gray-800/60 hover:bg-gray-900/50 text-xs font-mono">
-                    <td class="py-3 px-3 font-bold text-white flex items-center space-x-1.5">
+                    <td class="py-3 px-3 font-bold ${hasValidSym ? 'text-white' : 'text-gray-500 italic'} flex items-center space-x-1.5">
                         <span>🇮🇳</span>
-                        <span>${s.asset || s.symbol}</span>
+                        <span>${symDisplay}</span>
                     </td>
-                    <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded ${isBuy ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}">${s.action}</span></td>
-                    <td class="py-3 px-3 text-amber-400 font-bold">${(s.score || 92.0).toFixed(1)}/100</td>
-                    <td class="py-3 px-3 text-emerald-400 font-bold">${(s.confidence || 88.0).toFixed(1)}%</td>
-                    <td class="py-3 px-3 text-white">₹${entryFmt}</td>
-                    <td class="py-3 px-3 text-red-400 font-bold">₹${slFmt}</td>
-                    <td class="py-3 px-3 text-emerald-400 font-bold">₹${tpFmt}</td>
-                    <td class="py-3 px-3 text-purple-400 font-bold">${s.rr || '2.33'}</td>
-                    <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded text-emerald-400 bg-emerald-500/10">${s.fresh || 'LIVE'}</span></td>
+                    <td class="py-3 px-3 text-cyan-400 font-semibold">${ex}</td>
+                    <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded ${isBuy ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}">${action}</span></td>
+                    <td class="py-3 px-3 text-amber-400 font-bold">${score.toFixed(1)}/100</td>
+                    <td class="py-3 px-3 text-emerald-400 font-bold">${conf.toFixed(1)}%</td>
+                    <td class="py-3 px-3 text-purple-400 font-bold">${rr}</td>
+                    <td class="py-3 px-3 text-white font-bold">₹${entryFmt}</td>
+                    <td class="py-3 px-3 text-gray-400 text-[10px]">${ts}</td>
+                    <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded ${riskState === 'BLOCKED' ? 'bg-red-500/10 text-red-400' : 'bg-emerald-500/10 text-emerald-400'}">${riskState}</span></td>
                     <td class="py-3 px-3 text-right">
-                        <button onclick="prefillOrder('${s.asset || s.symbol}', '${s.action || 'BUY'}', ${s.entry || 0})" class="px-2.5 py-1 bg-emerald-600 text-white font-bold rounded hover:bg-emerald-500 transition text-[10px]">
-                            TRADE
+                        <button onclick="${actionEnabled ? `prefillOrder('${sym}', '${action}', ${rawPx})` : ''}" ${actionEnabled ? '' : 'disabled'} class="px-2.5 py-1 ${actionEnabled ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-gray-800 text-gray-500 opacity-30 cursor-not-allowed'} font-bold rounded transition text-[10px]">
+                            ${actionEnabled ? 'EXECUTE' : 'DISABLED'}
                         </button>
                     </td>
                 </tr>`;
@@ -1637,33 +1650,45 @@
         function renderForexSignals(items) {
             const tbody = document.getElementById('signals-full-tbody');
             if (!tbody) return;
-            const signals = (items || []).filter(i => i.score >= 80);
+            const signals = (items || []).filter(i => (i.score || 0) >= 80);
             if (signals.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="10" class="py-8 text-center text-gray-500 font-mono text-xs">NO HIGH-CONVICTION FOREX SIGNALS</td></tr>`;
                 return;
             }
             tbody.innerHTML = signals.map(s => {
-                const isBuy = (s.direction || s.action) === 'BUY';
-                const entryFmt = (s.price < 10) ? Number(s.price).toFixed(4) : Number(s.price).toLocaleString(undefined, {minimumFractionDigits: 2});
-                const slFmt = (s.sl < 10) ? Number(s.sl || 0).toFixed(4) : Number(s.sl || 0).toLocaleString(undefined, {minimumFractionDigits: 2});
-                const tpFmt = (s.tp < 10) ? Number(s.tp || 0).toFixed(4) : Number(s.tp || 0).toLocaleString(undefined, {minimumFractionDigits: 2});
+                const rawSym = s.symbol || s.ticker || s.asset;
+                const hasValidSym = Boolean(rawSym && String(rawSym).trim().length > 0 && rawSym !== 'DATA UNAVAILABLE' && rawSym !== 'NO DATA AVAILABLE');
+                const sym = hasValidSym ? String(rawSym).trim().toUpperCase() : '';
+                const symDisplay = hasValidSym ? sym : 'NO DATA AVAILABLE';
+                const ex = s.exchange || s.venue || 'GLOBAL FX';
+                const action = (s.direction || s.action || 'BUY').toUpperCase();
+                const isBuy = action === 'BUY';
+                const score = Number(s.score !== undefined ? s.score : 88.0);
+                const conf = Number(s.confidence !== undefined ? s.confidence : 85.0);
+                const rr = s.rr || '1:2.33';
+                const rawPx = Number(s.price !== undefined ? s.price : (s.entry || 0));
+                const entryFmt = (rawPx < 10) ? rawPx.toFixed(4) : rawPx.toLocaleString('en-US', {minimumFractionDigits: 2});
+                const ts = s.timestamp ? (s.timestamp.includes(' ') ? s.timestamp.split(' ')[1] : s.timestamp) : new Date().toLocaleTimeString();
+                const riskState = hasValidSym ? (s.risk_state || 'APPROVED') : 'BLOCKED';
+                const actionEnabled = hasValidSym && (riskState !== 'BLOCKED');
+
                 return `
                 <tr class="border-b border-gray-800/60 hover:bg-gray-900/50 text-xs font-mono">
-                    <td class="py-3 px-3 font-bold text-white flex items-center space-x-1.5">
+                    <td class="py-3 px-3 font-bold ${hasValidSym ? 'text-white' : 'text-gray-500 italic'} flex items-center space-x-1.5">
                         <span>💱</span>
-                        <span>${s.symbol}</span>
+                        <span>${symDisplay}</span>
                     </td>
-                    <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded ${isBuy ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}">${s.direction || 'BUY'}</span></td>
-                    <td class="py-3 px-3 text-amber-400 font-bold">${(s.score || 88.0).toFixed(1)}/100</td>
-                    <td class="py-3 px-3 text-emerald-400 font-bold">${(s.confidence || 85.0).toFixed(1)}%</td>
-                    <td class="py-3 px-3 text-white">$${entryFmt}</td>
-                    <td class="py-3 px-3 text-red-400 font-bold">$${slFmt}</td>
-                    <td class="py-3 px-3 text-emerald-400 font-bold">$${tpFmt}</td>
-                    <td class="py-3 px-3 text-purple-400 font-bold">${s.rr || '2.33'}</td>
-                    <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded text-emerald-400 bg-emerald-500/10">LIVE</span></td>
+                    <td class="py-3 px-3 text-cyan-400 font-semibold">${ex}</td>
+                    <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded ${isBuy ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}">${action}</span></td>
+                    <td class="py-3 px-3 text-amber-400 font-bold">${score.toFixed(1)}/100</td>
+                    <td class="py-3 px-3 text-emerald-400 font-bold">${conf.toFixed(1)}%</td>
+                    <td class="py-3 px-3 text-purple-400 font-bold">${rr}</td>
+                    <td class="py-3 px-3 text-white font-bold">$${entryFmt}</td>
+                    <td class="py-3 px-3 text-gray-400 text-[10px]">${ts}</td>
+                    <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded ${riskState === 'BLOCKED' ? 'bg-red-500/10 text-red-400' : 'bg-emerald-500/10 text-emerald-400'}">${riskState}</span></td>
                     <td class="py-3 px-3 text-right">
-                        <button onclick="prefillOrder('${s.symbol}', '${s.direction || 'BUY'}', ${s.price || 0})" class="px-2.5 py-1 bg-emerald-600 text-white font-bold rounded hover:bg-emerald-500 transition text-[10px]">
-                            TRADE
+                        <button onclick="${actionEnabled ? `prefillOrder('${sym}', '${action}', ${rawPx})` : ''}" ${actionEnabled ? '' : 'disabled'} class="px-2.5 py-1 ${actionEnabled ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-gray-800 text-gray-500 opacity-30 cursor-not-allowed'} font-bold rounded transition text-[10px]">
+                            ${actionEnabled ? 'EXECUTE' : 'DISABLED'}
                         </button>
                     </td>
                 </tr>`;
@@ -1736,13 +1761,21 @@
             if (!modal) return;
             modal.classList.remove('hidden');
 
+            if (container) {
+                container.innerHTML = `
+                    <div class="p-8 text-center text-gray-400 font-mono text-xs">
+                        <i class="fa-solid fa-spinner fa-spin text-2xl text-amber-500 mb-2 block"></i>
+                        <div>Loading Indian Statutory Tax Statement...</div>
+                    </div>`;
+            }
+
             try {
                 const res = await fetch('/api/india/tax-statement');
                 const json = await res.json();
                 if (json.status === 'SUCCESS' && json.statement) {
                     const st = json.statement;
                     const lev = st.statutory_levies || {};
-                    const netPnl = st.net_pnl_after_taxes || 0.0;
+                    const netPnl = st.net_pnl_after_taxes !== undefined ? st.net_pnl_after_taxes : (st.net_realized_pnl || 0.0);
                     const pnlColor = netPnl >= 0 ? 'text-emerald-400' : 'text-red-400';
 
                     container.innerHTML = `
@@ -1757,7 +1790,7 @@
                             </div>
                             <div class="bg-gray-950 p-3 rounded-xl border border-gray-800">
                                 <div class="text-[10px] text-gray-500 uppercase">Total Taxes & Levies</div>
-                                <div class="text-base font-bold text-red-400">₹${Number(st.total_taxes_and_charges_inr || 0).toFixed(2)}</div>
+                                <div class="text-base font-bold text-red-400">₹${Number(st.total_taxes_and_charges_inr || st.total_statutory_levies || 0).toFixed(2)}</div>
                             </div>
                             <div class="bg-gray-950 p-3 rounded-xl border border-gray-800">
                                 <div class="text-[10px] text-gray-500 uppercase">Net PnL (Post-Tax)</div>
@@ -1796,9 +1829,21 @@
                             <strong>Disclaimer:</strong> ${st.disclaimer || 'This tax computation is generated strictly for informational and compliance reference.'}
                         </div>
                     `;
+                } else {
+                    container.innerHTML = `
+                        <div class="p-8 text-center text-amber-400 font-mono text-xs space-y-2">
+                            <i class="fa-solid fa-triangle-exclamation text-3xl mb-2 text-amber-500 block"></i>
+                            <div class="font-bold text-sm">NOT AVAILABLE — REQUIRED DATA NOT READY</div>
+                            <div class="text-gray-500 text-[11px] mt-1">${json.message || 'Authoritative trade records for Indian equity workspace are pending or undergoing reconciliation.'}</div>
+                        </div>`;
                 }
             } catch (e) {
-                container.innerHTML = `<div class="p-4 text-center text-red-400">Failed to load statement: ${e.message}</div>`;
+                container.innerHTML = `
+                    <div class="p-8 text-center text-amber-400 font-mono text-xs space-y-2">
+                        <i class="fa-solid fa-triangle-exclamation text-3xl mb-2 text-amber-500 block"></i>
+                        <div class="font-bold text-sm">NOT AVAILABLE — REQUIRED DATA NOT READY</div>
+                        <div class="text-gray-500 text-[11px] mt-1">Failed to retrieve statement: ${e.message}</div>
+                    </div>`;
             }
         }
 
@@ -2975,8 +3020,8 @@
             const statusStr = isLocked ? 'LOCKED' : (isConfigured ? 'CLEAR' : 'NOT CONFIGURED');
 
             if (lockStatusEl) {
-                lockStatusEl.innerText = isLocked ? 'LOCKED' : 'CLEAR';
-                lockStatusEl.className = isLocked ? 'text-amber-400 font-bold' : 'text-emerald-400 font-bold';
+                lockStatusEl.innerText = statusStr;
+                lockStatusEl.className = isLocked ? 'text-red-400 font-bold' : (isConfigured ? 'text-emerald-400 font-bold' : 'text-amber-400 font-bold');
             }
 
             if (badgeEl) {
@@ -3140,19 +3185,20 @@
             }
             tbody.innerHTML = opps.map(s => {
                 const rawSym = s.symbol || s.asset || s.ticker;
-                const sym = (rawSym && String(rawSym).trim().length > 0) ? String(rawSym).trim().toUpperCase() : '';
-                const hasValidSym = sym.length > 0;
-                const symDisplay = hasValidSym ? sym : 'DATA UNAVAILABLE';
+                const hasValidSym = Boolean(rawSym && String(rawSym).trim().length > 0 && rawSym !== 'DATA UNAVAILABLE' && rawSym !== 'NO DATA AVAILABLE');
+                const sym = hasValidSym ? String(rawSym).trim().toUpperCase() : '';
+                const symDisplay = hasValidSym ? sym : 'NO DATA AVAILABLE';
                 const ex = s.exchange || defaultEx;
                 const action = (s.direction || s.action || 'BUY').toUpperCase();
                 const isBuy = action === 'BUY';
                 const oppScore = Number(s.opportunity_score !== undefined ? s.opportunity_score : (s.score || 90.0));
                 const conf = Number(s.confidence !== undefined ? s.confidence : 92.5);
-                const rr = s.rr || '2.33';
+                const rr = s.rr || '1:2.33';
                 const rawPx = Number(s.current_price !== undefined ? s.current_price : (s.price !== undefined ? s.price : (s.entry || 0)));
                 const priceFmt = (rawPx < 10) ? rawPx.toFixed(4) : rawPx.toLocaleString(curLoc, {minimumFractionDigits: 2, maximumFractionDigits: 2});
                 const ts = s.timestamp ? (s.timestamp.includes(' ') ? s.timestamp.split(' ')[1] : s.timestamp) : new Date().toLocaleTimeString();
-                const riskSt = s.risk_state || 'APPROVED';
+                const riskSt = hasValidSym ? (s.risk_state || 'APPROVED') : 'BLOCKED';
+                const actionEnabled = hasValidSym && (riskSt !== 'BLOCKED');
 
                 return `
                 <tr class="border-b border-gray-800/60 hover:bg-gray-900/50 text-xs font-mono">
@@ -3164,10 +3210,10 @@
                     <td class="py-3 px-3 text-purple-400 font-bold">${rr}</td>
                     <td class="py-3 px-3 text-white font-bold">${curSym}${priceFmt}${curSuffix}</td>
                     <td class="py-3 px-3 text-gray-400 text-[10px]">${ts}</td>
-                    <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded bg-emerald-500/10 text-emerald-400">${riskSt}</span></td>
+                    <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded ${riskSt === 'BLOCKED' ? 'bg-red-500/10 text-red-400' : 'bg-emerald-500/10 text-emerald-400'}">${riskSt}</span></td>
                     <td class="py-3 px-3 text-right">
-                        <button onclick="prefillOrder('${hasValidSym ? sym : ''}', '${action}', ${rawPx})" ${hasValidSym ? '' : 'disabled'} class="px-2.5 py-1 bg-emerald-600 text-white font-bold rounded hover:bg-emerald-500 disabled:opacity-30 disabled:cursor-not-allowed transition text-[10px]">
-                            EXECUTE
+                        <button onclick="${actionEnabled ? `prefillOrder('${sym}', '${action}', ${rawPx})` : ''}" ${actionEnabled ? '' : 'disabled'} class="px-2.5 py-1 ${actionEnabled ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-gray-800 text-gray-500 opacity-30 cursor-not-allowed'} font-bold rounded transition text-[10px]">
+                            ${actionEnabled ? 'EXECUTE' : 'DISABLED'}
                         </button>
                     </td>
                 </tr>`;
@@ -3407,17 +3453,18 @@
                     const logs = data.recent_executions || [];
                     if (!hasData || logs.length === 0) {
                         const emptyMsg = isIndia ? 'NO INDIA EXECUTION DATA' : 'NO EXECUTIONS YET — PROFILER ARMED';
-                        tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-gray-500 font-mono text-xs"><i class="fa-solid fa-bolt text-amber-400 mr-2"></i>${emptyMsg}</td></tr>`;
+                        tbody.innerHTML = `<tr><td colspan="8" class="py-8 text-center text-gray-500 font-mono text-xs"><i class="fa-solid fa-bolt text-amber-400 mr-2"></i>${emptyMsg}</td></tr>`;
                     } else {
                         tbody.innerHTML = logs.map(l => `
                             <tr class="border-b border-gray-800/60 hover:bg-gray-900/50 text-xs font-mono">
                                 <td class="py-2.5 px-3 text-gray-400">${l.timestamp || '2026-09-02'}</td>
                                 <td class="py-2.5 px-3 text-amber-400 font-bold">${l.execution_id}</td>
+                                <td class="py-2.5 px-3 text-gray-300 font-mono text-[11px]">${l.order_id || '--'}</td>
                                 <td class="py-2.5 px-3 text-white font-bold">${l.symbol || 'BTCUSDT'}</td>
-                                <td class="py-2.5 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded bg-emerald-500/10 text-emerald-400">${l.status}</span></td>
+                                <td class="py-2.5 px-3"><span class="px-2 py-0.5 text-[9px] font-bold rounded bg-cyan-500/10 text-cyan-400">${l.workspace || (window.activeMarketVenue || 'INDIA')}</span></td>
+                                <td class="py-2.5 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded ${l.status === 'PASS' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}">${l.status || l.result || 'PASS'}</span></td>
                                 <td class="py-2.5 px-3 text-cyan-400 font-bold">${(l.total_latency_ms || 0).toFixed(1)} ms</td>
-                                <td class="py-2.5 px-3 text-emerald-400 font-bold">${l.risk_result || 'APPROVED'}</td>
-                                <td class="py-2.5 px-3 text-right text-gray-400">${l.order_id || '--'}</td>
+                                <td class="py-2.5 px-3 text-right font-bold ${l.risk_result === 'APPROVED' ? 'text-emerald-400' : 'text-amber-400'}">${l.risk_result || 'APPROVED'}</td>
                             </tr>
                         `).join('');
                     }
@@ -3884,8 +3931,8 @@
             
             <div id="tax-statement-content" class="space-y-4 text-xs">
                 <div class="p-8 text-center text-gray-500">
-                    <i class="fa-solid fa-spinner fa-spin text-xl text-amber-400 mb-2"></i>
-                    <div>Generating Indian Statutory Tax Statement...</div>
+                    <i class="fa-solid fa-file-invoice-dollar text-2xl text-amber-400 mb-2 block"></i>
+                    <div>Authoritative Indian Statutory Tax Statement</div>
                 </div>
             </div>
 

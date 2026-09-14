@@ -5,6 +5,7 @@ Records all financial events (deposit_created, deposit_credited, withdrawal_requ
 
 import json
 import time
+import hashlib
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone, timedelta
@@ -74,6 +75,10 @@ class FinancialAuditLogger:
 
         sym = symbol or asset
 
+        integrity_hash = hashlib.sha256(
+            f"{event_id}:{now_str}:{event_type}:{user_id}:{amount}:{asset}:{result}:{corr_id}".encode("utf-8")
+        ).hexdigest()
+
         record = {
             "event_id": event_id,
             "timestamp": now_str,
@@ -90,7 +95,8 @@ class FinancialAuditLogger:
             "provider": provider,
             "reference_id": reference_id or corr_id,
             "correlation_id": corr_id,
-            "ip_address": ip_address
+            "ip_address": ip_address,
+            "integrity_hash": integrity_hash
         }
         for k, v in kwargs.items():
             if k not in record:
