@@ -231,15 +231,22 @@ class ExecutionLatencyProfiler:
                     stage_sums[st_name] += float(s.get("duration_ms", 0.0))
                     stage_counts[st_name] += 1
 
-        stage_averages = [
-            {
+        stage_averages = []
+        for idx, st_name in enumerate(PIPELINE_STAGES):
+            c = stage_counts.get(st_name, 0)
+            if c > 0:
+                avg_dur = round(stage_sums[st_name] / c, 2)
+                st_status = "PASS"
+            else:
+                avg_dur = None
+                st_status = "NOT MEASURED"
+            stage_averages.append({
                 "stage_number": idx + 1,
                 "stage": st_name,
-                "avg_duration_ms": round(stage_sums[st_name] / max(1, stage_counts[st_name]), 2),
-                "status": "PASS"
-            }
-            for idx, st_name in enumerate(PIPELINE_STAGES)
-        ]
+                "avg_duration_ms": avg_dur,
+                "sample_count": c,
+                "status": st_status
+            })
 
         return {
             "status": "SUCCESS",

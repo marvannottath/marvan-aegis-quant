@@ -336,44 +336,49 @@ async def read_dashboard(request: Request):
     signals_rows_html = ""
     signal_exchange = "NSE" if is_india else ("BINANCE" if is_crypto else "GLOBAL FX")
     for s in opps:
-        raw_sym = s.get("symbol", "")
-        sym = raw_sym if raw_sym else "DATA UNAVAILABLE"
-        action = s.get("action", "BUY")
-        score = s.get("score", 90.0)
-        px = s.get("price", 100.0)
+        raw_sym = s.get("ticker", s.get("symbol", s.get("asset", "")))
+        is_valid = bool(raw_sym and workspace_manager.is_symbol_allowed(raw_sym, active_ws))
+        sym = raw_sym if is_valid else "DATA UNAVAILABLE"
+        action = s.get("ai_action", s.get("action", "BUY")) if is_valid else "DISABLED"
+        score = float(s.get("opportunity_score", s.get("score", 90.0))) if is_valid else 0.0
+        px = float(s.get("price", 100.0)) if is_valid else 0.0
         is_buy = action == "BUY"
-        badge_cls = "text-emerald-400 bg-emerald-500/10" if is_buy else "text-red-400 bg-red-500/10"
+        badge_cls = "text-emerald-400 bg-emerald-500/10" if is_buy else ("text-red-400 bg-red-500/10" if action == "SELL" else "text-gray-500 bg-gray-800")
         time_display = now_str.split(" ")[1] if " " in now_str else now_str
+        risk_badge = '<span class="px-2 py-0.5 text-[9px] font-black rounded bg-emerald-500/10 text-emerald-400">APPROVED</span>' if is_valid else '<span class="px-2 py-0.5 text-[9px] font-black rounded bg-red-500/20 text-red-400 border border-red-500/40">BLOCKED</span>'
+        exec_button = f'<button onclick="prefillOrder(\'{raw_sym}\', \'{action}\', {px})" class="px-2.5 py-1 bg-amber-500/20 text-amber-400 hover:bg-amber-500 hover:text-black font-bold rounded transition text-[10px]">EXECUTE</button>' if is_valid else '<button disabled class="px-2.5 py-1 bg-gray-800 text-gray-500 cursor-not-allowed font-bold rounded text-[10px]">DISABLED</button>'
+
         signals_rows_html += f"""
             <tr class="border-b border-gray-800/60 hover:bg-gray-900/50 text-xs font-mono">
-                <td class="py-3 px-3 font-bold {'text-white' if raw_sym else 'text-gray-500 italic'}">{sym}</td>
+                <td class="py-3 px-3 font-bold {'text-white' if is_valid else 'text-gray-500 italic'}">{sym}</td>
                 <td class="py-3 px-3 text-cyan-400 font-semibold">{signal_exchange}</td>
                 <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded {badge_cls}">{action}</span></td>
                 <td class="py-3 px-3 text-amber-400 font-bold">{score:.1f}</td>
-                <td class="py-3 px-3 text-emerald-400 font-bold">92.5%</td>
-                <td class="py-3 px-3 text-purple-400 font-bold">2.33</td>
+                <td class="py-3 px-3 text-emerald-400 font-bold">{'92.5%' if is_valid else '0.0%'}</td>
+                <td class="py-3 px-3 text-purple-400 font-bold">{'2.33' if is_valid else '--'}</td>
                 <td class="py-3 px-3 text-white font-bold">{cur_sym}{px:,.2f}</td>
                 <td class="py-3 px-3 text-gray-400 text-[10px]">{time_display}</td>
-                <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded bg-emerald-500/10 text-emerald-400">APPROVED</span></td>
+                <td class="py-3 px-3">{risk_badge}</td>
                 <td class="py-3 px-3 text-right">
-                    <button onclick="prefillOrder('{raw_sym}', '{action}', {px})" {'disabled' if not raw_sym else ''} class="px-2.5 py-1 bg-amber-500/20 text-amber-400 hover:bg-amber-500 hover:text-black font-bold rounded transition text-[10px]">EXECUTE</button>
+                    {exec_button}
                 </td>
             </tr>"""
 
     # 7. Pre-render Overview Signals Cards
     overview_signals_html = ""
     for s in opps[:4]:
-        raw_sym = s.get("symbol", "")
-        sym = raw_sym if raw_sym else "DATA UNAVAILABLE"
-        action = s.get("action", "BUY")
-        score = s.get("score", 90.0)
-        px = s.get("price", 100.0)
+        raw_sym = s.get("ticker", s.get("symbol", s.get("asset", "")))
+        is_valid = bool(raw_sym and workspace_manager.is_symbol_allowed(raw_sym, active_ws))
+        sym = raw_sym if is_valid else "DATA UNAVAILABLE"
+        action = s.get("ai_action", s.get("action", "BUY")) if is_valid else "DISABLED"
+        score = float(s.get("opportunity_score", s.get("score", 90.0))) if is_valid else 0.0
+        px = float(s.get("price", 100.0)) if is_valid else 0.0
         is_buy = action == "BUY"
-        badge_cls = "text-emerald-400 bg-emerald-500/10" if is_buy else "text-red-400 bg-red-500/10"
+        badge_cls = "text-emerald-400 bg-emerald-500/10" if is_buy else ("text-red-400 bg-red-500/10" if action == "SELL" else "text-gray-500 bg-gray-800")
         overview_signals_html += f"""
             <div class="p-3 bg-gray-950 border border-gray-800 rounded-xl space-y-1.5 font-mono">
                 <div class="flex justify-between items-center text-xs">
-                    <span class="font-bold {'text-white' if raw_sym else 'text-gray-500 italic'}">{sym}</span>
+                    <span class="font-bold {'text-white' if is_valid else 'text-gray-500 italic'}">{sym}</span>
                     <span class="px-2 py-0.5 text-[9px] font-black rounded {badge_cls}">{action}</span>
                 </div>
                 <div class="flex justify-between text-[11px]">
@@ -752,42 +757,64 @@ async def get_state(workspace: Optional[str] = None):
     formatted_opps = []
     sig_exchange = "NSE" if ws == "INDIA" else ("BINANCE" if ws == "CRYPTO" else "GLOBAL FX")
     for m in markets:
-        sym = m.get("symbol", "")
-        valid_sym = sym if sym else "DATA UNAVAILABLE"
-        price = float(m["price"])
-        vol = float(str(m["volatility"]).replace("%", "")) / 100.0 if "volatility" in m else 0.015
-        eval_res = signal_ensemble_engine.evaluate_signal(sym, price, vol)
-        conf = eval_res["confidence_score"]
-        action = eval_res["signal"]
-        
-        if action == "BUY":
-            sl_price = round(price * 0.985, 2 if price > 10 else 4)
-            tp_price = round(price * 1.035, 2 if price > 10 else 4)
+        raw_sym = m.get("symbol") or m.get("ticker") or m.get("asset", "")
+        is_valid = bool(raw_sym and raw_sym not in ("DATA UNAVAILABLE", "NO DATA AVAILABLE", "UNKNOWN", "NONE", "") and workspace_manager.is_symbol_allowed(raw_sym, ws))
+        price = float(m.get("price", 0.0))
+
+        if is_valid:
+            sym = raw_sym
+            vol = float(str(m.get("volatility", 0.015)).replace("%", "")) / 100.0 if "volatility" in m else 0.015
+            eval_res = signal_ensemble_engine.evaluate_signal(sym, price, vol)
+            conf = eval_res["confidence_score"]
+            action = eval_res["signal"]
+            risk_st = "APPROVED"
+            inst_id = workspace_manager.get_instrument_id(sym, ws)
+            asset_cls = workspace_manager.get_asset_class(sym, ws)
+            vol_regime = eval_res.get("volatility_regime", "NORMAL")
+            sub_agents = eval_res.get("sub_agent_breakdown", {})
+
+            if action == "BUY":
+                sl_price = round(price * 0.985, 2 if price > 10 else 4)
+                tp_price = round(price * 1.035, 2 if price > 10 else 4)
+            else:
+                sl_price = round(price * 1.015, 2 if price > 10 else 4)
+                tp_price = round(price * 0.965, 2 if price > 10 else 4)
         else:
-            sl_price = round(price * 1.015, 2 if price > 10 else 4)
-            tp_price = round(price * 0.965, 2 if price > 10 else 4)
+            sym = "DATA UNAVAILABLE"
+            inst_id = "UNRESOLVED"
+            asset_cls = "UNKNOWN"
+            action = "DISABLED"
+            risk_st = "BLOCKED"
+            conf = 0.0
+            price = 0.0
+            sl_price = 0.0
+            tp_price = 0.0
+            vol_regime = "DATA_UNAVAILABLE"
+            sub_agents = {}
 
         formatted_opps.append({
-            "symbol": valid_sym,
-            "ticker": valid_sym,
-            "asset": valid_sym,
+            "symbol": sym,
+            "ticker": sym,
+            "asset": sym,
+            "instrument_id": inst_id,
+            "asset_class": asset_cls,
             "exchange": sig_exchange,
-            "direction": action,
+            "direction": action if is_valid else "NONE",
             "action": action,
             "score": conf,
             "opportunity_score": conf,
             "confidence": conf,
-            "rr": "2.33",
+            "rr": "2.33" if is_valid else "--",
             "current_price": price,
             "price": price,
             "entry": price,
             "sl": sl_price,
             "tp": tp_price,
             "timestamp": now_str,
-            "risk_state": "APPROVED",
-            "volatility": eval_res["volatility_regime"],
-            "fresh": m["status"],
-            "sub_agents": eval_res.get("sub_agent_breakdown", {})
+            "risk_state": risk_st,
+            "volatility": vol_regime,
+            "fresh": m.get("status", "LIVE") if is_valid else "DISCONNECTED",
+            "sub_agents": sub_agents
         })
 
     audit_log = audit_logger.get_audit_trail()
@@ -1689,26 +1716,31 @@ async def place_order_endpoint(request: Request):
         leverage = float(body.get("leverage", 1.0))
         data_age = float(body.get("data_age_seconds", 0.0))
 
-        # Check workspace asset boundary
+        # Check through authoritative 20-Point Server-Side Execution Gate
+        from core.execution_gate import execution_gate
         from core.workspace_manager import workspace_manager
         req_ws = body.get("workspace")
         ws = req_ws or workspace_manager.get_active_workspace()
-        valid_ws, ws_msg = workspace_manager.validate_order_workspace(asset, ws)
-        if not valid_ws:
-            return JSONResponse({
-                "status": "RISK_REJECTED",
-                "rejection_code": "WORKSPACE_ASSET_MISMATCH",
-                "message": ws_msg,
-                "workspace": ws,
-                "asset": asset
-            }, status_code=400)
 
-        # Check market data tick age
-        if data_age > 60.0:
+        allowed, gate_code, gate_reason, gate_details = execution_gate.validate_order(
+            symbol=asset,
+            side=action,
+            quantity=body.get("quantity", 1.0),
+            price=body.get("price", 0.0),
+            workspace=ws,
+            environment=paper_broker.active_pool_name,
+            leverage=leverage,
+            data_age_seconds=data_age
+        )
+        if not allowed:
             return JSONResponse({
-                "status": "RISK_REJECTED",
-                "rejection_code": "RISK_REJECTED/STALE_MARKET_DATA",
-                "message": f"Market data tick age ({data_age:.1f}s) exceeds threshold (60s). STALE_MARKET_DATA."
+                "status": "EXECUTION_REJECTED",
+                "rejection_code": gate_code,
+                "reason": gate_reason,
+                "message": gate_reason,
+                "workspace": ws,
+                "asset": asset,
+                "details": gate_details
             }, status_code=400)
 
         # Check broker connection state if on live pool
@@ -2650,28 +2682,33 @@ async def submit_order(request: Request):
         strategy    = body.get("strategy", "MANUAL")
         req_leverage = float(body.get("leverage", 1.0))
 
-        # Check workspace asset boundary
+        # Check through authoritative 20-Point Server-Side Execution Gate
+        from core.execution_gate import execution_gate
         from core.workspace_manager import workspace_manager
         from core.audit_logger import audit_logger
         req_ws = body.get("workspace")
         ws = req_ws or workspace_manager.get_active_workspace()
-        valid_ws, ws_msg = workspace_manager.validate_order_workspace(symbol, ws)
-        if not valid_ws:
-            audit_logger.log_event(
-                event_type="ORDER_REJECTED",
-                symbol=symbol,
-                workspace=ws,
-                environment=environment,
-                result="REJECTED",
-                reason=ws_msg
-            )
+        req_curr = body.get("currency") or ("INR" if ws == "INDIA" else ("USDT" if ws == "CRYPTO" else "USD"))
+
+        allowed, gate_code, gate_reason, gate_details = execution_gate.validate_order(
+            symbol=symbol,
+            side=side,
+            quantity=quantity,
+            price=price,
+            workspace=ws,
+            environment=environment,
+            currency=req_curr,
+            leverage=req_leverage
+        )
+        if not allowed:
             return JSONResponse({
-                "status": "REJECTED",
-                "rejection_code": "WORKSPACE_ASSET_MISMATCH",
-                "reason": ws_msg,
-                "message": ws_msg,
+                "status": "EXECUTION_REJECTED",
+                "rejection_code": gate_code,
+                "reason": gate_reason,
+                "message": gate_reason,
                 "workspace": ws,
-                "symbol": symbol
+                "symbol": symbol,
+                "details": gate_details
             }, status_code=400)
 
         import time
@@ -3187,26 +3224,26 @@ async def submit_india_order(request: Request):
         product = body.get("product", "CNC").upper()
         price = float(body.get("price", 0.0))
 
-        # Check workspace asset boundary
-        from core.workspace_manager import workspace_manager
-        from core.audit_logger import audit_logger
-        if not workspace_manager.is_symbol_allowed(symbol, "INDIA"):
-            audit_logger.log_event(
-                event_type="ORDER_REJECTED",
-                workspace="INDIA",
-                venue="NSE/BSE",
-                symbol=symbol,
-                result="REJECTED",
-                reference_id=f"REJ-{int(time.time()*1000)}",
-                details={"reason": "WORKSPACE_ASSET_MISMATCH"}
-            )
+        # Check through authoritative 20-Point Server-Side Execution Gate
+        from core.execution_gate import execution_gate
+        allowed, gate_code, gate_reason, gate_details = execution_gate.validate_order(
+            symbol=symbol,
+            side=side,
+            quantity=quantity,
+            price=price,
+            workspace="INDIA",
+            environment="AEGIS_INDIA_INR",
+            currency="INR"
+        )
+        if not allowed:
             return JSONResponse({
-                "status": "REJECTED",
-                "rejection_code": "WORKSPACE_ASSET_MISMATCH",
-                "reason": f"Instrument '{symbol}' does not belong to INDIA workspace",
-                "message": f"Instrument '{symbol}' does not belong to INDIA workspace",
+                "status": "EXECUTION_REJECTED",
+                "rejection_code": gate_code,
+                "reason": gate_reason,
+                "message": gate_reason,
                 "workspace": "INDIA",
-                "symbol": symbol
+                "symbol": symbol,
+                "details": gate_details
             }, status_code=400)
 
         # 1. Route via Smart Order Router
@@ -3320,15 +3357,23 @@ async def get_india_corporate_actions(symbol: Optional[str] = None):
 # 26. Indian Trade & Tax Statement
 @app.get("/api/india/tax-statement")
 async def get_india_tax_statement(request: Request):
-    """Return exportable Indian trade & tax statement with itemized statutory levies."""
+    """Return exportable Indian trade & tax statement with explicit states (READY, NOT_AVAILABLE, FAILED)."""
     try:
         from core.india_statement_engine import india_statement_engine
         statement = india_statement_engine.generate_statement()
-        if not statement:
-            return JSONResponse({"status": "NOT_AVAILABLE", "message": "NOT AVAILABLE — REQUIRED DATA NOT READY"}, status_code=200)
-        return JSONResponse({"status": "SUCCESS", "statement": statement})
+        if not statement or statement.get("total_trades_count", 0) == 0:
+            return JSONResponse({
+                "status": "NOT_AVAILABLE",
+                "state": "NOT_AVAILABLE",
+                "message": "INDIAN TAX STATEMENT\nSTATUS: NOT AVAILABLE\nReason: No settled Indian equity trades recorded in ledger for Financial Year 2025-26."
+            }, status_code=200)
+        return JSONResponse({"status": "SUCCESS", "state": "READY", "statement": statement})
     except Exception as e:
-        return JSONResponse({"status": "NOT_AVAILABLE", "message": "NOT AVAILABLE — REQUIRED DATA NOT READY", "error": str(e)}, status_code=200)
+        return JSONResponse({
+            "status": "FAILED",
+            "state": "FAILED",
+            "message": f"INDIAN TAX STATEMENT\nSTATUS: FAILED\nReason: {str(e)}"
+        }, status_code=200)
 
 
 # 27. INR Funding & Settlement Status

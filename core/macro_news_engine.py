@@ -195,12 +195,19 @@ class MacroNewsEngine:
         headlines = self.WORKSPACE_HEADLINES.get(ws, self.recent_headlines)
         channels = self.WORKSPACE_CHANNELS.get(ws, self.telegram_channels)
 
+        if lockout_active:
+            lock_rsn = calendar.get("lockout_reason", "HIGH IMPACT NEWS LOCKOUT ACTIVE")
+        elif configured:
+            lock_rsn = calendar.get("lockout_reason", "CLEAR: No active news lockout")
+        else:
+            lock_rsn = "NOT CONFIGURED: News intelligence feeds unconfigured"
+
         return {
             "status": ("LOCKED" if lockout_active else ("CLEAR" if configured else "NOT_CONFIGURED")),
             "workspace": ws,
             "telegram_configured": configured,
             "lockout_active": lockout_active,
-            "lock_reason": calendar.get("lockout_reason", "CLEAR: No active news lockout"),
+            "lock_reason": lock_rsn,
             "source": "TELEGRAM_INTELLIGENCE" if configured else "ECONOMIC_CALENDAR",
             "latest_event": latest_event,
             "recent_headlines": headlines,

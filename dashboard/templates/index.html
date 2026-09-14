@@ -628,7 +628,7 @@
                         <h3 class="text-sm font-bold text-white uppercase border-b border-gray-800 pb-2">Circuit Breakers & Locks</h3>
                         <div class="space-y-2 text-xs font-mono">
                             <div class="p-2.5 bg-gray-950 border border-gray-800 rounded-xl flex justify-between"><span>Max Drawdown Breaker:</span><span class="text-emerald-400 font-bold">READY (10.0%)</span></div>
-                            <div class="p-2.5 bg-gray-950 border border-gray-800 rounded-xl flex justify-between"><span>Daily Loss Limit:</span><span class="text-emerald-400 font-bold">$2,000.00 Limit</span></div>
+                            <div class="p-2.5 bg-gray-950 border border-gray-800 rounded-xl flex justify-between"><span>Daily Loss Limit:</span><span id="risk-daily-loss-limit" class="text-emerald-400 font-bold">₹1,66,000.00 Limit <span class="text-xs text-gray-500 font-normal">(GLOBAL BASE: $2,000.00)</span></span></div>
                             <div class="p-2.5 bg-gray-950 border border-gray-800 rounded-xl flex justify-between"><span>High Impact News Lock:</span><span id="risk-news-lock-status" class="text-amber-400 font-bold">NOT CONFIGURED</span></div>
                         </div>
                     </div>
@@ -880,7 +880,7 @@
                             </tr>
                         </thead>
                         <tbody id="audit-log-tbody" class="divide-y divide-gray-800/60">
-                            <!-- Dynamic Audit Rows -->
+                            <tr><td colspan="6" class="py-6 text-center text-gray-500 font-mono text-xs">NO AUDIT EVENTS AVAILABLE</td></tr>
                         </tbody>
                     </table>
                     <div id="audit-pagination" class="pt-3 border-t border-gray-800"></div>
@@ -1313,6 +1313,9 @@
                 if (ordAlloc) ordAlloc.innerText = 'Trade Capital Allocation (₹)';
                 if (thPosAlloc) thPosAlloc.innerText = 'Allocated Margin (₹)';
                 if (thPosPnl) thPosPnl.innerText = 'Unrealized PnL (₹)';
+                if (document.getElementById('risk-daily-loss-limit')) {
+                    document.getElementById('risk-daily-loss-limit').innerHTML = '₹1,66,000.00 Limit <span class="text-xs text-gray-500 font-normal">(GLOBAL BASE: $2,000.00)</span>';
+                }
                 if (brokerInfo) brokerInfo.classList.remove('hidden');
                 if (taxBtn) taxBtn.classList.remove('hidden');
                 fetchIndiaMarketSession();
@@ -1327,6 +1330,9 @@
                 if (ordAlloc) ordAlloc.innerText = 'Trade Capital Allocation ($)';
                 if (thPosAlloc) thPosAlloc.innerText = 'Allocated Margin ($)';
                 if (thPosPnl) thPosPnl.innerText = 'Unrealized PnL ($)';
+                if (document.getElementById('risk-daily-loss-limit')) {
+                    document.getElementById('risk-daily-loss-limit').innerText = '$2,000.00 Limit';
+                }
                 if (badgeSession) {
                     badgeSession.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-500/10 text-blue-400 border border-blue-500/30 font-mono';
                     badgeSession.innerText = 'FOREX: 24/5 INTERBANK ACTIVE';
@@ -1350,6 +1356,9 @@
                 if (ordAlloc) ordAlloc.innerText = 'Trade Capital Allocation (USDT)';
                 if (thPosAlloc) thPosAlloc.innerText = 'Allocated Margin (USDT)';
                 if (thPosPnl) thPosPnl.innerText = 'Unrealized PnL (USDT)';
+                if (document.getElementById('risk-daily-loss-limit')) {
+                    document.getElementById('risk-daily-loss-limit').innerText = '2,000.00 USDT Limit';
+                }
                 if (badgeSession) {
                     badgeSession.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-black bg-purple-500/10 text-purple-400 border border-purple-500/30 font-mono';
                     badgeSession.innerText = 'BINANCE: 24/7 SPOT ENGINE ACTIVE';
@@ -1548,18 +1557,19 @@
                 const rawSym = s.asset || s.symbol || s.ticker;
                 const hasValidSym = Boolean(rawSym && String(rawSym).trim().length > 0 && rawSym !== 'DATA UNAVAILABLE' && rawSym !== 'NO DATA AVAILABLE');
                 const sym = hasValidSym ? String(rawSym).trim().toUpperCase() : '';
-                const symDisplay = hasValidSym ? sym : 'NO DATA AVAILABLE';
+                const symDisplay = hasValidSym ? sym : 'DATA UNAVAILABLE';
                 const ex = s.exchange || s.venue || 'NSE';
                 const action = (s.action || s.direction || 'BUY').toUpperCase();
                 const isBuy = action === 'BUY';
-                const score = Number(s.score !== undefined ? s.score : (s.opportunity_score || 92.0));
-                const conf = Number(s.confidence !== undefined ? s.confidence : 88.0);
-                const rr = s.rr || '1:2.33';
-                const rawPx = Number(s.entry !== undefined ? s.entry : (s.price || s.current_price || 0));
+                const score = hasValidSym ? Number(s.score !== undefined ? s.score : (s.opportunity_score || 92.0)) : 0.0;
+                const conf = hasValidSym ? Number(s.confidence !== undefined ? s.confidence : 88.0) : 0.0;
+                const rr = hasValidSym ? (s.rr || '1:2.33') : '--';
+                const rawPx = hasValidSym ? Number(s.entry !== undefined ? s.entry : (s.price || s.current_price || 0)) : 0.0;
                 const entryFmt = Number(rawPx).toLocaleString('en-IN', {minimumFractionDigits: 2});
                 const ts = s.timestamp ? (s.timestamp.includes(' ') ? s.timestamp.split(' ')[1] : s.timestamp) : new Date().toLocaleTimeString();
                 const riskState = hasValidSym ? (s.risk_state || 'APPROVED') : 'BLOCKED';
                 const actionEnabled = hasValidSym && (riskState !== 'BLOCKED');
+                const actionBadge = hasValidSym ? `<span class="px-2 py-0.5 text-[9px] font-black rounded ${isBuy ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}">${action}</span>` : `<span class="px-2 py-0.5 text-[9px] font-black rounded text-gray-500 bg-gray-800">DISABLED</span>`;
 
                 return `
                 <tr class="border-b border-gray-800/60 hover:bg-gray-900/50 text-xs font-mono">
@@ -1568,13 +1578,13 @@
                         <span>${symDisplay}</span>
                     </td>
                     <td class="py-3 px-3 text-cyan-400 font-semibold">${ex}</td>
-                    <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded ${isBuy ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}">${action}</span></td>
-                    <td class="py-3 px-3 text-amber-400 font-bold">${score.toFixed(1)}/100</td>
+                    <td class="py-3 px-3">${actionBadge}</td>
+                    <td class="py-3 px-3 text-amber-400 font-bold">${score.toFixed(1)}${hasValidSym ? '/100' : ''}</td>
                     <td class="py-3 px-3 text-emerald-400 font-bold">${conf.toFixed(1)}%</td>
                     <td class="py-3 px-3 text-purple-400 font-bold">${rr}</td>
                     <td class="py-3 px-3 text-white font-bold">₹${entryFmt}</td>
                     <td class="py-3 px-3 text-gray-400 text-[10px]">${ts}</td>
-                    <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded ${riskState === 'BLOCKED' ? 'bg-red-500/10 text-red-400' : 'bg-emerald-500/10 text-emerald-400'}">${riskState}</span></td>
+                    <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded ${riskState === 'BLOCKED' ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-emerald-500/10 text-emerald-400'}">${riskState}</span></td>
                     <td class="py-3 px-3 text-right">
                         <button onclick="${actionEnabled ? `prefillOrder('${sym}', '${action}', ${rawPx})` : ''}" ${actionEnabled ? '' : 'disabled'} class="px-2.5 py-1 ${actionEnabled ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-gray-800 text-gray-500 opacity-30 cursor-not-allowed'} font-bold rounded transition text-[10px]">
                             ${actionEnabled ? 'EXECUTE' : 'DISABLED'}
@@ -1763,9 +1773,10 @@
 
             if (container) {
                 container.innerHTML = `
-                    <div class="p-8 text-center text-gray-400 font-mono text-xs">
+                    <div class="p-8 text-center text-gray-400 font-mono text-xs space-y-1.5">
                         <i class="fa-solid fa-spinner fa-spin text-2xl text-amber-500 mb-2 block"></i>
-                        <div>Loading Indian Statutory Tax Statement...</div>
+                        <div class="font-bold text-amber-400 text-sm">INDIAN TAX STATEMENT — STATUS: GENERATING</div>
+                        <div class="text-gray-400 mt-1">Generating Indian Statutory Tax Statement from authoritative ledger...</div>
                     </div>`;
             }
 
@@ -1779,6 +1790,11 @@
                     const pnlColor = netPnl >= 0 ? 'text-emerald-400' : 'text-red-400';
 
                     container.innerHTML = `
+                        <div class="flex items-center justify-between pb-2 border-b border-gray-800 text-xs font-mono mb-3">
+                            <span class="text-gray-400">INDIAN STATUTORY TAX STATEMENT</span>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-black bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">STATUS: READY</span>
+                        </div>
+
                         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
                             <div class="bg-gray-950 p-3 rounded-xl border border-gray-800">
                                 <div class="text-[10px] text-gray-500 uppercase">Turnover</div>
@@ -1829,20 +1845,27 @@
                             <strong>Disclaimer:</strong> ${st.disclaimer || 'This tax computation is generated strictly for informational and compliance reference.'}
                         </div>
                     `;
-                } else {
+                } else if (json.status === 'NOT_AVAILABLE' || json.state === 'NOT_AVAILABLE') {
                     container.innerHTML = `
                         <div class="p-8 text-center text-amber-400 font-mono text-xs space-y-2">
                             <i class="fa-solid fa-triangle-exclamation text-3xl mb-2 text-amber-500 block"></i>
-                            <div class="font-bold text-sm">NOT AVAILABLE — REQUIRED DATA NOT READY</div>
-                            <div class="text-gray-500 text-[11px] mt-1">${json.message || 'Authoritative trade records for Indian equity workspace are pending or undergoing reconciliation.'}</div>
+                            <div class="font-bold text-sm uppercase">INDIAN TAX STATEMENT<br><span class="text-amber-300">STATUS: NOT AVAILABLE</span></div>
+                            <div class="text-gray-400 text-[11px] mt-1 max-w-md mx-auto whitespace-pre-line">${json.message || 'No settled Indian equity (NSE/BSE) trades recorded in ledger for Financial Year 2025-26.'}</div>
+                        </div>`;
+                } else {
+                    container.innerHTML = `
+                        <div class="p-8 text-center text-red-400 font-mono text-xs space-y-2">
+                            <i class="fa-solid fa-triangle-exclamation text-3xl mb-2 text-red-500 block"></i>
+                            <div class="font-bold text-sm uppercase">INDIAN TAX STATEMENT<br><span class="text-red-300">STATUS: FAILED</span></div>
+                            <div class="text-gray-400 text-[11px] mt-1 max-w-md mx-auto whitespace-pre-line">${json.message || 'Failed to retrieve statutory statement.'}</div>
                         </div>`;
                 }
             } catch (e) {
                 container.innerHTML = `
-                    <div class="p-8 text-center text-amber-400 font-mono text-xs space-y-2">
-                        <i class="fa-solid fa-triangle-exclamation text-3xl mb-2 text-amber-500 block"></i>
-                        <div class="font-bold text-sm">NOT AVAILABLE — REQUIRED DATA NOT READY</div>
-                        <div class="text-gray-500 text-[11px] mt-1">Failed to retrieve statement: ${e.message}</div>
+                    <div class="p-8 text-center text-red-400 font-mono text-xs space-y-2">
+                        <i class="fa-solid fa-triangle-exclamation text-3xl mb-2 text-red-500 block"></i>
+                        <div class="font-bold text-sm uppercase">INDIAN TAX STATEMENT<br><span class="text-red-300">STATUS: FAILED</span></div>
+                        <div class="text-gray-400 text-[11px] mt-1">Failed to retrieve statement: ${e.message}</div>
                     </div>`;
             }
         }
@@ -3187,30 +3210,31 @@
                 const rawSym = s.symbol || s.asset || s.ticker;
                 const hasValidSym = Boolean(rawSym && String(rawSym).trim().length > 0 && rawSym !== 'DATA UNAVAILABLE' && rawSym !== 'NO DATA AVAILABLE');
                 const sym = hasValidSym ? String(rawSym).trim().toUpperCase() : '';
-                const symDisplay = hasValidSym ? sym : 'NO DATA AVAILABLE';
+                const symDisplay = hasValidSym ? sym : 'DATA UNAVAILABLE';
                 const ex = s.exchange || defaultEx;
                 const action = (s.direction || s.action || 'BUY').toUpperCase();
                 const isBuy = action === 'BUY';
-                const oppScore = Number(s.opportunity_score !== undefined ? s.opportunity_score : (s.score || 90.0));
-                const conf = Number(s.confidence !== undefined ? s.confidence : 92.5);
-                const rr = s.rr || '1:2.33';
-                const rawPx = Number(s.current_price !== undefined ? s.current_price : (s.price !== undefined ? s.price : (s.entry || 0)));
+                const oppScore = hasValidSym ? Number(s.opportunity_score !== undefined ? s.opportunity_score : (s.score || 90.0)) : 0.0;
+                const conf = hasValidSym ? Number(s.confidence !== undefined ? s.confidence : 92.5) : 0.0;
+                const rr = hasValidSym ? (s.rr || '1:2.33') : '--';
+                const rawPx = hasValidSym ? Number(s.current_price !== undefined ? s.current_price : (s.price !== undefined ? s.price : (s.entry || 0))) : 0.0;
                 const priceFmt = (rawPx < 10) ? rawPx.toFixed(4) : rawPx.toLocaleString(curLoc, {minimumFractionDigits: 2, maximumFractionDigits: 2});
                 const ts = s.timestamp ? (s.timestamp.includes(' ') ? s.timestamp.split(' ')[1] : s.timestamp) : new Date().toLocaleTimeString();
                 const riskSt = hasValidSym ? (s.risk_state || 'APPROVED') : 'BLOCKED';
                 const actionEnabled = hasValidSym && (riskSt !== 'BLOCKED');
+                const actionBadge = hasValidSym ? `<span class="px-2 py-0.5 text-[9px] font-black rounded ${isBuy ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}">${action}</span>` : `<span class="px-2 py-0.5 text-[9px] font-black rounded text-gray-500 bg-gray-800">DISABLED</span>`;
 
                 return `
                 <tr class="border-b border-gray-800/60 hover:bg-gray-900/50 text-xs font-mono">
                     <td class="py-3 px-3 font-bold ${hasValidSym ? 'text-white' : 'text-gray-500 italic'}">${symDisplay}</td>
                     <td class="py-3 px-3 text-cyan-400 font-semibold">${ex}</td>
-                    <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded ${isBuy ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}">${action}</span></td>
-                    <td class="py-3 px-3 text-amber-400 font-bold">${oppScore.toFixed(1)}</td>
+                    <td class="py-3 px-3">${actionBadge}</td>
+                    <td class="py-3 px-3 text-amber-400 font-bold">${oppScore.toFixed(1)}${hasValidSym ? '' : ''}</td>
                     <td class="py-3 px-3 text-emerald-400 font-bold">${conf.toFixed(1)}%</td>
                     <td class="py-3 px-3 text-purple-400 font-bold">${rr}</td>
                     <td class="py-3 px-3 text-white font-bold">${curSym}${priceFmt}${curSuffix}</td>
                     <td class="py-3 px-3 text-gray-400 text-[10px]">${ts}</td>
-                    <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded ${riskSt === 'BLOCKED' ? 'bg-red-500/10 text-red-400' : 'bg-emerald-500/10 text-emerald-400'}">${riskSt}</span></td>
+                    <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded ${riskSt === 'BLOCKED' ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-emerald-500/10 text-emerald-400'}">${riskSt}</span></td>
                     <td class="py-3 px-3 text-right">
                         <button onclick="${actionEnabled ? `prefillOrder('${sym}', '${action}', ${rawPx})` : ''}" ${actionEnabled ? '' : 'disabled'} class="px-2.5 py-1 ${actionEnabled ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-gray-800 text-gray-500 opacity-30 cursor-not-allowed'} font-bold rounded transition text-[10px]">
                             ${actionEnabled ? 'EXECUTE' : 'DISABLED'}
@@ -3428,22 +3452,28 @@
                         const emptyMsg = isIndia ? 'NO INDIA EXECUTION DATA' : 'NO EXECUTIONS YET — PROFILER ARMED';
                         stagesContainer.innerHTML = `<div class="col-span-full py-8 text-center text-gray-500 font-mono text-xs"><i class="fa-solid fa-microchip text-2xl mb-2 text-gray-700 block"></i>${emptyMsg}</div>`;
                     } else {
-                        stagesContainer.innerHTML = stages.map(s => `
+                        stagesContainer.innerHTML = stages.map(s => {
+                            const isMeasured = (s.avg_duration_ms !== null && s.avg_duration_ms !== undefined && s.status !== 'NOT MEASURED');
+                            const durDisplay = isMeasured ? `${Number(s.avg_duration_ms).toFixed(1)} ms` : 'NOT MEASURED';
+                            const badgeColor = isMeasured ? 'bg-emerald-500/10 text-emerald-400' : 'bg-gray-800 text-gray-400';
+                            const barWidth = isMeasured ? Math.min(100, (Number(s.avg_duration_ms) / 10.0) * 100) : 0;
+
+                            return `
                             <div class="p-3 bg-gray-950 border border-gray-850 rounded-xl space-y-1.5 font-mono">
                                 <div class="flex justify-between items-center text-[10px]">
                                     <span class="text-cyan-400 font-bold">#${s.stage_number}</span>
-                                    <span class="px-1.5 py-0.2 bg-emerald-500/10 text-emerald-400 rounded text-[9px] font-black">${s.status}</span>
+                                    <span class="px-1.5 py-0.2 rounded text-[9px] font-black ${badgeColor}">${s.status}</span>
                                 </div>
                                 <div class="text-xs font-bold text-white truncate" title="${s.stage}">${s.stage}</div>
                                 <div class="flex justify-between items-center text-[11px]">
                                     <span class="text-gray-400">Duration:</span>
-                                    <span class="text-amber-400 font-bold">${(s.avg_duration_ms || 0).toFixed(1)} ms</span>
+                                    <span class="${isMeasured ? 'text-amber-400' : 'text-gray-500'} font-bold">${durDisplay}</span>
                                 </div>
                                 <div class="w-full bg-gray-900 h-1 rounded-full overflow-hidden">
-                                    <div class="bg-cyan-500 h-full" style="width: ${Math.min(100, ((s.avg_duration_ms || 0) / 10.0) * 100)}%"></div>
+                                    <div class="bg-cyan-500 h-full" style="width: ${barWidth}%"></div>
                                 </div>
-                            </div>
-                        `).join('');
+                            </div>`;
+                        }).join('');
                     }
                 }
 
@@ -3523,18 +3553,69 @@
                 const isIndia = (window.activeMarketVenue === 'INDIA');
                 if (selector && allBacktestRuns.length > 0) {
                     const indianAssets = ['RELIANCE', 'TCS', 'INFY', 'HDFCBANK', 'SBIN', 'NIFTY', 'BANKNIFTY'];
-                    selector.innerHTML = allBacktestRuns.map(r => {
-                        const pnlVal = Number(r.net_pnl !== undefined ? r.net_pnl : (r.net_profit_usd || 0));
-                        const pnlFmt = pnlVal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                        const sym = (r.symbol || 'BTCUSD').toUpperCase();
-                        const isIndianSym = indianAssets.some(ia => sym.includes(ia));
-                        const prefix = isIndia ? (isIndianSym ? '[INDIA / NSE] ' : '[GLOBAL / NON-INDIA] ') : '';
-                        return `<option value="${r.backtest_id}">${prefix}${r.backtest_id} (${sym} ${r.timeframe || '1h'} — Net: $${pnlFmt})</option>`;
-                    }).join('');
-                    loadBacktestRun(selector.value || allBacktestRuns[0].backtest_id);
+                    const indianRuns = allBacktestRuns.filter(r => {
+                        const sym = (r.symbol || '').toUpperCase();
+                        return indianAssets.some(ia => sym.includes(ia)) || r.workspace === 'INDIA';
+                    });
+
+                    if (isIndia && indianRuns.length === 0) {
+                        selector.innerHTML = `
+                            <option value="" selected disabled>NO INDIA BACKTEST DATA AVAILABLE</option>
+                            ${allBacktestRuns.map(r => {
+                                const pnlVal = Number(r.net_pnl !== undefined ? r.net_pnl : (r.net_profit_usd || 0));
+                                const pnlFmt = pnlVal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                                const sym = (r.symbol || 'BTCUSD').toUpperCase();
+                                return `<option value="${r.backtest_id}">[GLOBAL / NON-INDIA BACKTEST] ${r.backtest_id} (${sym} — $${pnlFmt})</option>`;
+                            }).join('')}
+                        `;
+                        renderNoIndiaBacktestAvailable();
+                    } else {
+                        selector.innerHTML = allBacktestRuns.map(r => {
+                            const pnlVal = Number(r.net_pnl !== undefined ? r.net_pnl : (r.net_profit_usd || 0));
+                            const pnlFmt = pnlVal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                            const sym = (r.symbol || 'BTCUSD').toUpperCase();
+                            const isIndianSym = indianAssets.some(ia => sym.includes(ia)) || r.workspace === 'INDIA';
+                            const prefix = isIndia ? (isIndianSym ? '[INDIA / NSE] ' : '[GLOBAL / NON-INDIA BACKTEST] ') : '';
+                            return `<option value="${r.backtest_id}">${prefix}${r.backtest_id} (${sym} ${r.timeframe || '1h'} — Net: $${pnlFmt})</option>`;
+                        }).join('');
+                        loadBacktestRun(selector.value || allBacktestRuns[0].backtest_id);
+                    }
                 }
             } catch (e) {
                 console.warn('Backtest runs fetch notice:', e);
+            }
+        }
+
+        function renderNoIndiaBacktestAvailable() {
+            currentBacktestDetail = null;
+            if (document.getElementById('bt-cagr')) document.getElementById('bt-cagr').innerText = '0.0%';
+            if (document.getElementById('bt-sharpe')) document.getElementById('bt-sharpe').innerText = '--';
+            if (document.getElementById('bt-sortino')) document.getElementById('bt-sortino').innerText = '--';
+            if (document.getElementById('bt-mdd')) document.getElementById('bt-mdd').innerText = '0.0%';
+            if (document.getElementById('bt-init-cap')) document.getElementById('bt-init-cap').innerText = 'NO DATA';
+            if (document.getElementById('bt-final-cap')) document.getElementById('bt-final-cap').innerText = 'NO DATA';
+            if (document.getElementById('bt-net-pnl')) {
+                document.getElementById('bt-net-pnl').innerText = 'NO DATA';
+                document.getElementById('bt-net-pnl').className = 'text-xl font-black text-gray-500';
+            }
+            if (document.getElementById('bt-win-rate')) document.getElementById('bt-win-rate').innerText = 'NO DATA AVAILABLE';
+            const btNoticeBanner = document.getElementById('bt-india-notice-banner');
+            if (btNoticeBanner) {
+                btNoticeBanner.classList.remove('hidden');
+                btNoticeBanner.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-amber-400 mr-2 text-base"></i><span><strong>NO INDIA BACKTEST DATA AVAILABLE:</strong> An Indian-market (NSE/BSE) historical dataset is not currently loaded. Select a <strong>[GLOBAL / NON-INDIA BACKTEST]</strong> from the dropdown above to inspect global simulation records.</span>';
+            }
+            const tbody = document.getElementById('backtest-trades-tbody');
+            if (tbody) tbody.innerHTML = '<tr><td colspan="11" class="py-6 text-center text-gray-500 font-mono text-xs">NO INDIA BACKTEST DATA AVAILABLE</td></tr>';
+            if (document.getElementById('bt-trades-count-label')) document.getElementById('bt-trades-count-label').innerText = 'NO INDIA BACKTEST DATA AVAILABLE';
+            const provBox = document.getElementById('bt-provenance-box');
+            if (provBox) {
+                provBox.innerHTML = `
+                    <div class="col-span-4 p-4 text-center text-gray-400 font-mono text-xs">
+                        <i class="fa-solid fa-circle-info text-amber-400 text-xl mb-2 block"></i>
+                        <div class="font-bold text-white uppercase">No Indian Historical Backtest Dataset Loaded</div>
+                        <div class="text-gray-500 mt-1">Select a [GLOBAL / NON-INDIA BACKTEST] run above to inspect global simulation records.</div>
+                    </div>
+                `;
             }
         }
 
@@ -3576,9 +3657,10 @@
                 if (btNoticeBanner) {
                     const sym = (summary.symbol || '').toUpperCase();
                     const indianAssets = ['RELIANCE', 'TCS', 'INFY', 'HDFCBANK', 'SBIN', 'NIFTY', 'BANKNIFTY'];
-                    const isIndianSym = indianAssets.some(ia => sym.includes(ia));
+                    const isIndianSym = indianAssets.some(ia => sym.includes(ia)) || summary.workspace === 'INDIA';
                     if (isIndia && !isIndianSym) {
                         btNoticeBanner.classList.remove('hidden');
+                        btNoticeBanner.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-amber-400 mr-2 text-base"></i><span><strong>[GLOBAL / NON-INDIA BACKTEST]:</strong> This backtest was simulated on Global / Crypto data (' + sym + ') in ' + (summary.currency || 'USD') + '. It does NOT represent Indian equity/NSE performance.</span>';
                     } else {
                         btNoticeBanner.classList.add('hidden');
                     }
@@ -3613,17 +3695,18 @@
                 }
 
                 // Render Summary Metrics Grid
+                const curPrefix = (summary.currency === 'INR') ? '₹' : ((summary.currency === 'USDT') ? 'USDT ' : '$');
                 if (document.getElementById('bt-cagr')) document.getElementById('bt-cagr').innerText = cagrVal + '%';
                 if (document.getElementById('bt-sharpe')) document.getElementById('bt-sharpe').innerText = sharpeVal;
                 if (document.getElementById('bt-sortino')) document.getElementById('bt-sortino').innerText = sortinoVal;
                 if (document.getElementById('bt-mdd')) document.getElementById('bt-mdd').innerText = mddVal + '%';
-                if (document.getElementById('bt-init-cap')) document.getElementById('bt-init-cap').innerText = '$' + initCapVal;
-                if (document.getElementById('bt-final-cap')) document.getElementById('bt-final-cap').innerText = '$' + finalCapVal;
-                
+                if (document.getElementById('bt-init-cap')) document.getElementById('bt-init-cap').innerText = curPrefix + initCapVal;
+                if (document.getElementById('bt-final-cap')) document.getElementById('bt-final-cap').innerText = curPrefix + finalCapVal;
+
                 const pnlEl = document.getElementById('bt-net-pnl');
                 if (pnlEl) {
                     const pnlSign = netPnlVal >= 0 ? '+' : '';
-                    pnlEl.innerText = pnlSign + '$' + netPnlVal.toLocaleString(undefined, {minimumFractionDigits: 2});
+                    pnlEl.innerText = pnlSign + curPrefix + Math.abs(netPnlVal).toLocaleString(undefined, {minimumFractionDigits: 2});
                     pnlEl.className = 'text-xl font-black ' + (netPnlVal >= 0 ? 'text-emerald-400' : 'text-red-400');
                 }
                 if (document.getElementById('bt-win-rate')) document.getElementById('bt-win-rate').innerText = winRateVal + '% (' + totTradesVal + ' trades)';
@@ -3723,6 +3806,7 @@
             const start = (backtestTradePage - 1) * pageSize;
             const paged = trades.slice(start, start + pageSize);
 
+            const tradeCur = (currentBacktestDetail && currentBacktestDetail.summary && currentBacktestDetail.summary.currency === 'INR') ? '₹' : '$';
             if (paged.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="11" class="py-6 text-center text-gray-500 font-mono text-xs">NO TRADES MATCHING FILTER</td></tr>`;
             } else {
@@ -3743,12 +3827,12 @@
                             <td class="py-2.5 px-3 text-amber-400 font-bold">${t.trade_id || '-'}</td>
                             <td class="py-2.5 px-3 text-white font-bold">${t.symbol || '-'}</td>
                             <td class="py-2.5 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded ${t.side === 'BUY' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}">${t.side || 'BUY'}</span></td>
-                            <td class="py-2.5 px-3 text-gray-300">$${entryPx.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                            <td class="py-2.5 px-3 text-white font-bold">$${exitPx.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                            <td class="py-2.5 px-3 text-gray-300">${tradeCur}${entryPx.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                            <td class="py-2.5 px-3 text-white font-bold">${tradeCur}${exitPx.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                             <td class="py-2.5 px-3 text-gray-400">${t.quantity || 0}</td>
-                            <td class="py-2.5 px-3 ${grossPnl >= 0 ? 'text-emerald-400' : 'text-red-400'} font-bold">${grossPnl >= 0 ? '+' : '-'}$${Math.abs(grossPnl).toFixed(2)}</td>
-                            <td class="py-2.5 px-3 text-gray-400">$${feesSlip.toFixed(2)}</td>
-                            <td class="py-2.5 px-3 ${pnlColor} font-bold">${pnlSign}$${Math.abs(netPnl).toFixed(2)}</td>
+                            <td class="py-2.5 px-3 ${grossPnl >= 0 ? 'text-emerald-400' : 'text-red-400'} font-bold">${grossPnl >= 0 ? '+' : '-'}${tradeCur}${Math.abs(grossPnl).toFixed(2)}</td>
+                            <td class="py-2.5 px-3 text-gray-400">${tradeCur}${feesSlip.toFixed(2)}</td>
+                            <td class="py-2.5 px-3 ${pnlColor} font-bold">${pnlSign}${tradeCur}${Math.abs(netPnl).toFixed(2)}</td>
                             <td class="py-2.5 px-3 text-right">
                                 <button onclick="showBacktestTradeDetail('${t.trade_id}')" class="px-2 py-0.5 bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500 hover:text-white font-bold rounded transition text-[10px]">
                                     INSPECT

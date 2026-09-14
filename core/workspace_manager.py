@@ -181,12 +181,60 @@ class WorkspaceManager:
     def validate_order_workspace(self, symbol: str, workspace: Optional[str] = None) -> Tuple[bool, str]:
         ws = self._normalize_workspace(workspace)
         sym = str(symbol).strip().upper()
+        if not sym or sym in ("DATA UNAVAILABLE", "NO DATA AVAILABLE", "UNKNOWN", "NONE"):
+            return (False, "SYMBOL_UNRESOLVED: Missing or invalid symbol")
         if not self.is_symbol_allowed(sym, ws):
             return (
                 False,
                 f'WORKSPACE_ASSET_MISMATCH: Instrument {sym} does not belong to {ws} workspace'
             )
         return (True, 'WORKSPACE_OK')
+
+    def get_instrument_id(self, symbol: str, workspace: Optional[str] = None) -> str:
+        ws = self._normalize_workspace(workspace)
+        sym = str(symbol).strip().upper()
+        if not sym or sym in ("DATA UNAVAILABLE", "NO DATA AVAILABLE", "UNKNOWN", "NONE"):
+            return "UNRESOLVED"
+        if ws == self.WORKSPACE_INDIA:
+            if sym in ("NIFTY50", "BANKNIFTY"):
+                return f"NSE_INDEX:{sym}"
+            if "BEES" in sym:
+                return f"NSE_ETF:{sym}"
+            return f"NSE_EQ:{sym}"
+        elif ws == self.WORKSPACE_CRYPTO:
+            return f"BINANCE_SPOT:{sym}"
+        elif ws == self.WORKSPACE_FOREX_GOLD:
+            if "XAU" in sym:
+                return f"SPOT_COMMODITY:{sym}"
+            return f"FX_INTERBANK:{sym}"
+        return f"{ws}:{sym}"
+
+    def get_asset_class(self, symbol: str, workspace: Optional[str] = None) -> str:
+        ws = self._normalize_workspace(workspace)
+        sym = str(symbol).strip().upper()
+        if ws == self.WORKSPACE_INDIA:
+            if sym in ("NIFTY50", "BANKNIFTY"):
+                return "INDIAN_INDEX"
+            if "BEES" in sym:
+                return "INDIAN_ETF"
+            return "INDIAN_EQUITY"
+        elif ws == self.WORKSPACE_CRYPTO:
+            return "CRYPTO"
+        elif ws == self.WORKSPACE_FOREX_GOLD:
+            if "XAU" in sym:
+                return "COMMODITIES"
+            return "FOREX"
+        return "UNKNOWN"
+
+    def get_exchange(self, symbol: str, workspace: Optional[str] = None) -> str:
+        ws = self._normalize_workspace(workspace)
+        if ws == self.WORKSPACE_INDIA:
+            return "NSE"
+        elif ws == self.WORKSPACE_CRYPTO:
+            return "BINANCE"
+        elif ws == self.WORKSPACE_FOREX_GOLD:
+            return "INTERBANK OTC"
+        return "GLOBAL"
 
     def set_active_workspace(self, workspace: str) -> Dict[str, Any]:
         target_ws = self._normalize_workspace(workspace)
