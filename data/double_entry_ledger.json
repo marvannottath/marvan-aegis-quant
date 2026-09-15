@@ -1,6 +1,58 @@
 {
   "entries": [
     {
+      "entry_id": "DEL-POS-1789453088014-222978",
+      "timestamp": "2026-09-15 11:48:08",
+      "ledger_type": "POSITION_CLOSE",
+      "environment": "AEGIS_INDIA_INR",
+      "debit_account": "CUSTOMER_TRADING_ACCOUNT",
+      "credit_account": "PORTFOLIO_EQUITY_ACCOUNT",
+      "amount": 2950.0,
+      "asset": "INR",
+      "currency": "INR",
+      "reference_id": "EXEC-IN-1789453087753-A19FE1-CLOSE",
+      "metadata": {
+        "currency": "INR",
+        "amount": 2950.0,
+        "exchange_rate": 1.0,
+        "fee": 0.0,
+        "timestamp": "2026-09-15 11:48:08",
+        "provider": "INTERNAL",
+        "account": "PORTFOLIO_EQUITY_ACCOUNT",
+        "transaction_id": "DEL-POS-1789453088014-222978",
+        "order_id": "ORD-PAP-1789453087135-746FCA",
+        "symbol": "RELIANCE",
+        "workspace": "INDIA"
+      },
+      "status": "POSTED"
+    },
+    {
+      "entry_id": "DEL-TRA-1789453087866-B85B7C",
+      "timestamp": "2026-09-15 11:48:07",
+      "ledger_type": "TRADE_EXECUTION",
+      "environment": "AEGIS_INDIA_INR",
+      "debit_account": "PORTFOLIO_EQUITY_ACCOUNT",
+      "credit_account": "CUSTOMER_TRADING_ACCOUNT",
+      "amount": 2950.0,
+      "asset": "INR",
+      "currency": "INR",
+      "reference_id": "EXEC-IN-1789453087753-A19FE1",
+      "metadata": {
+        "currency": "INR",
+        "amount": 2950.0,
+        "exchange_rate": 1.0,
+        "fee": 0.0,
+        "timestamp": "2026-09-15 11:48:07",
+        "provider": "INTERNAL",
+        "account": "CUSTOMER_TRADING_ACCOUNT",
+        "transaction_id": "DEL-TRA-1789453087866-B85B7C",
+        "order_id": "ORD-PAP-1789453087135-746FCA",
+        "symbol": "RELIANCE",
+        "workspace": "INDIA"
+      },
+      "status": "POSTED"
+    },
+    {
       "entry_id": "DEL-TRA-1789452293257-C0182C",
       "timestamp": "2026-09-15 11:34:53",
       "ledger_type": "TRADE_EXECUTION",

@@ -792,6 +792,24 @@ class BinanceBroker:
             "live": self.get_public_status()["live"]
         }
 
+    @property
+    def configuration_state(self) -> str:
+        """Return explicit Phase 4 provider configuration state."""
+        from core.secure_credential_manager import (
+            STATE_NOT_CONFIGURED, STATE_CONFIGURED, STATE_AUTHENTICATION_FAILED,
+            STATE_TESTNET_VERIFIED, STATE_LIVE_LOCKED
+        )
+        if not self.demo_api_key or not self.demo_secret_key:
+            return STATE_NOT_CONFIGURED
+        if self.status == "DEMO_AUTHENTICATED":
+            return STATE_TESTNET_VERIFIED
+        if self.status in ["AUTH_FAILED", "AUTHENTICATION_FAILED", "REJECTED"]:
+            return STATE_AUTHENTICATION_FAILED
+        return STATE_CONFIGURED
+
+    def get_configuration_state(self) -> str:
+        return self.configuration_state
+
     def get_public_status(self) -> Dict[str, Any]:
         """Return public status for both Demo and Live cards."""
         demo_masked = (self.demo_api_key[:4] + "••••••••" + self.demo_api_key[-4:]) if len(self.demo_api_key) > 8 else ("••••••••" if self.demo_api_key else "")

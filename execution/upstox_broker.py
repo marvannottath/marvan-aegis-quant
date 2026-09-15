@@ -12,7 +12,7 @@ import os
 import json
 import time
 import requests
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime, timezone, timedelta
 
 from core.broker_adapter import BrokerAdapter
@@ -45,6 +45,7 @@ class UpstoxBrokerAdapter(BrokerAdapter):
         self._is_authenticated: bool = False
         self._last_error: str = ""
         self._paper_mode: bool = True
+        self._read_only: bool = True
 
         # Check configuration
         self._check_configuration()
@@ -52,6 +53,82 @@ class UpstoxBrokerAdapter(BrokerAdapter):
     @property
     def broker_name(self) -> str:
         return "UPSTOX"
+
+    @property
+    def configuration_state(self) -> str:
+        """Return explicit Phase 4 provider configuration state."""
+        from core.secure_credential_manager import (
+            STATE_NOT_CONFIGURED, STATE_CONFIGURED, STATE_AUTHENTICATION_FAILED,
+            STATE_READ_ONLY_VERIFIED, STATE_AUTHENTICATED
+        )
+        if not self._api_key or not self._access_token:
+            return STATE_NOT_CONFIGURED
+        if self._is_authenticated:
+            return STATE_READ_ONLY_VERIFIED
+        if self._last_error and "not configured" not in self._last_error.lower():
+            return STATE_AUTHENTICATION_FAILED
+        return STATE_CONFIGURED
+
+    def get_configuration_state(self) -> str:
+        return self.configuration_state
+
+    def is_token_expired(self) -> Tuple[bool, Optional[str]]:
+        from core.secure_credential_manager import secure_credential_manager
+        return secure_credential_manager.is_upstox_token_expired()
+
+    def reconcile_with_internal_state(self) -> Dict[str, Any]:
+        """
+        Compare actual Upstox account state with AEGIS QUANT internal INDIA state.
+        Never overwrite internal financial data automatically.
+        """
+        from core.position_snapshot_service import position_snapshot_service
+
+        internal_snap = position_snapshot_service.get_snapshot("INDIA")
+        internal_cash = float(internal_snap.get("cash", 100000.0))
+        internal_positions = internal_snap.get("positions", {})
+        internal_orders_cnt = int(internal_snap.get("open_order_count", 0))
+
+        if self._is_authenticated:
+            broker_funds = self.get_funds()
+            broker_cash = float(broker_funds.get("available_margin", 0.0))
+            broker_positions = self.get_positions()
+            broker_orders = self.get_orders()
+            real_pos_cnt = len(broker_positions)
+        else:
+            broker_cash = 0.0
+            broker_positions = []
+            broker_orders = []
+            real_pos_cnt = 0
+
+        recon_status = "RECONCILIATION_OK"
+        delta_cash = round(abs(broker_cash - internal_cash), 2)
+        if real_pos_cnt > 0 and len(internal_positions) == 0:
+            recon_status = "DELTA_DETECTED"
+
+        return {
+            "workspace": "INDIA",
+            "provider": "UPSTOX",
+            "is_authenticated": self._is_authenticated,
+            "configuration_state": self.configuration_state,
+            "real_positions_count": real_pos_cnt,
+            "real_positions_summary": "0 REAL POSITIONS" if real_pos_cnt == 0 else f"{real_pos_cnt} REAL POSITIONS",
+            "broker_state": {
+                "available_cash": broker_cash,
+                "positions_count": real_pos_cnt,
+                "open_orders_count": len(broker_orders)
+            },
+            "internal_state": {
+                "available_cash": internal_cash,
+                "positions_count": len(internal_positions),
+                "open_orders_count": internal_orders_cnt
+            },
+            "deltas": {
+                "cash_delta": delta_cash,
+                "position_count_delta": abs(real_pos_cnt - len(internal_positions))
+            },
+            "reconciliation_status": recon_status,
+            "timestamp": _ist_now()
+        }
 
     @property
     def status(self) -> str:
@@ -361,6 +438,14 @@ class UpstoxBrokerAdapter(BrokerAdapter):
                 "product": product,
                 "message": "Order executed in AEGIS_INDIA_INR environment",
                 "executed_at": _ist_now()
+            }
+
+        # Read-Only safety check: reject real order placement if Upstox is in read-only mode
+        if getattr(self, "_read_only", True) and env != "PAPER":
+            return {
+                "status": "REJECTED",
+                "code": "READ_ONLY_MODE_ACTIVE",
+                "message": "Upstox is in READ-ONLY mode. Live order submission is forbidden."
             }
 
         # Live Upstox API v3 Order Placement

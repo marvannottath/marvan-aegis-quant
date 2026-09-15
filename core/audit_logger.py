@@ -116,9 +116,19 @@ class FinancialAuditLogger:
             "ip": ip_address,
             "integrity_hash": integrity_hash
         }
+        # Sanitize sensitive fields from kwargs
+        SENSITIVE_KEYS = {"api_key", "secret", "secret_key", "access_token", "private_key", "password", "authorization", "auth_header", "token"}
         for k, v in kwargs.items():
             if k not in record:
-                record[k] = v
+                if any(sk in k.lower() for sk in SENSITIVE_KEYS):
+                    record[k] = "••••••••"
+                elif isinstance(v, dict):
+                    record[k] = {
+                        sub_k: ("••••••••" if any(sk in sub_k.lower() for sk in SENSITIVE_KEYS) else sub_v)
+                        for sub_k, sub_v in v.items()
+                    }
+                else:
+                    record[k] = v
 
         self.logs.insert(0, record)
         self._save_logs()
