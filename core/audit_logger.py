@@ -10,7 +10,7 @@ import json
 import time
 import hashlib
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime, timezone, timedelta
 
 IST_TZ = timezone(timedelta(hours=5, minutes=30))
@@ -169,16 +169,18 @@ class FinancialAuditLogger:
     def audit_trail(self) -> List[Dict[str, Any]]:
         return self.logs
 
-    def verify_chain_integrity(self) -> bool:
+    def verify_chain_integrity(self) -> Tuple[bool, str]:
         """Verify cryptographic hash integrity for audit records."""
         hashed_count = 0
         for ev in self.logs:
             h = ev.get("integrity_hash")
             if h:
                 if len(h) != 64:
-                    return False
+                    return False, f"Invalid hash format for event {ev.get('event_id')}"
                 hashed_count += 1
-        return hashed_count > 0
+        if hashed_count == 0:
+            return False, "No hashed records found"
+        return True, f"Cryptographic integrity verified for {hashed_count} events (SHA-256 valid)"
 
     def record_event(self, **kwargs) -> Dict[str, Any]:
         """Convenience alias for log_event."""

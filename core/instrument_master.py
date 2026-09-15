@@ -349,6 +349,37 @@ class InstrumentMaster:
 
         return True, "PIPELINE_IDENTITY_PRESERVED"
 
+    def validate_order_pipeline_identity(
+        self,
+        signal_symbol: str,
+        order_symbol: str,
+        broker_symbol: str,
+        fill_symbol: str,
+        position_symbol: str,
+        expected_workspace: str = "INDIA",
+        expected_currency: str = "INR"
+    ) -> Tuple[bool, str]:
+        """
+        Validate that the identical symbol and identity flows through every stage:
+          Signal Symbol = Order Symbol = Broker Symbol = Fill Symbol = Position Symbol.
+        Rejects fail-closed if any mismatch occurs.
+        """
+        syms = [signal_symbol, order_symbol, broker_symbol, fill_symbol, position_symbol]
+        norm_syms = [str(s or "").strip().upper() for s in syms]
+
+        if len(set(norm_syms)) != 1:
+            return False, f"PIPELINE_IDENTITY_FAIL: Inconsistent symbols across stages: {norm_syms}"
+
+        canonical_sym = norm_syms[0]
+        inst = self.get_instrument(canonical_sym, expected_workspace)
+        if not inst and expected_workspace == "INDIA":
+            return False, f"PIPELINE_IDENTITY_FAIL: Symbol '{canonical_sym}' not in {expected_workspace} Instrument Master"
+
+        if inst and inst.get("currency") != expected_currency:
+            return False, f"PIPELINE_IDENTITY_FAIL: Currency mismatch ({inst.get('currency')} != {expected_currency})"
+
+        return True, f"PIPELINE_IDENTITY_VERIFIED: Identity preserved for '{canonical_sym}' across all 5 lifecycle stages"
+
 
 # Global singleton
 instrument_master = InstrumentMaster()

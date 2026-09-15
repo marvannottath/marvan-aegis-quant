@@ -29,7 +29,7 @@ class OrderStateMachineError(Exception):
 
 # Allowed state transitions
 ORDER_TRANSITIONS: Dict[str, List[str]] = {
-    "CREATED":          ["RISK_PENDING"],
+    "CREATED":          ["RISK_PENDING", "CANCELLED"],
     "RISK_PENDING":     ["APPROVED", "REJECTED"],
     "APPROVED":         ["SUBMITTED"],
     "SUBMITTED":        ["ACKNOWLEDGED", "FAILED", "CANCELLED"],
@@ -96,11 +96,15 @@ class OrderStateMachine:
         metadata: Optional[Dict[str, Any]] = None,
         idempotency_key: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Create a new canonical order in CREATED state. Re-submitting with same idempotency_key returns existing order."""
+        if not idempotency_key and metadata and "idempotency_key" in metadata:
+            idempotency_key = metadata["idempotency_key"]
+
         if idempotency_key:
             existing_id = self._idempotency_map.get(idempotency_key)
             if existing_id and existing_id in self.orders:
-                return self.orders[existing_id]
+                existing_ord = dict(self.orders[existing_id])
+                existing_ord["is_duplicate_retry"] = True
+                return existing_ord
 
         env_tag = environment[:3].upper() if environment else "PAP"
         order_id = f"ORD-{env_tag}-{int(time.time()*1000)}-{uuid.uuid4().hex[:6].upper()}"
