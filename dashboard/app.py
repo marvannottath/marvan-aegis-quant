@@ -703,9 +703,6 @@ async def get_state(workspace: Optional[str] = None):
     from execution.binance_broker import binance_broker
     from core.workspace_manager import workspace_manager
 
-    if not trader.is_running:
-        trader.start_autonomous_loop()
-
     # Determine authoritative workspace and metadata
     ws = workspace_manager._normalize_workspace(workspace) if workspace else workspace_manager.get_active_workspace()
     meta = workspace_manager.get_workspace_meta(ws)
@@ -898,6 +895,7 @@ async def get_state(workspace: Optional[str] = None):
         "floating_open_pnl_usd": float(pos_snapshot.get("unrealized_pnl", 0.0)),
         "positions": positions,
         "position_snapshot": pos_snapshot,
+        "portfolio_aggregate": port_aggregate,
         "open_positions_count": pos_snapshot["open_position_count"],
         "total_exposure": pos_snapshot["total_exposure"],
         "total_margin": pos_snapshot["total_margin"],
@@ -3257,6 +3255,20 @@ async def get_position_snapshot(workspace: Optional[str] = None):
         ws = workspace or workspace_manager.get_active_workspace()
         snapshot = position_snapshot_service.get_snapshot(ws)
         return JSONResponse({"status": "SUCCESS", **snapshot})
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+@app.get("/api/portfolio")
+@app.get("/api/portfolio/aggregate")
+async def get_portfolio_aggregate_endpoint(workspace: Optional[str] = None):
+    """Return authoritative portfolio aggregate for active or specified workspace."""
+    try:
+        from core.position_snapshot_service import position_snapshot_service
+        from core.workspace_manager import workspace_manager
+        ws = workspace or workspace_manager.get_active_workspace()
+        aggregate = position_snapshot_service.get_portfolio_aggregate(ws)
+        return JSONResponse({"status": "SUCCESS", **aggregate})
     except Exception as e:
         return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
 

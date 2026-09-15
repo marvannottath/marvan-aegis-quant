@@ -403,6 +403,15 @@ class AutonomousTrader:
                 )
             except Exception:
                 pass
+        else:
+            try:
+                from core.order_state_machine import order_state_machine
+                order_state_machine.transition(ord_id, "FAILED", reason="Broker execution returned None or rejected")
+            except Exception:
+                try:
+                    order_state_machine.transition(ord_id, "REJECTED", reason="Broker execution returned None or rejected")
+                except Exception:
+                    pass
 
         # Record real 10-stage latency telemetry
         try:

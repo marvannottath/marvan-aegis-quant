@@ -186,16 +186,17 @@ def run_all_tests():
         ]
         assert len(india_orders) >= 5, f"Expected at least 5 historical India orders, found {len(india_orders)}"
 
-        # All existing India orders are FILLED historical orders
-        filled_india = [o for o in india_orders if o.get("status") == "FILLED"]
-        assert len(filled_india) == len(india_orders), "Some India orders are in non-terminal state"
+        # All existing India orders are in terminal states (FILLED, REJECTED, CANCELLED, FAILED)
+        terminal_states = {"FILLED", "REJECTED", "CANCELLED", "FAILED"}
+        terminal_india = [o for o in india_orders if o.get("status") in terminal_states]
+        assert len(terminal_india) == len(india_orders), f"Some India orders are in non-terminal state: {[o['order_id'] for o in india_orders if o.get('status') not in terminal_states]}"
 
-        # Verify snapshot service does NOT treat FILLED orders as active positions
+        # Verify snapshot service does NOT treat terminal orders as active positions
         snap = position_snapshot_service.get_snapshot("INDIA")
         assert snap["open_position_count"] == 0, f"Snapshot incorrectly counted terminal orders as active: {snap['open_position_count']}"
 
         results["6. Stale positions are not shown as active"] = "PASS"
-        print(f"  [PASS] Gate 6: Stale positions are not shown as active ({len(filled_india)} terminal orders ignored)")
+        print(f"  [PASS] Gate 6: Stale positions are not shown as active ({len(terminal_india)} terminal orders verified)")
     except Exception as e:
         results["6. Stale positions are not shown as active"] = f"FAIL: {e}"
         print(f"  [FAIL] Gate 6: {e}")

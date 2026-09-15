@@ -242,6 +242,7 @@ class PositionSnapshotService:
             "exposure": total_exposure,
             "total_exposure": total_exposure,
             "used_margin": used_margin,
+            "available_margin": max(0.0, round(free_cash, 2)),
             "unrealized_pnl": unrealized_pnl,
             "realized_pnl": realized_pnl,
             "vault_balance": vault_balance,

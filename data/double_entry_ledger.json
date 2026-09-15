@@ -1,6 +1,56 @@
 {
   "entries": [
     {
+      "entry_id": "DEL-BIN-1789441454065-B38EC1",
+      "timestamp": "2026-09-15 08:34:14",
+      "ledger_type": "BINANCE_PAY_DEPOSIT",
+      "environment": "TEST_ENV",
+      "debit_account": "BINANCE_PAY_INFLOW",
+      "credit_account": "CUSTOMER_TRADING_ACCOUNT",
+      "amount": 500.0,
+      "asset": "USDT",
+      "currency": "USDT",
+      "reference_id": "TEST-ARCH-001",
+      "metadata": {
+        "currency": "USDT",
+        "amount": 500.0,
+        "exchange_rate": 1.0,
+        "fee": 0.0,
+        "timestamp": "2026-09-15 08:34:14",
+        "provider": "INTERNAL",
+        "account": "CUSTOMER_TRADING_ACCOUNT",
+        "transaction_id": "DEL-BIN-1789441454065-B38EC1"
+      },
+      "status": "POSTED"
+    },
+    {
+      "entry_id": "DEL-TRA-1789441451935-BADAE8",
+      "timestamp": "2026-09-15 08:34:11",
+      "ledger_type": "TRADE_EXECUTION",
+      "environment": "AEGIS_INDIA_INR",
+      "debit_account": "CUSTOMER_TRADING_ACCOUNT",
+      "credit_account": "MARKET_MAKER_CLEARING",
+      "amount": 2850.0,
+      "asset": "INR",
+      "currency": "INR",
+      "reference_id": "ORD-UPX-PAPER-1789441451918",
+      "metadata": {
+        "currency": "INR",
+        "amount": 2850.0,
+        "exchange_rate": 1.0,
+        "fee": 0.0,
+        "timestamp": "2026-09-15 08:34:11",
+        "provider": "INTERNAL",
+        "account": "MARKET_MAKER_CLEARING",
+        "transaction_id": "DEL-TRA-1789441451935-BADAE8",
+        "symbol": "RELIANCE",
+        "side": "BUY",
+        "quantity": 1,
+        "product": "I"
+      },
+      "status": "POSTED"
+    },
+    {
       "entry_id": "DEL-BIN-1789439797116-AB17FE",
       "timestamp": "2026-09-15 08:06:37",
       "ledger_type": "BINANCE_PAY_DEPOSIT",
