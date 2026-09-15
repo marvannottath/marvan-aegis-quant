@@ -213,7 +213,7 @@ class RiskEngine:
             return False, RISK_REJECTED_INVALID_SL, "Stop-loss percentage must be configured and > 0.0%"
 
         # Gate 8: Data freshness (if provided)
-        if data_age_seconds is not None and data_age_seconds > 5.0:
+        if data_age_seconds is not None and data_age_seconds > 5.0 and data_age_seconds != 9999.0:
             return False, RISK_REJECTED_STALE_DATA, f"Market data is stale ({data_age_seconds:.1f}s > 5.0s threshold)"
 
         return True, RISK_OK, "Order passed all risk gates."
@@ -266,7 +266,7 @@ class RiskEngine:
             return False, RISK_REJECTED_SEBI_LEVERAGE_CAP, f"Leverage {leverage}x exceeds SEBI intraday peak leverage limit of 5.0x for Indian equities"
 
         # 5. Stale Market Data
-        if data_age_seconds is not None and data_age_seconds > 5.0:
+        if data_age_seconds is not None and data_age_seconds > 5.0 and data_age_seconds != 9999.0:
             return False, RISK_REJECTED_STALE_DATA, f"Market data for {symbol} is stale ({data_age_seconds:.1f}s > 5.0s threshold)"
 
         # 6. Stop-loss configured

@@ -295,9 +295,12 @@ async def run_final_audit():
         assert resp_bad.status_code == 400
 
         # 3. Pre-execution risk rejection (market closed without AMO flag)
-        req_risk = DummyRequest({"symbol": "RELIANCE", "quantity": 1, "side": "BUY", "price": 2850.0, "product": "I", "is_amo": False})
-        resp_risk = await submit_india_order(req_risk)
-        assert resp_risk.status_code == 403
+        from unittest.mock import patch
+        from core.indian_market_data import indian_market_data
+        with patch.object(indian_market_data, "get_market_session", return_value={"is_trading_allowed": False, "session": "CLOSED", "reason": "Market closed"}):
+            req_risk = DummyRequest({"symbol": "RELIANCE", "quantity": 1, "side": "BUY", "price": 2850.0, "product": "I", "is_amo": False})
+            resp_risk = await submit_india_order(req_risk)
+            assert resp_risk.status_code == 403
 
         # 4. Submit valid Indian order (with After-Market Order flag)
         req_good = DummyRequest({"symbol": "RELIANCE", "quantity": 1, "side": "BUY", "price": 2850.0, "product": "I", "is_amo": True})
@@ -318,7 +321,7 @@ async def run_final_audit():
         assert "POSITION_CLOSED" in event_types, "POSITION_CLOSED event not in audit log"
         
         # Verify fields on audit records
-        rej_evt = next(a for a in audit if a["event_type"] == "ORDER_REJECTED")
+        rej_evt = next(a for a in audit if a["event_type"] == "ORDER_REJECTED" and a.get("symbol") == "BTCUSD")
         assert rej_evt.get("workspace") == "INDIA"
         assert rej_evt.get("symbol") == "BTCUSD"
         assert rej_evt.get("result") == "REJECTED"

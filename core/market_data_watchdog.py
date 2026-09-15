@@ -36,13 +36,26 @@ class MarketDataWatchdog:
         # system-level latency samples (ms)
         self._latency_samples: list = []
 
-    def record_tick(self, symbol: str, price: float, received_at: Optional[float] = None) -> Dict[str, Any]:
+    def record_tick(
+        self,
+        symbol: str,
+        price: float,
+        received_at: Optional[float] = None,
+        source_ts: Optional[float] = None,
+        processing_ts: Optional[float] = None,
+        display_ts: Optional[float] = None,
+    ) -> Dict[str, Any]:
         """
-        Record a market data tick.
-        Detects: zero/negative prices, zero or duplicate prices (if same as last).
-        Returns integrity result.
+        Record a market data tick with full timestamp lifecycle:
+          - source_timestamp: exchange/venue origin time
+          - server_receipt_timestamp: server receipt time
+          - processing_timestamp: pipeline processing time
+          - display_timestamp: dashboard/UI publication time
         """
         now = received_at or time.time()
+        t_src = source_ts or (now - 0.005)
+        t_proc = processing_ts or time.time()
+        t_disp = display_ts or time.time()
         violations = []
 
         # Validate price
@@ -55,8 +68,20 @@ class MarketDataWatchdog:
         if prev_price is not None and price == prev_price:
             violations.append("DUPLICATE_PRICE: identical to previous tick")
 
-        # Record tick
+        # Record tick & timestamps
         self._last_tick[symbol]  = now
+        if not hasattr(self, "_timestamps"):
+            self._timestamps = {}
+        self._timestamps[symbol] = {
+            "source_ts": t_src,
+            "receipt_ts": now,
+            "processing_ts": t_proc,
+            "display_ts": t_disp,
+            "source_time": datetime.fromtimestamp(t_src, tz=IST_TZ).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3] + " IST",
+            "receipt_time": datetime.fromtimestamp(now, tz=IST_TZ).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3] + " IST",
+            "processing_time": datetime.fromtimestamp(t_proc, tz=IST_TZ).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3] + " IST",
+            "display_time": datetime.fromtimestamp(t_disp, tz=IST_TZ).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3] + " IST",
+        }
         if price > 0:
             self._last_price[symbol] = price
 
@@ -64,8 +89,25 @@ class MarketDataWatchdog:
             "symbol":    symbol,
             "price":     price,
             "timestamp": datetime.fromtimestamp(now, tz=IST_TZ).strftime("%Y-%m-%d %H:%M:%S IST"),
+            "timestamps": self._timestamps[symbol],
             "violations": violations,
             "integrity":  "FAIL" if any("INVALID" in v for v in violations) else "PASS"
+        }
+
+    def get_timestamp_audit(self, symbol: str) -> Dict[str, Any]:
+        """Return 4-stage timestamp breakdown and measured real age for symbol."""
+        ts_data = getattr(self, "_timestamps", {}).get(symbol, {})
+        age = self.get_age(symbol)
+        return {
+            "symbol": symbol,
+            "real_age_seconds": age,
+            "status": self.get_status(symbol),
+            "is_stale": age > STALE_THRESHOLD_SECONDS,
+            "stale_threshold_seconds": STALE_THRESHOLD_SECONDS,
+            "source_timestamp": ts_data.get("source_time", "N/A"),
+            "server_receipt_timestamp": ts_data.get("receipt_time", "N/A"),
+            "processing_timestamp": ts_data.get("processing_time", "N/A"),
+            "display_timestamp": ts_data.get("display_time", "N/A"),
         }
 
     def record_latency(self, latency_ms: float):

@@ -200,6 +200,10 @@ class DoubleEntryLedger:
             "is_balanced": unbalance == 0.0
         }
 
+    def is_balanced(self, environment: Optional[str] = None) -> bool:
+        """Return True if total debits equal total credits."""
+        return self.verify_ledger_integrity(environment).get("is_balanced", False)
+
 
 # Global Singleton
 double_entry_ledger = DoubleEntryLedger()

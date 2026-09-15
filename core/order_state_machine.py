@@ -51,6 +51,7 @@ def _now_str() -> str:
 class OrderStateMachine:
     def __init__(self):
         self.orders: Dict[str, Dict[str, Any]] = {}
+        self._idempotency_map: Dict[str, str] = {}
         self._load()
 
     def _load(self):
@@ -59,6 +60,10 @@ class OrderStateMachine:
             try:
                 with open(ORDERS_DB, "r") as f:
                     self.orders = json.load(f)
+                    for oid, o in self.orders.items():
+                        ik = o.get("idempotency_key")
+                        if ik:
+                            self._idempotency_map[ik] = oid
             except Exception as e:
                 print(f"[ORDER_SM] Load error: {e}")
 
@@ -89,15 +94,24 @@ class OrderStateMachine:
         provider: str = "PAPER",
         provider_order_id: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
+        idempotency_key: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Create a new canonical order in CREATED state."""
+        """Create a new canonical order in CREATED state. Re-submitting with same idempotency_key returns existing order."""
+        if idempotency_key:
+            existing_id = self._idempotency_map.get(idempotency_key)
+            if existing_id and existing_id in self.orders:
+                return self.orders[existing_id]
+
         env_tag = environment[:3].upper() if environment else "PAP"
         order_id = f"ORD-{env_tag}-{int(time.time()*1000)}-{uuid.uuid4().hex[:6].upper()}"
+        exec_id = f"EXEC-{int(time.time()*1000)}-{uuid.uuid4().hex[:6].upper()}"
         now_ts = _now_str()
 
         order = {
             "order_id":                     order_id,
             "internal_order_id":            order_id,
+            "execution_id":                 exec_id,
+            "idempotency_key":              idempotency_key or "",
             "provider_order_id":            provider_order_id or "",
             "provider":                     provider or ("BINANCE" if "BINANCE" in environment else "PAPER"),
             "symbol":                       symbol,
@@ -125,6 +139,8 @@ class OrderStateMachine:
             "metadata":                     metadata or {},
         }
         self.orders[order_id] = order
+        if idempotency_key:
+            self._idempotency_map[idempotency_key] = order_id
         self._save(order)
         return order
 

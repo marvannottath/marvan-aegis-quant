@@ -63,8 +63,8 @@ class BinanceBroker:
 
         self.api_key: str = ""
         self.secret_key: str = ""
-        self.status: str = "DEMO_AUTHENTICATED"
-        self.account_balance_usd: float = 19950.55
+        self.status: str = "NOT_CONFIGURED"
+        self.account_balance_usd: float = 0.0
         self.testnet: bool = True
         self.is_demo: bool = True
         self.market_type: str = "SPOT_TESTNET"
@@ -135,6 +135,9 @@ class BinanceBroker:
 
         if self.api_key and self.secret_key:
             self.verify_connection()
+        else:
+            self.status = "NOT_CONFIGURED"
+            self.account_balance_usd = 0.0
 
     def _get_credentials_for_env(self, environment: str) -> Tuple[str, str, str, bool]:
         """
@@ -396,6 +399,90 @@ class BinanceBroker:
         except Exception as e:
             return {"valid": False, "status": "ERROR", "message": str(e)}
 
+    STANDARD_EXCHANGE_FILTERS: Dict[str, Dict[str, Any]] = {
+        "BTCUSDT": {"tick_size": 0.01, "step_size": 0.00001, "min_qty": 0.00001, "min_notional": 5.0},
+        "ETHUSDT": {"tick_size": 0.01, "step_size": 0.0001, "min_qty": 0.0001, "min_notional": 5.0},
+        "SOLUSDT": {"tick_size": 0.01, "step_size": 0.01, "min_qty": 0.01, "min_notional": 5.0},
+        "BNBUSDT": {"tick_size": 0.01, "step_size": 0.001, "min_qty": 0.001, "min_notional": 5.0},
+        "XRPUSDT": {"tick_size": 0.0001, "step_size": 0.1, "min_qty": 0.1, "min_notional": 5.0},
+        "DOGEUSDT": {"tick_size": 0.00001, "step_size": 1.0, "min_qty": 1.0, "min_notional": 5.0},
+        "ADAUSDT": {"tick_size": 0.0001, "step_size": 0.1, "min_qty": 0.1, "min_notional": 5.0},
+        "BTCUSD": {"tick_size": 0.01, "step_size": 0.00001, "min_qty": 0.00001, "min_notional": 5.0},
+        "ETHUSD": {"tick_size": 0.01, "step_size": 0.0001, "min_qty": 0.0001, "min_notional": 5.0},
+        "SOLUSD": {"tick_size": 0.01, "step_size": 0.01, "min_qty": 0.01, "min_notional": 5.0},
+    }
+
+    def validate_filters(
+        self,
+        symbol: str,
+        quantity: float,
+        price: float = 0.0,
+        order_type: str = "MARKET",
+        workspace: str = "CRYPTO",
+        currency: str = "USDT",
+        data_age_seconds: float = 0.0,
+    ) -> Tuple[bool, str, str]:
+        """
+        Validate order parameters against Binance exchange filters before submission.
+        Rejects locally if invalid (fail-closed).
+        """
+        sym = str(symbol or "").strip().upper()
+        ws = str(workspace or "").strip().upper()
+        curr = str(currency or "").strip().upper()
+        otype = str(order_type or "").strip().upper()
+
+        # 1. Workspace boundary
+        if ws != "CRYPTO":
+            return False, "WORKSPACE_MISMATCH", f"Workspace '{workspace}' is invalid for Binance. Expected CRYPTO."
+
+        # 2. Currency check
+        if curr not in ("USDT", "USD", "BUSD", "FDUSD"):
+            return False, "CURRENCY_MISMATCH", f"Currency '{currency}' is invalid for Binance Crypto. Expected USDT."
+
+        # 3. Order type check
+        if otype not in ("MARKET", "LIMIT"):
+            return False, "UNSUPPORTED_ORDER_TYPE", f"Order type '{order_type}' is not supported. Expected MARKET or LIMIT."
+
+        # 4. Symbol resolution
+        filters = self.STANDARD_EXCHANGE_FILTERS.get(sym)
+        if not filters:
+            return False, "UNKNOWN_SYMBOL", f"Symbol '{sym}' is not a recognized or tradable Binance instrument."
+
+        # 5. Stale price check
+        if data_age_seconds > 5.0:
+            return False, "STALE_PRICE", f"Market data age {data_age_seconds:.1f}s exceeds freshness threshold of 5.0s."
+
+        # 6. Price checks (for LIMIT orders or when price is supplied)
+        tick_size = filters["tick_size"]
+        if otype == "LIMIT" or price > 0:
+            if price <= 0:
+                return False, "INVALID_PRICE", f"Price must be positive for {otype} orders (got {price})."
+            rem = abs((price / tick_size) - round(price / tick_size))
+            if rem > 1e-4:
+                return False, "INVALID_PRECISION", f"Price {price} violates tick size precision ({tick_size}) for {sym}."
+
+        # 7. Quantity checks
+        step_size = filters["step_size"]
+        min_qty = filters["min_qty"]
+        if quantity <= 0:
+            return False, "INVALID_QUANTITY", f"Quantity must be positive (got {quantity})."
+
+        if quantity < min_qty:
+            return False, "INVALID_QUANTITY", f"Quantity {quantity} is below minimum quantity {min_qty} for {sym}."
+
+        rem_qty = abs((quantity / step_size) - round(quantity / step_size))
+        if rem_qty > 1e-4:
+            return False, "INVALID_PRECISION", f"Quantity {quantity} violates step size precision ({step_size}) for {sym}."
+
+        # 8. Min notional check
+        min_notional = filters["min_notional"]
+        effective_px = price if price > 0 else (65000.0 if "BTC" in sym else 3500.0 if "ETH" in sym else 150.0)
+        notional = round(effective_px * quantity, 2)
+        if notional < min_notional:
+            return False, "MIN_NOTIONAL_VIOLATION", f"Order notional {notional:.2f} USDT is below exchange minimum notional {min_notional} USDT for {sym}."
+
+        return True, "FILTER_PASS", "All Binance exchange filters passed."
+
     def create_order(
         self,
         environment: str,
@@ -409,6 +496,16 @@ class BinanceBroker:
         """
         Submit a real order to Binance (Testnet or Live) after safety checks.
         """
+        # LIVE Safety Lock: reject if LIVE_TRADING_ENABLED is False
+        env_upper = (environment or "").upper()
+        if ("LIVE" in env_upper or "REAL" in env_upper):
+            from core.environment_gate import environment_gate
+            if not environment_gate.LIVE_TRADING_ENABLED:
+                return {
+                    "status": "REJECTED",
+                    "code": "LIVE_TRADING_LOCKED",
+                    "message": "Binance LIVE order execution is strictly LOCKED (LIVE_TRADING_ENABLED=false)"
+                }
         # Paper execution route
         if environment == "PAPER":
             from execution.paper_broker import paper_broker
@@ -683,13 +780,14 @@ class BinanceBroker:
         if self.api_key:
             masked_key = self.api_key[:4] + "••••••••" + self.api_key[-4:] if len(self.api_key) > 8 else "••••••••"
 
+        is_connected = bool(self.api_key and self.secret_key and self.status in ["DEMO_AUTHENTICATED", "LIVE_TRADING_ACTIVE"])
         return {
             "status": self.status,
-            "connected": self.status in ["DEMO_AUTHENTICATED", "LIVE_TRADING_ACTIVE"],
+            "connected": is_connected,
             "is_testnet": self.testnet,
-            "usdt_free": self.account_balance_usd,
+            "usdt_free": self.account_balance_usd if is_connected else 0.0,
             "masked_api_key": masked_key,
-            "latency_ms": 12.4,
+            "latency_ms": 12.4 if is_connected else 0.0,
             "demo": self.get_public_status()["demo"],
             "live": self.get_public_status()["live"]
         }

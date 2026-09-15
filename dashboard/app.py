@@ -1636,20 +1636,64 @@ async def harvest_profit(request: Request):
 
 @app.get("/api/broker-connections")
 async def get_broker_connections():
-    """Fetch truthful broker connection states for settings modal."""
+    """Fetch truthful broker connection states across all three workspaces."""
     b_stat = binance_broker.get_status()
+    try:
+        from execution.upstox_broker import upstox_broker
+        u_conn = upstox_broker._is_authenticated
+        u_cfg = bool(upstox_broker._api_key and upstox_broker._access_token)
+        u_status = "UPSTOX LIVE READ-ONLY" if u_conn else ("UPSTOX NOT CONFIGURED" if not u_cfg else upstox_broker.status)
+    except Exception:
+        u_conn, u_cfg, u_status = False, False, "UPSTOX NOT CONFIGURED"
+
     return JSONResponse({
         "status": "SUCCESS",
         "binance": b_stat,
+        "upstox": {
+            "status": u_status,
+            "connected": u_conn,
+            "configured": u_cfg,
+            "broker": "Upstox API v2/v3",
+            "environment": "AEGIS_INDIA_INR (PAPER)" if not u_conn else "UPSTOX LIVE READ-ONLY",
+            "market": "NSE / BSE Indian Equities"
+        },
+        "forex": {
+            "status": "FOREX LIVE BROKER = NOT CONFIGURED",
+            "connected": False,
+            "configured": False,
+            "broker": "Global Interbank OTC",
+            "paper_engine": "SIMULATED",
+            "market": "Forex & Commodities"
+        },
         "brokers": [
             {
                 "id": "binance",
                 "name": "Binance Official Exchange",
                 "status": b_stat["status"],
                 "connected": b_stat.get("connected", False),
+                "configured": b_stat.get("demo", {}).get("configured", False) or b_stat.get("live", {}).get("configured", False),
                 "masked_api_key": b_stat.get("masked_api_key", ""),
                 "balance_usd": b_stat.get("usdt_free", 0.0),
                 "is_testnet": b_stat.get("is_testnet", False)
+            },
+            {
+                "id": "upstox",
+                "name": "Upstox API v2/v3 (NSE/BSE)",
+                "status": u_status,
+                "connected": u_conn,
+                "configured": u_cfg,
+                "masked_api_key": "",
+                "balance_inr": 0.0,
+                "environment": "AEGIS_INDIA_INR (PAPER)" if not u_conn else "UPSTOX LIVE READ-ONLY"
+            },
+            {
+                "id": "forex",
+                "name": "Global Forex Interbank OTC",
+                "status": "FOREX LIVE BROKER = NOT CONFIGURED",
+                "connected": False,
+                "configured": False,
+                "paper_engine": "SIMULATED",
+                "environment": "AEGIS_QUANT_MASTER (SIMULATED)"
             }
         ]
     })

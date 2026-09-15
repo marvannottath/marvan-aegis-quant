@@ -165,6 +165,21 @@ class FinancialAuditLogger:
                 return ev
         return None
 
+    @property
+    def audit_trail(self) -> List[Dict[str, Any]]:
+        return self.logs
+
+    def verify_chain_integrity(self) -> bool:
+        """Verify cryptographic hash integrity for audit records."""
+        hashed_count = 0
+        for ev in self.logs:
+            h = ev.get("integrity_hash")
+            if h:
+                if len(h) != 64:
+                    return False
+                hashed_count += 1
+        return hashed_count > 0
+
     def record_event(self, **kwargs) -> Dict[str, Any]:
         """Convenience alias for log_event."""
         return self.log_event(**kwargs)

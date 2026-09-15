@@ -327,11 +327,22 @@ class UpstoxBrokerAdapter(BrokerAdapter):
         price = float(order_request.get("price", 0.0))
         disclosed_qty = int(order_request.get("disclosed_quantity", 0))
 
+        # Live trading lock check
+        env = str(order_request.get("environment", "PAPER")).upper()
+        if "LIVE" in env:
+            from core.environment_gate import environment_gate
+            if not environment_gate.LIVE_TRADING_ENABLED:
+                return {
+                    "status": "REJECTED",
+                    "code": "LIVE_TRADING_LOCKED",
+                    "message": "Upstox LIVE order execution is strictly LOCKED (LIVE_TRADING_ENABLED=false)"
+                }
+
         # Enforce tick size (0.05)
         if price > 0:
             price = round(round(price / 0.05) * 0.05, 2)
 
-        if not self._access_token:
+        if not self._access_token or self._paper_mode or env == "PAPER":
             # Paper execution in AEGIS_INDIA_INR pool
             from execution.paper_broker import paper_broker
             paper_broker.set_active_capital_pool("AEGIS_INDIA_INR")
