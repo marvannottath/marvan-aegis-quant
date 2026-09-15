@@ -147,16 +147,19 @@ async def read_dashboard(request: Request):
     active_pool = meta.get("default_pool", "AEGIS_INDIA_INR")
     paper_broker.switch_pool(active_pool)
 
-    # 2. Account & Vault State
-    account = paper_broker.get_account_summary()
-    vault = profit_vault.get_vault_summary(active_pool)
+    # 2. Authoritative Position Snapshot & Single Aggregation Layer (Section 1, 2, 10)
+    from core.position_snapshot_service import position_snapshot_service
+    pos_snap = position_snapshot_service.get_snapshot(active_ws)
+    port_agg = position_snapshot_service.get_portfolio_aggregate(active_ws)
 
-    eq_val = account.get('portfolio_equity', meta.get('initial_capital', 100000.0))
-    vault_val = profit_vault.get_vault_balance(active_pool)
-    cash_val = account.get('virtual_cash', meta.get('initial_capital', 100000.0))
-    all_open_positions = account.get('open_positions', [])
-    open_positions = [p for p in all_open_positions if workspace_manager.is_symbol_allowed(p.get('asset', ''), active_ws)]
-    open_pos_count = len(open_positions)
+    eq_val = port_agg["total_equity"]
+    cash_val = port_agg["free_cash"]
+    vault_val = port_agg["vault_balance"]
+    open_positions = pos_snap["positions"]
+    open_pos_count = pos_snap["open_position_count"]
+    exposure_val = pos_snap["total_exposure"]
+    margin_val = pos_snap["total_margin"]
+    unrealized_pnl_val = pos_snap["unrealized_pnl"]
 
     # Currencies & Formatters
     cur_sym = meta.get('currency_symbol', '₹')
@@ -169,9 +172,9 @@ async def read_dashboard(request: Request):
         cash_str = f"₹{cash_val:,.2f}"
         vault_str = f"₹{vault_val:,.2f}"
         total_assets_str = f"₹{(eq_val + vault_val):,.2f}"
-        margin_str = "₹100,000.00"
-        today_pnl_str = "+₹0.00"
-        exposure_str = "₹0.00"
+        margin_str = f"₹{margin_val:,.2f}" if margin_val > 0 else "₹0.00"
+        today_pnl_str = f"{'+' if unrealized_pnl_val >= 0 else ''}₹{unrealized_pnl_val:,.2f}"
+        exposure_str = f"₹{exposure_val:,.2f}"
         venue_badge = "NSE/BSE (INDIA ACTIVE)"
         venue_title = "INDIAN MARKETS (NSE/BSE)"
         venue_subtitle = "Currency: INR (₹) • Settlement: T+1 Rolling • Regulation: SEBI Compliant • Risk Profile: Enforced"
@@ -329,7 +332,7 @@ async def read_dashboard(request: Request):
                     </td>
                 </tr>"""
     else:
-        pos_rows_html = f'<tr><td colspan="9" class="py-8 text-center text-gray-500 font-mono text-xs"><i class="fa-solid fa-circle-check text-emerald-400 mr-2"></i>No open {active_ws.replace("_", " ")} positions — {meta.get("venue_name")} Active</td></tr>'
+        pos_rows_html = f'<tr><td colspan="9" class="py-8 text-center text-gray-500 font-mono text-xs"><i class="fa-solid fa-layer-group text-2xl mb-2 text-gray-700 block"></i>NO ACTIVE POSITIONS — Risk Engine Ready</td></tr>'
 
     # 6. Pre-render 7-Agent Signals Hub
     opps = scanned_markets[:6]
@@ -472,16 +475,17 @@ async def read_dashboard(request: Request):
         exec_logs_html = "".join([f"""
             <tr class="border-b border-gray-800/60 hover:bg-gray-900/50 text-xs font-mono">
                 <td class="py-2.5 px-3 text-gray-400">{e.get('timestamp', '')}</td>
-                <td class="py-2.5 px-3 text-amber-400 font-bold">{e.get('execution_id')}</td>
-                <td class="py-2.5 px-3 text-white font-bold">{e.get('symbol')}</td>
-                <td class="py-2.5 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded bg-emerald-500/10 text-emerald-400">{e.get('status', 'PASS')}</span></td>
-                <td class="py-2.5 px-3 text-cyan-400 font-bold">{e.get('total_latency_ms', 0):.1f} ms</td>
-                <td class="py-2.5 px-3 text-emerald-400 font-bold">{e.get('risk_result', 'APPROVED')}</td>
-                <td class="py-2.5 px-3 text-right text-gray-400">{e.get('order_id', '--')}</td>
+                <td class="py-2.5 px-3 text-amber-400 font-bold">{e.get('execution_id', '')}</td>
+                <td class="py-2.5 px-3 text-gray-300 font-mono text-[11px]">{e.get('order_id', '--')}</td>
+                <td class="py-2.5 px-3 text-white font-bold">{e.get('symbol', '')}</td>
+                <td class="py-2.5 px-3"><span class="px-2 py-0.5 text-[9px] font-bold rounded bg-cyan-500/10 text-cyan-400">{e.get('workspace', active_ws)}</span></td>
+                <td class="py-2.5 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded {('bg-emerald-500/10 text-emerald-400' if e.get('result', e.get('status', 'PASS')) == 'PASS' else 'bg-red-500/10 text-red-400')}">{e.get('result', e.get('status', 'PASS'))}</span></td>
+                <td class="py-2.5 px-3 text-cyan-400 font-bold">{(e.get('total_latency_ms') or 0):.1f} ms</td>
+                <td class="py-2.5 px-3 text-right font-bold {('text-emerald-400' if e.get('risk_result', 'APPROVED') == 'APPROVED' else 'text-amber-400')}">{e.get('risk_result', 'APPROVED')}</td>
             </tr>""" for e in recent_execs[:10]])
     else:
         empty_prof_msg = "NO INDIA EXECUTION DATA" if is_india else "NO EXECUTIONS YET — PROFILER ARMED"
-        exec_logs_html = f'<tr><td colspan="7" class="py-6 text-center text-gray-500 font-mono text-xs">{empty_prof_msg}</td></tr>'
+        exec_logs_html = f'<tr><td colspan="8" class="py-6 text-center text-gray-500 font-mono text-xs">{empty_prof_msg}</td></tr>'
 
     # 10. Pre-render Orders Stream strictly scoped to active workspace
     raw_live_orders = trader.get_live_stream() or []
@@ -509,6 +513,31 @@ async def read_dashboard(request: Request):
     else:
         empty_order_msg = "NO RECENT INDIA ORDERS — NSE/BSE Engine Ready" if is_india else "NO RECENT ORDERS — Autonomous Order Engine Ready"
         orders_html = f'<div class="p-5 text-center text-gray-500 font-mono text-xs"><i class="fa-solid fa-bolt text-amber-400 text-lg block mb-1"></i>{empty_order_msg}</div>'
+
+    # 9. Pre-render Audit Log Rows
+    from core.audit_logger import audit_logger
+    audit_entries = audit_logger.get_audit_trail(workspace=active_ws)[:50]
+    if audit_entries:
+        audit_rows_html = ""
+        for a in audit_entries:
+            actor_name = a.get("actor") or a.get("user_id") or "SYSTEM_CORE"
+            actor_ip = a.get("ip") or a.get("ip_address") or "INTERNAL"
+            action_name = a.get("action") or a.get("event_type") or "AUDIT_LOG"
+            object_name = a.get("object") or a.get("asset") or a.get("reference_id") or "SYSTEM"
+            result_st = a.get("result") or a.get("status") or "CONFIRMED"
+            ev_id = a.get("event_id") or a.get("id") or "--"
+            res_color = "text-emerald-400" if result_st in ("SUCCESS", "CONFIRMED", "APPROVED", "PASS") else "text-amber-400"
+            audit_rows_html += f"""
+                <tr class="border-b border-gray-800/60 hover:bg-gray-900/50 text-xs font-mono">
+                    <td class="py-2.5 px-3 text-gray-400">{a.get("timestamp", "2026-09-03")}</td>
+                    <td class="py-2.5 px-3 text-white font-bold">{actor_name} <span class="text-gray-500 font-normal">({actor_ip})</span></td>
+                    <td class="py-2.5 px-3 text-amber-400 font-bold">{action_name}</td>
+                    <td class="py-2.5 px-3 text-white">{object_name}</td>
+                    <td class="py-2.5 px-3 {res_color} font-bold">{result_st}</td>
+                    <td class="py-2.5 px-3 text-gray-500 font-mono">{ev_id}</td>
+                </tr>"""
+    else:
+        audit_rows_html = '<tr><td colspan="6" class="py-6 text-center text-gray-500 font-mono text-xs">NO AUDIT EVENTS AVAILABLE</td></tr>'
 
     # Perform Template Replacements
     content = content.replace("{{ BTN_INDIA_CLASS }}", btn_india_class)
@@ -558,6 +587,7 @@ async def read_dashboard(request: Request):
     content = content.replace("<!-- PRERENDER_SYSTEM_HEALTH -->", health_cards_html)
     content = content.replace("<!-- PRERENDER_LATENCY_STAGES -->", stages_html)
     content = content.replace("<!-- PRERENDER_EXECUTION_LOGS -->", exec_logs_html)
+    content = content.replace("<!-- PRERENDER_AUDIT_LOGS -->", audit_rows_html)
 
     # Defensive replacements for any remaining placeholders
     content = content.replace("{{ TOTAL_SWEEPS_COUNT }}", "0")
@@ -690,26 +720,13 @@ async def get_state(workspace: Optional[str] = None):
     currency = meta["currency"]
     currency_symbol = meta["currency_symbol"]
 
-    # Positions: STRICT ZERO LEAKAGE
-    raw_positions = pool_data.get("positions", {})
-    if isinstance(raw_positions, dict):
-        pos_list = list(raw_positions.values())
-    else:
-        pos_list = list(raw_positions)
-
-    if ws == "CRYPTO" and active_pool in ["BINANCE_TESTNET_DEMO", "BINANCE_LIVE_REAL", "BINANCE_DEMO", "BINANCE_LIVE"]:
-        try:
-            b_positions = binance_broker.get_open_positions(active_pool)
-            if b_positions:
-                pos_list = b_positions
-        except Exception as e:
-            print(f"[BINANCE POSITIONS FETCH] Notice: {e}")
-
-    # Strict filtering: keep only instruments belonging to active workspace
-    positions = [
-        pos for pos in pos_list
-        if workspace_manager.is_symbol_allowed(pos.get("ticker", pos.get("symbol", pos.get("asset", ""))), ws)
-    ]
+    # Positions: Single Authoritative Position Snapshot (Sections 1, 2, 9, 10)
+    from core.position_snapshot_service import position_snapshot_service
+    pos_snapshot = position_snapshot_service.get_snapshot(ws)
+    port_aggregate = position_snapshot_service.get_portfolio_aggregate(ws)
+    positions = pos_snapshot["positions"]
+    equity_val = port_aggregate["total_equity"]
+    cash_val = port_aggregate["free_cash"]
 
     from core.order_state_machine import order_state_machine
     from datetime import datetime, timezone, timedelta
@@ -817,7 +834,7 @@ async def get_state(workspace: Optional[str] = None):
             "sub_agents": sub_agents
         })
 
-    audit_log = audit_logger.get_audit_trail()
+    audit_log = audit_logger.get_audit_trail(workspace=ws)
     deposit_history = getattr(usdt_deposit_engine, "requests", [])
     vault_summary = profit_vault.get_vault_summary(active_pool)
     news_intel = macro_engine.get_workspace_news(ws)
@@ -878,8 +895,13 @@ async def get_state(workspace: Optional[str] = None):
         "realized_pnl_pct": round((today_pnl / init_cap) * 100.0, 2),
         "current_drawdown_pct": drawdown_pct,
         "virtual_cash": cash_val,
-        "floating_open_pnl_usd": float(pool_data.get("floating_open_pnl_usd", 0.0)),
+        "floating_open_pnl_usd": float(pos_snapshot.get("unrealized_pnl", 0.0)),
         "positions": positions,
+        "position_snapshot": pos_snapshot,
+        "open_positions_count": pos_snapshot["open_position_count"],
+        "total_exposure": pos_snapshot["total_exposure"],
+        "total_margin": pos_snapshot["total_margin"],
+        "unrealized_pnl": pos_snapshot["unrealized_pnl"],
         "orders": orders,
         "ai_opportunities": formatted_opps,
         "markets": markets,
@@ -2486,9 +2508,11 @@ async def get_api_status():
     from execution.paper_broker import paper_broker
     from core.risk_engine import risk_engine
     
-    b_stat = binance_broker.get_status()
-    acc = paper_broker.get_account_summary()
-    positions = acc.get("positions", acc.get("open_positions", []))
+    from core.position_snapshot_service import position_snapshot_service
+    from core.workspace_manager import workspace_manager
+    active_ws = workspace_manager.get_active_workspace()
+    pos_snap = position_snapshot_service.get_snapshot(active_ws)
+    port_agg = position_snapshot_service.get_portfolio_aggregate(active_ws)
 
     return {
         "status": "HEALTHY",
@@ -2506,14 +2530,14 @@ async def get_api_status():
         "last_execution_at": time.strftime("%Y-%m-%d %H:%M:%S IST"),
         "last_ledger_sync_at": time.strftime("%Y-%m-%d %H:%M:%S IST"),
         "last_reconciliation_at": time.strftime("%Y-%m-%d %H:%M:%S IST"),
-        "open_positions_count": len(positions),
-        "total_exposure": sum(p.get("capital_allocated", 0) for p in positions),
-        "equity": acc.get("portfolio_equity", 100023.49),
-        "free_cash": acc.get("virtual_cash", 95196.83),
-        "realized_pnl": 0.0,
-        "unrealized_pnl": acc.get("floating_open_pnl_usd", 0.0),
-        "drawdown": 0.0,
-        "vault_balance": profit_vault.get_vault_balance(),
+        "open_positions_count": pos_snap["open_position_count"],
+        "total_exposure": pos_snap["total_exposure"],
+        "equity": port_agg["total_equity"],
+        "free_cash": port_agg["free_cash"],
+        "realized_pnl": port_agg["realized_pnl"],
+        "unrealized_pnl": pos_snap["unrealized_pnl"],
+        "drawdown": port_agg["drawdown_pct"],
+        "vault_balance": port_agg["vault_balance"],
         "risk_engine_status": "ACTIVE",
         "kill_switch_status": "READY" if not emergency_kill_switch.is_activated else "ACTIVE"
     }
@@ -3202,11 +3226,37 @@ async def get_india_holdings():
 
 @app.get("/api/india/positions")
 async def get_india_positions():
-    """Return intraday/short-term positions in INR."""
+    """Return intraday/short-term positions in INR from authoritative snapshot."""
     try:
-        from execution.upstox_broker import upstox_broker
-        positions = upstox_broker.get_positions()
-        return JSONResponse({"status": "SUCCESS", "count": len(positions), "positions": positions})
+        from core.position_snapshot_service import position_snapshot_service
+        snapshot = position_snapshot_service.get_snapshot("INDIA")
+        return JSONResponse({
+            "status": "SUCCESS",
+            "snapshot_id": snapshot["snapshot_id"],
+            "generated_at": snapshot["generated_at"],
+            "count": snapshot["open_position_count"],
+            "open_position_count": snapshot["open_position_count"],
+            "total_exposure": snapshot["total_exposure"],
+            "total_margin": snapshot["total_margin"],
+            "unrealized_pnl": snapshot["unrealized_pnl"],
+            "reconciliation_status": snapshot["reconciliation_status"],
+            "snapshot_status": snapshot["status"],
+            "positions": snapshot["positions"]
+        })
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+@app.get("/api/position-snapshot")
+@app.get("/api/positions")
+async def get_position_snapshot(workspace: Optional[str] = None):
+    """Return authoritative position snapshot for active or specified workspace (Section 2)."""
+    try:
+        from core.position_snapshot_service import position_snapshot_service
+        from core.workspace_manager import workspace_manager
+        ws = workspace or workspace_manager.get_active_workspace()
+        snapshot = position_snapshot_service.get_snapshot(ws)
+        return JSONResponse({"status": "SUCCESS", **snapshot})
     except Exception as e:
         return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
 

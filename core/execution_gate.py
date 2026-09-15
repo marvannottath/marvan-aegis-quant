@@ -50,7 +50,10 @@ class ExecutionGate:
         leverage: float = 1.0,
         data_age_seconds: Optional[float] = None,
         user_id: str = "OPERATOR",
+        order_type: str = "MARKET",
+        product: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
+        **kwargs
     ) -> Tuple[bool, str, str, Dict[str, Any]]:
         """
         Validate order against all 20 safety checklist gates.
@@ -209,13 +212,26 @@ class ExecutionGate:
             self._log_rejection(audit_logger, code, reason, sym, target_ws, environment, user_id)
             return False, code, reason, {"lockout_reason": macro_engine.lockout_reason}
 
-        # 14. Reconciliation Health Gate
+        # 14. Reconciliation Health Gate (Sentinel check)
         recon_status = environment_gate._get_reconciliation_status()
-        if recon_status in ("CRITICAL", "LIVE RECONCILIATION FAILED"):
+        if recon_status in ("CRITICAL", "LIVE RECONCILIATION FAILED", "FAILED", "FAIL"):
             code = "RECONCILIATION_CRITICAL"
             reason = f"Execution rejected: Reconciliation sentinel status is {recon_status}"
             self._log_rejection(audit_logger, code, reason, sym, target_ws, environment, user_id)
             return False, code, reason, {"reconciliation_status": recon_status}
+
+        # 15. Authoritative Position Snapshot & Delta Reconciliation Gate
+        from core.position_snapshot_service import position_snapshot_service
+        pos_snap = position_snapshot_service.get_snapshot(target_ws)
+        if pos_snap.get("reconciliation_status") in ("RECONCILIATION_FAIL", "FAIL", "UNKNOWN") or pos_snap.get("status") in ("FAIL", "UNKNOWN") or pos_snap.get("delta_detected", False):
+            code = "RECONCILIATION_GATE_BLOCKED"
+            reason = f"Execution rejected: Position reconciliation is {pos_snap.get('reconciliation_status')} ({pos_snap.get('delta_description', 'Discrepancy detected')})"
+            self._log_rejection(audit_logger, code, reason, sym, target_ws, environment, user_id)
+            return False, code, reason, {
+                "reconciliation_status": pos_snap.get("reconciliation_status"),
+                "status": pos_snap.get("status"),
+                "delta_detected": pos_snap.get("delta_detected", False)
+            }
 
         # ALL 20 GATES PASSED
         details = {
@@ -262,6 +278,16 @@ class ExecutionGate:
             )
         except Exception as e:
             print(f"[EXECUTION_GATE] Audit log error: {e}")
+
+    def validate_and_gate_order(self, **kwargs) -> Dict[str, Any]:
+        """Convenience dictionary-returning wrapper for validate_order."""
+        allowed, code, reason, details = self.validate_order(**kwargs)
+        return {
+            "allowed": allowed,
+            "rejection_code": code,
+            "reason": reason,
+            "details": details
+        }
 
 
 # Global Singleton

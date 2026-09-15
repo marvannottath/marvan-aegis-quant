@@ -880,7 +880,7 @@
                             </tr>
                         </thead>
                         <tbody id="audit-log-tbody" class="divide-y divide-gray-800/60">
-                            <tr><td colspan="6" class="py-6 text-center text-gray-500 font-mono text-xs">NO AUDIT EVENTS AVAILABLE</td></tr>
+                            <!-- PRERENDER_AUDIT_LOGS -->
                         </tbody>
                     </table>
                     <div id="audit-pagination" class="pt-3 border-t border-gray-800"></div>
@@ -1710,7 +1710,7 @@
                 const res = await fetch('/api/india/positions');
                 const json = await res.json();
                 if (json.status === 'SUCCESS' && Array.isArray(json.positions)) {
-                    renderIndiaPositionsTable(json.positions);
+                    renderPositionsTable(json.positions);
                 }
             } catch (e) {
                 console.warn('India positions notice:', e);
@@ -1718,31 +1718,7 @@
         }
 
         function renderIndiaPositionsTable(positions) {
-            const tbody = document.getElementById('positions-full-tbody');
-            if (!tbody) return;
-            if (!positions || positions.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="9" class="py-8 text-center text-gray-500 font-mono text-xs"><i class="fa-solid fa-layer-group text-2xl mb-2 text-gray-700 block"></i>NO ACTIVE INDIAN POSITIONS — Upstox CNC / MIS Ready</td></tr>`;
-                return;
-            }
-            tbody.innerHTML = positions.map(pos => {
-                const pnl = pos.unrealized_pnl || 0.0;
-                const pnlClass = pnl >= 0 ? 'text-emerald-400' : 'text-red-400';
-                return `
-                <tr class="border-b border-gray-800/60 hover:bg-gray-900/50 text-xs font-mono">
-                    <td class="py-3 px-3 font-bold text-white">🇮🇳 ${pos.symbol}</td>
-                    <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded ${pos.side === 'BUY' ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}">${pos.side}</span></td>
-                    <td class="py-3 px-3 text-gray-300 font-bold">${pos.quantity}</td>
-                    <td class="py-3 px-3 text-gray-400">₹${Number(pos.entry_price || 0).toFixed(2)}</td>
-                    <td class="py-3 px-3 text-white font-bold">₹${Number(pos.last_price || pos.entry_price || 0).toFixed(2)}</td>
-                    <td class="py-3 px-3 ${pnlClass} font-bold">${pnl >= 0 ? '+' : ''}₹${pnl.toFixed(2)}</td>
-                    <td class="py-3 px-3 text-gray-400">${pos.product || 'CNC'}</td>
-                    <td class="py-3 px-3 text-right">
-                        <button onclick="closeIndiaPosition('${pos.symbol}')" class="px-2.5 py-1 bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white font-bold rounded transition text-[10px]">
-                            CLOSE
-                        </button>
-                    </td>
-                </tr>`;
-            }).join('');
+            renderPositionsTable(positions);
         }
 
         async function closeIndiaPosition(symbol) {
@@ -2782,20 +2758,22 @@
             const paginatedItems = items.slice(startIndex, startIndex + AUDIT_PAGE_SIZE);
 
             tbody.innerHTML = paginatedItems.map(a => {
-                const actorName = a.actor || a.user_id || 'SYSTEM_CORE';
-                const actorIp = a.ip || a.ip_address || 'INTERNAL';
+                const actorName = a.actor || a.user_id || 'SYSTEM';
+                const actorScope = a.workspace || a.ip || a.ip_address || 'GLOBAL';
                 const actionName = a.action || a.event_type || 'AUDIT_LOG';
-                const objectName = a.object || a.asset || a.reference_id || 'SYSTEM';
+                const objectName = a.symbol || a.order_id || a.execution_id || a.object || a.asset || a.reference_id || 'SYSTEM';
                 const resultStatus = a.result || a.status || 'CONFIRMED';
                 const eventId = a.event_id || a.id || '--';
+                const isPass = ['PASS', 'SUCCESS', 'APPROVED', 'AUTHORIZED', 'COMPLETED', 'CONFIRMED', 'RECORDED'].includes(String(resultStatus).toUpperCase());
+                const resClass = isPass ? 'text-emerald-400' : 'text-red-400';
                 return `
                 <tr class="border-b border-gray-800/60 hover:bg-gray-900/50 text-xs">
-                    <td class="py-2.5 px-3 text-gray-400">${a.timestamp || '2026-09-03'}</td>
-                    <td class="py-2.5 px-3 text-white font-bold">${actorName} <span class="text-gray-500 font-normal">(${actorIp})</span></td>
+                    <td class="py-2.5 px-3 text-gray-400">${a.timestamp || ''}</td>
+                    <td class="py-2.5 px-3 text-white font-bold">${actorName} <span class="text-gray-500 font-normal">(${actorScope})</span></td>
                     <td class="py-2.5 px-3 text-amber-400 font-bold">${actionName}</td>
-                    <td class="py-2.5 px-3 text-white">${objectName}</td>
-                    <td class="py-2.5 px-3 text-emerald-400 font-bold">${resultStatus}</td>
-                    <td class="py-2.5 px-3 text-gray-500 font-mono">${eventId}</td>
+                    <td class="py-2.5 px-3 text-white font-mono">${objectName}</td>
+                    <td class="py-2.5 px-3 ${resClass} font-bold">${resultStatus}</td>
+                    <td class="py-2.5 px-3 text-gray-500 font-mono text-[10px]">${eventId}</td>
                 </tr>`;
             }).join('');
 
@@ -3434,15 +3412,15 @@
                     }
                     const tbody = document.getElementById('execution-logs-tbody');
                     if (tbody) {
-                        tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-gray-500 font-mono text-xs"><i class="fa-solid fa-bolt text-amber-400 mr-2"></i>NO INDIA EXECUTION DATA</td></tr>`;
+                        tbody.innerHTML = `<tr><td colspan="8" class="py-8 text-center text-gray-500 font-mono text-xs"><i class="fa-solid fa-bolt text-amber-400 mr-2"></i>NO INDIA EXECUTION DATA</td></tr>`;
                     }
                     return;
                 }
 
-                if (document.getElementById('exec-kpi-p50')) document.getElementById('exec-kpi-p50').innerText = (hasData && data.p50) ? (data.p50.toFixed(1) + ' ms') : '484.8 ms';
-                if (document.getElementById('exec-kpi-p95')) document.getElementById('exec-kpi-p95').innerText = (hasData && data.p95) ? (data.p95.toFixed(1) + ' ms') : '530.3 ms';
-                if (document.getElementById('exec-kpi-p99')) document.getElementById('exec-kpi-p99').innerText = (hasData && data.p99) ? (data.p99.toFixed(1) + ' ms') : '660.7 ms';
-                if (document.getElementById('exec-kpi-avg')) document.getElementById('exec-kpi-avg').innerText = (hasData && data.avg) ? (data.avg.toFixed(1) + ' ms') : '498.2 ms';
+                if (document.getElementById('exec-kpi-p50')) document.getElementById('exec-kpi-p50').innerText = (hasData && data.p50 !== null && data.p50 !== undefined) ? (data.p50.toFixed(1) + ' ms') : 'NOT MEASURED';
+                if (document.getElementById('exec-kpi-p95')) document.getElementById('exec-kpi-p95').innerText = (hasData && data.p95 !== null && data.p95 !== undefined) ? (data.p95.toFixed(1) + ' ms') : 'NOT MEASURED';
+                if (document.getElementById('exec-kpi-p99')) document.getElementById('exec-kpi-p99').innerText = (hasData && data.p99 !== null && data.p99 !== undefined) ? (data.p99.toFixed(1) + ' ms') : 'NOT MEASURED';
+                if (document.getElementById('exec-kpi-avg')) document.getElementById('exec-kpi-avg').innerText = (hasData && data.avg !== null && data.avg !== undefined) ? (data.avg.toFixed(1) + ' ms') : 'NOT MEASURED';
 
                 // Render 10 Stage Cards
                 const stagesContainer = document.getElementById('latency-stages-container');

@@ -2,9 +2,11 @@
 Aegis-Quant Backtest Analytics Engine.
 Serves persisted backtest run data from `data/backtest_runs.json` and `data/backtest_latest_run.json`.
 Enforces strict data integrity assertions:
-  1. Initial Capital + Sum(Net Trade PnL) == Final Capital
-  2. Final Equity Curve Point == Final Capital
-  3. First Equity Curve Timestamp >= Backtest Start Timestamp
+  1. If trade log missing: RECONCILIATION = INCOMPLETE (never PASS).
+  2. If trade_count == N: retrieve corresponding N actual trade records.
+  3. Initial Capital + Sum(Net Trade PnL) == Final Capital (RECONCILIATION_OK).
+  4. Final Equity Curve Point == Final Capital.
+  5. Authoritative metadata exposed across 25 fields.
 """
 
 import json
@@ -53,8 +55,6 @@ class BacktestAnalyticsEngine:
         timeframe = r.get("timeframe") or prov.get("timeframe") or "1h"
         strategy = r.get("strategy_name") or r.get("strategy") or "AEGIS 7-Agent Ensemble"
 
-        integrity = self._verify_integrity(r)
-
         # Workspace & Asset Class Detection
         indian_assets = ["RELIANCE", "TCS", "INFY", "HDFCBANK", "SBIN", "NIFTY", "BANKNIFTY", "TATAMOTORS"]
         forex_assets = ["EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "USDCHF", "USDCAD", "NZDUSD", "XAUUSD"]
@@ -80,76 +80,111 @@ class BacktestAnalyticsEngine:
             currency_symbol = "USDT"
 
         trade_list = r.get("trade_history", [])
-        tot_trades = int(r.get("total_trades", len(trade_list)))
+        actual_trade_count = len(trade_list)
+
+        # Integrity Check
+        integrity = self._verify_integrity(r)
+
+        # Calculate metrics from actual trade rows if present
+        if actual_trade_count > 0:
+            sum_gross = sum(float(t.get("gross_pnl") or t.get("pnl_usd") or 0.0) for t in trade_list)
+            sum_fees = sum(float(t.get("fees") or t.get("fee_usd") or 0.0) for t in trade_list)
+            sum_slippage = sum(float(t.get("slippage") or t.get("slippage_usd") or 0.0) for t in trade_list)
+            sum_net = sum(float(t.get("net_pnl") or t.get("pnl_usd") or 0.0) for t in trade_list)
+            winning_trades = sum(1 for t in trade_list if float(t.get("net_pnl") or t.get("pnl_usd") or 0.0) > 0)
+            losing_trades = sum(1 for t in trade_list if float(t.get("net_pnl") or t.get("pnl_usd") or 0.0) < 0)
+            win_rate = round((winning_trades / actual_trade_count * 100.0), 1)
+        else:
+            sum_gross = 0.0
+            sum_fees = 0.0
+            sum_slippage = 0.0
+            sum_net = 0.0
+            winning_trades = 0
+            losing_trades = 0
+            win_rate = 0.0
+
+        data_source_name = prov.get("exchange") or ("NSE Historical Data" if ws == "INDIA" else ("Binance Historical Archive" if ws == "CRYPTO" else "Global FX Tick Data"))
 
         return {
+            # 25 Section 3 Authoritative Metadata Fields
             "backtest_id": backtest_id,
             "workspace": ws,
             "asset_class": asset_class,
             "venue": venue,
             "currency": currency,
-            "currency_symbol": currency_symbol,
+            "dataset_id": prov.get("dataset_id") or f"DS-{symbol}-{timeframe}",
+            "data_source": data_source_name,
             "strategy": strategy,
             "strategy_version": r.get("strategy_version", "v2.4"),
-            "symbol": symbol,
             "timeframe": timeframe,
+            "start_date": str(start_ts).split(" ")[0],
+            "end_date": str(end_ts).split(" ")[0],
+            "initial_capital": round(init_cap, 2),
+            "final_capital": round(final_eq, 2),
+            "trade_count": actual_trade_count,
+            "fees": round(sum_fees, 2),
+            "slippage": round(sum_slippage, 2),
+            "gross_pnl": round(sum_gross, 2),
+            "net_pnl": round(pnl, 2),
+            "max_drawdown": float(r.get("max_drawdown_pct", 0.0)),
+            "sharpe": float(r.get("sharpe_ratio", 0.0)),
+            "sortino": float(r.get("sortino_ratio", 0.0)),
+            "equity_curve": r.get("equity_curve", []),
+            "trade_log_reference": f"TLOG-{backtest_id}" if actual_trade_count > 0 else None,
+            "reconciliation_status": integrity["status"],
+
+            # Backward-compatible and presentation attributes
+            "currency_symbol": currency_symbol,
+            "symbol": symbol,
             "start_timestamp": start_ts,
             "end_timestamp": end_ts,
             "date_range": f"{str(start_ts).split(' ')[0]} → {str(end_ts).split(' ')[0]}",
-            "initial_capital": round(init_cap, 2),
-            "final_capital": round(final_eq, 2),
-            "net_pnl": round(pnl, 2),
             "return_pct": float(r.get("total_return_pct", round((pnl / init_cap * 100.0), 2) if init_cap > 0 else 0.0)),
             "cagr": float(r.get("cagr_pct", 0.0)),
             "sharpe_ratio": float(r.get("sharpe_ratio", 0.0)),
             "sortino_ratio": float(r.get("sortino_ratio", 0.0)),
             "max_drawdown_pct": float(r.get("max_drawdown_pct", 0.0)),
             "profit_factor": float(r.get("profit_factor", 1.0)),
-            "win_rate_pct": float(r.get("win_rate_pct", 0.0)),
-            "total_trades": tot_trades,
-            "trade_count": tot_trades,
-            "has_trade_log": len(trade_list) > 0,
-            "winning_trades": int(r.get("winning_trades", 0)),
-            "losing_trades": int(r.get("losing_trades", 0)),
-            "fees": float(r.get("total_fees_usd", 0.0)),
-            "slippage": float(r.get("total_slippage_usd", 0.0)),
-            "total_fees_usd": float(r.get("total_fees_usd", 0.0)),
-            "total_slippage_usd": float(r.get("total_slippage_usd", 0.0)),
-            "reconciliation_status": integrity["status"],
+            "win_rate_pct": win_rate if actual_trade_count > 0 else float(r.get("win_rate_pct", 0.0)),
+            "total_trades": actual_trade_count,
+            "has_trade_log": actual_trade_count > 0,
+            "winning_trades": winning_trades,
+            "losing_trades": losing_trades,
+            "total_fees_usd": round(sum_fees, 2),
+            "total_slippage_usd": round(sum_slippage, 2),
             "integrity_status": integrity["status"],
             "integrity_message": integrity["message"],
-            "dataset_provenance": prov.get("exchange") or ("NSE Historical Data" if ws == "INDIA" else ("Binance Historical Archive" if ws == "CRYPTO" else "Global FX Tick Data")),
-            "provenance_verified": integrity["status"] == "VERIFIED",
+            "dataset_provenance": data_source_name,
+            "provenance_verified": integrity["status"] in ("RECONCILIATION_OK", "VERIFIED"),
+            "provenance_label": f"[GLOBAL / NON-INDIA BACKTEST] {backtest_id}" if ws != "INDIA" else backtest_id,
             "created_at": r.get("created_at", "2026-09-02")
         }
 
     def _verify_integrity(self, r: Dict[str, Any]) -> Dict[str, Any]:
-        """Validate financial integrity invariants."""
+        """
+        Validate financial integrity invariants (Section 5).
+        A backtest may show RECONCILIATION_OK ONLY when:
+          initial capital + realized PnL - fees - slippage == final capital
+        If the trade log is missing:
+          RECONCILIATION = INCOMPLETE (not PASS)
+        """
+        trades = r.get("trade_history", [])
+        if not trades or len(trades) == 0:
+            return {
+                "status": "INCOMPLETE",
+                "message": "Trade log missing — RECONCILIATION = INCOMPLETE"
+            }
+
         init_cap = float(r.get("initial_capital", 100000.0))
         final_eq = float(r.get("final_equity") or r.get("final_capital") or init_cap)
-        trades = r.get("trade_history", [])
-        
-        tot_trades = int(r.get("total_trades", len(trades)))
-        
-        if trades and len(trades) == tot_trades:
-            sum_pnl = sum(float(t.get("net_pnl") or t.get("pnl_usd") or 0.0) for t in trades)
-            expected_final = round(init_cap + sum_pnl, 2)
-            if abs(expected_final - round(final_eq, 2)) > 1.0:
-                return {
-                    "status": "DATA_INTEGRITY_ERROR",
-                    "message": f"Final capital (${final_eq:.2f}) does not match Initial + SUM(Trade PnL) (${expected_final:.2f})"
-                }
-        elif trades and len(trades) < tot_trades:
-            # Sampled trade history — verify each sample trade has valid non-zero pricing and math
-            for t in trades[:10]:
-                gross = float(t.get("gross_pnl") or t.get("pnl_usd") or 0.0)
-                fees = float(t.get("fees") or 0.0)
-                net = float(t.get("net_pnl") or 0.0)
-                if abs(round(gross - fees, 2) - round(net, 2)) > 1.0 and abs(gross - net) > 1.0:
-                    return {
-                        "status": "DATA_INTEGRITY_ERROR",
-                        "message": f"Trade {t.get('trade_id')} math mismatch: gross({gross}) - fees({fees}) != net({net})"
-                    }
+
+        sum_pnl = sum(float(t.get("net_pnl") or t.get("pnl_usd") or 0.0) for t in trades)
+        expected_final = round(init_cap + sum_pnl, 2)
+        if abs(expected_final - round(final_eq, 2)) > 1.0:
+            return {
+                "status": "DATA_INTEGRITY_ERROR",
+                "message": f"Final capital (${final_eq:.2f}) does not match Initial + SUM(Trade PnL) (${expected_final:.2f})"
+            }
 
         eq_curve = r.get("equity_curve", [])
         if eq_curve:
@@ -160,7 +195,7 @@ class BacktestAnalyticsEngine:
                     "message": f"Final equity curve point (${float(last_pt):.2f}) does not match final capital (${final_eq:.2f})"
                 }
 
-        return {"status": "VERIFIED", "message": "All financial integrity checks PASSED"}
+        return {"status": "RECONCILIATION_OK", "message": "All financial integrity checks PASSED (RECONCILIATION_OK)"}
 
     def get_backtest_detail(self, backtest_id: str) -> Optional[Dict[str, Any]]:
         """Return complete details for a specific backtest run."""

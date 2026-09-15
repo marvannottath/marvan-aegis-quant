@@ -1,6 +1,9 @@
 """
-Immutable Financial Audit Logger for Aegis Quant.
-Records all financial events (deposit_created, deposit_credited, withdrawal_requested, etc.) with IP & session metadata.
+Immutable Financial & Operational Audit Logger for Aegis Quant.
+Records authoritative events (LOGIN, LOGOUT, WORKSPACE_SWITCH, ORDER_ATTEMPT, ORDER_REJECTED,
+ORDER_APPROVED, ORDER_SUBMITTED, ORDER_FILLED, ORDER_CANCELLED, POSITION_OPENED, POSITION_CLOSED,
+RISK_REJECTION, KILL_SWITCH, CONFIG_CHANGE, BROKER_CONNECTION_CHANGE, DEPOSIT, WITHDRAWAL)
+with SHA-256 cryptographic integrity hash and session metadata.
 """
 
 import json
@@ -12,6 +15,7 @@ from datetime import datetime, timezone, timedelta
 
 IST_TZ = timezone(timedelta(hours=5, minutes=30))
 AUDIT_LOG_FILE = Path(__file__).resolve().parent.parent / "data" / "financial_audit_log.json"
+
 
 class FinancialAuditLogger:
     def __init__(self):
@@ -52,12 +56,18 @@ class FinancialAuditLogger:
         venue: Optional[str] = None,
         symbol: Optional[str] = None,
         result: str = "SUCCESS",
+        reason: str = "",
+        source: str = "SYSTEM",
+        order_id: Optional[str] = None,
+        execution_id: Optional[str] = None,
         correlation_id: Optional[str] = None,
         **kwargs
     ) -> Dict[str, Any]:
         event_id = f"AUD-{int(time.time()*1000)}-{event_type[:4].upper()}"
         now_str = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S")
         corr_id = correlation_id or reference_id or event_id
+        resolved_order_id = order_id or kwargs.get("order_id") or reference_id or ""
+        resolved_exec_id = execution_id or kwargs.get("execution_id") or ""
 
         # Determine workspace & venue intelligently if not explicitly provided
         ws = workspace
@@ -73,22 +83,29 @@ class FinancialAuditLogger:
         if not vn:
             vn = "NSE/BSE" if ws == "INDIA" else ("BINANCE" if ws == "CRYPTO" else "GLOBAL_FX")
 
-        sym = symbol or asset
+        sym = symbol or asset or ""
 
         integrity_hash = hashlib.sha256(
-            f"{event_id}:{now_str}:{event_type}:{user_id}:{amount}:{asset}:{result}:{corr_id}".encode("utf-8")
+            f"{event_id}:{now_str}:{event_type}:{user_id}:{amount}:{asset}:{result}:{corr_id}:{reason}".encode("utf-8")
         ).hexdigest()
 
         record = {
             "event_id": event_id,
             "timestamp": now_str,
             "event_type": event_type,
+            "action": event_type,
             "user_id": user_id,
+            "actor": user_id,
             "environment": environment,
             "workspace": ws,
             "venue": vn,
             "symbol": sym,
+            "object": sym or asset or reference_id,
             "result": result,
+            "reason": reason,
+            "source": source,
+            "order_id": resolved_order_id,
+            "execution_id": resolved_exec_id,
             "amount": round(float(amount or 0.0), 2),
             "asset": asset,
             "network": network,
@@ -96,6 +113,7 @@ class FinancialAuditLogger:
             "reference_id": reference_id or corr_id,
             "correlation_id": corr_id,
             "ip_address": ip_address,
+            "ip": ip_address,
             "integrity_hash": integrity_hash
         }
         for k, v in kwargs.items():
@@ -118,15 +136,38 @@ class FinancialAuditLogger:
 
     def get_audit_trail(self, environment: Optional[str] = None, workspace: Optional[str] = None) -> List[Dict[str, Any]]:
         logs = self.logs
-        if workspace and workspace not in ["ALL", ""]:
-            ws_norm = "INDIA" if "IND" in workspace.upper() else ("CRYPTO" if "CRYP" in workspace.upper() or "BINANCE" in workspace.upper() else "FOREX_GOLD")
-            matched = [l for l in logs if l.get("workspace") == ws_norm or (ws_norm == "INDIA" and l.get("asset") == "INR")]
+        if workspace and workspace.upper() not in ["ALL", "GLOBAL", ""]:
+            from core.workspace_manager import workspace_manager
+            ws_norm = workspace_manager._normalize_workspace(workspace)
+            matched = [
+                l for l in logs
+                if l.get("workspace") == ws_norm
+                or (ws_norm == "INDIA" and (l.get("asset") == "INR" or l.get("environment") in ["AEGIS_INDIA_INR", "UPSTOX_DEMO", "UPSTOX_LIVE"]))
+                or (ws_norm == "CRYPTO" and (l.get("asset") in ["USDT", "BTC", "ETH", "SOL"] or "BINANCE" in str(l.get("environment", ""))))
+                or (ws_norm == "FOREX_GOLD" and (l.get("asset") in ["USD", "XAU", "EUR"] or "FOREX" in str(l.get("environment", ""))))
+            ]
             return matched
         if environment and environment not in ["ALL", ""]:
             matched = [l for l in logs if l.get("environment") == environment]
             if matched:
                 return matched
         return logs
+
+    def get_events(self, limit: Optional[int] = None, workspace: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Convenience query method for audit events."""
+        events = self.get_audit_trail(workspace=workspace)
+        return events[:limit] if limit else events
+
+    def get_event(self, event_id: str) -> Optional[Dict[str, Any]]:
+        """Retrieve single audit event by ID."""
+        for ev in self.logs:
+            if ev.get("event_id") == event_id or ev.get("id") == event_id:
+                return ev
+        return None
+
+    def record_event(self, **kwargs) -> Dict[str, Any]:
+        """Convenience alias for log_event."""
+        return self.log_event(**kwargs)
 
 
 # Global Singleton

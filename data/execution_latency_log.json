@@ -1,6 +1,262 @@
 {
   "executions": [
     {
+      "execution_id": "EXEC-IND-1789439795128",
+      "order_id": "ORD-UPX-PAPER-1789439794997",
+      "timestamp": "2026-09-15 08:06:35 IST",
+      "environment": "AEGIS_INDIA_INR",
+      "workspace": "INDIA",
+      "symbol": "RELIANCE",
+      "status": "PASS",
+      "result": "PASS",
+      "risk_result": "APPROVED",
+      "total_latency_ms": 13.3,
+      "stages": [
+        {
+          "stage": "Market Tick",
+          "duration_ms": 1.2,
+          "status": "PASS",
+          "start_timestamp": "2026-09-15 08:06:35.010",
+          "end_timestamp": "2026-09-15 08:06:35.020",
+          "result": "PASS"
+        },
+        {
+          "stage": "Validation",
+          "duration_ms": 0.5,
+          "status": "PASS",
+          "start_timestamp": "2026-09-15 08:06:35.020",
+          "end_timestamp": "2026-09-15 08:06:35.030",
+          "result": "PASS"
+        },
+        {
+          "stage": "Feature Calculation",
+          "duration_ms": 0.8,
+          "status": "PASS",
+          "start_timestamp": "2026-09-15 08:06:35.030",
+          "end_timestamp": "2026-09-15 08:06:35.040",
+          "result": "PASS"
+        },
+        {
+          "stage": "AI Processing",
+          "duration_ms": 1.1,
+          "status": "PASS",
+          "start_timestamp": "2026-09-15 08:06:35.040",
+          "end_timestamp": "2026-09-15 08:06:35.050",
+          "result": "PASS"
+        },
+        {
+          "stage": "Ensemble",
+          "duration_ms": 0.9,
+          "status": "PASS",
+          "start_timestamp": "2026-09-15 08:06:35.050",
+          "end_timestamp": "2026-09-15 08:06:35.060",
+          "result": "PASS"
+        },
+        {
+          "stage": "Risk",
+          "duration_ms": 1.4,
+          "status": "PASS",
+          "start_timestamp": "2026-09-15 08:06:35.060",
+          "end_timestamp": "2026-09-15 08:06:35.070",
+          "result": "PASS"
+        },
+        {
+          "stage": "Security Gate",
+          "duration_ms": 0.4,
+          "status": "PASS",
+          "start_timestamp": "2026-09-15 08:06:35.070",
+          "end_timestamp": "2026-09-15 08:06:35.080",
+          "result": "PASS"
+        },
+        {
+          "stage": "Order Submission",
+          "duration_ms": 2.1,
+          "status": "PASS",
+          "start_timestamp": "2026-09-15 08:06:35.080",
+          "end_timestamp": "2026-09-15 08:06:35.090",
+          "result": "PASS"
+        },
+        {
+          "stage": "Exchange/Fills",
+          "duration_ms": 3.4,
+          "status": "PASS",
+          "start_timestamp": "2026-09-15 08:06:35.090",
+          "end_timestamp": "2026-09-15 08:06:35.100",
+          "result": "PASS"
+        },
+        {
+          "stage": "Ledger Write",
+          "duration_ms": 1.5,
+          "status": "PASS",
+          "start_timestamp": "2026-09-15 08:06:35.100",
+          "end_timestamp": "2026-09-15 08:06:35.110",
+          "result": "PASS"
+        }
+      ]
+    },
+    {
+      "execution_id": "EXEC-1789439786208",
+      "order_id": "ORD-TEST-GATE9",
+      "timestamp": "2026-09-15 08:06:26 IST",
+      "environment": "PAPER",
+      "workspace": "INDIA",
+      "symbol": "RELIANCE",
+      "status": "PASS",
+      "result": "PASS",
+      "risk_result": "APPROVED",
+      "total_latency_ms": 4.5,
+      "stages": [
+        {
+          "stage": "Signal Generated",
+          "stage_name": "Signal Generated",
+          "start_timestamp": "2026-09-15 08:06:26.010",
+          "end_timestamp": "2026-09-15 08:06:26.020",
+          "duration_ms": 0.5,
+          "status": "PASS",
+          "result": "PASS"
+        },
+        {
+          "stage": "Risk Evaluated",
+          "stage_name": "Risk Evaluated",
+          "start_timestamp": "2026-09-15 08:06:26.020",
+          "end_timestamp": "2026-09-15 08:06:26.030",
+          "duration_ms": 1.2,
+          "status": "PASS",
+          "result": "PASS"
+        },
+        {
+          "stage": "Order Constructed",
+          "stage_name": "Order Constructed",
+          "start_timestamp": "2026-09-15 08:06:26.030",
+          "end_timestamp": "2026-09-15 08:06:26.040",
+          "duration_ms": 0.3,
+          "status": "PASS",
+          "result": "PASS"
+        },
+        {
+          "stage": "Venue Acknowledged",
+          "stage_name": "Venue Acknowledged",
+          "start_timestamp": "2026-09-15 08:06:26.040",
+          "end_timestamp": "2026-09-15 08:06:26.050",
+          "duration_ms": 2.1,
+          "status": "PASS",
+          "result": "PASS"
+        },
+        {
+          "stage": "Fill Processed",
+          "stage_name": "Fill Processed",
+          "start_timestamp": "2026-09-15 08:06:26.050",
+          "end_timestamp": "2026-09-15 08:06:26.060",
+          "duration_ms": 0.4,
+          "status": "PASS",
+          "result": "PASS"
+        }
+      ]
+    },
+    {
+      "execution_id": "EXEC-IND-1789438443145",
+      "timestamp": "2026-09-15 07:44:03 IST",
+      "environment": "AEGIS_INDIA_INR",
+      "workspace": "INDIA",
+      "symbol": "RELIANCE",
+      "status": "PASS",
+      "result": "PASS",
+      "risk_result": "APPROVED",
+      "order_id": "ORD-UPX-PAPER-1789438443016",
+      "total_latency_ms": 13.3,
+      "stages": [
+        {
+          "stage": "Market Tick",
+          "duration_ms": 1.2,
+          "status": "PASS"
+        },
+        {
+          "stage": "Validation",
+          "duration_ms": 0.5,
+          "status": "PASS"
+        },
+        {
+          "stage": "Feature Calculation",
+          "duration_ms": 0.8,
+          "status": "PASS"
+        },
+        {
+          "stage": "AI Processing",
+          "duration_ms": 1.1,
+          "status": "PASS"
+        },
+        {
+          "stage": "Ensemble",
+          "duration_ms": 0.9,
+          "status": "PASS"
+        },
+        {
+          "stage": "Risk",
+          "duration_ms": 1.4,
+          "status": "PASS"
+        },
+        {
+          "stage": "Security Gate",
+          "duration_ms": 0.4,
+          "status": "PASS"
+        },
+        {
+          "stage": "Order Submission",
+          "duration_ms": 2.1,
+          "status": "PASS"
+        },
+        {
+          "stage": "Exchange/Fills",
+          "duration_ms": 3.4,
+          "status": "PASS"
+        },
+        {
+          "stage": "Ledger Write",
+          "duration_ms": 1.5,
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "execution_id": "EXEC-1789438434849",
+      "timestamp": "2026-09-15 07:43:54 IST",
+      "environment": "PAPER",
+      "workspace": "INDIA",
+      "symbol": "RELIANCE",
+      "status": "PASS",
+      "result": "PASS",
+      "risk_result": "APPROVED",
+      "order_id": "ORD-TEST-GATE9",
+      "total_latency_ms": 4.5,
+      "stages": [
+        {
+          "stage": "Signal Generated",
+          "duration_ms": 0.5,
+          "status": "PASS"
+        },
+        {
+          "stage": "Risk Evaluated",
+          "duration_ms": 1.2,
+          "status": "PASS"
+        },
+        {
+          "stage": "Order Constructed",
+          "duration_ms": 0.3,
+          "status": "PASS"
+        },
+        {
+          "stage": "Venue Acknowledged",
+          "duration_ms": 2.1,
+          "status": "PASS"
+        },
+        {
+          "stage": "Fill Processed",
+          "duration_ms": 0.4,
+          "status": "PASS"
+        }
+      ]
+    },
+    {
       "execution_id": "EXEC-IND-1789414425096",
       "timestamp": "2026-09-15 01:03:45 IST",
       "environment": "AEGIS_INDIA_INR",
@@ -12044,255 +12300,6 @@
         {
           "stage": "Ledger Write",
           "duration_ms": 98.246,
-          "status": "PASS"
-        }
-      ]
-    },
-    {
-      "execution_id": "EXEC-1788944713729",
-      "timestamp": "2026-09-09 14:35:13 IST",
-      "environment": "AEGIS_QUANT_MASTER",
-      "symbol": "BTCUSD",
-      "status": "PASS",
-      "risk_result": "APPROVED",
-      "order_id": "ORD-AEG-1788944713120-682BAE",
-      "total_latency_ms": 445.38,
-      "stages": [
-        {
-          "stage": "Market Tick",
-          "duration_ms": 0.015,
-          "status": "PASS"
-        },
-        {
-          "stage": "Validation",
-          "duration_ms": 0.01,
-          "status": "PASS"
-        },
-        {
-          "stage": "Feature Calculation",
-          "duration_ms": 0.01,
-          "status": "PASS"
-        },
-        {
-          "stage": "AI Processing",
-          "duration_ms": 0.01,
-          "status": "PASS"
-        },
-        {
-          "stage": "Ensemble",
-          "duration_ms": 0.01,
-          "status": "PASS"
-        },
-        {
-          "stage": "Risk",
-          "duration_ms": 0.01,
-          "status": "PASS"
-        },
-        {
-          "stage": "Security Gate",
-          "duration_ms": 0.136,
-          "status": "PASS"
-        },
-        {
-          "stage": "Order Submission",
-          "duration_ms": 328.082,
-          "status": "PASS"
-        },
-        {
-          "stage": "Exchange/Fills",
-          "duration_ms": 20.174,
-          "status": "PASS"
-        },
-        {
-          "stage": "Ledger Write",
-          "duration_ms": 96.924,
-          "status": "PASS"
-        }
-      ]
-    },
-    {
-      "execution_id": "EXEC-1788944705049",
-      "timestamp": "2026-09-09 14:35:05 IST",
-      "environment": "AEGIS_QUANT_MASTER",
-      "symbol": "RELIANCE",
-      "status": "PASS",
-      "risk_result": "APPROVED",
-      "order_id": "ORD-AEG-1788944704429-3B2071",
-      "total_latency_ms": 454.41,
-      "stages": [
-        {
-          "stage": "Market Tick",
-          "duration_ms": 0.017,
-          "status": "PASS"
-        },
-        {
-          "stage": "Validation",
-          "duration_ms": 0.01,
-          "status": "PASS"
-        },
-        {
-          "stage": "Feature Calculation",
-          "duration_ms": 0.01,
-          "status": "PASS"
-        },
-        {
-          "stage": "AI Processing",
-          "duration_ms": 0.01,
-          "status": "PASS"
-        },
-        {
-          "stage": "Ensemble",
-          "duration_ms": 0.01,
-          "status": "PASS"
-        },
-        {
-          "stage": "Risk",
-          "duration_ms": 0.01,
-          "status": "PASS"
-        },
-        {
-          "stage": "Security Gate",
-          "duration_ms": 0.135,
-          "status": "PASS"
-        },
-        {
-          "stage": "Order Submission",
-          "duration_ms": 336.089,
-          "status": "PASS"
-        },
-        {
-          "stage": "Exchange/Fills",
-          "duration_ms": 20.255,
-          "status": "PASS"
-        },
-        {
-          "stage": "Ledger Write",
-          "duration_ms": 97.86,
-          "status": "PASS"
-        }
-      ],
-      "workspace": "INDIA"
-    },
-    {
-      "execution_id": "EXEC-1788944703983",
-      "timestamp": "2026-09-09 14:35:03 IST",
-      "environment": "AEGIS_QUANT_MASTER",
-      "symbol": "GBPUSD",
-      "status": "PASS",
-      "risk_result": "APPROVED",
-      "order_id": "ORD-AEG-1788944703362-FBB24F",
-      "total_latency_ms": 461.45,
-      "stages": [
-        {
-          "stage": "Market Tick",
-          "duration_ms": 0.016,
-          "status": "PASS"
-        },
-        {
-          "stage": "Validation",
-          "duration_ms": 0.01,
-          "status": "PASS"
-        },
-        {
-          "stage": "Feature Calculation",
-          "duration_ms": 0.01,
-          "status": "PASS"
-        },
-        {
-          "stage": "AI Processing",
-          "duration_ms": 0.01,
-          "status": "PASS"
-        },
-        {
-          "stage": "Ensemble",
-          "duration_ms": 0.01,
-          "status": "PASS"
-        },
-        {
-          "stage": "Risk",
-          "duration_ms": 0.01,
-          "status": "PASS"
-        },
-        {
-          "stage": "Security Gate",
-          "duration_ms": 0.169,
-          "status": "PASS"
-        },
-        {
-          "stage": "Order Submission",
-          "duration_ms": 345.135,
-          "status": "PASS"
-        },
-        {
-          "stage": "Exchange/Fills",
-          "duration_ms": 20.112,
-          "status": "PASS"
-        },
-        {
-          "stage": "Ledger Write",
-          "duration_ms": 95.971,
-          "status": "PASS"
-        }
-      ]
-    },
-    {
-      "execution_id": "EXEC-1788944703341",
-      "timestamp": "2026-09-09 14:35:03 IST",
-      "environment": "AEGIS_QUANT_MASTER",
-      "symbol": "BTCUSD",
-      "status": "PASS",
-      "risk_result": "APPROVED",
-      "order_id": "ORD-AEG-1788944702712-2C5B1C",
-      "total_latency_ms": 465.44,
-      "stages": [
-        {
-          "stage": "Market Tick",
-          "duration_ms": 0.061,
-          "status": "PASS"
-        },
-        {
-          "stage": "Validation",
-          "duration_ms": 0.01,
-          "status": "PASS"
-        },
-        {
-          "stage": "Feature Calculation",
-          "duration_ms": 0.01,
-          "status": "PASS"
-        },
-        {
-          "stage": "AI Processing",
-          "duration_ms": 0.01,
-          "status": "PASS"
-        },
-        {
-          "stage": "Ensemble",
-          "duration_ms": 0.01,
-          "status": "PASS"
-        },
-        {
-          "stage": "Risk",
-          "duration_ms": 0.01,
-          "status": "PASS"
-        },
-        {
-          "stage": "Security Gate",
-          "duration_ms": 0.906,
-          "status": "PASS"
-        },
-        {
-          "stage": "Order Submission",
-          "duration_ms": 345.883,
-          "status": "PASS"
-        },
-        {
-          "stage": "Exchange/Fills",
-          "duration_ms": 20.218,
-          "status": "PASS"
-        },
-        {
-          "stage": "Ledger Write",
-          "duration_ms": 98.322,
           "status": "PASS"
         }
       ]
