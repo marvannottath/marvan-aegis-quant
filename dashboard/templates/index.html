@@ -74,6 +74,32 @@
                 <span id="hdr-env-label" class="font-bold text-emerald-400">AEGIS INDIA POOL (₹100,000.00)</span>
             </div>
 
+            <!-- ═══ PHASE 5C: MARKET SESSION BADGE ═══ -->
+            <div id="market-session-badge" class="hidden lg:flex items-center space-x-1.5 px-2.5 py-1 bg-gray-900 border border-gray-800 rounded-lg" title="Market session state — from authoritative backend">
+                <span id="mkt-session-dot" class="w-2 h-2 rounded-full bg-gray-500"></span>
+                <span class="text-gray-500 text-[10px]">MKT:</span>
+                <span id="mkt-session-label" class="font-bold text-gray-400 text-[10px]">LOADING...</span>
+            </div>
+
+            <!-- ═══ PHASE 5C: AI TRADING MASTER CONTROL ═══ -->
+            <div id="ai-control-panel" class="hidden md:flex items-center space-x-1.5 px-2.5 py-1 bg-gray-900 border border-gray-700 rounded-lg">
+                <span id="ai-state-dot" class="w-2 h-2 rounded-full bg-gray-500"></span>
+                <span class="text-gray-500 text-[10px] font-bold">AI:</span>
+                <span id="ai-state-label" class="font-black text-[10px] text-gray-400">PAUSED</span>
+                <!-- PAUSE button (shown when RUNNING) -->
+                <button id="btn-ai-pause" onclick="aiPause()" class="hidden px-2 py-0.5 rounded text-[9px] font-black bg-yellow-500/20 border border-yellow-500/40 text-yellow-400 hover:bg-yellow-500/30 transition" title="Pause AI trading — preserves existing orders">
+                    ⏸ PAUSE
+                </button>
+                <!-- STOP button (shown when RUNNING or PAUSED) -->
+                <button id="btn-ai-stop" onclick="aiStopConfirm()" class="hidden px-2 py-0.5 rounded text-[9px] font-black bg-red-500/20 border border-red-500/40 text-red-400 hover:bg-red-500/30 transition" title="Stop AI trading — cancels pending AI orders">
+                    ⏹ STOP
+                </button>
+                <!-- RESUME button (shown when PAUSED/STOPPED/BLOCKED) -->
+                <button id="btn-ai-resume" onclick="aiResume()" class="hidden px-2 py-0.5 rounded text-[9px] font-black bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/30 transition" title="Resume AI trading — runs 14-gate preflight">
+                    ▶ RESUME
+                </button>
+            </div>
+
             <!-- Live Trading ON/OFF Toggle -->
             <button id="btn-live-toggle" onclick="toggleLiveTradingState()" class="hidden md:flex items-center space-x-1.5 px-2.5 py-1 bg-red-500/10 border border-red-500/40 text-red-400 font-bold rounded-lg hover:bg-red-500/20 transition cursor-pointer" title="Click to Toggle Live Trading Mode">
                 <i id="icon-live-toggle" class="fa-solid fa-toggle-off"></i>
@@ -95,6 +121,106 @@
             </button>
         </div>
     </header>
+
+    <!-- ═══ PHASE 5C: OPERATIONAL STATUS STRIP (below header) ═══ -->
+    <div id="operational-status-strip" class="flex items-center justify-between px-4 py-1.5 bg-gray-950 border-b border-gray-800 text-[10px] font-mono shrink-0 overflow-x-auto space-x-4 whitespace-nowrap">
+        <div class="flex items-center space-x-4">
+            <div class="flex items-center space-x-1.5">
+                <span class="text-gray-600">MARKET</span>
+                <span id="ops-india-market" class="font-black text-gray-500">INDIA:—</span>
+                <span id="ops-forex-market" class="font-black text-gray-500">FOREX:—</span>
+                <span id="ops-crypto-market" class="font-black text-gray-500">CRYPTO:—</span>
+            </div>
+            <div class="w-px h-3 bg-gray-800"></div>
+            <div class="flex items-center space-x-1.5">
+                <span class="text-gray-600">AI</span>
+                <span id="ops-india-ai" class="font-black text-gray-500">INDIA:—</span>
+                <span id="ops-forex-ai" class="font-black text-gray-500">FOREX:—</span>
+                <span id="ops-crypto-ai" class="font-black text-gray-500">CRYPTO:—</span>
+            </div>
+        </div>
+        <div class="flex items-center space-x-4">
+            <div class="flex items-center space-x-1">
+                <span class="text-gray-600">EXEC:</span>
+                <span id="ops-exec" class="font-black text-gray-500">—</span>
+            </div>
+            <div class="flex items-center space-x-1">
+                <span class="text-gray-600">KS:</span>
+                <span id="ops-ks" class="font-black text-gray-500">—</span>
+            </div>
+            <div class="flex items-center space-x-1">
+                <span class="text-gray-600">DATA:</span>
+                <span id="ops-data" class="font-black text-gray-500">—</span>
+            </div>
+            <div class="flex items-center space-x-1">
+                <span class="text-gray-600">RECON:</span>
+                <span id="ops-recon" class="font-black text-gray-500">—</span>
+            </div>
+            <div class="flex items-center space-x-1">
+                <span class="text-gray-600">BROKER:</span>
+                <span id="ops-broker" class="font-black text-gray-500">—</span>
+            </div>
+            <div id="ops-live-lock" class="font-black text-red-500/60 text-[9px]">🔒 LIVE:LOCKED · WITHDRAW:LOCKED</div>
+        </div>
+    </div>
+
+    <!-- ═══ PHASE 5C: AI STOP CONFIRMATION MODAL ═══ -->
+    <div id="modal-ai-stop" class="hidden fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+        <div class="bg-gray-900 border border-red-500/40 rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
+            <div class="flex items-center space-x-3 mb-4">
+                <div class="w-10 h-10 bg-red-500/20 rounded-full flex items-center justify-center">
+                    <i class="fa-solid fa-stop text-red-400 text-lg"></i>
+                </div>
+                <div>
+                    <h3 class="text-white font-black text-sm">STOP AUTONOMOUS AI TRADING?</h3>
+                    <p class="text-gray-500 text-[10px]">Workspace: <span id="modal-stop-workspace" class="text-amber-400 font-bold">—</span></p>
+                </div>
+            </div>
+            <div class="bg-gray-800/50 border border-gray-700 rounded-lg p-3 mb-4 space-y-1.5 text-[11px] text-gray-400">
+                <p>✅ AI-generated <strong>PENDING orders</strong> will be <strong class="text-red-400">CANCELLED</strong></p>
+                <p>✅ Existing <strong>positions</strong> will <strong class="text-emerald-400">NOT</strong> be automatically closed</p>
+                <p>✅ <strong>Manually created orders</strong> are preserved</p>
+                <p>✅ Monitoring, risk &amp; reconciliation continue running</p>
+                <p class="text-yellow-400">⚠️ Manual resume requires 14-gate safety preflight</p>
+            </div>
+            <div class="flex space-x-3">
+                <button onclick="aiStopExecute()" class="flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white font-black rounded-xl text-sm transition">
+                    CONFIRM STOP
+                </button>
+                <button onclick="document.getElementById('modal-ai-stop').classList.add('hidden')" class="flex-1 py-2.5 bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold rounded-xl text-sm transition">
+                    CANCEL
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ PHASE 5C: AI RESUME PREFLIGHT MODAL ═══ -->
+    <div id="modal-ai-resume" class="hidden fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+        <div class="bg-gray-900 border border-emerald-500/40 rounded-2xl p-6 max-w-lg w-full mx-4 shadow-2xl">
+            <div class="flex items-center space-x-3 mb-4">
+                <div class="w-10 h-10 bg-emerald-500/20 rounded-full flex items-center justify-center">
+                    <i class="fa-solid fa-play text-emerald-400 text-lg"></i>
+                </div>
+                <div>
+                    <h3 class="text-white font-black text-sm">AI RESUME PREFLIGHT</h3>
+                    <p class="text-gray-500 text-[10px]">Workspace: <span id="modal-resume-workspace" class="text-amber-400 font-bold">—</span></p>
+                </div>
+            </div>
+            <div id="modal-resume-gates" class="bg-gray-800/50 border border-gray-700 rounded-lg p-3 mb-4 space-y-1 text-[10px] max-h-56 overflow-y-auto">
+                <p class="text-gray-500">Loading preflight checks...</p>
+            </div>
+            <div id="modal-resume-summary" class="text-[11px] font-bold mb-4 text-center"></div>
+            <div class="flex space-x-3">
+                <button id="btn-resume-confirm" onclick="aiResumeExecute()" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-xl text-sm transition hidden">
+                    CONFIRM RESUME
+                </button>
+                <button onclick="document.getElementById('modal-ai-resume').classList.add('hidden')" class="flex-1 py-2.5 bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold rounded-xl text-sm transition">
+                    CLOSE
+                </button>
+            </div>
+        </div>
+    </div>
+
 
     <div class="flex flex-1 overflow-hidden relative">
 
@@ -3933,6 +4059,209 @@
             el.innerHTML = `${h}:${m}:${s} <span class="text-amber-400 font-bold">IST</span>`;
         }
 
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // PHASE 5C — AI TRADING CONTROL + MARKET SESSION + OPERATIONAL STATUS
+        // ═══════════════════════════════════════════════════════════════════════
+
+        let _activeAiWorkspace = 'INDIA'; // tracks which workspace the AI controls act on
+
+        // State → visual mapping
+        const AI_STATE_STYLES = {
+            'RUNNING':  { dot: 'bg-emerald-400 animate-pulse', label: 'text-emerald-400', text: 'RUNNING' },
+            'PAUSED':   { dot: 'bg-yellow-400',                label: 'text-yellow-400',  text: 'PAUSED' },
+            'STOPPED':  { dot: 'bg-red-500',                   label: 'text-red-400',     text: 'STOPPED' },
+            'BLOCKED':  { dot: 'bg-orange-500',                label: 'text-orange-400',  text: 'BLOCKED' },
+            'DISABLED': { dot: 'bg-gray-600',                  label: 'text-gray-500',    text: 'DISABLED' },
+        };
+
+        const MKT_STATE_STYLES = {
+            'OPEN':         { dot: 'bg-emerald-400 animate-pulse', label: 'text-emerald-400' },
+            'PRE_MARKET':   { dot: 'bg-blue-400',                  label: 'text-blue-400' },
+            'CLOSING_SOON': { dot: 'bg-yellow-400 animate-pulse',  label: 'text-yellow-400' },
+            'CLOSED':       { dot: 'bg-gray-600',                  label: 'text-gray-500' },
+            'HOLIDAY':      { dot: 'bg-purple-500',                label: 'text-purple-400' },
+            'HALTED':       { dot: 'bg-red-500 animate-pulse',     label: 'text-red-400' },
+            'UNKNOWN':      { dot: 'bg-gray-700',                  label: 'text-gray-600' },
+        };
+
+        function updateAiControlPanel(aiStates, marketSessions) {
+            // Use active venue as the primary workspace for the header control
+            const ws = (window.activeMarketVenue || 'INDIA').toUpperCase().replace('FOREX', 'FOREX_GOLD');
+            _activeAiWorkspace = ws;
+
+            const aiState = (aiStates && aiStates[ws]) ? aiStates[ws].state || aiStates[ws] : 'PAUSED';
+            const styles = AI_STATE_STYLES[aiState] || AI_STATE_STYLES['PAUSED'];
+
+            // Update dot + label
+            const dot = document.getElementById('ai-state-dot');
+            const lbl = document.getElementById('ai-state-label');
+            if (dot) { dot.className = `w-2 h-2 rounded-full ${styles.dot}`; }
+            if (lbl) { lbl.className = `font-black text-[10px] ${styles.label}`; lbl.textContent = aiState; }
+
+            // Show/hide buttons based on state
+            const btnPause  = document.getElementById('btn-ai-pause');
+            const btnStop   = document.getElementById('btn-ai-stop');
+            const btnResume = document.getElementById('btn-ai-resume');
+            if (btnPause)  btnPause.classList.toggle('hidden',  aiState !== 'RUNNING');
+            if (btnStop)   btnStop.classList.toggle('hidden',   !['RUNNING','PAUSED'].includes(aiState));
+            if (btnResume) btnResume.classList.toggle('hidden', !['PAUSED','STOPPED','BLOCKED'].includes(aiState));
+
+            // Market session badge (current workspace)
+            const sessState = (marketSessions && marketSessions[ws]) ?
+                (marketSessions[ws].state || marketSessions[ws]) : 'UNKNOWN';
+            const mStyles = MKT_STATE_STYLES[sessState] || MKT_STATE_STYLES['UNKNOWN'];
+            const mktDot = document.getElementById('mkt-session-dot');
+            const mktLbl = document.getElementById('mkt-session-label');
+            if (mktDot) { mktDot.className = `w-2 h-2 rounded-full ${mStyles.dot}`; }
+            if (mktLbl) { mktLbl.className = `font-bold text-[10px] ${mStyles.label}`; mktLbl.textContent = `${ws.replace('_GOLD','')}: ${sessState}`; }
+        }
+
+        function updateOperationalStrip(data) {
+            if (!data) return;
+            const market = data.market || {};
+            const ai = data.ai || {};
+            const colMap = { 'OPEN': 'text-emerald-400', 'CLOSED': 'text-gray-500', 'HALTED': 'text-red-400',
+                             'HOLIDAY': 'text-purple-400', 'PRE_MARKET': 'text-blue-400', 'CLOSING_SOON': 'text-yellow-400',
+                             'RUNNING': 'text-emerald-400', 'PAUSED': 'text-yellow-400', 'STOPPED': 'text-red-400',
+                             'BLOCKED': 'text-orange-400', 'ENABLED': 'text-emerald-400', 'BLOCKED_': 'text-red-400',
+                             'READY': 'text-emerald-400', 'ACTIVE': 'text-red-500', 'PASS': 'text-emerald-400',
+                             'FAIL': 'text-red-400', 'FRESH': 'text-emerald-400', 'STALE': 'text-red-400',
+                             'NOT_SUBSCRIBED': 'text-gray-500' };
+            function setEl(id, val) {
+                const el = document.getElementById(id);
+                if (!el) return;
+                const col = Object.keys(colMap).find(k => val && val.startsWith(k));
+                el.className = `font-black ${col ? colMap[col] : 'text-gray-500'}`;
+                el.textContent = val || '—';
+            }
+            setEl('ops-india-market', 'INDIA:' + (market.INDIA || '—'));
+            setEl('ops-forex-market', 'FOREX:' + (market.FOREX_GOLD || '—'));
+            setEl('ops-crypto-market', 'CRYPTO:' + (market.CRYPTO || '—'));
+            setEl('ops-india-ai',   'INDIA:' + (ai.INDIA || '—'));
+            setEl('ops-forex-ai',   'FOREX:' + (ai.FOREX_GOLD || '—'));
+            setEl('ops-crypto-ai',  'CRYPTO:' + (ai.CRYPTO || '—'));
+            setEl('ops-exec',   data.execution || '—');
+            setEl('ops-ks',     data.kill_switch || '—');
+            const dataVals = data.data || {};
+            const anyFresh = Object.values(dataVals).some(v => v === 'FRESH');
+            setEl('ops-data', anyFresh ? 'FRESH' : 'NOT_SUBSCRIBED');
+            setEl('ops-recon',  data.reconciliation || '—');
+            const brokers = data.broker || {};
+            const brokerSummary = Object.values(brokers).some(v => v && v.includes('VERIFIED')) ? 'VERIFIED' : 'NOT CONFIGURED';
+            setEl('ops-broker', brokerSummary);
+        }
+
+        async function fetchOperationalStatus() {
+            try {
+                const res = await fetch('/api/operational-status');
+                if (!res.ok) return;
+                const data = await res.json();
+                updateOperationalStrip(data);
+                updateAiControlPanel(data.ai_detail || data.ai, data.session_detail || data.market);
+            } catch (e) { /* silent */ }
+        }
+
+        // ── AI Control Actions ──────────────────────────────────────────────
+
+        async function aiPause() {
+            const ws = _activeAiWorkspace;
+            try {
+                const res = await fetch('/api/ai/pause', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ workspace: ws, reason: 'MANUAL_PAUSE', user: 'OPERATOR' })
+                });
+                const data = await res.json();
+                showNotification('AI Trading', `AI PAUSED for ${ws} — ${data.reason || ''}`, 'warning');
+                await fetchOperationalStatus();
+            } catch (e) {
+                showNotification('AI Control Error', e.message, 'error');
+            }
+        }
+
+        function aiStopConfirm() {
+            const ws = _activeAiWorkspace;
+            document.getElementById('modal-stop-workspace').textContent = ws;
+            document.getElementById('modal-ai-stop').classList.remove('hidden');
+        }
+
+        async function aiStopExecute() {
+            const ws = _activeAiWorkspace;
+            document.getElementById('modal-ai-stop').classList.add('hidden');
+            try {
+                const res = await fetch('/api/ai/stop', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        workspace: ws,
+                        confirmation_token: 'CONFIRM_STOP',
+                        reason: 'MANUAL_STOP',
+                        user: 'OPERATOR'
+                    })
+                });
+                const data = await res.json();
+                const cancelled = (data.cancelled_ai_orders || []).length;
+                showNotification('AI Trading STOPPED', `AI STOPPED for ${ws}. ${cancelled} pending AI orders cancelled. Positions preserved.`, 'error');
+                await fetchOperationalStatus();
+            } catch (e) {
+                showNotification('AI Control Error', e.message, 'error');
+            }
+        }
+
+        async function aiResume() {
+            const ws = _activeAiWorkspace;
+            // First run preflight check
+            document.getElementById('modal-resume-workspace').textContent = ws;
+            document.getElementById('modal-ai-resume').classList.remove('hidden');
+            document.getElementById('modal-resume-gates').innerHTML = '<p class="text-gray-500">Running 14-gate preflight...</p>';
+            document.getElementById('modal-resume-summary').textContent = '';
+            document.getElementById('btn-resume-confirm').classList.add('hidden');
+            try {
+                const res = await fetch(`/api/ai/resume-preflight/${ws}`);
+                const data = await res.json();
+                const gates = data.gates || [];
+                let html = '';
+                gates.forEach(g => {
+                    const icon = g.passed ? '✅' : '❌';
+                    const cls  = g.passed ? 'text-gray-400' : 'text-red-400 font-bold';
+                    html += `<div class="${cls}">${icon} Gate ${g.id}: ${g.name} — <span class="text-gray-500">${g.detail || ''}</span></div>`;
+                });
+                document.getElementById('modal-resume-gates').innerHTML = html || '<p class="text-gray-500">No gates returned.</p>';
+                const ok = data.ready_to_resume;
+                const summary = document.getElementById('modal-resume-summary');
+                summary.textContent = ok
+                    ? `✅ ${data.gates_passed}/${data.gates_total} gates PASS — Ready to resume`
+                    : `❌ ${data.gates_passed}/${data.gates_total} gates PASS — Some gates FAILED — AI will enter BLOCKED state`;
+                summary.className = `text-[11px] font-bold mb-4 text-center ${ok ? 'text-emerald-400' : 'text-red-400'}`;
+                document.getElementById('btn-resume-confirm').classList.toggle('hidden', false);
+            } catch (e) {
+                document.getElementById('modal-resume-gates').innerHTML = `<p class="text-red-400">Preflight error: ${e.message}</p>`;
+            }
+        }
+
+        async function aiResumeExecute() {
+            const ws = _activeAiWorkspace;
+            document.getElementById('modal-ai-resume').classList.add('hidden');
+            try {
+                const res = await fetch('/api/ai/resume', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ workspace: ws, user: 'OPERATOR' })
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    showNotification('AI Trading RESUMED', `AI RUNNING for ${ws} — ${data.gates_passed}/14 preflight gates passed`, 'success');
+                } else {
+                    showNotification('AI Resume BLOCKED', `AI BLOCKED for ${ws} — ${(data.failed_gates || []).join(', ')}`, 'error');
+                }
+                await fetchOperationalStatus();
+            } catch (e) {
+                showNotification('AI Control Error', e.message, 'error');
+            }
+        }
+
+        // ── DOMContentLoaded ────────────────────────────────────────────────
         window.addEventListener('DOMContentLoaded', () => {
             updateLiveHeaderClock();
             setInterval(updateLiveHeaderClock, 1000);
@@ -3951,8 +4280,13 @@
             setInterval(() => fetchState(window.activeMarketVenue), 3000);
             setInterval(() => refreshVenueData(), 4000);
             setInterval(fetchExecutionLatency, 5000);
+            // Phase 5C: operational status + AI control panel polling
+            fetchOperationalStatus();
+            setInterval(fetchOperationalStatus, 5000);
         });
     </script>
+
+
 
 
 

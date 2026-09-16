@@ -951,9 +951,245 @@ async def set_max_trade_cap_endpoint(data: dict):
 @app.post("/api/toggle-ai")
 @app.post("/api/toggle-ai-mode")
 async def toggle_ai_mode_endpoint():
-    """Toggle Autonomous Trading on/off."""
+    """Legacy toggle Autonomous Trading on/off. Kept for backward compatibility.
+    Phase 5C: Use /api/ai/pause and /api/ai/resume instead for proper state management.
+    """
     is_active = trader.toggle_autonomous()
     return JSONResponse({"status": "SUCCESS", "ai_active": is_active})
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PHASE 5C — MARKET SESSION ENGINE ENDPOINTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@app.get("/api/market/session")
+async def get_all_market_sessions():
+    """Return authoritative market session state for all workspaces."""
+    from core.market_session_engine import market_session_engine
+    return JSONResponse({
+        "status": "SUCCESS",
+        "sessions": market_session_engine.get_all_states(),
+    })
+
+
+@app.get("/api/market/session/{workspace}")
+async def get_workspace_market_session(workspace: str):
+    """Return authoritative market session state for a single workspace."""
+    from core.market_session_engine import market_session_engine
+    detail = market_session_engine.get_state_detail(workspace.upper())
+    return JSONResponse({"status": "SUCCESS", **detail})
+
+
+@app.post("/api/market/session/halt")
+async def halt_market_session(request: Request):
+    """Manually HALT a workspace market session. Admin auth required."""
+    from core.market_session_engine import market_session_engine
+    if not check_admin_auth(request):
+        return JSONResponse({"status": "FAILED", "message": "Unauthorized. Bearer session token required."}, status_code=401)
+    body = await request.json()
+    workspace = body.get("workspace", "").upper()
+    reason = body.get("reason", "MANUAL_HALT")
+    result = market_session_engine.set_halted(workspace, reason, by="ADMIN")
+    return JSONResponse(result)
+
+
+@app.post("/api/market/session/clear-halt")
+async def clear_market_session_halt(request: Request):
+    """Clear manual HALT override for a workspace. Admin auth required."""
+    from core.market_session_engine import market_session_engine
+    if not check_admin_auth(request):
+        return JSONResponse({"status": "FAILED", "message": "Unauthorized. Bearer session token required."}, status_code=401)
+    body = await request.json()
+    workspace = body.get("workspace", "").upper()
+    result = market_session_engine.clear_halt(workspace, by="ADMIN")
+    return JSONResponse(result)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PHASE 5C — AI TRADING CONTROL ENDPOINTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@app.get("/api/ai/status")
+async def get_ai_status():
+    """Return AI trading state for all workspaces."""
+    from core.ai_trading_controller import ai_trading_controller
+    return JSONResponse({
+        "status": "SUCCESS",
+        "ai_states": ai_trading_controller.get_all_states(),
+    })
+
+
+@app.post("/api/ai/pause")
+async def ai_pause_endpoint(request: Request):
+    """
+    Pause AI trading for a workspace.
+    - Stops new AI orders.
+    - Preserves existing orders and positions.
+    - Monitoring, risk, and reconciliation continue.
+    """
+    from core.ai_trading_controller import ai_trading_controller
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    workspace = body.get("workspace", "FOREX_GOLD")
+    reason = body.get("reason", "MANUAL_PAUSE")
+    user = body.get("user", "OPERATOR")
+    result = ai_trading_controller.pause(workspace, user=user, reason=reason)
+    return JSONResponse(result)
+
+
+@app.post("/api/ai/stop")
+async def ai_stop_endpoint(request: Request):
+    """
+    Stop AI trading for a workspace.
+    Requires confirmation_token in body to prevent accidental stops.
+    - Terminates autonomous trading for this workspace.
+    - Cancels eligible AI-generated PENDING orders.
+    - Does NOT cancel manual orders.
+    - Does NOT close positions.
+    """
+    from core.ai_trading_controller import ai_trading_controller
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    workspace = body.get("workspace", "FOREX_GOLD")
+    confirmation = body.get("confirmation_token", "")
+    user = body.get("user", "OPERATOR")
+    # Require confirmation token = "CONFIRM_STOP"
+    if confirmation != "CONFIRM_STOP":
+        return JSONResponse({
+            "status": "FAILED",
+            "message": "confirmation_token required. Send confirmation_token='CONFIRM_STOP' to proceed.",
+            "confirmation_required": True,
+        }, status_code=400)
+    reason = body.get("reason", "MANUAL_STOP")
+    result = ai_trading_controller.stop(workspace, user=user, reason=reason,
+                                        cancel_pending_ai_orders=True)
+    return JSONResponse(result)
+
+
+@app.post("/api/ai/resume")
+async def ai_resume_endpoint(request: Request):
+    """
+    Resume AI trading for a workspace.
+    Runs 14-gate preflight validation — if any gate fails, AI is set to BLOCKED.
+    No stale overnight signal can execute just because the market reopened.
+    """
+    from core.ai_trading_controller import ai_trading_controller
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    workspace = body.get("workspace", "FOREX_GOLD")
+    user = body.get("user", "OPERATOR")
+    result = ai_trading_controller.resume(workspace, user=user)
+    status_code = 200 if result.get("ok") else 400
+    return JSONResponse(result, status_code=status_code)
+
+
+@app.get("/api/ai/resume-preflight/{workspace}")
+async def ai_resume_preflight(workspace: str):
+    """
+    Check resume readiness without actually resuming.
+    Returns the 14-gate preflight result for the given workspace.
+    """
+    from core.ai_trading_controller import ai_trading_controller
+    result = ai_trading_controller.resume_preflight_check(workspace.upper())
+    return JSONResponse(result)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PHASE 5C — UNIFIED OPERATIONAL STATUS PANEL
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@app.get("/api/operational-status")
+async def get_operational_status():
+    """
+    Unified operational status snapshot for the dashboard status panel.
+    One authoritative backend read — frontend never computes this independently.
+
+    Returns:
+        market: per-workspace session state
+        ai: per-workspace AI trading state
+        execution: ENABLED / BLOCKED
+        kill_switch: READY / ACTIVE
+        broker: connection status per workspace
+        data: FRESH / STALE / NOT_SUBSCRIBED
+        reconciliation: PASS / FAIL / UNKNOWN
+        live_trading: LOCKED (always)
+        live_withdrawals: LOCKED (always)
+    """
+    from core.market_session_engine import market_session_engine
+    from core.ai_trading_controller import ai_trading_controller
+    from core.environment_gate import environment_gate
+    from core.market_data_watchdog import market_data_watchdog
+    from core.reconciliation_sentinel import reconciliation_sentinel
+    from execution.upstox_broker import upstox_broker
+    from execution.binance_broker import binance_broker
+
+    now_ist = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S IST")
+
+    # Market sessions
+    sessions = market_session_engine.get_all_states()
+
+    # AI states
+    ai_states_raw = ai_trading_controller.get_all_states()
+    ai_states = {ws: v["state"] for ws, v in ai_states_raw.items()}
+
+    # Kill switch
+    ks_active = environment_gate._is_kill_switch_active()
+
+    # Execution status
+    paper_ok, _ = environment_gate.check_order_allowed("PAPER", 0.0)
+    exec_status = "ENABLED" if paper_ok else "BLOCKED"
+
+    # Market data freshness (representative symbol per workspace)
+    data_ages = {
+        "INDIA": market_data_watchdog.get_age("RELIANCE"),
+        "FOREX_GOLD": market_data_watchdog.get_age("XAUUSD"),
+        "CRYPTO": market_data_watchdog.get_age("BTCUSDT"),
+    }
+    def data_label(age):
+        if age == 9999.0:
+            return "NOT_SUBSCRIBED"
+        if age <= 5.0:
+            return "FRESH"
+        return f"STALE ({age:.0f}s)"
+    data_status = {ws: data_label(a) for ws, a in data_ages.items()}
+
+    # Broker status
+    broker_status = {
+        "INDIA": upstox_broker.get_configuration_state(),
+        "BINANCE_TESTNET": binance_broker.get_configuration_state(),
+        "FOREX_GOLD": "SIMULATED / NOT CONFIGURED",
+    }
+
+    # Reconciliation
+    recon_report = reconciliation_sentinel.last_report
+    recon_status = recon_report.get("status", "UNKNOWN")
+
+    return JSONResponse({
+        "status": "SUCCESS",
+        "snapshot_at": now_ist,
+        "market": {ws: sessions[ws]["state"] for ws in sessions},
+        "ai": ai_states,
+        "execution": exec_status,
+        "kill_switch": "ACTIVE" if ks_active else "READY",
+        "broker": broker_status,
+        "data": data_status,
+        "reconciliation": recon_status,
+        "live_trading": "LOCKED",
+        "live_withdrawals": "LOCKED",
+        "session_detail": sessions,
+        "ai_detail": {ws: {
+            "state": ai_states_raw[ws]["state"],
+            "reason": ai_states_raw[ws].get("reason"),
+            "user": ai_states_raw[ws].get("user"),
+            "timestamp": ai_states_raw[ws].get("timestamp"),
+        } for ws in ai_states_raw},
+    })
 
 @app.post("/api/close-position")
 async def close_position_endpoint(request: Request):

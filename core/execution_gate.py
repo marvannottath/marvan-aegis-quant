@@ -233,7 +233,38 @@ class ExecutionGate:
                 "delta_detected": pos_snap.get("delta_detected", False)
             }
 
-        # ALL 20 GATES PASSED
+        # 21. AI Trading Controller Gate (for AI-sourced orders)
+        order_source = (metadata or {}).get("order_source", "MANUAL")
+        if order_source in ("AI", "AI_GENERATED", "AUTONOMOUS"):
+            try:
+                from core.ai_trading_controller import ai_trading_controller
+                ai_allowed, ai_reason = ai_trading_controller.is_execution_allowed(target_ws)
+                if not ai_allowed:
+                    code = "AI_TRADING_BLOCKED"
+                    reason = f"Execution rejected: {ai_reason}"
+                    self._log_rejection(audit_logger, code, reason, sym, target_ws, environment, user_id)
+                    return False, code, reason, {"ai_state": ai_reason, "workspace": target_ws}
+            except Exception as e:
+                # If controller unavailable, fail-safe: block AI order
+                code = "AI_TRADING_BLOCKED"
+                reason = f"Execution rejected: AI controller unavailable — {e}"
+                self._log_rejection(audit_logger, code, reason, sym, target_ws, environment, user_id)
+                return False, code, reason, {"ai_error": str(e)}
+
+        # 22. Market Session Engine Gate (blocks ALL new entries on CLOSED/HALTED/HOLIDAY)
+        try:
+            from core.market_session_engine import market_session_engine
+            session_state = market_session_engine.get_state(target_ws)
+            if session_state in ("CLOSED", "HALTED", "HOLIDAY"):
+                code = "MARKET_SESSION_CLOSED"
+                reason = f"Execution rejected: {target_ws} market session is {session_state} — new entries blocked"
+                self._log_rejection(audit_logger, code, reason, sym, target_ws, environment, user_id)
+                return False, code, reason, {"session_state": session_state, "workspace": target_ws}
+        except Exception as e:
+            # If session engine unavailable, fail-safe: allow (don't block on infra error)
+            pass
+
+        # ALL 22 GATES PASSED
         details = {
             "symbol": sym,
             "instrument_id": inst_id,
@@ -249,10 +280,11 @@ class ExecutionGate:
             "leverage": leverage,
             "data_age_seconds": age,
             "environment": environment,
-            "gates_passed_count": 20,
+            "gates_passed_count": 22,
             "checklist_status": "ALL_GATES_PASSED"
         }
-        return True, "EXECUTION_APPROVED", "All 20 pre-execution safety gates PASSED", details
+        return True, "EXECUTION_APPROVED", "All 22 pre-execution safety gates PASSED", details
+
 
     def _log_rejection(
         self,

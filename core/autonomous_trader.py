@@ -47,14 +47,21 @@ class AutonomousTrader:
         self.position_age: Dict[str, int] = {}
 
     def start_autonomous_loop(self):
-        """Start background AI trading execution thread."""
+        """Start background AI trading execution thread.
+        NOTE (Phase 5C): The thread starts, but order execution only proceeds
+        if ai_trading_controller.get_state(workspace) == RUNNING.
+        Persisted PAUSED/STOPPED state is respected automatically in _run_loop().
+        """
         if not self.is_running or self._thread is None or not self._thread.is_alive():
             self.is_running = True
             self._thread = threading.Thread(target=self._run_loop, daemon=True)
             self._thread.start()
 
     def stop_autonomous_loop(self):
-        """Stop background AI trading execution loop."""
+        """Stop background AI trading execution loop thread.
+        NOTE (Phase 5C): Use ai_trading_controller.stop() for workspace-specific
+        AI stop with pending order cancellation and audit trail.
+        """
         self.is_running = False
 
     def toggle_autonomous(self) -> bool:
@@ -81,6 +88,55 @@ class AutonomousTrader:
                 time.sleep(2.5)  # Fast 2.5-second institutional tick cycle
                 step_counter += 1
 
+                # ── Phase 5C Gate A: AI Trading Controller Check ──────────────
+                # Must be checked FIRST — server-side enforcement.
+                from core.workspace_manager import workspace_manager as _wsm
+                from core.ai_trading_controller import ai_trading_controller as _aic
+                _active_ws = _wsm.get_active_workspace()
+                _ai_state = _aic.get_state(_active_ws)
+
+                if _ai_state not in ("RUNNING",):
+                    # Signal may be computed for analytics but NEVER executed
+                    if step_counter % 8 == 0:  # Log every ~20s to avoid spam
+                        self._log_action(
+                            asset="AI_CONTROLLER",
+                            action="BLOCKED",
+                            price=0.0,
+                            amount_usd=0.0,
+                            reasoning=f"SIGNAL GENERATED — EXECUTION BLOCKED — Reason: AI {_ai_state}"
+                        )
+                    continue
+
+                # ── Phase 5C Gate B: Market Session Check ─────────────────────
+                from core.market_session_engine import market_session_engine as _mse
+                _session_state = _mse.get_state(_active_ws)
+
+                if _session_state in ("CLOSED", "HALTED", "HOLIDAY"):
+                    # Auto-block AI if market closed and AI is still RUNNING
+                    if _ai_state == "RUNNING":
+                        _aic.auto_block_for_market_close(_active_ws)
+                    if step_counter % 8 == 0:
+                        self._log_action(
+                            asset="MARKET_SESSION",
+                            action="BLOCKED",
+                            price=0.0,
+                            amount_usd=0.0,
+                            reasoning=f"SIGNAL GENERATED — EXECUTION BLOCKED — Reason: MARKET {_session_state}"
+                        )
+                    continue
+                elif _session_state == "CLOSING_SOON":
+                    # Warn but continue (existing orders can complete, new entries still blocked via Gate 22)
+                    if step_counter % 4 == 0:
+                        self._log_action(
+                            asset="MARKET_SESSION",
+                            action="CLOSING_SOON",
+                            price=0.0,
+                            amount_usd=0.0,
+                            reasoning=f"CLOSING_SOON — {_active_ws} session ending in <5 minutes — new entries blocked at Gate 22"
+                        )
+                    # For CLOSING_SOON: don't initiate new entries in this tick
+                    continue
+
                 # 0. US Macro News Lockout Halt Check
                 is_news_locked, lock_reason = economic_filter.is_news_lockout_active()
                 if is_news_locked:
@@ -98,6 +154,7 @@ class AutonomousTrader:
                     self.broker.ai_active = True
                 step_counter += 1
                 sentiment_score = daily_sync.current_alignment_score
+
 
                 # 1. Scan Cross-Market Opportunities across all 12 global assets
                 scanned_assets = multi_scanner.scan_all_opportunities(sentiment_score)
