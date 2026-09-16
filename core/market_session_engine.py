@@ -200,12 +200,17 @@ class MarketSessionEngine:
         now_ist = datetime.now(UTC).astimezone(IST)
         for ws in WORKSPACES:
             state = self.get_state(ws)
+            override_active = bool(self._overrides.get(ws, {}).get("active"))
             result[ws] = {
+                "workspace": ws,
                 "state": state,
                 "is_trading_allowed": state in (OPEN, CLOSING_SOON),
                 "is_new_entry_allowed": state == OPEN,
+                "is_ai_blocked": state not in (OPEN,),
                 "evaluated_at_ist": now_ist.strftime("%Y-%m-%d %H:%M:%S IST"),
-                "manual_override_active": bool(self._overrides.get(ws, {}).get("active")),
+                "evaluated_timestamp": now_ist.strftime("%Y-%m-%d %H:%M:%S IST"),
+                "manual_override_active": override_active,
+                "manual_override_status": "ACTIVE" if override_active else "INACTIVE",
                 "override_reason": self._overrides.get(ws, {}).get("reason", ""),
             }
         return result
@@ -235,7 +240,9 @@ class MarketSessionEngine:
             "is_new_entry_allowed": state == OPEN,
             "is_ai_blocked": state not in (OPEN,),
             "evaluated_at_ist": now_ist.strftime("%Y-%m-%d %H:%M:%S IST"),
+            "evaluated_timestamp": now_ist.strftime("%Y-%m-%d %H:%M:%S IST"),
             "manual_override_active": bool(override.get("active")),
+            "manual_override_status": "ACTIVE" if bool(override.get("active")) else "INACTIVE",
             "override_state": override.get("state"),
             "override_reason": override.get("reason", ""),
             "override_by": override.get("by", ""),

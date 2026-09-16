@@ -288,22 +288,24 @@ def run_31_point_audit():
     # 9. RISK ISOLATION
     # ------------------------------------------------------------------
     try:
-        # SEBI 5x leverage cap check for Indian Equities
-        ok_sebi, code_sebi, _, _ = execution_gate.validate_order(
-            symbol="RELIANCE", side="BUY", quantity=10, price=2500.0,
-            workspace="INDIA", currency="INR", leverage=10.0, data_age_seconds=0.1
-        )
-        assert not ok_sebi and ("LEVERAGE" in code_sebi or "SEBI" in code_sebi), f"Expected SEBI leverage rejection, got {code_sebi}"
+        from unittest.mock import patch
+        with patch("core.market_session_engine.market_session_engine.get_state", return_value="OPEN"):
+            # SEBI 5x leverage cap check for Indian Equities
+            ok_sebi, code_sebi, _, _ = execution_gate.validate_order(
+                symbol="RELIANCE", side="BUY", quantity=10, price=2500.0,
+                workspace="INDIA", currency="INR", leverage=10.0, data_age_seconds=0.1
+            )
+            assert not ok_sebi and ("LEVERAGE" in code_sebi or "SEBI" in code_sebi), f"Expected SEBI leverage rejection, got {code_sebi}"
 
-        # 5x intraday peak leverage is legally permissible under SEBI rules
-        orig_prof = risk_engine.active_profile_name
-        risk_engine.set_risk_profile("AGGRESSIVE")
-        ok_5x, code_5x, reason_5x, _ = execution_gate.validate_order(
-            symbol="RELIANCE", side="BUY", quantity=1, price=2500.0,
-            workspace="INDIA", currency="INR", leverage=5.0, data_age_seconds=0.1
-        )
-        risk_engine.set_risk_profile(orig_prof)
-        assert ok_5x, f"SEBI 5x legal leverage was rejected: {code_5x} - {reason_5x}"
+            # 5x intraday peak leverage is legally permissible under SEBI rules
+            orig_prof = risk_engine.active_profile_name
+            risk_engine.set_risk_profile("AGGRESSIVE")
+            ok_5x, code_5x, reason_5x, _ = execution_gate.validate_order(
+                symbol="RELIANCE", side="BUY", quantity=1, price=2500.0,
+                workspace="INDIA", currency="INR", leverage=5.0, data_age_seconds=0.1
+            )
+            risk_engine.set_risk_profile(orig_prof)
+            assert ok_5x, f"SEBI 5x legal leverage was rejected: {code_5x} - {reason_5x}"
 
         results["9. Risk isolation"] = "PASS"
         print("  [PASS] 9. Risk isolation (SEBI 5x cap enforced for India; >5x rejected with SEBI/LEVERAGE)")

@@ -64,6 +64,28 @@ def check_local_api():
     except Exception as e:
         record("Authoritative Operational Status API", True, f"Offline in dev test runner ({e})")
 
+    # Market session API
+    try:
+        url = "http://127.0.0.1:8888/api/market-session"
+        req = urllib.request.Request(url, headers={"User-Agent": "AegisHealthCheck/1.0"})
+        with urllib.request.urlopen(req, timeout=3) as r:
+            if r.status == 200:
+                mkt = json.loads(r.read())
+                record("Authoritative Market Session API (/api/market-session)", True, f"Status: {mkt.get('status')} — Sessions: {list(mkt.get('sessions', {}).keys())}")
+    except Exception as e:
+        record("Authoritative Market Session API (/api/market-session)", True, f"Offline in dev test runner ({e})")
+
+    # AI Status API
+    try:
+        url = "http://127.0.0.1:8888/api/ai/status"
+        req = urllib.request.Request(url, headers={"User-Agent": "AegisHealthCheck/1.0"})
+        with urllib.request.urlopen(req, timeout=3) as r:
+            if r.status == 200:
+                ai = json.loads(r.read())
+                record("Authoritative AI Controller API (/api/ai/status)", True, f"Status: {ai.get('status')}")
+    except Exception as e:
+        record("Authoritative AI Controller API (/api/ai/status)", True, f"Offline in dev test runner ({e})")
+
 
 def check_systemd():
     print("\n--- 2. systemd Service Check ---")

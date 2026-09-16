@@ -979,16 +979,22 @@ async def toggle_ai_mode_endpoint():
 # PHASE 5C — MARKET SESSION ENGINE ENDPOINTS
 # ═══════════════════════════════════════════════════════════════════════════════
 
+@app.get("/api/market-session")
 @app.get("/api/market/session")
 async def get_all_market_sessions():
     """Return authoritative market session state for all workspaces."""
     from core.market_session_engine import market_session_engine
+    sessions = market_session_engine.get_all_states()
     return JSONResponse({
         "status": "SUCCESS",
-        "sessions": market_session_engine.get_all_states(),
+        "sessions": sessions,
+        "INDIA": sessions.get("INDIA", {}),
+        "FOREX_GOLD": sessions.get("FOREX_GOLD", {}),
+        "CRYPTO": sessions.get("CRYPTO", {}),
     })
 
 
+@app.get("/api/market-session/{workspace}")
 @app.get("/api/market/session/{workspace}")
 async def get_workspace_market_session(workspace: str):
     """Return authoritative market session state for a single workspace."""
@@ -997,6 +1003,7 @@ async def get_workspace_market_session(workspace: str):
     return JSONResponse({"status": "SUCCESS", **detail})
 
 
+@app.post("/api/market-session/halt")
 @app.post("/api/market/session/halt")
 async def halt_market_session(request: Request):
     """Manually HALT a workspace market session. Admin auth required."""
@@ -1010,6 +1017,7 @@ async def halt_market_session(request: Request):
     return JSONResponse(result)
 
 
+@app.post("/api/market-session/clear-halt")
 @app.post("/api/market/session/clear-halt")
 async def clear_market_session_halt(request: Request):
     """Clear manual HALT override for a workspace. Admin auth required."""
