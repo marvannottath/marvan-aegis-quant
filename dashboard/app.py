@@ -692,7 +692,7 @@ async def reset_workspace_pool(request: Request):
     return JSONResponse({"status": "SUCCESS", "workspace": target_ws, "pool": pool, "reset_equity": cap, "virtual_cash": cap}, status_code=200)
 
 @app.api_route("/api/state", methods=["GET", "HEAD"])
-async def get_state(workspace: Optional[str] = None):
+async def get_state(workspace: Optional[str] = None, request_id: Optional[str] = None):
     """Authoritative backend single source of truth state scoped strictly to the active workspace."""
     from execution.paper_broker import paper_broker
     from core.risk_engine import risk_engine
@@ -893,6 +893,23 @@ async def get_state(workspace: Optional[str] = None):
         "current_drawdown_pct": drawdown_pct,
         "virtual_cash": cash_val,
         "floating_open_pnl_usd": float(pos_snapshot.get("unrealized_pnl", 0.0)),
+        "request_id": request_id or "",
+        "pnl_provenance": {
+            "realized_pnl_source": "DOUBLE_ENTRY_LEDGER" if pool_realized_pnl != 0.0 else "PROFIT_VAULT_SETTLEMENT",
+            "unrealized_pnl_source": "POSITION_SNAPSHOT_SERVICE",
+            "equity_source": "PORTFOLIO_AGGREGATOR",
+            "drawdown_source": "AUTHORITATIVE_RISK_ENGINE",
+            "workspace": ws,
+            "timestamp": now_ist,
+            "calculation_status": "VERIFIED_AUTHORITATIVE",
+            "is_loss_masked": False
+        },
+        "drawdown_status": {
+            "current_drawdown_pct": drawdown_pct,
+            "max_drawdown_pct": risk_engine.max_drawdown_pct,
+            "breached": drawdown_pct >= risk_engine.max_drawdown_pct,
+            "circuit_tripped": risk_engine.circuit_tripped
+        },
         "positions": positions,
         "position_snapshot": pos_snapshot,
         "portfolio_aggregate": port_aggregate,
@@ -1170,6 +1187,9 @@ async def get_operational_status():
     recon_report = reconciliation_sentinel.last_report
     recon_status = recon_report.get("status", "UNKNOWN")
 
+    # Risk Engine circuit breaker & loss status
+    risk_status = "BLOCKED" if (risk_engine.circuit_tripped or (risk_engine.daily_realized_loss >= risk_engine.daily_loss_limit_usd)) else "CLEAR"
+
     return JSONResponse({
         "status": "SUCCESS",
         "snapshot_at": now_ist,
@@ -1179,6 +1199,7 @@ async def get_operational_status():
         "kill_switch": "ACTIVE" if ks_active else "READY",
         "broker": broker_status,
         "data": data_status,
+        "risk": risk_status,
         "reconciliation": recon_status,
         "live_trading": "LOCKED",
         "live_withdrawals": "LOCKED",

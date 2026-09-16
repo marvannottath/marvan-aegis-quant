@@ -73,6 +73,7 @@ class AITradingController:
             }
             for ws in WORKSPACES
         }
+        self._test_broker_override: Dict[str, bool] = {}
         self._load_state()
 
     # ─── Persistence ─────────────────────────────────────────────────────────
@@ -243,7 +244,7 @@ class AITradingController:
             preflight_ok, gates = self._run_resume_preflight(ws)
 
             if not preflight_ok:
-                failed = [g["name"] for g in gates if not g["passed"]]
+                failed = [g["name"] for g in gates if not g.get("passed", False)]
                 block_reason = f"RESUME_BLOCKED — failed gates: {', '.join(failed)}"
                 self._transition(ws, BLOCKED, user, block_reason, block_reason=block_reason)
                 self._emit_audit("AI_BLOCKED", ws, current, BLOCKED, user, block_reason)
@@ -254,6 +255,8 @@ class AITradingController:
                     "reason": block_reason,
                     "failed_gates": failed,
                     "gates": gates,
+                    "gates_passed": sum(1 for g in gates if g.get("passed") is True),
+                    "gates_total": len(gates),
                 }
 
             self._transition(ws, RUNNING, user, "Manual resume — all preflight gates passed")
@@ -265,195 +268,325 @@ class AITradingController:
                 "state": RUNNING,
                 "user": user,
                 "gates": gates,
-                "gates_passed": sum(1 for g in gates if g["passed"]),
+                "gates_passed": sum(1 for g in gates if g.get("passed") is True),
+                "gates_total": len(gates),
             }
 
     def resume_preflight_check(self, workspace: str) -> Dict[str, Any]:
         """Check resume readiness without actually resuming."""
         ws = workspace.upper()
         ok, gates = self._run_resume_preflight(ws)
+        passed_count = sum(1 for g in gates if g.get("passed") is True)
+        failed_count = sum(1 for g in gates if g.get("passed") is False)
         return {
             "workspace": ws,
             "ready_to_resume": ok,
-            "gates_passed": sum(1 for g in gates if g["passed"]),
+            "gates_passed": passed_count,
+            "gates_failed": failed_count,
             "gates_total": len(gates),
             "gates": gates,
         }
 
-    # ─── 14-Gate Resume Preflight ─────────────────────────────────────────────
+    # ─── 14-Gate Resume Preflight (STRICT FAIL-CLOSED) ──────────────────────
 
     def _run_resume_preflight(self, workspace: str) -> Tuple[bool, List[Dict[str, Any]]]:
         """
         Run 14 gates before allowing AI resume.
+        RULE (Phase 5D):
+          ANY UNKNOWN / EXCEPTION / TIMEOUT / MISSING DATA must produce:
+            passed = False
+            state = BLOCKED
+          No fail-open path. No default PASS. No skipped gate accepted as pass.
         Returns (all_passed: bool, gates: list)
         """
         ws = workspace.upper()
+        now_ts = datetime.now(UTC).isoformat()
         gates = []
 
-        # Gate 1: Workspace valid
-        g1_ok = ws in WORKSPACES
-        gates.append({"id": 1, "name": "Workspace Valid", "passed": g1_ok,
-                       "detail": f"Workspace '{ws}' {'recognized' if g1_ok else 'UNKNOWN'}"})
+        # Gate 1: Workspace Valid
+        try:
+            g1_ok = ws in WORKSPACES
+            g1_msg = f"Workspace '{ws}' {'recognized' if g1_ok else 'INVALID_WORKSPACE'}"
+        except Exception as e:
+            g1_ok = False
+            g1_msg = f"CHECK_FAILED: Workspace validation error: {e}"
+        gates.append({
+            "id": 1, "name": "Workspace Valid", "passed": g1_ok,
+            "detail": g1_msg, "workspace": ws, "timestamp": now_ts
+        })
 
-        # Gate 2: Market session OPEN
+        # Gate 2: Market Session OPEN
         try:
             from core.market_session_engine import market_session_engine
             sess = market_session_engine.get_state(ws)
-            g2_ok = sess == "OPEN"
-            gates.append({"id": 2, "name": "Market Session OPEN", "passed": g2_ok,
-                           "detail": f"Session state: {sess} — {'OPEN' if g2_ok else 'NOT OPEN'}"})
+            g2_ok = (sess == "OPEN")
+            g2_msg = f"Session state: {sess} — {'OPEN' if g2_ok else 'NOT OPEN'}"
         except Exception as e:
-            gates.append({"id": 2, "name": "Market Session OPEN", "passed": False,
-                           "detail": f"Session engine error: {e}"})
+            g2_ok = False
+            g2_msg = f"CHECK_FAILED: Session engine error: {e}"
+        gates.append({
+            "id": 2, "name": "Market Session OPEN", "passed": g2_ok,
+            "detail": g2_msg, "workspace": ws, "timestamp": now_ts
+        })
 
-        # Gate 3: Broker/exchange connection (PAPER/TESTNET always passes)
+        # Gate 3: Broker/Exchange Connection (MUST BE VERIFIED — NO UNCONFIGURED PASS)
         try:
-            if ws == "INDIA":
+            if ws in self._test_broker_override:
+                g3_ok = bool(self._test_broker_override[ws])
+                g3_msg = f"Broker connection: {'VERIFIED (TEST OVERRIDE)' if g3_ok else 'UNVERIFIED'}"
+            elif ws == "INDIA":
                 from execution.upstox_broker import upstox_broker
                 state = upstox_broker.get_configuration_state()
-                # PAPER simulation passes even if provider not configured
-                g3_ok = True  # paper/sim always available
-                g3_msg = f"Upstox: {state} — Paper simulation available"
+                g3_ok = state in ("AUTHENTICATED", "READ-ONLY VERIFIED")
+                g3_msg = f"Upstox: {state} — {'Connection verified' if g3_ok else 'Broker connection unverified'}"
             elif ws == "CRYPTO":
                 from execution.binance_broker import binance_broker
                 state = binance_broker.get_configuration_state()
-                g3_ok = True  # testnet/paper always available
-                g3_msg = f"Binance: {state} — Testnet/Paper available"
+                g3_ok = state in ("AUTHENTICATED", "TESTNET VERIFIED")
+                g3_msg = f"Binance: {state} — {'Connection verified' if g3_ok else 'Broker connection unverified'}"
+            elif ws == "FOREX_GOLD":
+                g3_ok = False
+                g3_msg = "Forex provider is SIMULATED / NOT CONFIGURED — broker connection unverified"
             else:
-                g3_ok = True
-                g3_msg = "FOREX_GOLD — Paper simulation available"
-            gates.append({"id": 3, "name": "Broker/Exchange Connection", "passed": g3_ok,
-                           "detail": g3_msg})
+                g3_ok = False
+                g3_msg = f"Unknown workspace '{ws}' — broker connection unverified"
         except Exception as e:
-            gates.append({"id": 3, "name": "Broker/Exchange Connection", "passed": False,
-                           "detail": f"Broker check error: {e}"})
+            g3_ok = False
+            g3_msg = f"CHECK_FAILED: Broker check error: {e}"
+        gates.append({
+            "id": 3, "name": "Broker/Exchange Connection", "passed": g3_ok,
+            "detail": g3_msg, "workspace": ws, "timestamp": now_ts
+        })
 
-        # Gate 4: Market data freshness (< 5s or uninitialized 9999)
+        # Gate 4: Market Data Freshness (0.0 <= age <= 5.0, age 9999.0 is NOT allowed)
         try:
             from core.market_data_watchdog import market_data_watchdog
             symbol_map = {"INDIA": "RELIANCE", "CRYPTO": "BTCUSDT", "FOREX_GOLD": "XAUUSD"}
             sym = symbol_map.get(ws, "BTCUSDT")
             age = market_data_watchdog.get_age(sym)
-            g4_ok = age <= 5.0 or age == 9999.0  # 9999 = not subscribed, passes (no live sub needed for paper)
-            gates.append({"id": 4, "name": "Market Data Freshness", "passed": g4_ok,
-                           "detail": f"{sym} data age: {age:.1f}s ({'FRESH' if g4_ok else 'STALE'})"})
+            if age == 9999.0:
+                g4_ok = False
+                g4_msg = f"{sym} market data NOT SUBSCRIBED (age=9999.0s) — live feed missing"
+            elif age > 5.0:
+                g4_ok = False
+                g4_msg = f"{sym} market data STALE ({age:.1f}s > 5.0s threshold)"
+            elif age < 0.0:
+                g4_ok = False
+                g4_msg = f"{sym} invalid market data age ({age:.1f}s)"
+            else:
+                g4_ok = True
+                g4_msg = f"{sym} data FRESH (age={age:.1f}s <= 5.0s)"
         except Exception as e:
-            gates.append({"id": 4, "name": "Market Data Freshness", "passed": False,
-                           "detail": f"Watchdog error: {e}"})
+            g4_ok = False
+            g4_msg = f"CHECK_FAILED: Market data watchdog error: {e}"
+        gates.append({
+            "id": 4, "name": "Market Data Freshness", "passed": g4_ok,
+            "detail": g4_msg, "workspace": ws, "timestamp": now_ts
+        })
 
-        # Gate 5: Account synchronization (paper broker loaded)
+        # Gate 5: Account Synchronization
         try:
             from execution.paper_broker import paper_broker
-            g5_ok = paper_broker is not None and hasattr(paper_broker, "virtual_cash")
-            gates.append({"id": 5, "name": "Account Synchronization", "passed": g5_ok,
-                           "detail": f"Paper broker loaded — virtual_cash={getattr(paper_broker, 'virtual_cash', 'N/A'):.2f}"})
+            cash = getattr(paper_broker, "virtual_cash", None)
+            if cash is not None and isinstance(cash, (int, float)) and cash > 0:
+                g5_ok = True
+                g5_msg = f"Account synchronized — virtual_cash={float(cash):.2f}"
+            else:
+                g5_ok = False
+                g5_msg = f"Account sync failed — invalid virtual_cash={cash}"
         except Exception as e:
-            gates.append({"id": 5, "name": "Account Synchronization", "passed": False,
-                           "detail": f"Paper broker error: {e}"})
+            g5_ok = False
+            g5_msg = f"CHECK_FAILED: Account sync error: {e}"
+        gates.append({
+            "id": 5, "name": "Account Synchronization", "passed": g5_ok,
+            "detail": g5_msg, "workspace": ws, "timestamp": now_ts
+        })
 
-        # Gate 6: Position synchronization
+        # Gate 6: Position Synchronization
         try:
             from core.position_snapshot_service import position_snapshot_service
             snap = position_snapshot_service.get_snapshot(ws)
-            g6_ok = snap is not None and "open_position_count" in snap
-            gates.append({"id": 6, "name": "Position Synchronization", "passed": g6_ok,
-                           "detail": f"Positions: {snap.get('open_position_count', 'N/A') if snap else 'ERROR'}"})
+            if not snap:
+                g6_ok = False
+                g6_msg = f"Position snapshot unavailable for {ws}"
+            elif snap.get("reconciliation_status") in ("FAIL", "UNKNOWN", "RECONCILIATION_FAIL"):
+                g6_ok = False
+                g6_msg = f"Position reconciliation status: {snap.get('reconciliation_status')}"
+            elif snap.get("delta_detected", False):
+                g6_ok = False
+                g6_msg = f"Position delta detected: {snap.get('delta_description', 'Discrepancy detected')}"
+            elif "open_position_count" in snap:
+                g6_ok = True
+                g6_msg = f"Positions synchronized ({snap.get('open_position_count', 0)} open)"
+            else:
+                g6_ok = False
+                g6_msg = "Position snapshot schema invalid"
         except Exception as e:
-            gates.append({"id": 6, "name": "Position Synchronization", "passed": False,
-                           "detail": f"Snapshot error: {e}"})
+            g6_ok = False
+            g6_msg = f"CHECK_FAILED: Position sync error: {e}"
+        gates.append({
+            "id": 6, "name": "Position Synchronization", "passed": g6_ok,
+            "detail": g6_msg, "workspace": ws, "timestamp": now_ts
+        })
 
-        # Gate 7: Risk engine circuit breaker CLEAR
+        # Gate 7: Risk Engine Circuit Breaker CLEAR
         try:
             from core.risk_engine import risk_engine
-            g7_ok = not risk_engine.circuit_tripped
-            gates.append({"id": 7, "name": "Risk Engine Circuit Breaker CLEAR", "passed": g7_ok,
-                           "detail": f"circuit_tripped={risk_engine.circuit_tripped}"
-                                     + (f" — {risk_engine.trip_reason}" if risk_engine.circuit_tripped else "")})
+            if risk_engine.circuit_tripped:
+                g7_ok = False
+                g7_msg = f"Circuit breaker TRIPPED: {risk_engine.trip_reason}"
+            else:
+                g7_ok = True
+                g7_msg = "Circuit breaker CLEAR (NORMAL_OPERATIONS)"
         except Exception as e:
-            gates.append({"id": 7, "name": "Risk Engine Circuit Breaker CLEAR", "passed": False,
-                           "detail": f"Risk engine error: {e}"})
+            g7_ok = False
+            g7_msg = f"CHECK_FAILED: Risk engine error: {e}"
+        gates.append({
+            "id": 7, "name": "Risk Engine Circuit Breaker CLEAR", "passed": g7_ok,
+            "detail": g7_msg, "workspace": ws, "timestamp": now_ts
+        })
 
-        # Gate 8: Daily drawdown within limits
+        # Gate 8: Daily Drawdown Within Limits (FAIL-CLOSED)
         try:
             from core.risk_engine import risk_engine
-            dd = risk_engine.max_drawdown_pct
-            g8_ok = dd < 100.0  # Not 100% drawn down
-            gates.append({"id": 8, "name": "Daily Drawdown Within Limits", "passed": g8_ok,
-                           "detail": f"max_drawdown_pct={dd:.1f}%"})
+            dd_info = risk_engine.get_drawdown(ws)
+            dd_pct = float(dd_info.get("drawdown_pct", 0.0))
+            max_dd = float(dd_info.get("max_drawdown_pct", risk_engine.max_drawdown_pct))
+            if dd_info.get("breached", False) or dd_pct >= max_dd:
+                g8_ok = False
+                g8_msg = f"Drawdown {dd_pct:.2f}% breached limit {max_dd:.2f}%"
+            else:
+                g8_ok = True
+                g8_msg = f"Drawdown {dd_pct:.2f}% within limit {max_dd:.2f}%"
         except Exception as e:
-            gates.append({"id": 8, "name": "Daily Drawdown Within Limits", "passed": True,
-                           "detail": f"Drawdown check skipped (default pass): {e}"})
+            g8_ok = False
+            g8_msg = f"CHECK_FAILED: Drawdown evaluation error: {e}"
+        gates.append({
+            "id": 8, "name": "Daily Drawdown Within Limits", "passed": g8_ok,
+            "detail": g8_msg, "workspace": ws, "timestamp": now_ts
+        })
 
-        # Gate 9: Daily loss limits not breached
+        # Gate 9: Daily Loss Limits Not Breached (FAIL-CLOSED)
         try:
             from core.risk_engine import risk_engine
-            loss = risk_engine.daily_realized_loss
-            limit = risk_engine.daily_loss_limit_usd
-            g9_ok = abs(loss) < limit
-            gates.append({"id": 9, "name": "Daily Loss Limits Not Breached", "passed": g9_ok,
-                           "detail": f"daily_loss=${loss:.2f} / limit=${limit:.2f}"})
+            loss = float(risk_engine.daily_realized_loss)
+            limit = float(risk_engine.daily_loss_limit_usd)
+            if abs(loss) >= limit:
+                g9_ok = False
+                g9_msg = f"Daily loss ${abs(loss):.2f} reached limit ${limit:.2f}"
+            else:
+                g9_ok = True
+                g9_msg = f"Daily loss ${abs(loss):.2f} within limit ${limit:.2f}"
         except Exception as e:
-            gates.append({"id": 9, "name": "Daily Loss Limits Not Breached", "passed": True,
-                           "detail": f"Loss check skipped (default pass): {e}"})
+            g9_ok = False
+            g9_msg = f"CHECK_FAILED: Loss limit check error: {e}"
+        gates.append({
+            "id": 9, "name": "Daily Loss Limits Not Breached", "passed": g9_ok,
+            "detail": g9_msg, "workspace": ws, "timestamp": now_ts
+        })
 
-        # Gate 10: News lockout not active
+        # Gate 10: News Lockout Not Active (FAIL-CLOSED)
         try:
             from sync.economic_calendar import economic_filter
             locked, reason = economic_filter.is_news_lockout_active()
-            g10_ok = not locked
-            gates.append({"id": 10, "name": "News Lockout Not Active", "passed": g10_ok,
-                           "detail": f"News lockout: {'ACTIVE — ' + reason if locked else 'CLEAR'}"})
+            if locked:
+                g10_ok = False
+                g10_msg = f"News lockout ACTIVE — {reason}"
+            else:
+                g10_ok = True
+                g10_msg = "News lockout CLEAR"
         except Exception as e:
-            gates.append({"id": 10, "name": "News Lockout Not Active", "passed": True,
-                           "detail": f"News check skipped (default pass): {e}"})
+            g10_ok = False
+            g10_msg = f"CHECK_FAILED: News check error: {e}"
+        gates.append({
+            "id": 10, "name": "News Lockout Not Active", "passed": g10_ok,
+            "detail": g10_msg, "workspace": ws, "timestamp": now_ts
+        })
 
-        # Gate 11: Reconciliation sentinel healthy
+        # Gate 11: Reconciliation Sentinel Healthy (FAIL-CLOSED)
         try:
             from core.reconciliation_sentinel import reconciliation_sentinel
-            status = reconciliation_sentinel.last_report.get("status", "UNKNOWN")
-            g11_ok = status not in ("CRITICAL", "FAILED")
-            gates.append({"id": 11, "name": "Reconciliation Sentinel Healthy", "passed": g11_ok,
-                           "detail": f"Reconciliation status: {status}"})
+            status = str(reconciliation_sentinel.last_report.get("status", "UNKNOWN")).upper()
+            if status in ("HEALTHY", "PASS"):
+                g11_ok = True
+                g11_msg = f"Reconciliation status: {status}"
+            else:
+                g11_ok = False
+                g11_msg = f"Reconciliation status NOT HEALTHY: {status}"
         except Exception as e:
-            gates.append({"id": 11, "name": "Reconciliation Sentinel Healthy", "passed": True,
-                           "detail": f"Reconciliation check skipped (default pass): {e}"})
+            g11_ok = False
+            g11_msg = f"CHECK_FAILED: Reconciliation sentinel error: {e}"
+        gates.append({
+            "id": 11, "name": "Reconciliation Sentinel Healthy", "passed": g11_ok,
+            "detail": g11_msg, "workspace": ws, "timestamp": now_ts
+        })
 
-        # Gate 12: Kill switch CLEAR
+        # Gate 12: Emergency Kill Switch CLEAR (FAIL-CLOSED)
         try:
             from core.environment_gate import environment_gate
             ks_active = environment_gate._is_kill_switch_active()
-            g12_ok = not ks_active
-            gates.append({"id": 12, "name": "Emergency Kill Switch CLEAR", "passed": g12_ok,
-                           "detail": f"Kill switch: {'ACTIVE — blocked' if ks_active else 'CLEAR'}"})
+            if ks_active:
+                g12_ok = False
+                g12_msg = "Kill switch ACTIVE — all execution blocked"
+            else:
+                g12_ok = True
+                g12_msg = "Kill switch CLEAR"
         except Exception as e:
-            gates.append({"id": 12, "name": "Emergency Kill Switch CLEAR", "passed": False,
-                           "detail": f"Kill switch check error: {e}"})
+            g12_ok = False
+            g12_msg = f"CHECK_FAILED: Kill switch error: {e}"
+        gates.append({
+            "id": 12, "name": "Emergency Kill Switch CLEAR", "passed": g12_ok,
+            "detail": g12_msg, "workspace": ws, "timestamp": now_ts
+        })
 
-        # Gate 13: Execution environment valid
+        # Gate 13: Execution Environment Valid (PAPER) (FAIL-CLOSED)
         try:
             from core.environment_gate import environment_gate
             env_ok, env_msg = environment_gate.check_order_allowed("PAPER", 0.0)
-            g13_ok = env_ok
-            gates.append({"id": 13, "name": "Execution Environment Valid (PAPER)", "passed": g13_ok,
-                           "detail": env_msg})
+            g13_ok = bool(env_ok)
+            g13_msg = env_msg if env_ok else f"Environment gate rejected: {env_msg}"
         except Exception as e:
-            gates.append({"id": 13, "name": "Execution Environment Valid", "passed": False,
-                           "detail": f"Env gate error: {e}"})
+            g13_ok = False
+            g13_msg = f"CHECK_FAILED: Environment gate error: {e}"
+        gates.append({
+            "id": 13, "name": "Execution Environment Valid (PAPER)", "passed": g13_ok,
+            "detail": g13_msg, "workspace": ws, "timestamp": now_ts
+        })
 
-        # Gate 14: Instrument master loaded
+        # Gate 14: Instrument Master Loaded (FAIL-CLOSED)
         try:
             from core.instrument_master import instrument_master
             ws_instruments = [s for s in instrument_master.get_all_symbols()
                               if instrument_master.get_workspace(s) == ws]
-            g14_ok = len(ws_instruments) >= 1
-            gates.append({"id": 14, "name": "Instrument Master Loaded", "passed": g14_ok,
-                           "detail": f"{len(ws_instruments)} instruments registered for {ws}"})
+            if len(ws_instruments) >= 1:
+                g14_ok = True
+                g14_msg = f"{len(ws_instruments)} instruments registered for {ws}"
+            else:
+                g14_ok = False
+                g14_msg = f"Zero instruments registered for workspace {ws}"
         except Exception as e:
-            gates.append({"id": 14, "name": "Instrument Master Loaded", "passed": True,
-                           "detail": f"Instrument check skipped (default pass): {e}"})
+            g14_ok = False
+            g14_msg = f"CHECK_FAILED: Instrument master error: {e}"
+        gates.append({
+            "id": 14, "name": "Instrument Master Loaded", "passed": g14_ok,
+            "detail": g14_msg, "workspace": ws, "timestamp": now_ts
+        })
 
-        all_passed = all(g["passed"] for g in gates)
+        passed_count = sum(1 for g in gates if g.get("passed") is True)
+        failed_count = sum(1 for g in gates if g.get("passed") is False)
+        unknown_count = sum(1 for g in gates if g.get("passed") is None)
+        skipped_count = sum(1 for g in gates if g.get("skipped", False))
+
+        # Strict evidence rule: must be exactly 14, all passed, 0 failed, 0 unknown, 0 skipped
+        all_passed = (
+            len(gates) == 14
+            and passed_count == 14
+            and failed_count == 0
+            and unknown_count == 0
+            and skipped_count == 0
+        )
         return all_passed, gates
+
 
     # ─── Pending AI Order Cancellation ───────────────────────────────────────
 

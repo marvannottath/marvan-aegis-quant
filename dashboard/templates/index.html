@@ -2535,13 +2535,16 @@
             const isCryptoWs = (window.activeMarketVenue === 'CRYPTO') || activePool.includes('BINANCE') || activePool.includes('CRYPTO');
             const baseCap = isIndiaWs ? 100000.0 : (isCryptoWs ? 19950.55 : 100000.0);
 
-            const equity = (data.portfolio_equity !== undefined && data.portfolio_equity !== null) ? Number(data.portfolio_equity) : (window.cachedEquity || baseCap);
-            window.cachedEquity = equity;
-            const cash = (data.virtual_cash !== undefined && data.virtual_cash !== null) ? Number(data.virtual_cash) : (window.cachedCash || baseCap);
-            window.cachedCash = cash;
+            window.workspaceCache = window.workspaceCache || {};
+            const curWs = window.activeMarketVenue || 'INDIA';
+            const wsCache = window.workspaceCache[curWs] || {};
+
+            const equity = (data.portfolio_equity !== undefined && data.portfolio_equity !== null) ? Number(data.portfolio_equity) : (wsCache.equity || baseCap);
+            const cash = (data.virtual_cash !== undefined && data.virtual_cash !== null) ? Number(data.virtual_cash) : (wsCache.cash || baseCap);
             const pnl = data.floating_open_pnl_usd || 0.0;
-            const vault = (data.profit_vault && data.profit_vault.vault_balance !== undefined) ? Number(data.profit_vault.vault_balance) : (window.cachedVault || 0.0);
-            window.cachedVault = vault;
+            const vault = (data.profit_vault && data.profit_vault.vault_balance !== undefined) ? Number(data.profit_vault.vault_balance) : (wsCache.vault || 0.0);
+
+            window.workspaceCache[curWs] = { equity, cash, vault };
             const positions = data.positions || [];
             const orders = data.orders || [];
             const opps = data.ai_opportunities || [];
@@ -4119,15 +4122,16 @@
 
         function updateOperationalStrip(data) {
             if (!data) return;
+            const curWs = (_activeAiWorkspace || window.activeMarketVenue || 'INDIA').toUpperCase().replace('FOREX', 'FOREX_GOLD');
             const market = data.market || {};
             const ai = data.ai || {};
             const colMap = { 'OPEN': 'text-emerald-400', 'CLOSED': 'text-gray-500', 'HALTED': 'text-red-400',
                              'HOLIDAY': 'text-purple-400', 'PRE_MARKET': 'text-blue-400', 'CLOSING_SOON': 'text-yellow-400',
                              'RUNNING': 'text-emerald-400', 'PAUSED': 'text-yellow-400', 'STOPPED': 'text-red-400',
-                             'BLOCKED': 'text-orange-400', 'ENABLED': 'text-emerald-400', 'BLOCKED_': 'text-red-400',
+                             'BLOCKED': 'text-orange-400', 'ENABLED': 'text-emerald-400', 'CLEAR': 'text-emerald-400',
                              'READY': 'text-emerald-400', 'ACTIVE': 'text-red-500', 'PASS': 'text-emerald-400',
                              'FAIL': 'text-red-400', 'FRESH': 'text-emerald-400', 'STALE': 'text-red-400',
-                             'NOT_SUBSCRIBED': 'text-gray-500' };
+                             'NOT_SUBSCRIBED': 'text-gray-500', 'VERIFIED': 'text-emerald-400', 'NOT CONFIGURED': 'text-gray-500' };
             function setEl(id, val) {
                 const el = document.getElementById(id);
                 if (!el) return;
@@ -4135,6 +4139,8 @@
                 el.className = `font-black ${col ? colMap[col] : 'text-gray-500'}`;
                 el.textContent = val || '—';
             }
+
+            // Workspace-scoped status strip
             setEl('ops-india-market', 'INDIA:' + (market.INDIA || '—'));
             setEl('ops-forex-market', 'FOREX:' + (market.FOREX_GOLD || '—'));
             setEl('ops-crypto-market', 'CRYPTO:' + (market.CRYPTO || '—'));
@@ -4143,13 +4149,23 @@
             setEl('ops-crypto-ai',  'CRYPTO:' + (ai.CRYPTO || '—'));
             setEl('ops-exec',   data.execution || '—');
             setEl('ops-ks',     data.kill_switch || '—');
+
+            // Data status for current workspace
             const dataVals = data.data || {};
-            const anyFresh = Object.values(dataVals).some(v => v === 'FRESH');
-            setEl('ops-data', anyFresh ? 'FRESH' : 'NOT_SUBSCRIBED');
-            setEl('ops-recon',  data.reconciliation || '—');
+            const wsData = dataVals[curWs] || 'NOT_SUBSCRIBED';
+            setEl('ops-data', wsData);
+
+            // Risk status
+            setEl('ops-risk', data.risk || 'CLEAR');
+
+            // Reconciliation status
+            setEl('ops-recon', (data.reconciliation === 'HEALTHY' || data.reconciliation === 'PASS') ? 'PASS' : (data.reconciliation || '—'));
+
+            // Broker status for current workspace
             const brokers = data.broker || {};
-            const brokerSummary = Object.values(brokers).some(v => v && v.includes('VERIFIED')) ? 'VERIFIED' : 'NOT CONFIGURED';
-            setEl('ops-broker', brokerSummary);
+            const bKey = curWs === 'CRYPTO' ? 'BINANCE_TESTNET' : curWs;
+            const bVal = brokers[bKey] || 'NOT CONFIGURED';
+            setEl('ops-broker', bVal.includes('VERIFIED') ? 'VERIFIED' : (bVal.includes('AUTHENTICATED') ? 'AUTHENTICATED' : 'NOT CONFIGURED'));
         }
 
         async function fetchOperationalStatus() {

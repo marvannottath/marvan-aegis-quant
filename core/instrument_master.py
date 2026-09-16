@@ -380,6 +380,24 @@ class InstrumentMaster:
 
         return True, f"PIPELINE_IDENTITY_VERIFIED: Identity preserved for '{canonical_sym}' across all 5 lifecycle stages"
 
+    def get_all_symbols(self, workspace: Optional[str] = None) -> List[str]:
+        """Return all registered symbols, optionally filtered by workspace."""
+        from core.workspace_manager import workspace_manager
+        if workspace:
+            norm_ws = workspace_manager._normalize_workspace(workspace)
+            return list(workspace_manager.get_workspace_meta(norm_ws).get("instruments", []))
+        all_syms = set()
+        for ws in workspace_manager.VALID_WORKSPACES:
+            all_syms.update(workspace_manager.get_workspace_meta(ws).get("instruments", []))
+        all_syms.update(self.india_registry.keys())
+        return sorted(list(all_syms))
+
+    def get_workspace(self, symbol: str) -> str:
+        """Resolve workspace for a symbol."""
+        from core.workspace_manager import workspace_manager
+        return workspace_manager.get_workspace_for_symbol(symbol)
+
 
 # Global singleton
 instrument_master = InstrumentMaster()
+

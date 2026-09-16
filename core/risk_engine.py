@@ -274,7 +274,12 @@ class RiskEngine:
         if eff_sl <= 0.0:
             return False, RISK_REJECTED_INVALID_SL, "Stop-loss percentage must be configured and > 0.0%"
 
-        # 7. Standard 7-Gate Risk Pipeline
+        # 7. Authoritative Drawdown Breach Check
+        dd_ok, dd_val, dd_reason = self.evaluate_drawdown(norm_ws)
+        if not dd_ok:
+            return False, RISK_REJECTED_DRAWDOWN, f"Execution rejected: {dd_reason}"
+
+        # 8. Standard 7-Gate Risk Pipeline
         approved, code, msg = self.validate_order_pipeline(
             amount_usd=amount,
             leverage=leverage,
@@ -376,6 +381,57 @@ class RiskEngine:
             available_cash=position_size_usd + 0.01
         )
         return ok, msg
+
+    def get_drawdown(self, workspace: str = "DEFAULT") -> Dict[str, Any]:
+        """
+        Authoritative calculation of current portfolio drawdown for a workspace.
+        drawdown_pct = max(0.0, ((peak_equity - current_equity) / peak_equity) * 100.0)
+        """
+        try:
+            from core.workspace_manager import workspace_manager
+            norm_ws = workspace_manager._normalize_workspace(workspace)
+            ws_meta = workspace_manager.get_workspace_meta(norm_ws)
+            init_cap = float(ws_meta.get("initial_capital", 100000.0))
+        except Exception:
+            norm_ws = workspace
+            init_cap = 100000.0
+
+        try:
+            from execution.paper_broker import paper_broker
+            from core.position_snapshot_service import position_snapshot_service
+            snap = position_snapshot_service.get_snapshot(norm_ws)
+            unrealized = float(snap.get("unrealized_pnl", 0.0))
+            pool_name = ws_meta.get("default_pool", "AEGIS_QUANT_MASTER")
+            pool = getattr(paper_broker, "pools", {}).get(pool_name, {})
+            cash = float(pool.get("virtual_cash", getattr(paper_broker, "virtual_cash", init_cap)))
+            equity = float(pool.get("equity", round(cash + unrealized, 2)))
+        except Exception:
+            equity = init_cap
+
+        peak = max(init_cap, equity)
+        dd_pct = max(0.0, round(((peak - equity) / peak) * 100.0, 2)) if peak > 0 else 0.0
+        max_dd = float(self.max_drawdown_pct)
+        breached = dd_pct >= max_dd
+
+        return {
+            "workspace": norm_ws,
+            "current_equity": equity,
+            "peak_equity": peak,
+            "drawdown_pct": dd_pct,
+            "max_drawdown_pct": max_dd,
+            "breached": breached,
+            "circuit_tripped": self.circuit_tripped,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+
+    def evaluate_drawdown(self, workspace: str = "DEFAULT") -> Tuple[bool, float, str]:
+        """Returns (allowed: bool, drawdown_pct: float, reason: str)."""
+        dd_info = self.get_drawdown(workspace)
+        if dd_info["breached"]:
+            self.circuit_tripped = True
+            self.trip_reason = f"MAX_DRAWDOWN_BREACHED: current {dd_info['drawdown_pct']:.2f}% >= limit {dd_info['max_drawdown_pct']:.2f}%"
+            return False, dd_info["drawdown_pct"], self.trip_reason
+        return True, dd_info["drawdown_pct"], "Drawdown within limits"
 
     def update_portfolio_drawdown(self, current_equity: float, peak_equity: float = 600000.0) -> bool:
         if peak_equity > 0:
