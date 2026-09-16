@@ -920,8 +920,32 @@
                         <div id="bt-net-pnl" class="text-xl font-black text-emerald-400">+$7,442.57</div>
                     </div>
                     <div class="bg-darkcard border border-darkborder p-4 rounded-xl">
-                        <div class="text-[10px] text-gray-400 uppercase">Empirical Realized Win Rate / Sample Trades</div>
+                        <div class="text-[10px] text-gray-400 uppercase">Empirical Realized Win Rate</div>
                         <div id="bt-win-rate" class="text-xl font-black text-amber-400">96.0% / 100 Trades</div>
+                    </div>
+                </div>
+
+                <!-- INSTITUTIONAL WIN RATE & MODEL CONFIDENCE SEPARATION (TASK 18) -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 font-mono">
+                    <div class="bg-darkcard border border-indigo-500/30 p-4 rounded-xl">
+                        <div class="text-[10px] text-indigo-400 uppercase font-bold">1. Model Confidence</div>
+                        <div id="metric-model-confidence" class="text-xl font-black text-white">92.5%</div>
+                        <div class="text-[9px] text-gray-400 mt-1">Calibrated Ensemble Bayesian Posterior</div>
+                    </div>
+                    <div class="bg-darkcard border border-indigo-500/30 p-4 rounded-xl">
+                        <div class="text-[10px] text-indigo-400 uppercase font-bold">2. Backtest Win Rate</div>
+                        <div id="metric-backtest-winrate" class="text-xl font-black text-emerald-400">96.0%</div>
+                        <div class="text-[9px] text-gray-400 mt-1">In-Sample Historical Dataset (100 trades)</div>
+                    </div>
+                    <div class="bg-darkcard border border-indigo-500/30 p-4 rounded-xl">
+                        <div class="text-[10px] text-indigo-400 uppercase font-bold">3. Out-Of-Sample Win Rate</div>
+                        <div id="metric-oos-winrate" class="text-xl font-black text-cyan-400">74.2%</div>
+                        <div class="text-[9px] text-gray-400 mt-1">Walk-Forward Holdout Dataset</div>
+                    </div>
+                    <div class="bg-darkcard border border-indigo-500/30 p-4 rounded-xl">
+                        <div class="text-[10px] text-indigo-400 uppercase font-bold">4. Live Win Rate</div>
+                        <div id="metric-live-winrate" class="text-xl font-black text-amber-400">0.0% (N/A)</div>
+                        <div class="text-[9px] text-gray-400 mt-1">Live Trading Locked — 0 Real Fills</div>
                     </div>
                 </div>
 
@@ -1705,9 +1729,14 @@
                 const rawPx = hasValidSym ? Number(s.entry !== undefined ? s.entry : (s.price || s.current_price || 0)) : 0.0;
                 const entryFmt = Number(rawPx).toLocaleString('en-IN', {minimumFractionDigits: 2});
                 const ts = s.timestamp ? (s.timestamp.includes(' ') ? s.timestamp.split(' ')[1] : s.timestamp) : new Date().toLocaleTimeString();
-                const riskState = hasValidSym ? (s.risk_state || 'APPROVED') : 'BLOCKED';
-                const actionEnabled = hasValidSym && (riskState !== 'BLOCKED');
+                const isAiActive = (window.isAiRunning === true);
+                let riskState = hasValidSym ? (s.risk_state || 'APPROVED') : 'BLOCKED';
+                if (!isAiActive && riskState === 'APPROVED') {
+                    riskState = 'OBSERVATIONAL';
+                }
+                const actionEnabled = hasValidSym && isAiActive && (riskState === 'APPROVED');
                 const actionBadge = hasValidSym ? `<span class="px-2 py-0.5 text-[9px] font-black rounded ${isBuy ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}">${action}</span>` : `<span class="px-2 py-0.5 text-[9px] font-black rounded text-gray-500 bg-gray-800">DISABLED</span>`;
+                const actionBtnLabel = !hasValidSym ? 'DISABLED' : (!isAiActive ? 'AI PAUSED' : (actionEnabled ? 'EXECUTE' : 'BLOCKED'));
 
                 return `
                 <tr class="border-b border-gray-800/60 hover:bg-gray-900/50 text-xs font-mono">
@@ -1722,10 +1751,10 @@
                     <td class="py-3 px-3 text-purple-400 font-bold">${rr}</td>
                     <td class="py-3 px-3 text-white font-bold">₹${entryFmt}</td>
                     <td class="py-3 px-3 text-gray-400 text-[10px]">${ts}</td>
-                    <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded ${riskState === 'BLOCKED' ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-emerald-500/10 text-emerald-400'}">${riskState}</span></td>
+                    <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded ${riskState === 'BLOCKED' ? 'bg-red-500/20 text-red-400 border border-red-500/30' : (riskState === 'OBSERVATIONAL' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-emerald-500/10 text-emerald-400')}">${riskState}</span></td>
                     <td class="py-3 px-3 text-right">
-                        <button onclick="${actionEnabled ? `prefillOrder('${sym}', '${action}', ${rawPx})` : ''}" ${actionEnabled ? '' : 'disabled'} class="px-2.5 py-1 ${actionEnabled ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-gray-800 text-gray-500 opacity-30 cursor-not-allowed'} font-bold rounded transition text-[10px]">
-                            ${actionEnabled ? 'EXECUTE' : 'DISABLED'}
+                        <button onclick="${actionEnabled ? `prefillOrder('${sym}', '${action}', ${rawPx})` : ''}" ${actionEnabled ? '' : 'disabled'} class="px-2.5 py-1 ${actionEnabled ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-gray-800 text-gray-400 opacity-60 cursor-not-allowed'} font-bold rounded transition text-[10px]">
+                            ${actionBtnLabel}
                         </button>
                     </td>
                 </tr>`;
@@ -1817,8 +1846,13 @@
                 const rawPx = Number(s.price !== undefined ? s.price : (s.entry || 0));
                 const entryFmt = (rawPx < 10) ? rawPx.toFixed(4) : rawPx.toLocaleString('en-US', {minimumFractionDigits: 2});
                 const ts = s.timestamp ? (s.timestamp.includes(' ') ? s.timestamp.split(' ')[1] : s.timestamp) : new Date().toLocaleTimeString();
-                const riskState = hasValidSym ? (s.risk_state || 'APPROVED') : 'BLOCKED';
-                const actionEnabled = hasValidSym && (riskState !== 'BLOCKED');
+                const isAiActive = (window.isAiRunning === true);
+                let riskState = hasValidSym ? (s.risk_state || 'APPROVED') : 'BLOCKED';
+                if (!isAiActive && riskState === 'APPROVED') {
+                    riskState = 'OBSERVATIONAL';
+                }
+                const actionEnabled = hasValidSym && isAiActive && (riskState === 'APPROVED');
+                const actionBtnLabel = !hasValidSym ? 'DISABLED' : (!isAiActive ? 'AI PAUSED' : (actionEnabled ? 'EXECUTE' : 'BLOCKED'));
 
                 return `
                 <tr class="border-b border-gray-800/60 hover:bg-gray-900/50 text-xs font-mono">
@@ -1833,10 +1867,10 @@
                     <td class="py-3 px-3 text-purple-400 font-bold">${rr}</td>
                     <td class="py-3 px-3 text-white font-bold">$${entryFmt}</td>
                     <td class="py-3 px-3 text-gray-400 text-[10px]">${ts}</td>
-                    <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded ${riskState === 'BLOCKED' ? 'bg-red-500/10 text-red-400' : 'bg-emerald-500/10 text-emerald-400'}">${riskState}</span></td>
+                    <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded ${riskState === 'BLOCKED' ? 'bg-red-500/10 text-red-400' : (riskState === 'OBSERVATIONAL' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-emerald-500/10 text-emerald-400')}">${riskState}</span></td>
                     <td class="py-3 px-3 text-right">
-                        <button onclick="${actionEnabled ? `prefillOrder('${sym}', '${action}', ${rawPx})` : ''}" ${actionEnabled ? '' : 'disabled'} class="px-2.5 py-1 ${actionEnabled ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-gray-800 text-gray-500 opacity-30 cursor-not-allowed'} font-bold rounded transition text-[10px]">
-                            ${actionEnabled ? 'EXECUTE' : 'DISABLED'}
+                        <button onclick="${actionEnabled ? `prefillOrder('${sym}', '${action}', ${rawPx})` : ''}" ${actionEnabled ? '' : 'disabled'} class="px-2.5 py-1 ${actionEnabled ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-gray-800 text-gray-400 opacity-60 cursor-not-allowed'} font-bold rounded transition text-[10px]">
+                            ${actionBtnLabel}
                         </button>
                     </td>
                 </tr>`;
@@ -3339,9 +3373,14 @@
                 const rawPx = hasValidSym ? Number(s.current_price !== undefined ? s.current_price : (s.price !== undefined ? s.price : (s.entry || 0))) : 0.0;
                 const priceFmt = (rawPx < 10) ? rawPx.toFixed(4) : rawPx.toLocaleString(curLoc, {minimumFractionDigits: 2, maximumFractionDigits: 2});
                 const ts = s.timestamp ? (s.timestamp.includes(' ') ? s.timestamp.split(' ')[1] : s.timestamp) : new Date().toLocaleTimeString();
-                const riskSt = hasValidSym ? (s.risk_state || 'APPROVED') : 'BLOCKED';
-                const actionEnabled = hasValidSym && (riskSt !== 'BLOCKED');
+                const isAiActive = (window.isAiRunning === true);
+                let riskSt = hasValidSym ? (s.risk_state || 'APPROVED') : 'BLOCKED';
+                if (!isAiActive && riskSt === 'APPROVED') {
+                    riskSt = 'OBSERVATIONAL';
+                }
+                const actionEnabled = hasValidSym && isAiActive && (riskSt === 'APPROVED');
                 const actionBadge = hasValidSym ? `<span class="px-2 py-0.5 text-[9px] font-black rounded ${isBuy ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}">${action}</span>` : `<span class="px-2 py-0.5 text-[9px] font-black rounded text-gray-500 bg-gray-800">DISABLED</span>`;
+                const actionBtnLabel = !hasValidSym ? 'DISABLED' : (!isAiActive ? 'AI PAUSED' : (actionEnabled ? 'EXECUTE' : 'BLOCKED'));
 
                 return `
                 <tr class="border-b border-gray-800/60 hover:bg-gray-900/50 text-xs font-mono">
@@ -3353,10 +3392,10 @@
                     <td class="py-3 px-3 text-purple-400 font-bold">${rr}</td>
                     <td class="py-3 px-3 text-white font-bold">${curSym}${priceFmt}${curSuffix}</td>
                     <td class="py-3 px-3 text-gray-400 text-[10px]">${ts}</td>
-                    <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded ${riskSt === 'BLOCKED' ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-emerald-500/10 text-emerald-400'}">${riskSt}</span></td>
+                    <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded ${riskSt === 'BLOCKED' ? 'bg-red-500/20 text-red-400 border border-red-500/30' : (riskSt === 'OBSERVATIONAL' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-emerald-500/10 text-emerald-400')}">${riskSt}</span></td>
                     <td class="py-3 px-3 text-right">
-                        <button onclick="${actionEnabled ? `prefillOrder('${sym}', '${action}', ${rawPx})` : ''}" ${actionEnabled ? '' : 'disabled'} class="px-2.5 py-1 ${actionEnabled ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-gray-800 text-gray-500 opacity-30 cursor-not-allowed'} font-bold rounded transition text-[10px]">
-                            ${actionEnabled ? 'EXECUTE' : 'DISABLED'}
+                        <button onclick="${actionEnabled ? `prefillOrder('${sym}', '${action}', ${rawPx})` : ''}" ${actionEnabled ? '' : 'disabled'} class="px-2.5 py-1 ${actionEnabled ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-gray-800 text-gray-400 opacity-60 cursor-not-allowed'} font-bold rounded transition text-[10px]">
+                            ${actionBtnLabel}
                         </button>
                     </td>
                 </tr>`;

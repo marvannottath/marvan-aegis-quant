@@ -60,8 +60,19 @@ RISK_REJECTED_STALE_DATA         = "RISK_REJECTED/MARKET_DATA_STALE"
 RISK_REJECTED_INVALID_QUANTITY   = "RISK_REJECTED/INVALID_QUANTITY"
 RISK_REJECTED_INVALID_PRICE      = "RISK_REJECTED/INVALID_PRICE"
 
+# Regulatory leverage limits
+SEBI_MAX_LEVERAGE_INDIA = 5.0
+MAX_DRAWDOWN_LIMIT_PCT = 10.0
+
 
 class RiskEngine:
+    LEVERAGE_CAPS = {
+        "INDIA": 5.0,
+        "CRYPTO": 25.0,
+        "FOREX_GOLD": 20.0
+    }
+    MAX_DRAWDOWN_LIMIT_PCT = 10.0
+
     def __init__(self, max_drawdown_pct: float = 10.0, default_profile: str = "CONSERVATIVE"):
         self.active_profile_name = default_profile.upper() if default_profile.upper() in PROFILES else "CONSERVATIVE"
         self.custom_trade_cap_usd: float = 5000.0
