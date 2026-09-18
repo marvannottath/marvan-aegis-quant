@@ -66,7 +66,9 @@ class PositionSnapshotService:
 
         target_ws = workspace_manager._normalize_workspace(workspace)
         meta = workspace_manager.get_workspace_meta(target_ws)
-        pool_name = meta.get("default_pool", "AEGIS_INDIA_INR")
+        default_pool = meta.get("default_pool", "AEGIS_INDIA_INR")
+        allowed_pools = meta.get("allowed_pools", [default_pool])
+        pool_name = paper_broker.active_pool_name if paper_broker.active_pool_name in allowed_pools else default_pool
         cur_sym = meta.get("currency_symbol", "₹" if target_ws == "INDIA" else "$")
         cur_code = meta.get("currency", "INR" if target_ws == "INDIA" else ("USDT" if target_ws == "CRYPTO" else "USD"))
 
@@ -201,7 +203,9 @@ class PositionSnapshotService:
 
         target_ws = workspace_manager._normalize_workspace(workspace)
         meta = workspace_manager.get_workspace_meta(target_ws)
-        pool_name = meta.get("default_pool", "AEGIS_INDIA_INR")
+        default_pool = meta.get("default_pool", "AEGIS_INDIA_INR")
+        allowed_pools = meta.get("allowed_pools", [default_pool])
+        pool_name = paper_broker.active_pool_name if paper_broker.active_pool_name in allowed_pools else default_pool
         initial_cap = float(meta.get("initial_capital", 100000.0))
 
         # Authoritative position snapshot
