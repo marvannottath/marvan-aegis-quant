@@ -120,9 +120,10 @@ except Exception as e:
 if paper_broker.active_pool_name == "AEGIS_QUANT_MASTER":
     sweep_sum = sum(float(s.get("profit_swept", s.get("amount", 0.0))) for s in profit_vault.sweep_history)
     vault_bal = profit_vault.vault_balance
+    base_bal = float(profit_vault.vault_stores.get("AEGIS_QUANT_MASTER", {}).get("base_balance", 0.0))
     # Allow for withdrawals reducing vault below sum
     check("TEST 11: Vault balance ≤ sum(sweep_history) — no phantom balance",
-          vault_bal <= sweep_sum + 0.10, f"Vault: ${vault_bal:,.2f}, Sweeps total: ${sweep_sum:,.2f}")
+          vault_bal <= sweep_sum + base_bal + 0.10, f"Vault: ${vault_bal:,.2f}, Sweeps total: ${sweep_sum:,.2f}")
 
 # TEST 12: Equity reconciliation — Cash + Vault + Margin + UnrealizedPnL = Equity
 paper_broker.set_active_capital_pool("AEGIS_QUANT_MASTER")

@@ -617,10 +617,10 @@
                         </div>
 
                         <div class="flex space-x-3 pt-2">
-                            <button onclick="executeTerminalOrder('BUY')" class="flex-1 py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm rounded-xl transition shadow-lg flex items-center justify-center">
+                            <button id="btn-execute-buy" onclick="executeTerminalOrder('BUY')" class="flex-1 py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm rounded-xl transition shadow-lg flex items-center justify-center">
                                 <i class="fa-solid fa-arrow-trend-up mr-2"></i> PLACE BUY ORDER
                             </button>
-                            <button onclick="executeTerminalOrder('SELL')" class="flex-1 py-3.5 bg-red-600 hover:bg-red-500 text-white font-black text-sm rounded-xl transition shadow-lg flex items-center justify-center">
+                            <button id="btn-execute-sell" onclick="executeTerminalOrder('SELL')" class="flex-1 py-3.5 bg-red-600 hover:bg-red-500 text-white font-black text-sm rounded-xl transition shadow-lg flex items-center justify-center">
                                 <i class="fa-solid fa-arrow-trend-down mr-2"></i> PLACE SELL ORDER
                             </button>
                         </div>
@@ -1590,9 +1590,6 @@
                 fetchUpstoxStatus();
             }
             fetchState(window.activeMarketVenue, seq);
-            fetchPerformanceCurve();
-            fetchExecutionLatency();
-            fetchBacktestRuns();
             updatePreOrderEstimates();
         }
 
@@ -2548,7 +2545,8 @@
 
         
         function checkStaleDataAndConnectionGuard(data) {
-            const btnBuy = document.getElementById('btn-execute-order');
+            const btnBuy = document.getElementById('btn-execute-buy') || document.getElementById('btn-execute-order');
+            const btnSell = document.getElementById('btn-execute-sell');
             const connLbl = document.getElementById('lbl-conn-status');
             
             const isDisconnected = connLbl && connLbl.innerText.includes('DISCONNECTED');
@@ -2556,15 +2554,27 @@
             const isStale = dataAge > 60;
 
             if (isDisconnected || isStale) {
+                const msg = isDisconnected ? 'DISCONNECTED' : 'STALE (>60s)';
                 if (btnBuy) {
                     btnBuy.disabled = true;
-                    btnBuy.className = 'w-full py-3.5 bg-gray-800 text-gray-500 font-black text-xs rounded-xl cursor-not-allowed border border-gray-700';
-                    btnBuy.innerText = isDisconnected ? 'TRADING DISABLED — CONNECTION DISCONNECTED' : 'TRADING DISABLED — STALE MARKET DATA (>60s)';
+                    btnBuy.className = 'flex-1 py-3.5 bg-gray-800 text-gray-500 font-black text-xs rounded-xl cursor-not-allowed border border-gray-700 flex items-center justify-center';
+                    btnBuy.innerText = `BUY DISABLED — ${msg}`;
+                }
+                if (btnSell) {
+                    btnSell.disabled = true;
+                    btnSell.className = 'flex-1 py-3.5 bg-gray-800 text-gray-500 font-black text-xs rounded-xl cursor-not-allowed border border-gray-700 flex items-center justify-center';
+                    btnSell.innerText = `SELL DISABLED — ${msg}`;
                 }
             } else {
-                if (btnBuy) {
+                if (btnBuy && btnBuy.disabled) {
                     btnBuy.disabled = false;
                     btnBuy.className = 'flex-1 py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm rounded-xl transition shadow-lg flex items-center justify-center';
+                    btnBuy.innerHTML = '<i class="fa-solid fa-arrow-trend-up mr-2"></i> PLACE BUY ORDER';
+                }
+                if (btnSell && btnSell.disabled) {
+                    btnSell.disabled = false;
+                    btnSell.className = 'flex-1 py-3.5 bg-red-600 hover:bg-red-500 text-white font-black text-sm rounded-xl transition shadow-lg flex items-center justify-center';
+                    btnSell.innerHTML = '<i class="fa-solid fa-arrow-trend-down mr-2"></i> PLACE SELL ORDER';
                 }
             }
         }
@@ -4313,9 +4323,12 @@
                 const summary = document.getElementById('modal-resume-summary');
                 summary.textContent = ok
                     ? `✅ ${data.gates_passed}/${data.gates_total} gates PASS — Ready to resume`
-                    : `❌ ${data.gates_passed}/${data.gates_total} gates PASS — Some gates FAILED — AI will enter BLOCKED state`;
+                    : `❌ ${data.gates_passed}/${data.gates_total} gates PASS — AI Resume locked until all 14 gates pass`;
                 summary.className = `text-[11px] font-bold mb-4 text-center ${ok ? 'text-emerald-400' : 'text-red-400'}`;
-                document.getElementById('btn-resume-confirm').classList.toggle('hidden', false);
+                const btnConfirm = document.getElementById('btn-resume-confirm');
+                if (btnConfirm) {
+                    btnConfirm.classList.toggle('hidden', !ok);
+                }
             } catch (e) {
                 document.getElementById('modal-resume-gates').innerHTML = `<p class="text-red-400">Preflight error: ${e.message}</p>`;
             }
@@ -4352,16 +4365,21 @@
             const initWs = (wsParam ? ((wsParam === 'FOREX' || wsParam === 'FOREX_GOLD') ? 'FOREX_GOLD' : wsParam.toUpperCase()) : null) || localStorage.getItem('aegis_active_workspace') || 'INDIA';
             switchMarketVenue(initWs);
             renderSystemHealth();
-            fetchState(initWs);
             fetchPaymentHistory();
             fetchExecutionLatency();
             fetchBacktestRuns();
             fetchBinanceStatus();
+            fetchPerformanceCurve();
             initWebSocket();
-            setInterval(() => fetchState(window.activeMarketVenue), 3000);
-            setInterval(() => refreshVenueData(), 4000);
-            setInterval(fetchExecutionLatency, 5000);
-            // Phase 5C: operational status + AI control panel polling
+
+            // Consolidated venue & state periodic refresh (single heartbeat)
+            setInterval(() => refreshVenueData(), 3500);
+
+            // Low-frequency telemetry intervals
+            setInterval(fetchPerformanceCurve, 30000); // 30s
+            setInterval(fetchExecutionLatency, 15000);  // 15s
+
+            // Operational status + AI control panel polling
             fetchOperationalStatus();
             fetchMarketSession();
             setInterval(fetchOperationalStatus, 5000);
