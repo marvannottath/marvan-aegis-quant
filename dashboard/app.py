@@ -711,9 +711,9 @@ async def get_state(workspace: Optional[str] = None, request_id: Optional[str] =
 
     # Get pool account details
     pool_data = paper_broker.pools.get(active_pool, {})
-    equity_val = float(pool_data.get("equity", meta["initial_capital"]))
-    init_cap = max(1.0, float(pool_data.get("initial_capital", meta["initial_capital"])))
-    cash_val = float(pool_data.get("virtual_cash", meta["initial_capital"]))
+    init_cap = float(pool_data.get("initial_capital", meta.get("initial_capital", 100000.0)))
+    equity_val = float(pool_data.get("equity", init_cap))
+    cash_val = float(pool_data.get("virtual_cash", init_cap))
     currency = meta["currency"]
     currency_symbol = meta["currency_symbol"]
 
@@ -3330,16 +3330,21 @@ async def get_performance_curve(
     try:
         from core.workspace_manager import workspace_manager
         from core.performance_curve_engine import performance_curve_engine
+        from execution.paper_broker import paper_broker
         env = environment
         if workspace:
             ws = workspace_manager._normalize_workspace(workspace)
             meta = workspace_manager.get_workspace_meta(ws)
-            env = meta["default_pool"]
+            default_pool = meta.get("default_pool", "AEGIS_QUANT_MASTER")
+            allowed = meta.get("allowed_pools", [default_pool])
+            env = paper_broker.active_pool_name if paper_broker.active_pool_name in allowed else default_pool
         elif not env or env == "AEGIS_QUANT_MASTER":
             ws = workspace_manager.get_active_workspace()
             meta = workspace_manager.get_workspace_meta(ws)
+            default_pool = meta.get("default_pool", "AEGIS_QUANT_MASTER")
+            allowed = meta.get("allowed_pools", [default_pool])
             if not environment:
-                env = meta["default_pool"]
+                env = paper_broker.active_pool_name if paper_broker.active_pool_name in allowed else default_pool
 
         result = performance_curve_engine.get_curve(metric=metric, time_range=range, environment=env or "AEGIS_QUANT_MASTER")
         return JSONResponse(result)

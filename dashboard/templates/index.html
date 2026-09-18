@@ -266,9 +266,9 @@
                 </button>
                 <button onclick="switchTab('payments')" id="nav-payments" class="sidebar-item w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-bold text-gray-300 hover:text-white transition">
                     <div class="flex items-center space-x-3">
-                        <i class="fa-solid fa-credit-card w-4 text-amber-400"></i> <span>Payments</span>
+                        <i class="fa-solid fa-building-columns w-4 text-amber-400"></i> <span>Funding & Wallets</span>
                     </div>
-                    <span class="px-1.5 py-0.5 text-[9px] font-black bg-amber-500/20 text-amber-300 rounded">TEST</span>
+                    <span class="px-1.5 py-0.5 text-[9px] font-black bg-emerald-500/20 text-emerald-300 rounded">LIVE</span>
                 </button>
                 <button onclick="switchTab('system')" id="nav-system" class="sidebar-item w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-bold text-gray-300 hover:text-white transition">
                     <i class="fa-solid fa-server w-4 text-blue-400"></i> <span>System Health</span>
@@ -1028,42 +1028,78 @@
 
 
 
-            <!-- TAB 11: PAYMENTS -->
-            <!-- TAB 11: PAYMENTS -->
+            <!-- TAB 11: PAYMENTS & WALLET FUNDING -->
             <section id="tab-payments" class="tab-content space-y-6">
                 <div class="flex items-center justify-between border-b border-gray-800 pb-4">
                     <div>
-                        <h2 class="text-xl font-black text-white"><i class="fa-solid fa-credit-card text-amber-400 mr-2"></i> Stripe Production Funding & Payment Hub</h2>
-                        <p class="text-xs text-amber-400 font-bold">Stripe Payment Gateway Infrastructure — TEST / SANDBOX MODE</p>
+                        <h2 class="text-xl font-black text-white"><i class="fa-solid fa-building-columns text-amber-400 mr-2"></i> Institutional Funding & Settlement Gateway</h2>
+                        <p class="text-xs text-gray-400">Multi-Channel Capital Ingestion: Binance P2P/Crypto · Bank Wire / UPI · Card Gateways</p>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-mono">
+                            <i class="fa-solid fa-shield-halved mr-1"></i> DIRECT CUSTODIAL SETTLEMENT
+                        </span>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div class="bg-darkcard border border-darkborder p-4 rounded-xl space-y-1">
-                        <div class="text-[10px] text-gray-400 font-bold">Credit & Debit Cards</div>
-                        <div class="text-sm font-black text-emerald-400"><i class="fa-solid fa-credit-card mr-1"></i> Visa / Mastercard / Amex</div>
-                        <div class="text-[9px] text-gray-500">Supported: US, CA, EU, Global</div>
+                <!-- 3 Primary Institutional Funding Routes -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <!-- Route 1: Binance P2P / Spot Wallet -->
+                    <div class="bg-darkcard border border-darkborder hover:border-amber-500/50 transition p-5 rounded-2xl space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-black text-amber-400 uppercase tracking-wide">Crypto & Binance (USDT)</span>
+                            <span class="px-2 py-0.5 text-[9px] font-black bg-amber-500/10 text-amber-400 rounded">Zero Fee · Instant</span>
+                        </div>
+                        <div class="text-lg font-black text-white font-mono">Binance P2P & On-Chain</div>
+                        <p class="text-[11px] text-gray-400 leading-relaxed">
+                            Buy USDT using Google Pay, UPI, or Bank Transfer directly on the Binance app. Your capital stays 100% in your own Binance Spot Wallet with cold-storage security.
+                        </p>
+                        <div class="pt-2">
+                            <a href="https://p2p.binance.com" target="_blank" class="inline-flex items-center space-x-1 text-xs font-bold text-amber-400 hover:text-amber-300">
+                                <span>Open Binance P2P</span> <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                            </a>
+                        </div>
                     </div>
-                    <div class="bg-darkcard border border-darkborder p-4 rounded-xl space-y-1">
-                        <div class="text-[10px] text-gray-400 font-bold">Apple Pay</div>
-                        <div class="text-sm font-black text-white"><i class="fa-brands fa-apple mr-1"></i> Apple Pay (Touch / Face ID)</div>
-                        <div class="text-[9px] text-gray-500">Supported: iOS / Safari</div>
+
+                    <!-- Route 2: Upstox / Indian Banking -->
+                    <div class="bg-darkcard border border-darkborder hover:border-emerald-500/50 transition p-5 rounded-2xl space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-black text-emerald-400 uppercase tracking-wide">Indian Equities (INR ₹)</span>
+                            <span class="px-2 py-0.5 text-[9px] font-black bg-emerald-500/10 text-emerald-400 rounded">SEBI Regulated</span>
+                        </div>
+                        <div class="text-lg font-black text-white font-mono">Upstox UPI / NetBanking</div>
+                        <p class="text-[11px] text-gray-400 leading-relaxed">
+                            Deposit funds directly to your verified Upstox Trading Account via Instant UPI, NEFT, or NetBanking. Zero-delay fund allocations with T+1 settlement.
+                        </p>
+                        <div class="pt-2">
+                            <a href="https://login.upstox.com" target="_blank" class="inline-flex items-center space-x-1 text-xs font-bold text-emerald-400 hover:text-emerald-300">
+                                <span>Open Upstox Funds</span> <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                            </a>
+                        </div>
                     </div>
-                    <div class="bg-darkcard border border-darkborder p-4 rounded-xl space-y-1">
-                        <div class="text-[10px] text-gray-400 font-bold">Google Pay</div>
-                        <div class="text-sm font-black text-blue-400"><i class="fa-brands fa-google mr-1"></i> Google Pay</div>
-                        <div class="text-[9px] text-gray-500">Supported: Android / Chrome</div>
-                    </div>
-                    <div class="bg-darkcard border border-darkborder p-4 rounded-xl space-y-1">
-                        <div class="text-[10px] text-gray-400 font-bold">Stripe Contactless / NFC</div>
-                        <div class="text-sm font-black text-purple-400"><i class="fa-solid fa-wifi mr-1"></i> Stripe Terminal Infrastructure</div>
-                        <div class="text-[9px] text-gray-500">Supported: US & Canada In-Person</div>
+
+                    <!-- Route 3: Global OTC / Cards -->
+                    <div class="bg-darkcard border border-darkborder hover:border-blue-500/50 transition p-5 rounded-2xl space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-black text-blue-400 uppercase tracking-wide">International FX (USD $)</span>
+                            <span class="px-2 py-0.5 text-[9px] font-black bg-blue-500/10 text-blue-400 rounded">Tier-1 Processing</span>
+                        </div>
+                        <div class="text-lg font-black text-white font-mono">Card & Stripe Checkout</div>
+                        <p class="text-[11px] text-gray-400 leading-relaxed">
+                            Secure multi-currency credit/debit card gateway supporting Visa, Mastercard, Apple Pay, and international wire transfers.
+                        </p>
+                        <div class="pt-2">
+                            <button onclick="document.getElementById('stripe-card-form').scrollIntoView({behavior: 'smooth'})" class="inline-flex items-center space-x-1 text-xs font-bold text-blue-400 hover:text-blue-300">
+                                <span>Use Card Gateway</span> <i class="fa-solid fa-arrow-down text-[10px]"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Card Funding & Audit Ledger -->
+                <div id="stripe-card-form" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div class="bg-darkcard border border-darkborder p-6 rounded-2xl space-y-4 shadow-xl lg:col-span-1">
-                        <h3 class="text-sm font-bold text-white uppercase border-b border-gray-800 pb-2">Deposit Capital via Stripe</h3>
+                        <h3 class="text-sm font-bold text-white uppercase border-b border-gray-800 pb-2">Deposit Capital via Card Gateway</h3>
                         <div class="space-y-3">
                             <div>
                                 <label class="block text-xs font-bold text-gray-400 mb-1">Select Deposit Currency:</label>
@@ -1080,7 +1116,7 @@
                             </div>
 
                             <button onclick="initiateStripeCheckout()" class="w-full py-3 bg-amber-500 text-black font-black text-xs rounded-xl shadow hover:bg-amber-400 transition">
-                                <i class="fa-solid fa-lock mr-2"></i> DEPOSIT VIA STRIPE CHECKOUT
+                                <i class="fa-solid fa-lock mr-2"></i> INITIALIZE SECURE CHECKOUT
                             </button>
 
                             <div id="stripe-result-box" class="hidden p-3 bg-emerald-950/60 border border-emerald-500/40 rounded-xl text-xs font-mono text-emerald-400">
@@ -1579,6 +1615,7 @@
                 fetchUpstoxStatus();
             }
             fetchState(window.activeMarketVenue, seq);
+            fetchPerformanceCurve();
             updatePreOrderEstimates();
         }
 

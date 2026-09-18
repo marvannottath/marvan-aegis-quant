@@ -219,6 +219,7 @@ class PositionSnapshotService:
         paper_broker.switch_pool(pool_name)
         paper_broker._update_equity()
         pool = paper_broker.pools.get(pool_name, {})
+        initial_cap = float(pool.get("initial_capital", meta.get("initial_capital", 100000.0)))
         free_cash = round(float(pool.get("virtual_cash", initial_cap)), 2)
 
         # Vault reserve (0 for India per segregation rules)
@@ -232,7 +233,11 @@ class PositionSnapshotService:
 
         # Peak equity & Drawdown calculation
         peak_equity = max(initial_cap, total_equity)
-        drawdown_pct = round(((peak_equity - total_equity) / peak_equity) * 100.0, 2) if peak_equity > 0 else 0.0
+        # If pool is newly created/unfunded with zero capital, drawdown is 0.0% (not breached)
+        if peak_equity <= 0.0:
+            drawdown_pct = 0.0
+        else:
+            drawdown_pct = max(0.0, round(((peak_equity - total_equity) / peak_equity) * 100.0, 2))
 
         return {
             "workspace": target_ws,
