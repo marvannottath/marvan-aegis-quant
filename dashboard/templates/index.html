@@ -4149,9 +4149,16 @@
             'UNKNOWN':      { dot: 'bg-gray-700',                  label: 'text-gray-600' },
         };
 
+        function getCanonicalWorkspace(w) {
+            const up = (w || 'INDIA').toUpperCase();
+            if (up === 'FOREX' || up === 'FOREX_GOLD' || up.startsWith('FOREX')) return 'FOREX_GOLD';
+            if (up === 'CRYPTO') return 'CRYPTO';
+            return 'INDIA';
+        }
+
         function updateAiControlPanel(aiStates, marketSessions) {
             // Use active venue as the primary workspace for the header control
-            const ws = (window.activeMarketVenue || 'INDIA').toUpperCase().replace('FOREX', 'FOREX_GOLD');
+            const ws = getCanonicalWorkspace(window.activeMarketVenue);
             _activeAiWorkspace = ws;
 
             const aiState = (aiStates && aiStates[ws]) ? aiStates[ws].state || aiStates[ws] : 'PAUSED';
@@ -4183,7 +4190,7 @@
 
         function updateOperationalStrip(data) {
             if (!data) return;
-            const curWs = (_activeAiWorkspace || window.activeMarketVenue || 'INDIA').toUpperCase().replace('FOREX', 'FOREX_GOLD');
+            const curWs = getCanonicalWorkspace(_activeAiWorkspace || window.activeMarketVenue);
             const market = data.market || {};
             const ai = data.ai || {};
             const colMap = { 'OPEN': 'text-emerald-400', 'CLOSED': 'text-gray-500', 'HALTED': 'text-red-400',
