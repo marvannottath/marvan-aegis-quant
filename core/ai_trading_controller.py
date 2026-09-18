@@ -387,13 +387,22 @@ class AITradingController:
         # Gate 5: Account Synchronization
         try:
             from execution.paper_broker import paper_broker
-            cash = getattr(paper_broker, "virtual_cash", None)
+            from core.workspace_manager import workspace_manager
+            meta = workspace_manager.get_workspace_meta(ws)
+            target_pool = meta.get("default_pool", "AEGIS_QUANT_MASTER")
+            pool_name = paper_broker.active_pool_name if paper_broker.active_pool_name in meta.get("allowed_pools", [target_pool]) else target_pool
+            pool = paper_broker.pools.get(pool_name, {})
+            cash = pool.get("virtual_cash", getattr(paper_broker, "virtual_cash", None))
+            
             if cash is not None and isinstance(cash, (int, float)) and cash > 0:
                 g5_ok = True
                 g5_msg = f"Account synchronized — virtual_cash={float(cash):.2f}"
             else:
                 g5_ok = False
-                g5_msg = f"Account sync failed — invalid virtual_cash={cash}"
+                if cash == 0.0 and "LIVE" in pool_name:
+                    g5_msg = f"Account sync failed — Live wallet balance is 0.00 USDT (Deposit funds to trade)"
+                else:
+                    g5_msg = f"Account sync failed — invalid virtual_cash={cash}"
         except Exception as e:
             g5_ok = False
             g5_msg = f"CHECK_FAILED: Account sync error: {e}"

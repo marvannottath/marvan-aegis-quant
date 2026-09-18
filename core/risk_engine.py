@@ -412,8 +412,11 @@ class RiskEngine:
             from core.position_snapshot_service import position_snapshot_service
             snap = position_snapshot_service.get_snapshot(norm_ws)
             unrealized = float(snap.get("unrealized_pnl", 0.0))
-            pool_name = ws_meta.get("default_pool", "AEGIS_QUANT_MASTER")
+            default_pool = ws_meta.get("default_pool", "AEGIS_QUANT_MASTER")
+            allowed_pools = ws_meta.get("allowed_pools", [default_pool])
+            pool_name = paper_broker.active_pool_name if paper_broker.active_pool_name in allowed_pools else default_pool
             pool = getattr(paper_broker, "pools", {}).get(pool_name, {})
+            init_cap = float(pool.get("initial_capital", ws_meta.get("initial_capital", 100000.0)))
             cash = float(pool.get("virtual_cash", getattr(paper_broker, "virtual_cash", init_cap)))
             equity = float(pool.get("equity", round(cash + unrealized, 2)))
         except Exception:
