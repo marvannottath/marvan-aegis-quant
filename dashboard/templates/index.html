@@ -74,56 +74,44 @@
                 <span id="hdr-env-label" class="font-bold text-emerald-400">AEGIS INDIA POOL (₹100,000.00)</span>
             </div>
 
-            <!-- ═══ PHASE 5C: MARKET SESSION BADGE ═══ -->
-            <div id="market-session-badge" class="hidden lg:flex items-center space-x-1.5 px-2.5 py-1 bg-gray-900 border border-gray-800 rounded-lg" title="Market session state — from authoritative backend">
+            <!-- Market Session Badge -->
+            <div id="market-session-badge" class="hidden lg:flex items-center space-x-1.5 px-2.5 py-1 bg-gray-900 border border-gray-800 rounded-lg" title="Market session state">
                 <span id="mkt-session-dot" class="w-2 h-2 rounded-full bg-gray-500"></span>
                 <span class="text-gray-500 text-[10px]">MKT:</span>
-                <span id="mkt-session-label" class="font-bold text-gray-400 text-[10px]">LOADING...</span>
+                <span id="mkt-session-label" class="font-bold text-gray-300 text-[10px]">LOADING...</span>
             </div>
 
-            <!-- ═══ PHASE 5C: AI TRADING MASTER CONTROL ═══ -->
-            <div id="ai-control-panel" class="hidden md:flex items-center space-x-1.5 px-2.5 py-1 bg-gray-900 border border-gray-700 rounded-lg">
+            <!-- AI Trading Master Control -->
+            <div id="ai-control-panel" class="hidden md:flex items-center space-x-1.5 px-2.5 py-1 bg-gray-900 border border-gray-800 rounded-lg">
                 <span id="ai-state-dot" class="w-2 h-2 rounded-full bg-gray-500"></span>
                 <span class="text-gray-500 text-[10px] font-bold">AI:</span>
                 <span id="ai-state-label" class="font-black text-[10px] text-gray-400">PAUSED</span>
-                <!-- PAUSE button (shown when RUNNING) -->
-                <button id="btn-ai-pause" onclick="aiPause()" class="hidden px-2 py-0.5 rounded text-[9px] font-black bg-yellow-500/20 border border-yellow-500/40 text-yellow-400 hover:bg-yellow-500/30 transition" title="Pause AI trading — preserves existing orders">
-                    ⏸ PAUSE
-                </button>
-                <!-- STOP button (shown when RUNNING or PAUSED) -->
-                <button id="btn-ai-stop" onclick="aiStopConfirm()" class="hidden px-2 py-0.5 rounded text-[9px] font-black bg-red-500/20 border border-red-500/40 text-red-400 hover:bg-red-500/30 transition" title="Stop AI trading — cancels pending AI orders">
-                    ⏹ STOP
-                </button>
-                <!-- RESUME button (shown when PAUSED/STOPPED/BLOCKED) -->
-                <button id="btn-ai-resume" onclick="aiResume()" class="hidden px-2 py-0.5 rounded text-[9px] font-black bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/30 transition" title="Resume AI trading — runs 14-gate preflight">
-                    ▶ RESUME
-                </button>
+                <!-- PAUSE button -->
+                <button id="btn-ai-pause" onclick="aiPause()" class="hidden px-2 py-0.5 rounded text-[9px] font-black bg-yellow-500/20 border border-yellow-500/40 text-yellow-400 hover:bg-yellow-500/30 transition cursor-pointer">⏸ PAUSE</button>
+                <!-- STOP button -->
+                <button id="btn-ai-stop" onclick="aiStopConfirm()" class="hidden px-2 py-0.5 rounded text-[9px] font-black bg-red-500/20 border border-red-500/40 text-red-400 hover:bg-red-500/30 transition cursor-pointer">⏹ STOP</button>
+                <!-- RESUME button -->
+                <button id="btn-ai-resume" onclick="aiResume()" class="hidden px-2 py-0.5 rounded text-[9px] font-black bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/30 transition cursor-pointer">▶ RESUME</button>
             </div>
 
-            <!-- Live Trading ON/OFF Toggle -->
-            <button id="btn-live-toggle" onclick="toggleLiveTradingState()" class="hidden md:flex items-center space-x-1.5 px-2.5 py-1 bg-red-500/10 border border-red-500/40 text-red-400 font-bold rounded-lg hover:bg-red-500/20 transition cursor-pointer" title="Click to Toggle Live Trading Mode">
-                <i id="icon-live-toggle" class="fa-solid fa-toggle-off"></i>
-                <span id="lbl-live-toggle">LIVE: OFF</span>
-            </button>
-
-            <!-- WebSocket Status -->
-            <div onclick="switchTab('system')" class="hidden sm:flex items-center space-x-1.5 text-emerald-400 font-bold cursor-pointer hover:underline" title="Click to view System Health">
-                <i class="fa-solid fa-wifi text-[11px]"></i>
+            <!-- Hidden legacy anchors to preserve JS bindings -->
+            <div class="hidden">
+                <button id="btn-live-toggle" onclick="toggleLiveTradingState()"><span id="lbl-live-toggle">LIVE: OFF</span></button>
                 <span id="lbl-conn-status">LIVE (WS)</span>
             </div>
 
             <!-- Server Time Clock -->
-            <div id="lbl-server-time" class="font-bold text-gray-300 bg-gray-900 border border-gray-800 px-2.5 py-1 rounded-lg">--:--:-- IST</div>
+            <div id="lbl-server-time" class="font-bold text-gray-400 bg-gray-900 border border-gray-800 px-2.5 py-1 rounded-lg text-[11px]">--:--:-- IST</div>
 
             <!-- Order Action Button -->
-            <button onclick="switchTab('orders')" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-lg transition shadow flex items-center cursor-pointer">
+            <button onclick="switchTab('orders')" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-lg transition shadow flex items-center cursor-pointer text-xs">
                 <i class="fa-solid fa-bolt mr-1"></i> ORDER
             </button>
         </div>
     </header>
 
-    <!-- ═══ PHASE 5C: OPERATIONAL STATUS STRIP (below header) ═══ -->
-    <div id="operational-status-strip" class="flex items-center justify-between px-4 py-1.5 bg-gray-950 border-b border-gray-800 text-[10px] font-mono shrink-0 overflow-x-auto space-x-4 whitespace-nowrap">
+    <!-- OPERATIONAL STATUS STRIP (Preserved in DOM for state bindings, hidden for clean UI) -->
+    <div id="operational-status-strip" class="hidden">
         <div class="flex items-center space-x-4">
             <div class="flex items-center space-x-1.5">
                 <span class="text-gray-600">MARKET</span>
