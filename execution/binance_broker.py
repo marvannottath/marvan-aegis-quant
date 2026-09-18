@@ -797,14 +797,16 @@ class BinanceBroker:
         """Return explicit Phase 4 provider configuration state."""
         from core.secure_credential_manager import (
             STATE_NOT_CONFIGURED, STATE_CONFIGURED, STATE_AUTHENTICATION_FAILED,
-            STATE_TESTNET_VERIFIED, STATE_LIVE_LOCKED
+            STATE_TESTNET_VERIFIED, STATE_LIVE_LOCKED, STATE_AUTHENTICATED
         )
-        if not self.demo_api_key or not self.demo_secret_key:
+        if not self.demo_api_key and not self.live_api_key:
             return STATE_NOT_CONFIGURED
-        if self.status == "DEMO_AUTHENTICATED":
-            return STATE_TESTNET_VERIFIED
         if self.status in ["AUTH_FAILED", "AUTHENTICATION_FAILED", "REJECTED"]:
             return STATE_AUTHENTICATION_FAILED
+        if self.status in ["LIVE_AUTHENTICATED", "LIVE_TRADING_ACTIVE"]:
+            return STATE_AUTHENTICATED
+        if self.status in ["DEMO_AUTHENTICATED", "TESTNET VERIFIED"]:
+            return STATE_TESTNET_VERIFIED
         return STATE_CONFIGURED
 
     def get_configuration_state(self) -> str:
