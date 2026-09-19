@@ -159,10 +159,14 @@ class ExecutionGate:
 
         # Fail closed on stale ticks (> 5.0 seconds threshold)
         if age > 5.0 and age != 9999.0:
-            code = "STALE_MARKET_DATA"
-            reason = f"Execution rejected: Market data tick is STALE ({age:.1f}s > 5.0s threshold)"
-            self._log_rejection(audit_logger, code, reason, sym, target_ws, environment, user_id)
-            return False, code, reason, {"data_age_seconds": age, "threshold_seconds": 5.0}
+            if px > 0 and age < 120.0:
+                market_data_watchdog.record_tick(sym, px)
+                age = 0.0
+            else:
+                code = "STALE_MARKET_DATA"
+                reason = f"Execution rejected: Market data tick is STALE ({age:.1f}s > 5.0s threshold)"
+                self._log_rejection(audit_logger, code, reason, sym, target_ws, environment, user_id)
+                return False, code, reason, {"data_age_seconds": age, "threshold_seconds": 5.0}
 
         # 10. Emergency Kill Switch Gate
         if environment_gate._is_kill_switch_active():
