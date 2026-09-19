@@ -1418,6 +1418,16 @@ async def connect_binance_endpoint(data: dict):
     res = binance_broker.save_credentials(api_key, secret_key, testnet)
     return JSONResponse(res)
 
+@app.post("/api/connect-upstox")
+async def connect_upstox_endpoint(data: dict):
+    """Save & connect Upstox API credentials (NSE/BSE Indian Equities)."""
+    from execution.upstox_broker import upstox_broker
+    api_key = data.get("api_key", "")
+    api_secret = data.get("api_secret", "")
+    access_token = data.get("access_token", "")
+    res = upstox_broker.save_credentials(api_key, api_secret, access_token)
+    return JSONResponse(res)
+
 @app.post("/api/switch-trading-pool")
 @app.post("/api/select-pool")
 async def switch_trading_pool_endpoint(request: Request):

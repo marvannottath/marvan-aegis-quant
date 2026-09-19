@@ -12,6 +12,7 @@ import os
 import json
 import time
 import requests
+from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime, timezone, timedelta
 
@@ -19,6 +20,7 @@ from core.broker_adapter import BrokerAdapter
 from config.security import vault
 
 IST_TZ = timezone(timedelta(hours=5, minutes=30))
+UPSTOX_CONFIG_FILE = Path(__file__).resolve().parent / "upstox_config.json"
 
 
 def _ist_now() -> str:
@@ -35,11 +37,21 @@ class UpstoxBrokerAdapter(BrokerAdapter):
     BASE_URL_V3 = "https://api.upstox.com/v3"
 
     def __init__(self):
-        self._api_key: str = os.getenv("UPSTOX_API_KEY", "")
-        self._api_secret: str = os.getenv("UPSTOX_API_SECRET", "")
-        self._redirect_uri: str = os.getenv("UPSTOX_REDIRECT_URI", "http://localhost:8888/api/upstox/callback")
-        self._access_token: str = os.getenv("UPSTOX_ACCESS_TOKEN", "")
+        self._api_key: str = os.getenv("UPSTOX_API_KEY", "").strip()
+        self._api_secret: str = os.getenv("UPSTOX_API_SECRET", "").strip()
+        self._redirect_uri: str = os.getenv("UPSTOX_REDIRECT_URI", "http://localhost:8888/api/upstox/callback").strip()
+        self._access_token: str = os.getenv("UPSTOX_ACCESS_TOKEN", "").strip()
         self._token_expiry: float = 0.0
+
+        if not self._api_key and UPSTOX_CONFIG_FILE.exists():
+            try:
+                with open(UPSTOX_CONFIG_FILE, "r") as f:
+                    cfg = json.load(f)
+                    self._api_key = cfg.get("api_key", "").strip()
+                    self._api_secret = cfg.get("api_secret", "").strip()
+                    self._access_token = cfg.get("access_token", "").strip()
+            except Exception as e:
+                print(f"[UPSTOX] Config read notice: {e}")
 
         self._profile: Dict[str, Any] = {}
         self._is_authenticated: bool = False
@@ -49,6 +61,31 @@ class UpstoxBrokerAdapter(BrokerAdapter):
 
         # Check configuration
         self._check_configuration()
+
+    def save_credentials(self, api_key: str, api_secret: str, access_token: str) -> Dict[str, Any]:
+        """Save Upstox API credentials to persistent config file and verify connection."""
+        self._api_key = api_key.strip()
+        self._api_secret = api_secret.strip()
+        self._access_token = access_token.strip()
+        try:
+            with open(UPSTOX_CONFIG_FILE, "w") as f:
+                json.dump({
+                    "api_key": self._api_key,
+                    "api_secret": self._api_secret,
+                    "access_token": self._access_token,
+                    "saved_at": _ist_now()
+                }, f, indent=2)
+        except Exception as e:
+            print(f"[UPSTOX] Save config notice: {e}")
+
+        self._check_configuration()
+        connected = self.connect() if self._access_token else False
+        return {
+            "status": "SUCCESS" if connected else "SAVED",
+            "broker": "UPSTOX",
+            "connected": connected,
+            "message": "Upstox Live Connected Successfully" if connected else "Upstox credentials saved (Access token active or ready for renewal)"
+        }
 
     @property
     def broker_name(self) -> str:
