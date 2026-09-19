@@ -2845,12 +2845,32 @@ manager = ConnectionManager()
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
+    from core.workspace_manager import workspace_manager
+    ws_param = websocket.query_params.get("workspace")
+    current_ws = [workspace_manager._normalize_workspace(ws_param) if ws_param else workspace_manager.get_active_workspace()]
     seq = 0
+
+    async def client_listener():
+        try:
+            while True:
+                msg_text = await websocket.receive_text()
+                try:
+                    msg = json.loads(msg_text)
+                    if msg.get("action") == "set_workspace" and msg.get("workspace"):
+                        current_ws[0] = workspace_manager._normalize_workspace(msg["workspace"])
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+    listen_task = asyncio.create_task(client_listener())
+
     try:
         while True:
             await asyncio.sleep(1.0)
             seq += 1
-            state = await get_state()
+            ws = current_ws[0]
+            state = await get_state(workspace=ws)
             state["event_type"] = "ENGINE_HEARTBEAT"
             state["server_time"] = time.strftime("%H:%M:%S IST")
             state["sequence"] = seq
@@ -2860,6 +2880,8 @@ async def websocket_endpoint(websocket: WebSocket):
         manager.disconnect(websocket)
     except Exception:
         manager.disconnect(websocket)
+    finally:
+        listen_task.cancel()
 
 
 @app.get("/state")

@@ -1448,6 +1448,13 @@
                 body: JSON.stringify({ workspace: normVenue })
             }).catch(e => console.warn("Workspace switch notice:", e));
 
+            // Notify active WebSocket of the new workspace
+            if (window.activeWebSocket && window.activeWebSocket.readyState === WebSocket.OPEN) {
+                try {
+                    window.activeWebSocket.send(JSON.stringify({ action: 'set_workspace', workspace: normVenue }));
+                } catch (e) {}
+            }
+
             refreshVenueData(currentSeq);
         }
 
@@ -2677,11 +2684,11 @@
             const deposits = data.deposit_history || [];
             const health = data.system_health || {};
 
-            // Top Header & Metrics
-            const isIndia = isIndiaWs;
-            const isForex = (window.activeMarketVenue === 'FOREX') || (window.activeMarketVenue === 'FOREX_GOLD');
-            const isCrypto = isCryptoWs;
-            const curSym = isIndia ? '₹' : (isCrypto ? '' : '$');
+            // Top Header & Metrics - derive strictly from authoritative workspace of stateData
+            const curNormWs = (data.active_workspace === 'FOREX' || data.active_workspace === 'FOREX_GOLD') ? 'FOREX_GOLD' : (data.active_workspace || window.activeMarketVenue || 'INDIA');
+            const isIndia = (curNormWs === 'INDIA');
+            const isCrypto = (curNormWs === 'CRYPTO');
+            const isForex = (curNormWs === 'FOREX_GOLD');
             const curLoc = isIndia ? 'en-IN' : 'en-US';
 
             function formatMoney(val) {
@@ -2690,8 +2697,10 @@
                 const formatted = Math.abs(num).toLocaleString(curLoc, {minimumFractionDigits: 2, maximumFractionDigits: 2});
                 if (isCrypto) {
                     return `${sign}${formatted} USDT`;
+                } else if (isIndia) {
+                    return `${sign}₹${formatted}`;
                 } else {
-                    return `${sign}${curSym}${formatted}`;
+                    return `${sign}$${formatted}`;
                 }
             }
 
@@ -2701,8 +2710,10 @@
                 const formatted = Math.abs(num).toLocaleString(curLoc, {minimumFractionDigits: 2, maximumFractionDigits: 2});
                 if (isCrypto) {
                     return `${sign}${formatted} USDT`;
+                } else if (isIndia) {
+                    return `${sign}₹${formatted}`;
                 } else {
-                    return `${sign}${curSym}${formatted}`;
+                    return `${sign}$${formatted}`;
                 }
             }
 
@@ -2794,8 +2805,10 @@
         function renderOrderStream(orders) {
             const stream = document.getElementById('overview-orders-stream');
             if (!stream) return;
-            const isIndia = (window.activeMarketVenue === 'INDIA');
-            const curSym = isIndia ? '₹' : '$';
+            const curWs = window.activeMarketVenue || 'INDIA';
+            const isIndia = (curWs === 'INDIA');
+            const isCrypto = (curWs === 'CRYPTO');
+            const curSym = isIndia ? '₹' : (isCrypto ? 'USDT ' : '$');
             const curLoc = isIndia ? 'en-IN' : 'en-US';
 
             const prohibitedIndiaAssets = ['BTC', 'ETH', 'SOL', 'EURUSD', 'USDJPY', 'GBPUSD', 'USDCAD', 'USDCHF', 'NZDUSD', 'XAUUSD', 'AAPL', 'USDT', 'BNB', 'XRP', 'DOGE', 'ADA'];
@@ -2810,6 +2823,12 @@
                 }
                 return true;
             });
+
+            // Prevent flickering: skip re-rendering if data has not changed
+            const orderCacheKey = curWs + '_' + JSON.stringify(realOrders.slice(0, 8).map(o => [o.order_id, o.status, o.action, o.amount_usd || o.price]));
+            if (stream._lastCacheKey === orderCacheKey) return;
+            stream._lastCacheKey = orderCacheKey;
+
             if (realOrders.length === 0) {
                 stream.innerHTML = `
                     <div class="p-5 text-center text-gray-500 font-mono text-xs space-y-1">
@@ -2857,8 +2876,17 @@
         function renderPositionsTable(positions) {
             const tbody = document.getElementById('positions-full-tbody');
             if (!tbody) return;
-            const curSym = (window.activeMarketVenue === 'INDIA') ? '₹' : '$';
-            const curLoc = (window.activeMarketVenue === 'INDIA') ? 'en-IN' : 'en-US';
+            const curWs = window.activeMarketVenue || 'INDIA';
+            const isIndia = (curWs === 'INDIA');
+            const isCrypto = (curWs === 'CRYPTO');
+            const curSym = isIndia ? '₹' : (isCrypto ? '$' : '$');
+            const curLoc = isIndia ? 'en-IN' : 'en-US';
+
+            // Prevent flickering: skip re-rendering if positions haven't changed
+            const posCacheKey = curWs + '_' + JSON.stringify((positions || []).map(p => [p.position_id || p.id, p.asset || p.symbol || p.ticker, p.unrealized_pnl, p.pnl_usd, p.last_price || p.mark_price, p.capital_allocated]));
+            if (tbody._lastCacheKey === posCacheKey) return;
+            tbody._lastCacheKey = posCacheKey;
+
             if (!positions || positions.length === 0) {
                 tbody.innerHTML = `
                     <tr>
@@ -3356,6 +3384,11 @@
         function renderOverviewSignals(opps) {
             const grid = document.getElementById('overview-signals-grid');
             if (!grid) return;
+            const curWs = window.activeMarketVenue || 'INDIA';
+            const cacheKey = curWs + '_' + JSON.stringify((opps || []).slice(0, 4).map(o => [o.symbol || o.ticker, o.action || o.direction, o.score]));
+            if (grid._lastCacheKey === cacheKey) return;
+            grid._lastCacheKey = cacheKey;
+
             if (!opps || opps.length === 0) {
                 grid.innerHTML = `
                     <div class="col-span-full p-4 text-center text-gray-500 font-mono text-xs">
@@ -3387,7 +3420,15 @@
         function renderMarketsScanner(markets) {
             const tbody = document.getElementById('markets-scanner-tbody');
             if (!tbody) return;
-            const curSym = (window.activeMarketVenue === 'INDIA') ? '₹' : '$';
+            const curWs = window.activeMarketVenue || 'INDIA';
+            const isIndia = (curWs === 'INDIA');
+            const isCrypto = (curWs === 'CRYPTO');
+            const curSym = isIndia ? '₹' : (isCrypto ? 'USDT ' : '$');
+
+            const cacheKey = curWs + '_' + JSON.stringify((markets || []).map(m => [m.symbol, m.price, m.status, m.volatility, m.score]));
+            if (tbody._lastCacheKey === cacheKey) return;
+            tbody._lastCacheKey = cacheKey;
+
             if (!markets || markets.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="9" class="py-8 text-center text-gray-500 font-mono text-xs"><i class="fa-solid fa-earth-americas text-2xl mb-2 text-gray-700 block"></i>NO MARKET SCANNER DATA AVAILABLE — Watchdog Monitoring</td></tr>`;
                 return;
@@ -3462,12 +3503,18 @@
         function renderFullSignalsTable(opps) {
             const tbody = document.getElementById('signals-full-tbody');
             if (!tbody) return;
-            const isIndia = (window.activeMarketVenue === 'INDIA');
-            const isCrypto = (window.activeMarketVenue === 'CRYPTO');
+            const curWs = window.activeMarketVenue || 'INDIA';
+            const isIndia = (curWs === 'INDIA');
+            const isCrypto = (curWs === 'CRYPTO');
             const curSym = isIndia ? '₹' : (isCrypto ? '' : '$');
             const curSuffix = isCrypto ? ' USDT' : '';
             const curLoc = isIndia ? 'en-IN' : 'en-US';
             const defaultEx = isIndia ? 'NSE' : (isCrypto ? 'BINANCE' : 'GLOBAL FX');
+            const isAiActive = (window.isAiRunning === true);
+
+            const cacheKey = curWs + '_' + isAiActive + '_' + JSON.stringify((opps || []).map(s => [s.symbol || s.asset || s.ticker, s.direction || s.action, s.price, s.score, s.risk_state]));
+            if (tbody._lastCacheKey === cacheKey) return;
+            tbody._lastCacheKey = cacheKey;
 
             if (!opps || opps.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="10" class="py-8 text-center text-gray-500 font-mono text-xs"><i class="fa-solid fa-brain text-2xl mb-2 text-gray-700 block"></i>NO VALID SIGNAL — ENGINE MONITORING</td></tr>`;
@@ -3618,8 +3665,20 @@
                     labelName = 'Drawdown (%)';
                 }
 
+                const chartDataSig = `${ws}_${currentChartMetric}_${currentChartTF}_${values.length}_${values[values.length - 1]}`;
+                if (canvas._lastChartSig === chartDataSig && chartInstance) {
+                    return; // Same data, skip repainting
+                }
+                canvas._lastChartSig = chartDataSig;
+
                 if (chartInstance) {
-                    chartInstance.destroy();
+                    chartInstance.data.labels = labels;
+                    chartInstance.data.datasets[0].label = labelName;
+                    chartInstance.data.datasets[0].data = values;
+                    chartInstance.data.datasets[0].borderColor = borderColor;
+                    chartInstance.data.datasets[0].backgroundColor = bgGradient;
+                    chartInstance.update('none');
+                    return;
                 }
 
                 const ctx = canvas.getContext('2d');
@@ -4195,14 +4254,29 @@
 
         function initWebSocket() {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsUrl = `${protocol}//${window.location.host}/ws`;
+            const curWs = window.activeMarketVenue || 'INDIA';
+            const wsUrl = `${protocol}//${window.location.host}/ws?workspace=${encodeURIComponent(curWs)}`;
             try {
                 const ws = new WebSocket(wsUrl);
-                ws.onopen = () => console.log('WebSocket connected to:', wsUrl);
+                window.activeWebSocket = ws;
+                ws.onopen = () => {
+                    console.log('WebSocket connected to:', wsUrl);
+                    if (window.activeMarketVenue) {
+                        try {
+                            ws.send(JSON.stringify({ action: 'set_workspace', workspace: window.activeMarketVenue }));
+                        } catch (e) {}
+                    }
+                };
                 ws.onmessage = (event) => {
                     try {
                         const raw = JSON.parse(event.data);
                         const stateData = (raw && raw.payload) ? Object.assign({}, raw, raw.payload) : raw;
+                        // Strict workspace guard: discard any payload not matching current active venue
+                        const curNorm = (window.activeMarketVenue === 'FOREX' || window.activeMarketVenue === 'FOREX_GOLD') ? 'FOREX_GOLD' : (window.activeMarketVenue || 'INDIA');
+                        const msgNorm = (stateData.active_workspace === 'FOREX' || stateData.active_workspace === 'FOREX_GOLD') ? 'FOREX_GOLD' : stateData.active_workspace;
+                        if (msgNorm && msgNorm !== curNorm) {
+                            return; // Discard mismatching workspace event to prevent pool flipping / flickering
+                        }
                         updateTerminalState(stateData);
                     } catch (e) {
                         console.warn('WS message parse notice:', e);
