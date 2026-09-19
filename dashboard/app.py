@@ -678,6 +678,7 @@ async def reset_workspace_pool(request: Request):
     """Reset the current workspace capital pool back to initial clean state."""
     from core.workspace_manager import workspace_manager
     from execution.paper_broker import paper_broker
+    from core.risk_engine import risk_engine
     try:
         body = await request.json()
         target_ws = body.get("workspace", "").upper()
@@ -686,10 +687,32 @@ async def reset_workspace_pool(request: Request):
     if not target_ws:
         target_ws = workspace_manager.get_active_workspace()
     meta = workspace_manager.get_workspace_meta(target_ws)
-    pool = meta.get("default_pool", "AEGIS_INDIA_INR")
+    default_pool = meta.get("default_pool", "AEGIS_INDIA_INR")
+    allowed_pools = meta.get("allowed_pools", [default_pool])
+    target_pool = paper_broker.active_pool_name if paper_broker.active_pool_name in allowed_pools else default_pool
     cap = meta.get("initial_capital", 100000.0)
-    res = paper_broker.reset_pool(pool, cap)
-    return JSONResponse({"status": "SUCCESS", "workspace": target_ws, "pool": pool, "reset_equity": cap, "virtual_cash": cap}, status_code=200)
+
+    # Reset both default pool and active pool to ensure zero residual positions or drawdown
+    paper_broker.reset_pool(default_pool, cap)
+    if target_pool != default_pool:
+        paper_broker.reset_pool(target_pool, cap)
+    paper_broker.switch_pool(target_pool, cap)
+
+    # Reset risk engine daily realized loss to clear any tripping
+    try:
+        risk_engine.daily_realized_loss = 0.0
+        risk_engine._save_state()
+    except Exception:
+        pass
+
+    return JSONResponse({
+        "status": "SUCCESS",
+        "workspace": target_ws,
+        "pool": target_pool,
+        "reset_equity": cap,
+        "virtual_cash": cap,
+        "drawdown_pct": 0.0
+    }, status_code=200)
 
 @app.api_route("/api/state", methods=["GET", "HEAD"])
 async def get_state(workspace: Optional[str] = None, request_id: Optional[str] = None):
