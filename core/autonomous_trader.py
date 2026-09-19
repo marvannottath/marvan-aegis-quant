@@ -227,8 +227,8 @@ class AutonomousTrader:
                         action_signal = item["ai_action"]
                         opp_score = item["opportunity_score"]
 
-                        # 100-Shield Gate: Only enter high-confidence opportunities
-                        if opp_score < 75.0:
+                        # 1000-Shield Hyper-Guardian Gate: Only enter ultra-high confidence opportunities (>= 90%)
+                        if opp_score < 90.0:
                             continue
 
                         act = "BUY" if action_signal != "SELL" else "SELL"

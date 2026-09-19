@@ -1931,10 +1931,12 @@ async def get_news_lock_status():
         return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
 
 @app.get("/api/100-shield-status")
-async def get_100_shield_status():
-    """Fetch 100-Shield Defense-in-Depth Risk Gate audit status."""
+@app.get("/api/1000-shield-status")
+@app.get("/api/shield-status")
+async def get_shield_status():
+    """Fetch 1000-Shield Hyper-Guardian Defense-in-Depth Risk Gate audit status."""
     try:
-        shield_eval = risk_engine.evaluate_100_shield_gate(
+        shield_eval = risk_engine.evaluate_1000_shield_gate(
             amount_usd=1000.0,
             leverage=10.0,
             current_open_positions=len(paper_broker.positions),

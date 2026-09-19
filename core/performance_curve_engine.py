@@ -81,6 +81,13 @@ class PerformanceCurveEngine:
             except Exception:
                 return None
 
+        # Reconcile current authoritative equity
+        if environment in paper_broker.pools and environment != "AEGIS_QUANT_MASTER":
+            pool_data = paper_broker.pools[environment]
+            cur_equity = round(float(pool_data.get("equity", pool_data.get("portfolio_equity", pool_data.get("virtual_cash", opening_amt)))), 2)
+        else:
+            cur_equity = round(float(paper_broker.equity) + float(profit_vault.vault_balance), 2)
+
         # Build clean non-double-counted event series
         events = []
         if environment == "AEGIS_QUANT_MASTER":
@@ -110,7 +117,7 @@ class PerformanceCurveEngine:
                     events.append({"timestamp": ts_val, "pnl": amt})
 
         if not events:
-            val = opening_amt if metric == "equity" else 0.0
+            val = cur_equity if metric == "equity" else 0.0
             start_ts = cutoff_dt.strftime("%Y-%m-%d %H:%M:%S")
             return {
                 "status": "SUCCESS",
@@ -130,6 +137,10 @@ class PerformanceCurveEngine:
 
         # Sort chronologically
         events.sort(key=lambda x: x.get("timestamp", ""))
+        total_historical_pnl = sum(e["pnl"] for e in events)
+
+        # Baseline equity at the beginning of all recorded history
+        historical_base_equity = round(cur_equity - total_historical_pnl, 2)
 
         # Pre-cutoff accumulation
         pre_cutoff_pnl = 0.0
@@ -143,7 +154,7 @@ class PerformanceCurveEngine:
                 window_events.append(ev)
 
         # Baseline equity at the start of the timeframe window
-        start_equity = round(opening_amt + pre_cutoff_pnl, 2)
+        start_equity = round(historical_base_equity + pre_cutoff_pnl, 2)
         start_ts = cutoff_dt.strftime("%Y-%m-%d %H:%M:%S") if time_range != "ALL" else (events[0]["timestamp"] if events else now_str)
 
         points = []
@@ -178,13 +189,7 @@ class PerformanceCurveEngine:
                 "value": val
             })
 
-        # Current live terminal point
-        if environment in paper_broker.pools and environment != "AEGIS_QUANT_MASTER":
-            pool_data = paper_broker.pools[environment]
-            cur_equity = round(float(pool_data.get("equity", pool_data.get("portfolio_equity", pool_data.get("virtual_cash", opening_amt)))), 2)
-        else:
-            cur_equity = round(float(paper_broker.equity) + float(profit_vault.vault_balance), 2)
-
+        # Ensure current terminal point exactly matches authoritative live balance
         if cur_equity > peak_equity:
             peak_equity = cur_equity
         live_dd = round(((peak_equity - cur_equity) / peak_equity * 100.0), 2) if peak_equity > 0 else 0.0
