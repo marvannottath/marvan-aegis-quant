@@ -32,9 +32,12 @@ class AutonomousTrader:
         self.data_loader = DataLoader()
         self.agent = RLAgent(state_dim=24, action_dim=3)
         try:
-            self.agent.load_model("rl_trader_v1.pth")
+            self.agent.load_model("ensemble_trader_1000.pth")
         except Exception:
-            pass
+            try:
+                self.agent.load_model("rl_trader_v1.pth")
+            except Exception:
+                pass
         self.is_running = False
         self._thread = None
         now_ts = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%H:%M:%S")
@@ -276,14 +279,15 @@ class AutonomousTrader:
                     pnl_pct = (new_live_price - entry) / entry if act == "BUY" else (entry - new_live_price) / entry
                     pnl_usd = (new_live_price - entry) * units if act == "BUY" else (entry - new_live_price) * units
 
-                    # Continuous Harvest Criteria:
-                    # 1. Milestone Target: PnL > +0.20% OR
-                    # 2. Fast Staggered Harvest: Positive PnL > $2.00 on staggered tick OR
-                    # 3. Maturity Rebalance: Position held > 12 ticks and in positive profit
-                    is_milestone = (pnl_pct >= 0.0020)
-                    is_staggered_harvest = ((step_counter + idx) % 2 == 0) and (pnl_usd >= 1.50)
-                    is_maturity_rebalance = (age >= 12) and (pnl_usd > 0.50)
-                    is_hard_stop = (pnl_pct <= -0.015)
+                    # 100-Shield Quantum Guardian Continuous Harvest & Drawdown Suppression:
+                    # 1. Milestone Target: PnL > +0.15% OR
+                    # 2. Fast Staggered Harvest: Positive PnL > $1.00 on staggered tick OR
+                    # 3. Maturity Rebalance: Position held > 8 ticks with any positive profit OR
+                    # 4. Strict Drawdown Protection Stop: Exit immediately if adverse movement hits -0.5%
+                    is_milestone = (pnl_pct >= 0.0015)
+                    is_staggered_harvest = ((step_counter + idx) % 2 == 0) and (pnl_usd >= 1.00)
+                    is_maturity_rebalance = (age >= 8) and (pnl_usd > 0.10)
+                    is_hard_stop = (pnl_pct <= -0.0050)
 
                     should_close = is_milestone or is_staggered_harvest or is_maturity_rebalance or is_hard_stop
 

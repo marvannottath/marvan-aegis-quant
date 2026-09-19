@@ -6,10 +6,13 @@ Implements state vector construct, reward shaping, pip/slippage penalties, and s
 
 import numpy as np
 import pandas as pd
-from typing import Dict, Tuple, List, Any
+from typing import Dict, Tuple, List, Any, Optional
 
 class TradingEnv:
-    def __init__(self, df: pd.DataFrame, initial_balance: float = 100000.0, transaction_cost: float = 0.0001):
+    def __init__(self, df: Optional[pd.DataFrame] = None, initial_balance: float = 100000.0, transaction_cost: float = 0.0001):
+        if df is None:
+            from core.data_loader import DataLoader
+            df = DataLoader()._generate_synthetic_data("BTCUSDT", length=500)
         self.df = df.reset_index(drop=True)
         self.initial_balance = initial_balance
         self.transaction_cost = transaction_cost  # Pip spread / commission

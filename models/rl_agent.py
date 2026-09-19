@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from collections import deque
-from typing import Tuple, List
+from typing import Tuple, List, Optional
 from config.settings import MODEL_DIR
 
 class QNetwork(nn.Module):
@@ -48,9 +48,10 @@ class RLAgent:
         self.optimizer = optim.Adam(self.policy_net.parameters(), lr=lr)
         self.criterion = nn.MSELoss()
 
-    def select_action(self, state: np.ndarray, evaluate: bool = False) -> int:
+    def select_action(self, state: np.ndarray, evaluate: bool = False, epsilon: Optional[float] = None) -> int:
         """Select action using epsilon-greedy strategy."""
-        if not evaluate and random.random() < self.epsilon:
+        eps = epsilon if epsilon is not None else self.epsilon
+        if not evaluate and random.random() < eps:
             return random.randint(0, self.action_dim - 1)
 
         state_t = torch.FloatTensor(state).unsqueeze(0).to(self.device)
@@ -61,6 +62,11 @@ class RLAgent:
     def remember(self, state: np.ndarray, action: int, reward: float, next_state: np.ndarray, done: bool):
         """Store experience tuple in Replay Memory."""
         self.memory.append((state, action, reward, next_state, done))
+
+    def replay(self, batch_size: int = 32) -> float:
+        """Alias for train_experience_batch."""
+        self.batch_size = batch_size
+        return self.train_experience_batch()
 
     def train_experience_batch(self) -> float:
         """Sample mini-batch from Replay Memory and train policy network."""
