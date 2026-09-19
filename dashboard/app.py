@@ -698,10 +698,29 @@ async def reset_workspace_pool(request: Request):
         paper_broker.reset_pool(target_pool, cap)
     paper_broker.switch_pool(target_pool, cap)
 
-    # Reset risk engine daily realized loss to clear any tripping
+    # Reset risk engine daily realized loss and circuit breaker
     try:
         risk_engine.daily_realized_loss = 0.0
+        risk_engine.circuit_tripped = False
+        risk_engine.trip_reason = "NORMAL_OPERATIONS"
         risk_engine._save_state()
+    except Exception:
+        pass
+
+    # Clear double-entry ledger realized pnl for target pool
+    try:
+        from core.double_entry_ledger import double_entry_ledger
+        for acc in ["REALIZED_PNL_ACCOUNT", "MARKET_REALIZED_LOSS"]:
+            double_entry_ledger.accounts.setdefault(acc, {})[target_pool] = 0.0
+        double_entry_ledger._save_ledger()
+    except Exception:
+        pass
+
+    # Clear AI BLOCKED state back to clean PAUSED
+    try:
+        from core.ai_trading_controller import ai_trading_controller, PAUSED, BLOCKED
+        if ai_trading_controller.get_state(target_ws) == BLOCKED:
+            ai_trading_controller.pause(target_ws, "OPERATOR_RESET_POOL")
     except Exception:
         pass
 
@@ -861,6 +880,13 @@ async def get_state(workspace: Optional[str] = None, request_id: Optional[str] =
 
     peak_eq = max(init_cap, equity_val)
     drawdown_pct = max(0.0, round(((peak_eq - equity_val) / peak_eq) * 100.0, 2)) if peak_eq > 0 else 0.0
+
+    if drawdown_pct >= risk_engine.max_drawdown_pct:
+        risk_engine.circuit_tripped = True
+        risk_engine.trip_reason = f"MAX_DRAWDOWN_BREACHED: Drawdown {drawdown_pct:.2f}% >= {risk_engine.max_drawdown_pct:.1f}% limit."
+        from core.ai_trading_controller import ai_trading_controller
+        if ai_trading_controller.get_state(ws) == "RUNNING":
+            ai_trading_controller.auto_block_for_drawdown(ws, drawdown_pct, risk_engine.max_drawdown_pct)
 
     today_str = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d")
     active_trades = pool_data.get("trade_history", [])

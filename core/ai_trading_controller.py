@@ -222,6 +222,28 @@ class AITradingController:
                 "auto_resume": False,  # Requires manual resume by default
             }
 
+    def auto_block_for_drawdown(self, workspace: str, drawdown_pct: float, max_drawdown_pct: float) -> Dict[str, Any]:
+        """
+        Auto-block AI when portfolio drawdown breaches circuit breaker limit.
+        Guarantees that trading is frozen immediately to prevent capital erosion.
+        """
+        with self._lock:
+            ws = workspace.upper()
+            current = self.get_state(ws)
+            if current != RUNNING:
+                return {"ok": True, "workspace": ws, "state": current, "message": f"Not RUNNING ({current}) — no action"}
+
+            block_reason = f"MAX_DRAWDOWN_BREACHED — Drawdown {drawdown_pct:.2f}% >= {max_drawdown_pct:.1f}% limit. Circuit breaker tripped."
+            self._transition(ws, BLOCKED, "RISK_CIRCUIT_BREAKER", block_reason, block_reason=block_reason)
+            self._emit_audit("AI_AUTO_BLOCKED_DRAWDOWN", ws, RUNNING, BLOCKED, "RISK_CIRCUIT_BREAKER", block_reason)
+            return {
+                "ok": True,
+                "workspace": ws,
+                "state": BLOCKED,
+                "reason": block_reason,
+                "auto_resume": False,
+            }
+
     def block(self, workspace: str, user: str, reason: str) -> Dict[str, Any]:
         """Generic block (kill switch, gate failure, etc.)."""
         with self._lock:
