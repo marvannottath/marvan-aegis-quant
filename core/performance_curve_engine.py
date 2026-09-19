@@ -181,7 +181,7 @@ class PerformanceCurveEngine:
         # Current live terminal point
         if environment in paper_broker.pools and environment != "AEGIS_QUANT_MASTER":
             pool_data = paper_broker.pools[environment]
-            cur_equity = round(float(pool_data.get("portfolio_equity", pool_data.get("virtual_cash", opening_amt))), 2)
+            cur_equity = round(float(pool_data.get("equity", pool_data.get("portfolio_equity", pool_data.get("virtual_cash", opening_amt)))), 2)
         else:
             cur_equity = round(float(paper_broker.equity) + float(profit_vault.vault_balance), 2)
 
