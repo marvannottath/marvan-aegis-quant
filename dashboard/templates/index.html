@@ -1486,6 +1486,8 @@
             const ddEl = document.getElementById('metric-drawdown');
             const hdrEnv = document.getElementById('hdr-env-label');
             const brokerMargin = document.getElementById('val-broker-margin');
+            const thPosAlloc = document.getElementById('th-pos-alloc');
+            const thPosPnl = document.getElementById('th-pos-pnl');
 
             if (eqEl) eqEl.innerText = eqFmt;
             if (pnlEl) pnlEl.innerText = signedZeroFmt;
@@ -1493,6 +1495,8 @@
             if (expEl) expEl.innerText = zeroFmt;
             if (ddEl) ddEl.innerText = '0.00%';
             if (brokerMargin) brokerMargin.innerText = eqFmt;
+            if (thPosAlloc) thPosAlloc.innerText = isInd ? 'Allocated Margin (₹)' : (isCry ? 'Allocated Margin (USDT)' : 'Allocated Margin ($)');
+            if (thPosPnl) thPosPnl.innerText = isInd ? 'Unrealized PnL (₹)' : (isCry ? 'Unrealized PnL (USDT)' : 'Unrealized PnL ($)');
 
             if (hdrEnv) {
                 if (isInd) {
@@ -1505,6 +1509,13 @@
                     hdrEnv.innerText = `MARVAN'S POOL (${eqFmt})`;
                     hdrEnv.className = 'font-bold text-blue-400';
                 }
+            }
+
+            // Immediately bust positions cache and reset positions UI for India / Forex
+            const tbody = document.getElementById('positions-full-tbody');
+            if (tbody) tbody._lastCacheKey = null;
+            if (isInd || isFx) {
+                renderPositionsTable([]);
             }
         }
 
@@ -1543,11 +1554,15 @@
                 updateAiControlPanel(window.lastOperationalData.ai_detail || window.lastOperationalData.ai, window.lastOperationalData.session_detail || window.lastOperationalData.sessions || window.lastOperationalData.market);
             }
 
-            // Background server notification (Non-blocking)
+            // Background server notification with instant state pushback (0ms lag)
             fetch('/api/workspace/switch', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ workspace: normVenue })
+            }).then(res => res.json()).then(data => {
+                if (data && data.status === 'SUCCESS' && data.state) {
+                    updateTerminalState(data.state);
+                }
             }).catch(e => console.warn("Workspace switch notice:", e));
 
             // Notify active WebSocket of the new workspace
@@ -2981,26 +2996,53 @@
             const curWs = window.activeMarketVenue || 'INDIA';
             const isIndia = (curWs === 'INDIA');
             const isCrypto = (curWs === 'CRYPTO');
+            const isForex = (curWs === 'FOREX' || curWs === 'FOREX_GOLD');
             const curSym = isIndia ? '₹' : (isCrypto ? '$' : '$');
             const curLoc = isIndia ? 'en-IN' : 'en-US';
 
+            // Strict workspace asset isolation: Ensure symbols match active workspace
+            const validPositions = (positions || []).filter(pos => {
+                const sym = String(pos.asset || pos.symbol || pos.ticker || '').toUpperCase();
+                if (!sym) return false;
+                if (isIndia) {
+                    const prohibited = ['USDT', 'BUSD', 'BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'DOGE', 'ADA', 'EUR', 'GBP', 'JPY', 'XAU'];
+                    return !prohibited.some(p => sym.includes(p));
+                } else if (isCrypto) {
+                    return sym.includes('USDT') || sym.includes('BUSD') || sym.startsWith('BTC') || sym.startsWith('ETH');
+                } else {
+                    const forexSymbols = ['EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF', 'NZD', 'XAU'];
+                    return forexSymbols.some(f => sym.includes(f)) && !sym.includes('USDT');
+                }
+            });
+
+            // Keep position counters strictly synchronized with active workspace positions
+            if (document.getElementById('badge-open-pos')) {
+                document.getElementById('badge-open-pos').innerText = validPositions.length;
+            }
+            if (document.getElementById('metric-open-count')) {
+                document.getElementById('metric-open-count').innerText = validPositions.length + ' Active';
+            }
+
             // Prevent flickering: skip re-rendering if positions haven't changed
-            const posCacheKey = curWs + '_' + JSON.stringify((positions || []).map(p => [p.position_id || p.id, p.asset || p.symbol || p.ticker, p.unrealized_pnl, p.pnl_usd, p.last_price || p.mark_price, p.capital_allocated]));
+            const posCacheKey = curWs + '_' + JSON.stringify(validPositions.map(p => [p.position_id || p.id, p.asset || p.symbol || p.ticker, p.unrealized_pnl, p.pnl_usd, p.last_price || p.mark_price, p.capital_allocated]));
             if (tbody._lastCacheKey === posCacheKey) return;
             tbody._lastCacheKey = posCacheKey;
 
-            if (!positions || positions.length === 0) {
+            if (!validPositions || validPositions.length === 0) {
+                const emptyMsg = isIndia 
+                    ? 'NO OPEN INDIAN POSITIONS (NSE/BSE) — Market Closed (Weekend) / Risk Engine Ready' 
+                    : (isCrypto ? 'NO ACTIVE CRYPTO POSITIONS — Risk Engine Ready' : 'NO OPEN FOREX & COMMODITIES POSITIONS — Market Closed (Weekend)');
                 tbody.innerHTML = `
                     <tr>
                         <td colspan="9" class="py-8 text-center text-gray-500 font-mono text-xs">
                             <i class="fa-solid fa-layer-group text-2xl mb-2 text-gray-700 block"></i>
-                            NO ACTIVE POSITIONS — Risk Engine Ready
+                            ${emptyMsg}
                         </td>
                     </tr>
                 `;
                 return;
             }
-            tbody.innerHTML = positions.map(pos => {
+            tbody.innerHTML = validPositions.map(pos => {
                 const entry = parseFloat(pos.entry_price) || 0;
                 const mark = parseFloat(pos.last_price || pos.mark_price || pos.entry_price) || entry;
                 const allocated = parseFloat(pos.capital_allocated) || 1000;

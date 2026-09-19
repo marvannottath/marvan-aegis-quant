@@ -669,6 +669,9 @@ async def switch_workspace_endpoint(request: Request):
         data = await request.json()
         target_ws = data.get("workspace", data.get("venue", "INDIA"))
         res = workspace_manager.set_active_workspace(target_ws)
+        # Attach authoritative target workspace state for zero-latency instant client sync
+        state = await get_state(workspace=target_ws)
+        res["state"] = state
         return JSONResponse(res, status_code=200)
     except Exception as e:
         return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=400)
