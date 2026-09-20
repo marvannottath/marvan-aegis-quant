@@ -1610,12 +1610,12 @@ async def trader_login(data: dict):
     })
 
 def check_admin_auth(request: Request) -> bool:
-    """Validate Bearer Session Token for Admin operations."""
+    """Validate Bearer Session Token for Admin operations (Super Admin only)."""
     auth_header = request.headers.get("Authorization", "")
     token = ""
     if auth_header.startswith("Bearer "):
         token = auth_header.split(" ", 1)[1].strip()
-    session = super_admin.validate_session(token)
+    session = super_admin.validate_session(token, required_role="SUPER_ADMIN")
     return session is not None
 
 # =====================================================================
@@ -1752,7 +1752,7 @@ async def get_latest_backtest_run():
 
 @app.post("/api/admin/login")
 async def admin_login(data: dict):
-    """Authenticate Super Admin / Trader credentials with strict TOTP 2FA enforcement."""
+    """Authenticate Super Admin credentials with strict TOTP 2FA enforcement."""
     username = data.get("username", "")
     password = data.get("password", "")
     totp_code = data.get("totp_code") or data.get("totp", "")
@@ -1761,6 +1761,13 @@ async def admin_login(data: dict):
     if not user:
         return JSONResponse({"status": "FAILED", "message": "Invalid username or password."}, status_code=401)
     
+    # Strictly restrict /admin portal to Super Admin only (traders must use the trading dashboard)
+    if user.get("role") != "SUPER_ADMIN":
+        return JSONResponse({
+            "status": "FORBIDDEN",
+            "message": "Access Denied: The Admin Center is strictly restricted to Super Admin. Traders should use the Trading Dashboard."
+        }, status_code=403)
+
     # Enforce strict Google Authenticator TOTP when enabled on the account
     if user.get("totp_enabled", False):
         if not totp_code or not str(totp_code).strip():
@@ -1790,10 +1797,15 @@ async def admin_login(data: dict):
 
 @app.get("/api/admin/biometric-challenge/{username}")
 async def admin_biometric_challenge(username: str):
-    """Generate fresh single-use cryptographic WebAuthn challenge."""
+    """Generate fresh single-use cryptographic WebAuthn challenge for Super Admin."""
     user = super_admin.users.get(username.lower().strip())
     if not user:
         return JSONResponse({"status": "FAILED", "message": "User not found."}, status_code=404)
+    if user.get("role") != "SUPER_ADMIN":
+        return JSONResponse({
+            "status": "FORBIDDEN",
+            "message": "Access Denied: Super Admin only."
+        }, status_code=403)
     
     challenge = super_admin.generate_biometric_challenge(username)
     return JSONResponse({
@@ -1805,7 +1817,7 @@ async def admin_biometric_challenge(username: str):
 
 @app.post("/api/admin/biometric-auth")
 async def admin_biometric_auth(data: dict):
-    """Authenticate via WebAuthn Face ID / Touch ID Hardware Biometrics."""
+    """Authenticate via WebAuthn Face ID / Touch ID Hardware Biometrics (Super Admin only)."""
     username = data.get("username", "marvan")
     challenge = data.get("challenge", "")
     assertion_id = data.get("assertion_id", "")
@@ -1813,6 +1825,11 @@ async def admin_biometric_auth(data: dict):
     user = super_admin.users.get(username.lower().strip())
     if not user:
         return JSONResponse({"status": "FAILED", "message": "User not found."}, status_code=404)
+    if user.get("role") != "SUPER_ADMIN":
+        return JSONResponse({
+            "status": "FORBIDDEN",
+            "message": "Access Denied: Super Admin only."
+        }, status_code=403)
     
     if not challenge or not super_admin.verify_biometric_response(username, challenge):
         return JSONResponse({
@@ -2625,13 +2642,24 @@ async def get_strategies():
     strategies = strategy_lab.get_registered_strategies()
     return JSONResponse({"status": "SUCCESS", "count": len(strategies), "strategies": strategies})
 
+@app.get("/api/kill-switch/status")
+async def get_emergency_kill_switch_status():
+    """Return real-time Emergency Kill Switch status and lock details."""
+    return JSONResponse({
+        "status": "SUCCESS",
+        "is_activated": emergency_kill_switch.is_activated,
+        "activated_at": emergency_kill_switch.activated_at,
+        "activated_by": emergency_kill_switch.activated_by,
+        "reason": emergency_kill_switch.reason
+    })
+
 @app.post("/api/kill-switch/trigger")
 async def trigger_emergency_kill_switch(request: Request):
-    """Trigger Emergency Hardware-Grade System Lockdown."""
+    """Trigger Emergency Hardware-Grade System Lockdown (accessible to Admin & Traders)."""
     try:
         body = await request.json()
-        user = body.get("user", "ADMIN_USER")
-        reason = body.get("reason", "Manual Emergency Trigger")
+        user = body.get("user", "TRADER")
+        reason = body.get("reason", "Manual Emergency Trigger via Dashboard")
         result = emergency_kill_switch.trigger_kill_switch(user, reason)
         return JSONResponse(result)
     except Exception as e:
@@ -2639,10 +2667,10 @@ async def trigger_emergency_kill_switch(request: Request):
 
 @app.post("/api/kill-switch/reset")
 async def reset_emergency_kill_switch(request: Request):
-    """Reset Emergency System Lockdown after Admin Audit."""
+    """Reset Emergency System Lockdown to resume trading (accessible to Admin & Traders)."""
     try:
         body = await request.json()
-        user = body.get("user", "ADMIN_USER")
+        user = body.get("user", "TRADER")
         result = emergency_kill_switch.reset_kill_switch(user)
         return JSONResponse(result)
     except Exception as e:
