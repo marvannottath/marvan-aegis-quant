@@ -81,39 +81,38 @@ class PerformanceCurveEngine:
             except Exception:
                 return None
 
-        # Reconcile current authoritative equity
-        if environment in paper_broker.pools and environment != "AEGIS_QUANT_MASTER":
-            pool_data = paper_broker.pools[environment]
-            cur_equity = round(float(pool_data.get("equity", pool_data.get("portfolio_equity", pool_data.get("virtual_cash", opening_amt)))), 2)
-        else:
-            cur_equity = round(float(paper_broker.equity) + float(profit_vault.vault_balance), 2)
+        # Reconcile current authoritative equity from Single Source of Truth
+        from core.position_snapshot_service import position_snapshot_service
+        target_ws = "CRYPTO"
+        if "INDIA" in environment:
+            target_ws = "INDIA"
+        elif "FOREX" in environment:
+            target_ws = "FOREX_GOLD"
+
+        try:
+            agg = position_snapshot_service.get_portfolio_aggregate(target_ws)
+            cur_equity = round(float(agg.get("total_equity", opening_amt)), 2)
+        except Exception:
+            if environment in paper_broker.pools and environment != "AEGIS_QUANT_MASTER":
+                pool_data = paper_broker.pools[environment]
+                cur_equity = round(float(pool_data.get("equity", pool_data.get("portfolio_equity", pool_data.get("virtual_cash", opening_amt)))), 2)
+            else:
+                cur_equity = round(float(paper_broker.equity) + float(profit_vault.vault_balance), 2)
 
         # Build clean non-double-counted event series
         events = []
-        if environment == "AEGIS_QUANT_MASTER":
-            sweep_timestamps = set(s.get("timestamp") for s in sweeps)
-            # Sweeps represent all realized profitable trade sweeps
-            for s in sweeps:
-                ts_val = s.get("timestamp", now_str)
-                amt = float(s.get("sweep_amount") or s.get("realized_profit") or 0.0)
-                if amt != 0.0:
-                    events.append({"timestamp": ts_val, "pnl": amt})
-            # Include non-swept losing trades
-            for t in trades:
-                ts_val = t.get("timestamp", now_str)
-                pnl = float(t.get("pnl_usd") or t.get("realized_pnl") or 0.0)
-                if pnl < 0.0 and ts_val not in sweep_timestamps:
-                    events.append({"timestamp": ts_val, "pnl": pnl})
-        else:
-            # Pool-specific trades
+        if trades:
+            # Each trade in trade_history already contains the exact realized pnl_usd
             for t in trades:
                 ts_val = t.get("timestamp", now_str)
                 pnl = float(t.get("pnl_usd") or t.get("realized_pnl") or 0.0)
                 events.append({"timestamp": ts_val, "pnl": pnl})
+        elif sweeps:
+            # Fallback if only vault sweeps exist
             for s in sweeps:
                 ts_val = s.get("timestamp", now_str)
                 amt = float(s.get("sweep_amount") or s.get("realized_profit") or 0.0)
-                if amt > 0.0:
+                if amt != 0.0:
                     events.append({"timestamp": ts_val, "pnl": amt})
 
         if not events:

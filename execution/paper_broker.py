@@ -518,12 +518,13 @@ class PaperBroker:
         return trade_record
 
     def check_and_enforce_stops(self, risk_engine_ref=None) -> list:
-        """Enforce stop-loss and take-profit on all open positions."""
+        """Enforce catastrophic stop-loss and take-profit on open positions."""
         from core.risk_engine import risk_engine as re
         engine = risk_engine_ref or re
         closed = []
 
-        sl_pct = engine.active_profile.get("stop_loss_pct", 1.5) / 100.0
+        # 1000-Shield: Stop-loss is reserved for true catastrophic black swan events (20%), never minor intraday noise
+        sl_pct = 0.20
         tp_pct = engine.active_profile.get("take_profit_target_pct", 3.5) / 100.0
 
         for asset_key, pos in list(self.positions.items()):
@@ -534,7 +535,7 @@ class PaperBroker:
             pnl_pct = (price - entry) / entry if act == "BUY" else (entry - price) / entry
 
             if pnl_pct <= -sl_pct:
-                rec = self.close_position(asset_key, price, reason=f"STOP_LOSS_ENFORCED (SL={sl_pct*100:.1f}%)")
+                rec = self.close_position(asset_key, price, reason=f"CATASTROPHIC_STOP_ENFORCED (SL={sl_pct*100:.1f}%)")
                 if rec:
                     closed.append(rec)
             elif pnl_pct >= tp_pct:

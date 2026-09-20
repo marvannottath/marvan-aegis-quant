@@ -715,7 +715,19 @@ async def reset_workspace_pool(request: Request):
         from core.double_entry_ledger import double_entry_ledger
         for acc in ["REALIZED_PNL_ACCOUNT", "MARKET_REALIZED_LOSS"]:
             double_entry_ledger.accounts.setdefault(acc, {})[target_pool] = 0.0
+            if default_pool != target_pool:
+                double_entry_ledger.accounts.setdefault(acc, {})[default_pool] = 0.0
         double_entry_ledger._save_ledger()
+    except Exception:
+        pass
+
+    # Clear profit vault sweeps for target pool so performance curve resets cleanly
+    try:
+        from execution.profit_vault import profit_vault
+        for p in [target_pool, default_pool]:
+            if p in profit_vault.vault_stores:
+                profit_vault.vault_stores[p] = {"transactions": [], "withdrawals": [], "transfers": [], "base_balance": 0.0}
+        profit_vault._save_state()
     except Exception:
         pass
 
