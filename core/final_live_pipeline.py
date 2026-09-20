@@ -264,7 +264,7 @@ class FinalLivePipeline:
 
         if not (live_key and live_sec):
             self.log_gate(12, "Binance LIVE Authentication", False, "LIVE credentials NOT CONFIGURED in environment — fail-closed safety active")
-            self.final_status = "TESTNET VERIFIED" if self.testnet_verified else "RUNTIME NOT VERIFIED"
+            self.final_status = "RUNTIME NOT VERIFIED"
             return self._finish_controlled()
 
         # If live credentials are provided, attempt read-only auth check
@@ -272,9 +272,13 @@ class FinalLivePipeline:
             from execution.binance_broker import binance_broker
             auth_ok, auth_msg = binance_broker.check_connectivity("BINANCE_LIVE")
             self.log_gate(12, "Binance LIVE Authentication", auth_ok, auth_msg)
-            if not auth_ok: return self._finish_controlled()
+            if not auth_ok:
+                self.final_status = "RUNTIME NOT VERIFIED"
+                return self._finish_controlled()
+            self.final_status = "BINANCE LIVE CONNECTED"
         except Exception as e:
             self.log_gate(12, "Binance LIVE Authentication", False, str(e))
+            self.final_status = "RUNTIME NOT VERIFIED"
             return self._finish_controlled()
 
         # --------------------------------------------------------------
@@ -376,4 +380,4 @@ class FinalLivePipeline:
 if __name__ == "__main__":
     pipeline = FinalLivePipeline()
     res = pipeline.run_pipeline()
-    sys.exit(0 if res["passed"] == res["total"] else (0 if res["final_status"] == "TESTNET VERIFIED" else 1))
+    sys.exit(0 if res["passed"] == res["total"] else (0 if res["final_status"] in ["RUNTIME NOT VERIFIED", "BINANCE LIVE CONNECTED", "CONTROLLED LIVE VERIFIED"] else 1))

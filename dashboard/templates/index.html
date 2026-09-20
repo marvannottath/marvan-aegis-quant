@@ -1068,7 +1068,7 @@
                         </div>
                         <div class="text-lg font-black text-white font-mono">Upstox Direct UPI & NetBanking</div>
                         <p class="text-xs text-gray-400 leading-relaxed">
-                            Deposit real INR directly to your verified Upstox Trading Account via Instant UPI (GPay/PhonePe/BHIM) or NetBanking. Zero-delay fund allocations with guaranteed T+1 settlement and investor protection.
+                            Deposit real INR directly to your verified Upstox Trading Account via Instant UPI (GPay/PhonePe/BHIM) or NetBanking. Zero-delay fund allocations with SEBI-mandated T+1 settlement and investor protection.
                         </p>
                         <div class="pt-2">
                             <a href="https://login.upstox.com" target="_blank" class="inline-flex items-center space-x-2 px-4 py-2.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/40 rounded-xl text-xs font-bold text-emerald-400 hover:text-emerald-300 transition">
@@ -1258,7 +1258,7 @@
                                     </div>
                                 </div>
                                 <span class="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded text-[10px] font-black font-mono">
-                                    99.99% ULTRA-PRECISION
+                                    MULTI-GATE CONSENSUS
                                 </span>
                             </div>
 
@@ -1321,6 +1321,10 @@
                                         <span class="text-gray-400 font-sans">Active Key:</span>
                                         <span id="lbl-binance-demo-saved-key" class="text-amber-400 font-bold truncate max-w-[140px]">NO KEY SAVED</span>
                                     </div>
+                                    <div class="p-2.5 bg-gray-950 border border-darkborder rounded-xl flex items-center justify-between text-[11px]">
+                                        <span class="text-gray-400 font-sans">Testnet Balance:</span>
+                                        <span id="lbl-binance-demo-balance" class="text-white font-bold font-mono">0.00 USDT</span>
+                                    </div>
 
                                     <div>
                                         <label class="block text-gray-400 mb-1 text-[11px] font-sans">Demo API Key</label>
@@ -1363,6 +1367,10 @@
                                     <div class="p-2.5 bg-gray-950 border border-darkborder rounded-xl flex items-center justify-between text-[11px]">
                                         <span class="text-gray-400 font-sans">Active Key:</span>
                                         <span id="lbl-binance-live-saved-key" class="text-emerald-400 font-bold truncate max-w-[140px]">NO KEY SAVED</span>
+                                    </div>
+                                    <div class="p-2.5 bg-gray-950 border border-darkborder rounded-xl flex items-center justify-between text-[11px]">
+                                        <span class="text-gray-400 font-sans">Live Balance:</span>
+                                        <span id="lbl-binance-live-balance" class="text-white font-bold font-mono">0.00 USDT</span>
                                     </div>
 
                                     <div>
@@ -2540,6 +2548,10 @@
                     demoSavedKey.innerText = isSet ? testnet.api_key_masked : 'NO DEMO API KEY SAVED';
                     demoSavedKey.className = isSet ? 'text-amber-400 font-bold' : 'text-gray-400 font-bold';
                 }
+                const demoBalEl = document.getElementById('lbl-binance-demo-balance');
+                if (demoBalEl) {
+                    demoBalEl.innerText = testnet.authenticated ? `${Number(testnet.available_balance || 0).toLocaleString('en-US', {minimumFractionDigits: 2})} USDT` : (testnet.configured ? 'UNVERIFIED (0.00 USDT)' : 'NOT CONFIGURED');
+                }
 
                 // 2. Update Live Card
                 const liveBadge = document.getElementById('binance-live-status-badge');
@@ -2560,6 +2572,10 @@
                     const isSet = live.configured && live.api_key_masked && live.api_key_masked !== 'NOT SET';
                     liveSavedKey.innerText = isSet ? live.api_key_masked : 'NO LIVE API KEY SAVED';
                     liveSavedKey.className = isSet ? 'text-emerald-400 font-bold' : 'text-gray-400 font-bold';
+                }
+                const liveBalEl = document.getElementById('lbl-binance-live-balance');
+                if (liveBalEl) {
+                    liveBalEl.innerText = live.authenticated ? `${Number(live.available_balance || 0).toLocaleString('en-US', {minimumFractionDigits: 2})} USDT (Avail) | ${Number(live.locked_balance || 0).toFixed(2)} (Lock)` : (live.configured ? 'UNVERIFIED (0.00 USDT)' : 'NOT CONFIGURED');
                 }
 
                 // 3. Update Header Badge & Margin if current workspace is CRYPTO
@@ -2761,12 +2777,12 @@
             if (document.getElementById('est-fee')) document.getElementById('est-fee').innerText = `${curSym}${fmtFee}${curSuffix}`;
             if (document.getElementById('est-max-loss')) document.getElementById('est-max-loss').innerText = `${curSym}${fmtLoss}${curSuffix}`;
             if (document.getElementById('est-slippage')) document.getElementById('est-slippage').innerText = isIndia ? '₹0.00 (0.00%)' : (isCrypto ? '0.00 USDT (0.00%)' : '$0.00 (0.00%)');
-            if (document.getElementById('est-fee-label')) document.getElementById('est-fee-label').innerText = isIndia ? 'Estimated Fees (Upstox/NSE):' : 'Estimated Exchange Fees:';
+            if (document.getElementById('est-fee-label')) document.getElementById('est-fee-label').innerText = isIndia ? 'Estimated Fees (Upstox/NSE):' : (isCrypto ? 'Estimated Fees (Binance 0.05%):' : 'Estimated Exchange Fees:');
 
             const capEl = document.getElementById('lbl-trade-cap-val');
             if (capEl) capEl.innerText = isIndia ? '₹5,000' : (isCrypto ? '5,000 USDT' : '$5,000');
             const levEl = document.getElementById('lbl-max-lev-val');
-            if (levEl) levEl.innerText = isIndia ? '5x (SEBI Peak Margin)' : '10x Max Intraday';
+            if (levEl) levEl.innerText = isIndia ? '5x (SEBI Peak Margin)' : (isCrypto ? '25x (Binance Cross Margin)' : '100x (Interbank FX Margin)');
         }
 
         async function fetchState(requestedWorkspace, seq) {
@@ -3961,24 +3977,20 @@
                 
                 const hasData = data && data.sample_count && data.sample_count > 0 && data.p50 !== null;
                 
-                if (isIndia && (!hasData || data.status === 'NO_DATA')) {
-                    const gP50 = data.global_p50 ? data.global_p50.toFixed(1) : '484.8';
-                    const gP95 = data.global_p95 ? data.global_p95.toFixed(1) : '530.3';
-                    const gP99 = data.global_p99 ? data.global_p99.toFixed(1) : '660.7';
-                    const gAvg = data.global_avg ? data.global_avg.toFixed(1) : '498.2';
-
-                    if (document.getElementById('exec-kpi-p50')) document.getElementById('exec-kpi-p50').innerText = `${gP50} ms (GLOBAL)`;
-                    if (document.getElementById('exec-kpi-p95')) document.getElementById('exec-kpi-p95').innerText = `${gP95} ms (GLOBAL)`;
-                    if (document.getElementById('exec-kpi-p99')) document.getElementById('exec-kpi-p99').innerText = `${gP99} ms (GLOBAL)`;
-                    if (document.getElementById('exec-kpi-avg')) document.getElementById('exec-kpi-avg').innerText = `${gAvg} ms (GLOBAL)`;
+                if (!hasData || data.status === 'NO_DATA') {
+                    if (document.getElementById('exec-kpi-p50')) document.getElementById('exec-kpi-p50').innerText = 'NOT MEASURED';
+                    if (document.getElementById('exec-kpi-p95')) document.getElementById('exec-kpi-p95').innerText = 'NOT MEASURED';
+                    if (document.getElementById('exec-kpi-p99')) document.getElementById('exec-kpi-p99').innerText = 'NOT MEASURED';
+                    if (document.getElementById('exec-kpi-avg')) document.getElementById('exec-kpi-avg').innerText = 'NOT MEASURED';
 
                     const stagesContainer = document.getElementById('latency-stages-container');
                     if (stagesContainer) {
-                        stagesContainer.innerHTML = `<div class="col-span-full py-8 text-center text-gray-500 font-mono text-xs"><i class="fa-solid fa-microchip text-2xl mb-2 text-gray-700 block"></i>NO INDIA EXECUTION DATA</div>`;
+                        const emptyMsg = `NO ${ws} EXECUTION DATA — PROFILER ARMED`;
+                        stagesContainer.innerHTML = `<div class="col-span-full py-8 text-center text-gray-500 font-mono text-xs"><i class="fa-solid fa-microchip text-2xl mb-2 text-gray-700 block"></i>${emptyMsg}</div>`;
                     }
                     const tbody = document.getElementById('execution-logs-tbody');
                     if (tbody) {
-                        tbody.innerHTML = `<tr><td colspan="8" class="py-8 text-center text-gray-500 font-mono text-xs"><i class="fa-solid fa-bolt text-amber-400 mr-2"></i>NO INDIA EXECUTION DATA</td></tr>`;
+                        tbody.innerHTML = `<tr><td colspan="8" class="py-8 text-center text-gray-500 font-mono text-xs"><i class="fa-solid fa-bolt text-amber-400 mr-2"></i>NO ${ws} EXECUTION LOGS AVAILABLE</td></tr>`;
                     }
                     return;
                 }
