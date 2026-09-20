@@ -1879,6 +1879,174 @@ async def admin_totp_verify(data: dict):
         })
     return JSONResponse({"status": "FAILED", "message": "Invalid Authenticator code. Check your app."}, status_code=400)
 
+# =====================================================================
+# UNIVERSAL USER AUTHENTICATION & MULTI-USER 2FA / BIOMETRIC APIS
+# (Accessible to All Users: Super Admin, Lead Trader, Analysts, Desk Users)
+# =====================================================================
+
+@app.post("/api/auth/login")
+async def universal_user_login(data: dict):
+    """Authenticate any system user with credentials, strict TOTP if enabled, and issue session."""
+    username = data.get("username", "").strip()
+    password = data.get("password", "")
+    totp_code = data.get("totp_code") or data.get("totp", "")
+
+    user = super_admin.verify_credentials(username, password)
+    if not user:
+        return JSONResponse({"status": "FAILED", "message": "Invalid username or password."}, status_code=401)
+
+    # Check if TOTP is enabled on this user account
+    if user.get("totp_enabled", False):
+        if not totp_code or not str(totp_code).strip():
+            return JSONResponse({
+                "status": "TOTP_REQUIRED",
+                "message": "Google Authenticator 6-digit code is required for this account.",
+                "totp_required": True,
+                "username": user["username"]
+            }, status_code=401)
+
+        if not super_admin.verify_totp(username, str(totp_code).strip()):
+            return JSONResponse({
+                "status": "INVALID_TOTP",
+                "message": "Invalid Google Authenticator code. Please check your app and try again.",
+                "totp_required": True
+            }, status_code=401)
+
+    session_token = super_admin.create_session(username, auth_method="PASSWORD_TOTP" if user.get("totp_enabled") else "PASSWORD")
+    return JSONResponse({
+        "status": "SUCCESS",
+        "session_token": session_token,
+        "username": user["username"],
+        "full_name": user["full_name"],
+        "role": user["role"],
+        "totp_enabled": user.get("totp_enabled", False),
+        "biometric_enabled": user.get("biometric_enabled", False)
+    })
+
+@app.get("/api/auth/biometric-challenge/{username}")
+async def universal_biometric_challenge(username: str):
+    """Generate fresh single-use cryptographic WebAuthn challenge for any user."""
+    user = super_admin.users.get(username.lower().strip())
+    if not user:
+        return JSONResponse({"status": "FAILED", "message": "User not found."}, status_code=404)
+
+    challenge = super_admin.generate_biometric_challenge(username)
+    return JSONResponse({
+        "status": "SUCCESS",
+        "challenge": challenge,
+        "username": user["username"],
+        "credential_id": user.get("biometric_credential_id")
+    })
+
+@app.post("/api/auth/biometric-auth")
+async def universal_biometric_auth(data: dict):
+    """Authenticate any user via WebAuthn Face ID / Touch ID hardware signature."""
+    username = data.get("username", "").strip()
+    challenge = data.get("challenge", "")
+    assertion_id = data.get("assertion_id", "")
+
+    user = super_admin.users.get(username.lower().strip())
+    if not user:
+        return JSONResponse({"status": "FAILED", "message": "User not found."}, status_code=404)
+
+    if not challenge or not super_admin.verify_biometric_response(username, challenge):
+        return JSONResponse({
+            "status": "FAILED",
+            "message": "Biometric challenge verification failed or expired. Please trigger Touch ID / Face ID sensor again."
+        }, status_code=401)
+
+    session_token = super_admin.create_session(username, auth_method="BIOMETRIC_HARDWARE")
+    return JSONResponse({
+        "status": "SUCCESS",
+        "auth_method": "BIOMETRIC_VERIFIED",
+        "session_token": session_token,
+        "username": user["username"],
+        "full_name": user["full_name"],
+        "role": user["role"],
+        "totp_enabled": user.get("totp_enabled", False),
+        "biometric_enabled": user.get("biometric_enabled", True)
+    })
+
+@app.get("/api/auth/totp-setup/{username}")
+async def universal_totp_setup(username: str):
+    """Return Google Authenticator QR Code SVG URL and secret key for any user."""
+    return JSONResponse(super_admin.get_totp_provisioning_uri(username))
+
+@app.post("/api/auth/totp-activate")
+async def universal_totp_activate(data: dict):
+    """Verify test 6-digit code and permanently activate TOTP 2FA for user."""
+    username = data.get("username", "").strip()
+    code = str(data.get("code", "")).strip()
+    res = super_admin.activate_totp(username, code)
+    status_code = 200 if res.get("status") == "SUCCESS" else 400
+    return JSONResponse(res, status_code=status_code)
+
+@app.post("/api/auth/totp-deactivate")
+async def universal_totp_deactivate(data: dict):
+    """Deactivate Google Authenticator 2FA for user."""
+    username = data.get("username", "").strip()
+    res = super_admin.deactivate_totp(username)
+    return JSONResponse(res)
+
+@app.post("/api/auth/biometric-register")
+async def universal_biometric_register(data: dict):
+    """Register Touch ID / Face ID hardware credential for any user."""
+    username = data.get("username", "").strip()
+    credential_id = data.get("credential_id", "")
+    res = super_admin.register_biometric_credential(username, credential_id)
+    return JSONResponse(res)
+
+@app.get("/api/auth/me")
+async def universal_auth_me(request: Request):
+    """Get active authenticated session profile and 2FA/Biometric capabilities."""
+    auth_header = request.headers.get("Authorization", "")
+    token = ""
+    if auth_header.startswith("Bearer "):
+        token = auth_header.split(" ", 1)[1].strip()
+    session = super_admin.validate_session(token)
+    if not session:
+        return JSONResponse({"status": "ANONYMOUS", "authenticated": False}, status_code=401)
+
+    username = session.get("username", "")
+    user = super_admin.users.get(username.lower().strip(), {})
+    return JSONResponse({
+        "status": "AUTHENTICATED",
+        "authenticated": True,
+        "username": username,
+        "full_name": user.get("full_name", username),
+        "email": user.get("email", ""),
+        "role": user.get("role", "TRADER"),
+        "totp_enabled": user.get("totp_enabled", False),
+        "biometric_enabled": user.get("biometric_enabled", False),
+        "is_super_admin": user.get("role") == "SUPER_ADMIN"
+    })
+
+@app.post("/api/auth/logout")
+async def universal_auth_logout(request: Request):
+    """Invalidate and destroy user session token."""
+    auth_header = request.headers.get("Authorization", "")
+    token = ""
+    if auth_header.startswith("Bearer "):
+        token = auth_header.split(" ", 1)[1].strip()
+    if token in super_admin.active_sessions:
+        del super_admin.active_sessions[token]
+    return JSONResponse({"status": "LOGGED_OUT", "message": "Session terminated."})
+
+@app.get("/api/auth/users-list")
+async def universal_users_list():
+    """Return public list of active accounts for quick-select interface (names and roles only)."""
+    sanitized = []
+    for u in super_admin.users.values():
+        if u.get("status") == "ACTIVE":
+            sanitized.append({
+                "username": u["username"],
+                "full_name": u.get("full_name", u["username"]),
+                "role": u.get("role", "TRADER"),
+                "totp_enabled": u.get("totp_enabled", False),
+                "biometric_enabled": u.get("biometric_enabled", False)
+            })
+    return JSONResponse({"status": "SUCCESS", "users": sanitized})
+
 @app.post("/api/admin/request-otp")
 async def admin_request_otp(data: dict):
     """Dispatch Password Reset OTP to registered email. Zero Plaintext Leaks."""

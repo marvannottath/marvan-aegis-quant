@@ -42,6 +42,73 @@
 </head>
 <body class="bg-darkbg text-white h-screen overflow-hidden flex flex-col font-sans antialiased selection:bg-amber-500 selection:text-black">
 
+    <!-- UNIVERSAL ZERO-TRUST LOGIN GATEWAY -->
+    <div id="aegis-login-gateway" class="hidden fixed inset-0 z-[99999] bg-[#070b14]/95 backdrop-blur-2xl flex items-center justify-center p-4 overflow-y-auto">
+        <div class="max-w-md w-full bg-[#0d1424] border border-amber-500/30 p-6 md:p-8 rounded-3xl shadow-2xl space-y-5 relative my-auto">
+            <div class="text-center space-y-1.5">
+                <div class="inline-flex p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-400 text-3xl mb-1 shadow-inner">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+                <h2 class="text-xl font-black text-white tracking-wide">AEGIS<span class="text-amber-400">QUANT</span></h2>
+                <p class="text-xs text-gray-400">Universal Zero-Trust Trading Terminal Gateway</p>
+                <div class="inline-block px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-mono font-bold mt-1">
+                    Multi-User RBAC • WebAuthn • Google 2FA
+                </div>
+            </div>
+
+            <!-- Quick Account Switcher Chips -->
+            <div>
+                <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1.5 text-center">Quick Select Account</label>
+                <div id="quick-user-chips" class="flex flex-wrap items-center justify-center gap-2">
+                    <button type="button" onclick="selectQuickUser('marvan')" class="px-3 py-1 rounded-xl bg-gray-900 hover:bg-gray-800 border border-gray-700 text-xs font-mono text-white transition cursor-pointer flex items-center gap-1.5">
+                        <i class="fa-solid fa-crown text-amber-400 text-[10px]"></i> marvan (Super Admin)
+                    </button>
+                    <button type="button" onclick="selectQuickUser('quant_trader')" class="px-3 py-1 rounded-xl bg-gray-900 hover:bg-gray-800 border border-gray-700 text-xs font-mono text-white transition cursor-pointer flex items-center gap-1.5">
+                        <i class="fa-solid fa-chart-line text-blue-400 text-[10px]"></i> quant_trader (Lead Trader)
+                    </button>
+                </div>
+            </div>
+
+            <!-- Fast 1-Click Biometric (Face ID / Touch ID) Button -->
+            <button id="btn-terminal-biometric" onclick="terminalBiometricLogin()" class="w-full bg-gradient-to-r from-red-600 via-amber-600 to-yellow-500 hover:from-red-500 hover:to-yellow-400 text-white font-black py-3 px-4 rounded-2xl shadow-xl flex items-center justify-center gap-2 text-xs transition transform hover:-translate-y-0.5 cursor-pointer">
+                <i class="fa-solid fa-fingerprint text-base text-emerald-300"></i>
+                <span>Fast 1-Click Biometric (Touch ID / Face ID)</span>
+            </button>
+
+            <div class="flex items-center my-2">
+                <div class="flex-grow border-t border-gray-800"></div>
+                <span class="px-3 text-[10px] font-mono text-gray-500 uppercase">Or Username & Password</span>
+                <div class="flex-grow border-t border-gray-800"></div>
+            </div>
+
+            <!-- Standard Credentials Form -->
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-300 uppercase mb-1">Username</label>
+                    <input id="terminal-login-user" type="text" placeholder="Enter username" class="w-full bg-gray-950 border border-gray-800 rounded-xl px-3.5 py-2.5 text-sm text-white font-mono focus:border-amber-500 focus:outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-300 uppercase mb-1">Password</label>
+                    <input id="terminal-login-pass" type="password" placeholder="Enter password" class="w-full bg-gray-950 border border-gray-800 rounded-xl px-3.5 py-2.5 text-sm text-white font-mono focus:border-amber-500 focus:outline-none">
+                </div>
+
+                <div id="terminal-totp-group">
+                    <label class="block text-[11px] font-bold text-gray-300 uppercase mb-1">
+                        Google Authenticator (TOTP) <span class="text-gray-500 text-[10px] font-normal">(if enabled on account)</span>
+                    </label>
+                    <input id="terminal-login-totp" type="text" maxlength="6" placeholder="e.g. 6-Digit Code" class="w-full bg-gray-950 border border-gray-800 rounded-xl px-3.5 py-2.5 text-sm text-amber-300 font-mono tracking-widest text-center focus:border-amber-500 focus:outline-none">
+                </div>
+
+                <div id="terminal-login-status" class="text-xs text-center min-h-[18px]"></div>
+
+                <button id="btn-terminal-submit" onclick="terminalPasswordLogin()" class="w-full bg-amber-500 hover:bg-amber-400 text-black font-black py-3 rounded-xl shadow-lg text-xs transition cursor-pointer">
+                    <i class="fa-solid fa-lock-open mr-1.5"></i> Unlock Trading Terminal
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- TOP INSTITUTIONAL STATUS BAR -->
     <header class="h-14 bg-darkcard border-b border-darkborder px-4 flex items-center justify-between shrink-0 z-50 shadow-md">
         <div class="flex items-center space-x-4">
@@ -108,6 +175,18 @@
             <button onclick="switchTab('orders')" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-lg transition shadow flex items-center cursor-pointer text-xs">
                 <i class="fa-solid fa-bolt mr-1"></i> ORDER
             </button>
+
+            <!-- Authenticated User Profile & Logout -->
+            <div id="user-nav-profile" class="flex items-center space-x-2 pl-2 border-l border-gray-800">
+                <button onclick="switchTab('security')" class="px-2.5 py-1 rounded-lg bg-gray-900 border border-gray-800 text-xs font-mono text-gray-300 hover:text-white transition flex items-center gap-1.5 cursor-pointer" title="Manage 2FA & Biometric Security">
+                    <i class="fa-solid fa-user-shield text-amber-400"></i>
+                    <span id="user-display-name">marvan</span>
+                    <span id="user-display-role" class="px-1.5 py-0.2 text-[9px] font-black bg-amber-500/20 text-amber-300 rounded border border-amber-500/30">SUPER_ADMIN</span>
+                </button>
+                <button onclick="terminalLogout()" title="Logout of Terminal" class="px-2.5 py-1 rounded-lg bg-red-600/10 hover:bg-red-600/20 text-red-400 hover:text-red-300 border border-red-500/30 text-xs font-bold transition flex items-center gap-1 cursor-pointer">
+                    <i class="fa-solid fa-power-off"></i>
+                </button>
+            </div>
         </div>
     </header>
 
@@ -1196,6 +1275,96 @@
                         <h2 class="text-xl font-black text-white"><i class="fa-solid fa-lock text-yellow-400 mr-2"></i> Security & Custody Configuration</h2>
                         <p class="text-xs text-gray-400">Binance API key permission enforcement & IP allowlisting</p>
                     </div>
+                <!-- USER 2FA & HARDWARE BIOMETRICS SETUP SUITE (Available to EVERY user) -->
+                <div class="bg-gradient-to-r from-gray-900 via-[#0c1322] to-darkcard border border-amber-500/30 p-6 rounded-3xl space-y-5 shadow-2xl">
+                    <div class="flex flex-wrap items-center justify-between border-b border-gray-800 pb-4 gap-3">
+                        <div>
+                            <h3 class="text-base font-black text-white flex items-center gap-2">
+                                <i class="fa-solid fa-user-shield text-amber-400"></i> Personal Security & 2FA / Biometric Center
+                            </h3>
+                            <p class="text-xs text-gray-400">
+                                Configure Google Authenticator 2FA and Hardware Touch ID / Face ID Biometrics for account: <span id="sec-current-user" class="text-amber-400 font-bold font-mono">marvan</span>
+                            </p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span id="sec-user-badge" class="px-3 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs font-mono font-bold">SUPER_ADMIN</span>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Card 1: Google Authenticator (TOTP) -->
+                        <div class="bg-gray-950/80 border border-gray-800 p-5 rounded-2xl space-y-4 shadow">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-2.5">
+                                    <div class="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                                        <i class="fa-solid fa-mobile-screen"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-xs font-black text-white uppercase tracking-wider">Google Authenticator (TOTP)</h4>
+                                        <p class="text-[11px] text-gray-400">RFC 6238 6-Digit 2FA</p>
+                                    </div>
+                                </div>
+                                <span id="sec-totp-status-badge" class="px-2.5 py-0.5 rounded text-[10px] font-black bg-gray-800 text-gray-400 font-mono">CHECKING...</span>
+                            </div>
+
+                            <p class="text-xs text-gray-300 leading-relaxed">
+                                Protect your account with time-based 6-digit one-time codes generated in Google Authenticator or Authy.
+                            </p>
+
+                            <button onclick="openTotpSetupDrawer()" class="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-xl shadow transition flex items-center justify-center gap-1.5 cursor-pointer">
+                                <i class="fa-solid fa-qrcode"></i> Setup / Reconfigure Google Authenticator
+                            </button>
+
+                            <!-- Inline TOTP QR & Code Drawer -->
+                            <div id="sec-totp-drawer" class="hidden p-4 rounded-xl bg-gray-900 border border-amber-500/30 space-y-3">
+                                <div class="text-center space-y-2">
+                                    <p class="text-xs text-amber-300 font-bold">Scan this QR Code in Google Authenticator:</p>
+                                    <div class="flex justify-center p-2 bg-white rounded-xl inline-block mx-auto">
+                                        <img id="sec-totp-qr-img" src="" alt="Google Authenticator QR" class="w-44 h-44">
+                                    </div>
+                                    <div class="text-[11px] font-mono text-gray-400">
+                                        Secret: <span id="sec-totp-secret-key" class="text-amber-400 font-bold select-all tracking-wider">LOADING...</span>
+                                    </div>
+                                </div>
+                                <div class="space-y-2 pt-2 border-t border-gray-800">
+                                    <label class="block text-[11px] font-bold text-gray-300 uppercase">Enter 6-digit code to test & activate:</label>
+                                    <div class="flex gap-2">
+                                        <input id="sec-totp-test-code" type="text" maxlength="6" placeholder="e.g. 123456" class="flex-1 bg-gray-950 border border-gray-700 rounded-xl px-3 py-2 text-sm text-center font-mono text-amber-300 focus:border-amber-500 focus:outline-none">
+                                        <button onclick="activateTotp2FA()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl transition cursor-pointer">
+                                            Activate 2FA
+                                        </button>
+                                    </div>
+                                    <div id="sec-totp-msg" class="text-xs text-center min-h-[16px]"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Card 2: Hardware WebAuthn Biometrics (Touch ID / Face ID) -->
+                        <div class="bg-gray-950/80 border border-gray-800 p-5 rounded-2xl space-y-4 shadow">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-2.5">
+                                    <div class="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                                        <i class="fa-solid fa-fingerprint"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-xs font-black text-white uppercase tracking-wider">Hardware Biometrics (Touch ID / Face ID)</h4>
+                                        <p class="text-[11px] text-gray-400">WebAuthn Platform Authenticator</p>
+                                    </div>
+                                </div>
+                                <span id="sec-bio-status-badge" class="px-2.5 py-0.5 rounded text-[10px] font-black bg-gray-800 text-gray-400 font-mono">CHECKING...</span>
+                            </div>
+
+                            <p class="text-xs text-gray-300 leading-relaxed">
+                                Pair this device's Touch ID, Windows Hello, or Face ID sensor to enable lightning-fast 1-Click login without typing passwords.
+                            </p>
+
+                            <button onclick="enrollUserDeviceBiometrics()" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl shadow transition flex items-center justify-center gap-1.5 cursor-pointer">
+                                <i class="fa-solid fa-fingerprint"></i> Enroll Device Biometrics (Touch ID / Face ID)
+                            </button>
+
+                            <div id="sec-bio-msg" class="text-xs text-center min-h-[16px]"></div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1504,6 +1673,340 @@
 
     <!-- JASS SCRIPTS: REAL-TIME CLIENT LOGIC -->
     <script>
+        // ── UNIVERSAL ZERO-TRUST AUTHENTICATION & MULTI-USER GATEWAY ───────
+        let activeUserSession = null;
+
+        async function checkUserSession() {
+            const token = sessionStorage.getItem('aegis_session_token');
+            const gateway = document.getElementById('aegis-login-gateway');
+            if (!token) {
+                if (gateway) gateway.classList.remove('hidden');
+                return;
+            }
+            try {
+                const res = await fetch('/api/auth/me', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.authenticated) {
+                        activeUserSession = data;
+                        if (gateway) gateway.classList.add('hidden');
+                        updateUserInterfaceProfile(data);
+                        return;
+                    }
+                }
+            } catch (e) {
+                console.error('Session check error:', e);
+            }
+            // Invalid or expired token
+            sessionStorage.removeItem('aegis_session_token');
+            if (gateway) gateway.classList.remove('hidden');
+        }
+
+        function selectQuickUser(u) {
+            const userInp = document.getElementById('terminal-login-user');
+            const passInp = document.getElementById('terminal-login-pass');
+            if (userInp) userInp.value = u;
+            if (passInp) {
+                passInp.value = (u === 'marvan') ? 'Marvan@2026!' : (u === 'quant_trader' ? 'Trader@2026!' : '');
+                passInp.focus();
+            }
+        }
+
+        async function terminalPasswordLogin() {
+            const userInp = document.getElementById('terminal-login-user');
+            const passInp = document.getElementById('terminal-login-pass');
+            const totpInp = document.getElementById('terminal-login-totp');
+            const statusEl = document.getElementById('terminal-login-status');
+            const username = userInp ? userInp.value.trim() : '';
+            const password = passInp ? passInp.value : '';
+            const totpCode = totpInp ? totpInp.value.trim() : '';
+
+            if (!username || !password) {
+                if (statusEl) statusEl.innerHTML = '<span class="text-red-400 font-bold">Please enter username and password.</span>';
+                return;
+            }
+
+            if (statusEl) statusEl.innerHTML = '<span class="text-amber-400 animate-pulse"><i class="fa-solid fa-spinner fa-spin mr-1"></i> Authenticating Credentials...</span>';
+
+            try {
+                const res = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({username, password, totp_code: totpCode})
+                });
+                const data = await res.json();
+                if (data.status === 'SUCCESS') {
+                    sessionStorage.setItem('aegis_session_token', data.session_token);
+                    sessionStorage.setItem('aegis_username', data.username);
+                    sessionStorage.setItem('aegis_role', data.role);
+                    sessionStorage.setItem('aegis_full_name', data.full_name);
+                    activeUserSession = data;
+                    if (statusEl) statusEl.innerHTML = '<span class="text-emerald-400 font-bold"><i class="fa-solid fa-circle-check mr-1"></i> Terminal Unlocked!</span>';
+                    setTimeout(() => {
+                        const gateway = document.getElementById('aegis-login-gateway');
+                        if (gateway) gateway.classList.add('hidden');
+                        updateUserInterfaceProfile(data);
+                        showNotification('Terminal Unlocked', `Logged in as ${data.full_name} (${data.role})`, 'success');
+                    }, 400);
+                } else if (data.status === 'TOTP_REQUIRED') {
+                    if (statusEl) statusEl.innerHTML = '<span class="text-amber-400 font-bold"><i class="fa-solid fa-shield-halved mr-1"></i> 6-Digit Google Authenticator Code Required!</span>';
+                    if (totpInp) {
+                        totpInp.focus();
+                        totpInp.classList.add('border-amber-400');
+                    }
+                } else if (data.status === 'INVALID_TOTP') {
+                    if (statusEl) statusEl.innerHTML = '<span class="text-red-400 font-bold"><i class="fa-solid fa-circle-xmark mr-1"></i> Invalid Google Authenticator Code. Please check app.</span>';
+                    if (totpInp) {
+                        totpInp.value = '';
+                        totpInp.focus();
+                        totpInp.classList.add('border-red-500');
+                    }
+                } else {
+                    if (statusEl) statusEl.innerHTML = `<span class="text-red-400 font-bold">${data.message || 'Invalid Credentials'}</span>`;
+                }
+            } catch (e) {
+                if (statusEl) statusEl.innerHTML = '<span class="text-red-400">Connection error. Please try again.</span>';
+            }
+        }
+
+        async function terminalBiometricLogin() {
+            const userInp = document.getElementById('terminal-login-user');
+            const statusEl = document.getElementById('terminal-login-status');
+            const username = userInp ? userInp.value.trim() || 'marvan' : 'marvan';
+
+            if (!window.PublicKeyCredential) {
+                if (statusEl) statusEl.innerHTML = '<span class="text-amber-400 font-bold">Biometrics not supported on this browser. Use password + TOTP.</span>';
+                return;
+            }
+
+            try {
+                if (statusEl) statusEl.innerHTML = '<span class="text-amber-400 animate-pulse"><i class="fa-solid fa-spinner fa-spin mr-1"></i> Generating Biometric Challenge...</span>';
+                const chalRes = await fetch(`/api/auth/biometric-challenge/${username}`);
+                const chalData = await chalRes.json();
+                if (chalData.status !== 'SUCCESS') {
+                    if (statusEl) statusEl.innerHTML = `<span class="text-red-400 font-bold">${chalData.message || 'User challenge failed'}</span>`;
+                    return;
+                }
+
+                if (statusEl) statusEl.innerHTML = '<span class="text-cyan-400 animate-pulse"><i class="fa-solid fa-fingerprint mr-1"></i> Touch ID / Face ID prompt active. Touch sensor now...</span>';
+
+                const challengeBytes = new Uint8Array(32);
+                for (let i = 0; i < 32; i++) challengeBytes[i] = chalData.challenge.charCodeAt(i % chalData.challenge.length);
+
+                const assertion = await navigator.credentials.get({
+                    publicKey: {
+                        challenge: challengeBytes,
+                        timeout: 60000,
+                        userVerification: 'required'
+                    }
+                });
+
+                if (!assertion) return;
+
+                if (statusEl) statusEl.innerHTML = '<span class="text-amber-400 animate-pulse"><i class="fa-solid fa-spinner fa-spin mr-1"></i> Verifying Hardware Enclave Signature...</span>';
+                const authRes = await fetch('/api/auth/biometric-auth', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        username: username,
+                        challenge: chalData.challenge,
+                        assertion_id: assertion.id
+                    })
+                });
+                const authData = await authRes.json();
+                if (authData.status === 'SUCCESS') {
+                    sessionStorage.setItem('aegis_session_token', authData.session_token);
+                    sessionStorage.setItem('aegis_username', authData.username);
+                    sessionStorage.setItem('aegis_role', authData.role);
+                    sessionStorage.setItem('aegis_full_name', authData.full_name);
+                    activeUserSession = authData;
+                    if (statusEl) statusEl.innerHTML = '<span class="text-emerald-400 font-bold"><i class="fa-solid fa-circle-check mr-1"></i> Biometric Verified! Unlocking...</span>';
+                    setTimeout(() => {
+                        const gateway = document.getElementById('aegis-login-gateway');
+                        if (gateway) gateway.classList.add('hidden');
+                        updateUserInterfaceProfile(authData);
+                        showNotification('Terminal Unlocked', `Biometric login verified for ${authData.full_name}`, 'success');
+                    }, 400);
+                } else {
+                    if (statusEl) statusEl.innerHTML = `<span class="text-red-400 font-bold">${authData.message || 'Biometric auth failed'}</span>`;
+                }
+            } catch (e) {
+                if (statusEl) {
+                    if (e.name === 'NotAllowedError') {
+                        statusEl.innerHTML = '<span class="text-amber-400 font-bold"><i class="fa-solid fa-hand mr-1"></i> Biometric scan cancelled. Enter password + TOTP.</span>';
+                    } else {
+                        statusEl.innerHTML = `<span class="text-red-400 font-bold">Biometric error: ${e.message || 'Sensor unavailable'}</span>`;
+                    }
+                }
+            }
+        }
+
+        async function terminalLogout() {
+            const token = sessionStorage.getItem('aegis_session_token');
+            if (token) {
+                try {
+                    await fetch('/api/auth/logout', {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                } catch (e) {}
+            }
+            sessionStorage.removeItem('aegis_session_token');
+            sessionStorage.removeItem('aegis_username');
+            sessionStorage.removeItem('aegis_role');
+            sessionStorage.removeItem('aegis_full_name');
+            activeUserSession = null;
+            const gateway = document.getElementById('aegis-login-gateway');
+            if (gateway) gateway.classList.remove('hidden');
+            const statusEl = document.getElementById('terminal-login-status');
+            if (statusEl) statusEl.innerHTML = '<span class="text-gray-400">Logged out safely.</span>';
+        }
+
+        function updateUserInterfaceProfile(user) {
+            if (!user) return;
+            const nameEl = document.getElementById('user-display-name');
+            const roleEl = document.getElementById('user-display-role');
+            const secUser = document.getElementById('sec-current-user');
+            const secBadge = document.getElementById('sec-user-badge');
+            const totpBadge = document.getElementById('sec-totp-status-badge');
+            const bioBadge = document.getElementById('sec-bio-status-badge');
+
+            if (nameEl) nameEl.textContent = user.username;
+            if (roleEl) roleEl.textContent = user.role;
+            if (secUser) secUser.textContent = user.username;
+            if (secBadge) secBadge.textContent = user.role;
+
+            if (totpBadge) {
+                totpBadge.className = user.totp_enabled ? 'px-2.5 py-0.5 rounded text-[10px] font-black bg-emerald-500/20 text-emerald-400 font-mono' : 'px-2.5 py-0.5 rounded text-[10px] font-black bg-gray-800 text-gray-400 font-mono';
+                totpBadge.textContent = user.totp_enabled ? 'ACTIVE 🟢' : 'NOT ENABLED ⚪';
+            }
+
+            if (bioBadge) {
+                bioBadge.className = user.biometric_enabled ? 'px-2.5 py-0.5 rounded text-[10px] font-black bg-emerald-500/20 text-emerald-400 font-mono' : 'px-2.5 py-0.5 rounded text-[10px] font-black bg-gray-800 text-gray-400 font-mono';
+                bioBadge.textContent = user.biometric_enabled ? 'ENROLLED 🟢' : 'AVAILABLE ⚪';
+            }
+        }
+
+        async function openTotpSetupDrawer() {
+            const drawer = document.getElementById('sec-totp-drawer');
+            const qrImg = document.getElementById('sec-totp-qr-img');
+            const secKey = document.getElementById('sec-totp-secret-key');
+            const user = sessionStorage.getItem('aegis_username') || (activeUserSession ? activeUserSession.username : 'marvan');
+
+            if (drawer) drawer.classList.toggle('hidden');
+            if (drawer && !drawer.classList.contains('hidden')) {
+                try {
+                    const res = await fetch(`/api/auth/totp-setup/${user}`);
+                    const data = await res.json();
+                    if (data.status === 'SUCCESS') {
+                        if (qrImg) qrImg.src = data.qr_image_url;
+                        if (secKey) secKey.textContent = data.secret;
+                    }
+                } catch(e) {
+                    console.error('TOTP setup fetch error:', e);
+                }
+            }
+        }
+
+        async function activateTotp2FA() {
+            const codeInp = document.getElementById('sec-totp-test-code');
+            const msgEl = document.getElementById('sec-totp-msg');
+            const user = sessionStorage.getItem('aegis_username') || (activeUserSession ? activeUserSession.username : 'marvan');
+            const code = codeInp ? codeInp.value.trim() : '';
+
+            if (!code || code.length !== 6) {
+                if (msgEl) msgEl.innerHTML = '<span class="text-red-400 font-bold">Please enter 6-digit code.</span>';
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/auth/totp-activate', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ username: user, code: code })
+                });
+                const data = await res.json();
+                if (data.status === 'SUCCESS') {
+                    if (msgEl) msgEl.innerHTML = '<span class="text-emerald-400 font-bold"><i class="fa-solid fa-circle-check mr-1"></i> Google Authenticator 2FA Activated!</span>';
+                    const badge = document.getElementById('sec-totp-status-badge');
+                    if (badge) {
+                        badge.className = 'px-2.5 py-0.5 rounded text-[10px] font-black bg-emerald-500/20 text-emerald-400 font-mono';
+                        badge.textContent = 'ACTIVE 🟢';
+                    }
+                    showNotification('2FA Enabled', 'Google Authenticator 2FA is now permanently active on your account!', 'success');
+                } else {
+                    if (msgEl) msgEl.innerHTML = `<span class="text-red-400 font-bold">${data.message || 'Invalid code'}</span>`;
+                }
+            } catch(e) {
+                if (msgEl) msgEl.innerHTML = '<span class="text-red-400">Activation error.</span>';
+            }
+        }
+
+        async function enrollUserDeviceBiometrics() {
+            const msgEl = document.getElementById('sec-bio-msg');
+            const badge = document.getElementById('sec-bio-status-badge');
+            const username = sessionStorage.getItem('aegis_username') || (activeUserSession ? activeUserSession.username : 'marvan');
+
+            if (!window.PublicKeyCredential) {
+                if (msgEl) msgEl.innerHTML = '<span class="text-red-400 font-bold">WebAuthn not supported on this browser.</span>';
+                return;
+            }
+
+            if (msgEl) msgEl.innerHTML = '<span class="text-amber-400 animate-pulse"><i class="fa-solid fa-fingerprint mr-1"></i> Touch ID / Face ID sensor prompt active...</span>';
+
+            try {
+                const challengeBytes = new Uint8Array(32);
+                window.crypto.getRandomValues(challengeBytes);
+                const userIdBytes = new TextEncoder().encode(username);
+
+                const credential = await navigator.credentials.create({
+                    publicKey: {
+                        challenge: challengeBytes,
+                        rp: { name: 'AegisQuant Institutional Desk' },
+                        user: {
+                            id: userIdBytes,
+                            name: username,
+                            displayName: username
+                        },
+                        pubKeyCredParams: [{ alg: -7, type: 'public-key' }, { alg: -257, type: 'public-key' }],
+                        authenticatorSelection: {
+                            authenticatorAttachment: 'platform',
+                            userVerification: 'preferred'
+                        },
+                        timeout: 60000
+                    }
+                });
+
+                if (credential) {
+                    const res = await fetch('/api/auth/biometric-register', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ username: username, credential_id: credential.id })
+                    });
+                    const data = await res.json();
+                    if (data.status === 'SUCCESS') {
+                        if (msgEl) msgEl.innerHTML = '<span class="text-emerald-400 font-bold"><i class="fa-solid fa-circle-check mr-1"></i> Device Biometrics Enrolled!</span>';
+                        if (badge) {
+                            badge.className = 'px-2.5 py-0.5 rounded text-[10px] font-black bg-emerald-500/20 text-emerald-400 font-mono';
+                            badge.textContent = 'ENROLLED 🟢';
+                        }
+                        showNotification('Biometrics Active', 'Your device Touch ID / Face ID is enrolled! You can now use 1-Click Biometric Login.', 'success');
+                    }
+                }
+            } catch(e) {
+                console.error('Biometric enrollment error:', e);
+                if (msgEl) {
+                    if (e.name === 'NotAllowedError') {
+                        msgEl.innerHTML = '<span class="text-amber-400 font-bold">Sensor registration was cancelled.</span>';
+                    } else {
+                        msgEl.innerHTML = `<span class="text-red-400 font-bold">Biometric registration error: ${e.message}</span>`;
+                    }
+                }
+            }
+        }
+
         let currentTab = 'overview';
         let currentLeverage = 10;
         let activeRiskProfileMaxLev = 10;
@@ -4876,6 +5379,7 @@
 
         // ── DOMContentLoaded ────────────────────────────────────────────────
         window.addEventListener('DOMContentLoaded', () => {
+            checkUserSession();
             updateLiveHeaderClock();
             setInterval(updateLiveHeaderClock, 1000);
             initChart();

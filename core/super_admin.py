@@ -96,7 +96,7 @@ class SuperAdminEngine:
             }
             self._save_users()
         else:
-            # Upgrade any legacy single-round SHA256 hashes to PBKDF2
+            # Upgrade any legacy single-round SHA256 hashes to PBKDF2 & sanitize TOTP secrets
             changed = False
             for u in self.users.values():
                 if "$" not in u.get("password_hash", ""):
@@ -106,6 +106,13 @@ class SuperAdminEngine:
                     elif u["username"] == "quant_trader":
                         u["password_hash"] = hash_password_pbkdf2("Trader@2026!")
                         changed = True
+                # Ensure valid Base32 secret for TOTP
+                sec = u.get("totp_secret", "")
+                try:
+                    base64.b32decode(sec.upper())
+                except Exception:
+                    u["totp_secret"] = base64.b32encode(secrets.token_bytes(10)).decode('utf-8').replace('=', '')
+                    changed = True
             if changed:
                 self._save_users()
 
@@ -221,9 +228,28 @@ class SuperAdminEngine:
             return {"status": "FAILED", "message": "User not found"}
         new_secret = base64.b32encode(secrets.token_bytes(10)).decode('utf-8').replace('=', '')
         user["totp_secret"] = new_secret
-        user["totp_enabled"] = True
         self._save_users()
         return self.get_totp_provisioning_uri(username)
+
+    def activate_totp(self, username: str, code: str) -> Dict[str, Any]:
+        """Verify initial code from authenticator app before enabling totp_enabled."""
+        user = self.users.get(username.lower().strip())
+        if not user:
+            return {"status": "FAILED", "message": "User not found"}
+        if not self.verify_totp(username, code):
+            return {"status": "FAILED", "message": "Invalid 6-digit code. Please enter the current code from your authenticator app."}
+        user["totp_enabled"] = True
+        self._save_users()
+        return {"status": "SUCCESS", "message": "Google Authenticator 2FA activated successfully!"}
+
+    def deactivate_totp(self, username: str) -> Dict[str, Any]:
+        """Disable TOTP 2FA requirement for user."""
+        user = self.users.get(username.lower().strip())
+        if not user:
+            return {"status": "FAILED", "message": "User not found"}
+        user["totp_enabled"] = False
+        self._save_users()
+        return {"status": "SUCCESS", "message": "Google Authenticator 2FA disabled."}
 
     def register_biometric_credential(self, username: str, credential_id: str) -> Dict[str, Any]:
         """Register hardware Touch ID / Face ID credential for user."""
@@ -328,7 +354,7 @@ class SuperAdminEngine:
             "email": email,
             "role": role.upper(),
             "password_hash": hash_password_pbkdf2(password),
-            "totp_secret": secrets.token_hex(10).upper(),
+            "totp_secret": base64.b32encode(secrets.token_bytes(10)).decode('utf-8').replace('=', ''),
             "totp_enabled": False,
             "biometric_enabled": False,
             "created_at": get_ist_time(),
