@@ -1445,10 +1445,11 @@ async def test_telegram_alert_endpoint(request: Request):
         "message": message
     })
 
+@app.get("/api/binance/status")
 @app.get("/api/binance-status")
 async def get_binance_status_endpoint():
-    """Fetch honest connection status and masked credentials of Binance broker."""
-    return JSONResponse(binance_broker.get_public_status())
+    """Fetch authoritative connection status, credentials, and market data health of Binance broker."""
+    return JSONResponse(binance_broker.get_authoritative_status())
 
 @app.post("/api/connect-binance")
 async def connect_binance_endpoint(data: dict):

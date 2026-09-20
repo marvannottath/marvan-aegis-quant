@@ -97,15 +97,40 @@ class MultiMarketScanner:
         """
         Scan ONLY assets belonging strictly to the requested workspace.
         Computes real-time AI Opportunity Score (0 - 100%) for each workspace asset.
+        For CRYPTO: fetches genuine live ticks directly from Binance public bookTicker.
         """
         self.step_counter += 1
         registry = self._get_registry_for_workspace(workspace)
         results = []
 
+        is_crypto = str(workspace).strip().upper() in ["CRYPTO", "BINANCE", "USDT"]
+        binance_ticks: Dict[str, Any] = {}
+        if is_crypto:
+            try:
+                from execution.binance_broker import binance_broker
+                binance_ticks = binance_broker.get_bulk_market_data(list(registry.keys()))
+            except Exception:
+                binance_ticks = {}
+
         for key, meta in registry.items():
-            base_p = meta["base_price"]
-            noise = np.sin(self.step_counter * 0.05 + hash(key) % 7) * 0.0012
-            price = round(base_p * (1.0 + noise), 2 if base_p > 10 else 4)
+            source = "SYNTHETIC"
+            freshness_ms = 0
+            if is_crypto:
+                tick = binance_ticks.get(key)
+                if tick and tick.get("last", 0) > 0:
+                    price = float(tick["last"])
+                    source = "BINANCE"
+                    freshness_ms = tick.get("freshness_ms", 0)
+                else:
+                    # Fallback or unavailable
+                    base_p = meta["base_price"]
+                    noise = np.sin(self.step_counter * 0.05 + hash(key) % 7) * 0.0012
+                    price = round(base_p * (1.0 + noise), 2 if base_p > 10 else 4)
+                    source = "SIMULATION/DEMO"
+            else:
+                base_p = meta["base_price"]
+                noise = np.sin(self.step_counter * 0.05 + hash(key) % 7) * 0.0012
+                price = round(base_p * (1.0 + noise), 2 if base_p > 10 else 4)
 
             rsi = float(np.clip(50.0 + np.sin(self.step_counter * 0.4 + hash(key) % 5) * 30.0, 15, 85))
             volatility = float(max(0.003, 0.01 + np.abs(np.cos(self.step_counter * 0.1)) * 0.015))
@@ -125,7 +150,9 @@ class MultiMarketScanner:
                 "rsi": round(rsi, 1),
                 "volatility": round(volatility, 4),
                 "opportunity_score": opp_score,
-                "ai_action": action
+                "ai_action": action,
+                "source": source,
+                "freshness_ms": freshness_ms
             })
 
         results.sort(key=lambda x: x["opportunity_score"], reverse=True)

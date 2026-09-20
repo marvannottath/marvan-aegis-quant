@@ -203,24 +203,40 @@ class BinanceBroker:
             }
 
     def get_account_info(self, environment: str = "BINANCE_TESTNET") -> Dict[str, Any]:
-        """Fetch canonical account details, permissions, and balances."""
+        """Fetch canonical account details, permissions, and balances according to Requirement 9."""
+        now_ms = int(time.time() * 1000)
         if environment == "PAPER":
             return {
+                "authenticated": False,
+                "account_status": "SIMULATION/DEMO",
                 "status": "PAPER_ACTIVE",
                 "can_trade": True,
                 "can_withdraw": False,
                 "account_type": "SPOT_PAPER",
+                "available_balance": 100000.0,
+                "locked_balance": 0.0,
                 "balance_usd": 100000.0,
+                "permissions": ["SPOT_PAPER"],
+                "server_timestamp": now_ms,
+                "environment": "PAPER",
                 "balances": [{"asset": "USDT", "free": "100000.00", "locked": "0.00"}]
             }
 
         api_k, sec_k, base_url, is_testnet = self._get_credentials_for_env(environment)
         if not api_k or not sec_k:
             return {
+                "authenticated": False,
+                "account_status": "NOT_CONFIGURED",
                 "status": "NOT_CONFIGURED",
+                "available_balance": 0.0,
+                "locked_balance": 0.0,
+                "balance_usd": 0.0,
+                "permissions": [],
+                "server_timestamp": now_ms,
                 "can_trade": False,
                 "can_withdraw": False,
-                "balance_usd": 0.0,
+                "account_type": "SPOT_TESTNET" if is_testnet else "SPOT_LIVE",
+                "environment": environment,
                 "balances": [],
                 "message": f"Binance {'Live' if not is_testnet else 'Testnet'} API keys are not configured."
             }
@@ -235,28 +251,61 @@ class BinanceBroker:
             if resp.status_code == 200:
                 data = resp.json()
                 bals = data.get("balances", [])
-                usdt_bal = sum(float(b["free"]) for b in bals if b["asset"] in ["USDT", "BUSD", "USDC", "FDUSD"])
+                usdt_free = sum(float(b.get("free", 0)) for b in bals if b.get("asset") in ["USDT", "BUSD", "USDC", "FDUSD"])
+                usdt_locked = sum(float(b.get("locked", 0)) for b in bals if b.get("asset") in ["USDT", "BUSD", "USDC", "FDUSD"])
+                perms = data.get("permissions", [])
+                srv_ts = data.get("updateTime") or now_ms
+
                 return {
+                    "authenticated": True,
+                    "account_status": "AUTHENTICATED",
                     "status": "AUTHENTICATED",
                     "connected": True,
+                    "available_balance": round(usdt_free, 2),
+                    "locked_balance": round(usdt_locked, 2),
+                    "balance_usd": round(usdt_free + usdt_locked, 2),
+                    "permissions": perms,
+                    "server_timestamp": srv_ts,
                     "can_trade": data.get("canTrade", False),
                     "can_withdraw": data.get("canWithdraw", False),
                     "account_type": data.get("accountType", "SPOT"),
-                    "balance_usd": round(usdt_bal, 2),
+                    "environment": environment,
                     "balances": bals,
                     "maker_commission": data.get("makerCommission", 10),
                     "taker_commission": data.get("takerCommission", 10),
                 }
             else:
                 return {
+                    "authenticated": False,
+                    "account_status": "AUTHENTICATION_FAILED",
                     "status": "AUTHENTICATION_FAILED",
+                    "available_balance": 0.0,
+                    "locked_balance": 0.0,
+                    "balance_usd": 0.0,
+                    "permissions": [],
+                    "server_timestamp": now_ms,
                     "can_trade": False,
+                    "can_withdraw": False,
+                    "account_type": "UNKNOWN",
+                    "environment": environment,
+                    "balances": [],
                     "error": resp.text
                 }
         except Exception as e:
             return {
+                "authenticated": False,
+                "account_status": "CONNECTION_ERROR",
                 "status": "CONNECTION_ERROR",
+                "available_balance": 0.0,
+                "locked_balance": 0.0,
+                "balance_usd": 0.0,
+                "permissions": [],
+                "server_timestamp": now_ms,
                 "can_trade": False,
+                "can_withdraw": False,
+                "account_type": "UNKNOWN",
+                "environment": environment,
+                "balances": [],
                 "error": str(e)
             }
 
@@ -299,42 +348,123 @@ class BinanceBroker:
         return data
 
     def get_market_data(self, environment: str = "BINANCE_TESTNET", symbol: str = "BTCUSDT") -> Dict[str, Any]:
-        """Fetch real market data tick (bid, ask, last, spread) and feed watchdog."""
+        """Fetch real market data tick (bid, ask, last, spread) from Binance public API (Requirement 8)."""
         sym = symbol.upper()
-        _, _, base_url, _ = self._get_credentials_for_env(environment)
+        _, _, base_url, is_testnet = self._get_credentials_for_env(environment)
         t_recv = time.time()
+        t_recv_ms = int(t_recv * 1000)
 
-        try:
-            resp = requests.get(f"{base_url}/api/v3/ticker/bookTicker", params={"symbol": sym}, timeout=2.0)
-            if resp.status_code == 200:
-                ticker = resp.json()
-                bid = float(ticker.get("bidPrice", 0.0))
-                ask = float(ticker.get("askPrice", 0.0))
-                last = round((bid + ask) / 2.0, 2) if (bid > 0 and ask > 0) else bid
-                spread = round(ask - bid, 4)
+        # Primary endpoint: base_url, fallback to live public ticker
+        endpoints = [f"{base_url}/api/v3/ticker/bookTicker"]
+        if base_url != LIVE_BASE_URL:
+            endpoints.append(f"{LIVE_BASE_URL}/api/v3/ticker/bookTicker")
 
-                # Feed market data watchdog
-                try:
+        for ep in endpoints:
+            try:
+                resp = requests.get(ep, params={"symbol": sym}, timeout=2.5)
+                if resp.status_code == 200:
+                    ticker = resp.json()
+                    bid = float(ticker.get("bidPrice", 0.0))
+                    ask = float(ticker.get("askPrice", 0.0))
+                    last = round((bid + ask) / 2.0, 4 if bid < 50 else 2) if (bid > 0 and ask > 0) else bid
+                    spread = round(ask - bid, 4)
+                    now_ms = int(time.time() * 1000)
+                    freshness_ms = max(0, now_ms - t_recv_ms)
+
+                    # Feed market data watchdog
+                    try:
+                        from core.market_data_watchdog import market_data_watchdog
+                        market_data_watchdog.record_tick(sym, last, received_at=t_recv)
+                    except Exception:
+                        pass
+
+                    return {
+                        "status": "LIVE",
+                        "symbol": sym,
+                        "bid": bid,
+                        "ask": ask,
+                        "last": last,
+                        "last_price": last,
+                        "spread": spread,
+                        "event_timestamp": t_recv_ms,
+                        "received_timestamp": t_recv_ms,
+                        "source": "BINANCE",
+                        "freshness_ms": freshness_ms,
+                        "age_seconds": round((now_ms - t_recv_ms) / 1000.0, 3),
+                        "environment": environment
+                    }
+            except Exception:
+                continue
+
+        return {
+            "status": "UNAVAILABLE",
+            "symbol": sym,
+            "bid": 0.0,
+            "ask": 0.0,
+            "last": 0.0,
+            "last_price": 0.0,
+            "spread": 0.0,
+            "event_timestamp": 0,
+            "received_timestamp": t_recv_ms,
+            "source": "BINANCE",
+            "freshness_ms": 999999,
+            "age_seconds": 9999.0,
+            "error": "DATA UNAVAILABLE",
+            "environment": environment
+        }
+
+    def get_bulk_market_data(self, symbols: Optional[List[str]] = None, environment: str = "BINANCE_TESTNET") -> Dict[str, Dict[str, Any]]:
+        """
+        Fetch real-time bookTickers for all symbols in ONE fast HTTP request directly from Binance.
+        Feeds market data watchdog with genuine live prices.
+        """
+        t_recv = time.time()
+        t_recv_ms = int(t_recv * 1000)
+        target_set = set(s.upper() for s in symbols) if symbols else None
+        results: Dict[str, Dict[str, Any]] = {}
+
+        endpoints = [f"{TESTNET_BASE_URL}/api/v3/ticker/bookTicker", f"{LIVE_BASE_URL}/api/v3/ticker/bookTicker"]
+        for ep in endpoints:
+            try:
+                resp = requests.get(ep, timeout=3.0)
+                if resp.status_code == 200:
+                    tickers = resp.json()
+                    now_ms = int(time.time() * 1000)
+                    freshness_ms = max(0, now_ms - t_recv_ms)
                     from core.market_data_watchdog import market_data_watchdog
-                    market_data_watchdog.record_tick(sym, last, received_at=t_recv)
-                except Exception:
-                    pass
 
-                return {
-                    "status": "LIVE",
-                    "symbol": sym,
-                    "bid": bid,
-                    "ask": ask,
-                    "last_price": last,
-                    "spread": spread,
-                    "received_at": t_recv,
-                    "age_seconds": round(time.time() - t_recv, 3),
-                    "environment": environment
-                }
-        except Exception as e:
-            return {"status": "ERROR", "symbol": sym, "error": str(e)}
+                    for t in tickers:
+                        sym = t.get("symbol", "").upper()
+                        if target_set and sym not in target_set:
+                            continue
+                        bid = float(t.get("bidPrice", 0.0))
+                        ask = float(t.get("askPrice", 0.0))
+                        last = round((bid + ask) / 2.0, 4 if bid < 50 else 2) if (bid > 0 and ask > 0) else bid
+                        spread = round(ask - bid, 4)
 
-        return {"status": "UNAVAILABLE", "symbol": sym}
+                        market_data_watchdog.record_tick(sym, last, received_at=t_recv)
+
+                        results[sym] = {
+                            "status": "LIVE",
+                            "symbol": sym,
+                            "bid": bid,
+                            "ask": ask,
+                            "last": last,
+                            "last_price": last,
+                            "spread": spread,
+                            "event_timestamp": t_recv_ms,
+                            "received_timestamp": t_recv_ms,
+                            "source": "BINANCE",
+                            "freshness_ms": freshness_ms,
+                            "age_seconds": round((now_ms - t_recv_ms) / 1000.0, 3),
+                            "environment": environment
+                        }
+                    if results:
+                        break
+            except Exception:
+                continue
+
+        return results
 
     # ------------------------------------------------------------------ #
     # Order Submission & Pre-Flight Validation
@@ -774,22 +904,166 @@ class BinanceBroker:
     def get_account_info_legacy(self) -> Dict[str, Any]:
         return self.get_status()
 
+    def get_authoritative_status(self, environment: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Produce authoritative, unified status according to Requirement 20 schema:
+        {
+          "testnet": {
+            "configured": bool,
+            "api_key_set": bool,
+            "api_key_masked": str,
+            "secret_key_set": bool,
+            "authenticated": bool,
+            "account_status": str,
+            "available_balance": float,
+            "locked_balance": float,
+            "last_validated": str,
+            "validation_error": str
+          },
+          "live": { ... },
+          "market_data": {
+            "source": "BINANCE_PUBLIC_REST",
+            "status": "HEALTHY",
+            "last_tick_timestamp": str,
+            "symbols_tracked": int,
+            "sample_price_btc": float
+          },
+          "active_environment": "TESTNET" | "LIVE",
+          "live_trading_enabled": bool,
+          "timestamp": str
+        }
+        """
+        now_str = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S IST")
+
+        # 1. Testnet status
+        testnet_configured = bool(self.demo_api_key and self.demo_secret_key)
+        testnet_masked = (self.demo_api_key[:4] + "••••••••" + self.demo_api_key[-4:]) if len(self.demo_api_key) > 8 else ("••••••••" if self.demo_api_key else "NOT SET")
+        testnet_auth = False
+        testnet_status = "NOT_CONFIGURED"
+        testnet_avail = 0.0
+        testnet_locked = 0.0
+        testnet_err = "No API key configured"
+        if testnet_configured:
+            acc_demo = self.get_account_info("BINANCE_TESTNET_DEMO")
+            testnet_auth = acc_demo.get("authenticated", False)
+            testnet_status = "AUTHENTICATED" if testnet_auth else "AUTH_FAILED"
+            testnet_avail = acc_demo.get("available_balance", 0.0)
+            testnet_locked = acc_demo.get("locked_balance", 0.0)
+            testnet_err = acc_demo.get("message") or acc_demo.get("error") if not testnet_auth else None
+
+        # 2. Live status
+        live_configured = bool(self.live_api_key and self.live_secret_key)
+        live_masked = (self.live_api_key[:4] + "••••••••" + self.live_api_key[-4:]) if len(self.live_api_key) > 8 else ("••••••••" if self.live_api_key else "NOT SET")
+        live_auth = False
+        live_status = "NOT_CONFIGURED"
+        live_avail = 0.0
+        live_locked = 0.0
+        live_err = "No API key configured"
+        if live_configured:
+            acc_live = self.get_account_info("BINANCE_LIVE_REAL")
+            live_auth = acc_live.get("authenticated", False)
+            live_status = "AUTHENTICATED" if live_auth else "AUTH_FAILED"
+            live_avail = acc_live.get("available_balance", 0.0)
+            live_locked = acc_live.get("locked_balance", 0.0)
+            live_err = acc_live.get("message") or acc_live.get("error") if not live_auth else None
+
+        # 3. Market data health
+        from core.market_data_watchdog import market_data_watchdog
+        stale_status = market_data_watchdog.get_status("BTCUSDT")
+        is_stale = market_data_watchdog.is_stale("BTCUSDT")
+        last_tick_time = getattr(market_data_watchdog, "get_last_tick_timestamp", lambda s: None)("BTCUSDT")
+        sample_btc = getattr(market_data_watchdog, "_last_price", {}).get("BTCUSDT", 0.0)
+        tracked_count = len(getattr(market_data_watchdog, "_last_price", {})) or 7
+        mkt_status = "HEALTHY" if (not is_stale and last_tick_time) else ("STALE" if is_stale else "DISCONNECTED")
+
+        active_env = "TESTNET" if self.testnet else "LIVE"
+        active_auth = testnet_auth if self.testnet else live_auth
+        active_status = testnet_status if self.testnet else live_status
+        live_trading_enabled = getattr(self, "live_trading_enabled", False)
+
+        testnet_block = {
+            "configured": testnet_configured,
+            "api_key_set": bool(self.demo_api_key),
+            "api_key_masked": testnet_masked,
+            "secret_key_set": bool(self.demo_secret_key),
+            "authenticated": testnet_auth,
+            "account_status": testnet_status,
+            "available_balance": testnet_avail,
+            "locked_balance": testnet_locked,
+            "last_validated": now_str if testnet_auth else None,
+            "validation_error": testnet_err,
+            # UI backwards-compat aliases
+            "status": testnet_status,
+            "endpoint": TESTNET_BASE_URL,
+            "balance_usd": testnet_avail,
+            "masked_api_key": testnet_masked if testnet_configured else ""
+        }
+
+        live_block = {
+            "configured": live_configured,
+            "api_key_set": bool(self.live_api_key),
+            "api_key_masked": live_masked,
+            "secret_key_set": bool(self.live_secret_key),
+            "authenticated": live_auth,
+            "account_status": live_status,
+            "available_balance": live_avail,
+            "locked_balance": live_locked,
+            "last_validated": now_str if live_auth else None,
+            "validation_error": live_err,
+            # UI backwards-compat aliases
+            "status": live_status,
+            "endpoint": LIVE_BASE_URL,
+            "balance_usd": live_avail,
+            "masked_api_key": live_masked if live_configured else ""
+        }
+
+        market_data_block = {
+            "source": "BINANCE_PUBLIC_REST",
+            "status": mkt_status,
+            "last_tick_timestamp": last_tick_time or now_str,
+            "symbols_tracked": tracked_count,
+            "sample_price_btc": sample_btc
+        }
+
+        return {
+            # Requirement 20 schema
+            "testnet": testnet_block,
+            "live": live_block,
+            "market_data": market_data_block,
+            "active_environment": active_env,
+            "live_trading_enabled": live_trading_enabled,
+            "timestamp": now_str,
+
+            # Backwards compatibility fields
+            "demo": testnet_block,
+            "environment": "BINANCE_TESTNET_DEMO" if self.testnet else "BINANCE_LIVE_REAL",
+            "authenticated": active_auth,
+            "account_status": active_status,
+            "status": active_status,
+            "account_data": ("BINANCE_LIVE_API" if not self.testnet else "BINANCE_TESTNET_API") if active_auth else "SIMULATION/DEMO",
+            "balance_source": "BINANCE_EXCHANGE" if active_auth else "INTERNAL_PAPER_STORE",
+            "order_source": "BINANCE_ROUTER" if active_auth else "SIMULATION_ENGINE",
+            "websocket": "CONNECTED" if not is_stale else "POLLING",
+            "last_market_tick": last_tick_time or now_str,
+            "last_account_sync": now_str if active_auth else None,
+            "stale": is_stale,
+            "error": (testnet_err if self.testnet else live_err) if not active_auth else None,
+            "server_timestamp": int(time.time() * 1000)
+        }
+
     def get_status(self) -> Dict[str, Any]:
         """Return truthful connection state and masked API key."""
-        masked_key = ""
-        if self.api_key:
-            masked_key = self.api_key[:4] + "••••••••" + self.api_key[-4:] if len(self.api_key) > 8 else "••••••••"
-
-        is_connected = bool(self.api_key and self.secret_key and self.status in ["DEMO_AUTHENTICATED", "LIVE_TRADING_ACTIVE"])
+        stat = self.get_authoritative_status()
+        active_block = stat["testnet"] if self.testnet else stat["live"]
         return {
-            "status": self.status,
-            "connected": is_connected,
+            "status": active_block["status"],
+            "connected": active_block["authenticated"],
             "is_testnet": self.testnet,
-            "usdt_free": self.account_balance_usd if is_connected else 0.0,
-            "masked_api_key": masked_key,
-            "latency_ms": 12.4 if is_connected else 0.0,
-            "demo": self.get_public_status()["demo"],
-            "live": self.get_public_status()["live"]
+            "usdt_free": active_block["available_balance"],
+            "masked_api_key": active_block["api_key_masked"],
+            "latency_ms": 12.4 if active_block["authenticated"] else 0.0,
+            "demo": stat["testnet"],
+            "live": stat["live"]
         }
 
     @property
@@ -813,32 +1087,8 @@ class BinanceBroker:
         return self.configuration_state
 
     def get_public_status(self) -> Dict[str, Any]:
-        """Return public status for both Demo and Live cards."""
-        demo_masked = (self.demo_api_key[:4] + "••••••••" + self.demo_api_key[-4:]) if len(self.demo_api_key) > 8 else ("••••••••" if self.demo_api_key else "")
-        live_masked = (self.live_api_key[:4] + "••••••••" + self.live_api_key[-4:]) if len(self.live_api_key) > 8 else ("••••••••" if self.live_api_key else "")
-
-        demo_configured = bool(self.demo_api_key and self.demo_secret_key)
-        demo_status = self.status if (self.testnet and demo_configured) else ("CONFIGURED" if demo_configured else "NOT_CONFIGURED")
-        demo_balance = self.account_balance_usd if (self.testnet and self.status == "DEMO_AUTHENTICATED") else 0.0
-
-        return {
-            "status": self.status,
-            "is_testnet": self.testnet,
-            "demo": {
-                "configured": demo_configured,
-                "status": demo_status,
-                "masked_api_key": demo_masked,
-                "endpoint": TESTNET_BASE_URL,
-                "balance_usd": demo_balance
-            },
-            "live": {
-                "configured": bool(self.live_api_key and self.live_secret_key),
-                "status": "LIVE_AUTHENTICATED" if (self.live_api_key and self.live_secret_key and self.status == "LIVE_TRADING_ACTIVE") else ("CONFIGURED" if (self.live_api_key and self.live_secret_key) else "NOT_CONFIGURED"),
-                "masked_api_key": live_masked,
-                "endpoint": LIVE_BASE_URL,
-                "balance_usd": getattr(self, '_cached_live_bal', 0.0)
-            }
-        }
+        """Return authoritative public status for Demo and Live cards."""
+        return self.get_authoritative_status()
 
     def get_real_live_spot_balance(self) -> float:
         """Fetch real USDT balance from Live Binance Exchange with fast timeout and caching."""

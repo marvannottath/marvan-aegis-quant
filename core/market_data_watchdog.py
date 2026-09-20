@@ -132,6 +132,13 @@ class MarketDataWatchdog:
             return STATUS_STALE
         return STATUS_LIVE
 
+    def get_last_tick_timestamp(self, symbol: str) -> Optional[str]:
+        """Return formatted IST timestamp of last received tick, or None."""
+        last = self._last_tick.get(symbol)
+        if last is None:
+            return None
+        return datetime.fromtimestamp(last, tz=IST_TZ).strftime("%Y-%m-%d %H:%M:%S IST")
+
     def is_stale(self, symbol: str) -> bool:
         return self.get_status(symbol) != STATUS_LIVE
 

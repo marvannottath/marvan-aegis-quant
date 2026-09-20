@@ -1602,6 +1602,10 @@
                 if (document.getElementById('risk-daily-loss-limit')) {
                     document.getElementById('risk-daily-loss-limit').innerHTML = '₹1,66,000.00 Limit <span class="text-xs text-gray-500 font-normal">(GLOBAL BASE: $2,000.00)</span>';
                 }
+                const capEl = document.getElementById('lbl-trade-cap-val');
+                if (capEl) capEl.innerText = '₹5,000';
+                const levEl = document.getElementById('lbl-max-lev-val');
+                if (levEl) levEl.innerText = '5x (SEBI Peak Margin)';
                 if (brokerInfo) brokerInfo.classList.remove('hidden');
                 if (taxBtn) taxBtn.classList.remove('hidden');
                 fetchUpstoxStatus();
@@ -1618,6 +1622,10 @@
                 if (document.getElementById('risk-daily-loss-limit')) {
                     document.getElementById('risk-daily-loss-limit').innerText = '$2,000.00 Limit';
                 }
+                const capEl = document.getElementById('lbl-trade-cap-val');
+                if (capEl) capEl.innerText = '$5,000';
+                const levEl = document.getElementById('lbl-max-lev-val');
+                if (levEl) levEl.innerText = '100x (Interbank FX Margin)';
                 const upstoxBadge = document.getElementById('badge-upstox-status');
                 if (upstoxBadge) {
                     upstoxBadge.className = 'font-bold text-blue-400';
@@ -1633,22 +1641,20 @@
                 if (subtitle) subtitle.innerText = 'Currency: USDT ($) • 24/7 Continuous Spot & Futures • Multi-Model Risk Engine';
                 if (scannerSub) scannerSub.innerText = 'Real-time market scanning across Binance Spot & Futures (USDT Pairs)';
                 if (ordTitle) ordTitle.innerHTML = '<i class="fa-solid fa-bolt text-amber-400 mr-2"></i> Fast Order Execution Terminal — Binance Exchange';
-                if (ordSub) ordSub.innerText = 'Server-side 7-Gate Risk Engine validates all parameters before execution (Binance Spot & Futures)';
+                if (ordSub) ordSub.innerText = 'Server-side 7-Gate Risk Engine validates all parameters before execution (Binance Risk Engine)';
                 if (ordAlloc) ordAlloc.innerText = 'Trade Capital Allocation (USDT)';
                 if (thPosAlloc) thPosAlloc.innerText = 'Allocated Margin (USDT)';
                 if (thPosPnl) thPosPnl.innerText = 'Unrealized PnL (USDT)';
                 if (document.getElementById('risk-daily-loss-limit')) {
                     document.getElementById('risk-daily-loss-limit').innerText = '2,000.00 USDT Limit';
                 }
-                const upstoxBadge = document.getElementById('badge-upstox-status');
-                if (upstoxBadge) {
-                    upstoxBadge.className = 'font-bold text-amber-400';
-                    upstoxBadge.innerHTML = '<i class="fa-solid fa-cube mr-1"></i>BINANCE: TESTNET DEMO ACTIVE';
-                }
-                const brokerMargin = document.getElementById('val-broker-margin');
-                if (brokerMargin) brokerMargin.innerText = '19,940.75 USDT';
+                const capEl = document.getElementById('lbl-trade-cap-val');
+                if (capEl) capEl.innerText = '5,000 USDT';
+                const levEl = document.getElementById('lbl-max-lev-val');
+                if (levEl) levEl.innerText = '25x (Binance Cross Margin)';
                 if (brokerInfo) brokerInfo.classList.remove('hidden');
                 if (taxBtn) taxBtn.classList.add('hidden');
+                fetchBinanceStatus();
             }
 
             // Update session badge dynamically from authoritative operational status
@@ -1719,6 +1725,8 @@
             if (window.activeMarketVenue === 'INDIA') {
                 fetchIndiaMarketSession();
                 fetchUpstoxStatus();
+            } else if (window.activeMarketVenue === 'CRYPTO') {
+                fetchBinanceStatus();
             }
             fetchState(window.activeMarketVenue, seq);
             fetchPerformanceCurve();
@@ -2507,33 +2515,76 @@
 
         async function fetchBinanceStatus() {
             try {
-                const res = await fetch('/api/binance-status');
+                const res = await fetch('/api/binance/status');
                 const data = await res.json();
+                const testnet = data.testnet || data.demo || {};
+                const live = data.live || {};
 
-                // 1. Update Demo Card
+                // 1. Update Demo / Testnet Card
                 const demoBadge = document.getElementById('binance-demo-status-badge');
                 const demoSavedKey = document.getElementById('lbl-binance-demo-saved-key');
-                if (data.demo) {
-                    if (demoBadge) {
-                        demoBadge.className = data.demo.configured ? 'px-2.5 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded text-[10px] font-black' : 'px-2.5 py-1 bg-gray-800 text-gray-400 border border-gray-700 rounded text-[10px] font-black';
-                        demoBadge.innerText = data.demo.configured ? 'DEMO AUTHENTICATED' : 'NOT CONFIGURED';
+                if (demoBadge) {
+                    if (testnet.authenticated) {
+                        demoBadge.className = 'px-2.5 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded text-[10px] font-black';
+                        demoBadge.innerText = 'TESTNET AUTHENTICATED';
+                    } else if (testnet.configured) {
+                        demoBadge.className = 'px-2.5 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/30 rounded text-[10px] font-black';
+                        demoBadge.innerText = 'KEY SAVED (UNVERIFIED)';
+                    } else {
+                        demoBadge.className = 'px-2.5 py-1 bg-gray-800 text-gray-400 border border-gray-700 rounded text-[10px] font-black';
+                        demoBadge.innerText = 'NOT CONFIGURED';
                     }
-                    if (demoSavedKey) {
-                        demoSavedKey.innerText = (data.demo.configured && data.demo.masked_api_key) ? data.demo.masked_api_key : 'NO DEMO API KEY SAVED';
-                        demoSavedKey.className = data.demo.configured ? 'text-amber-400 font-bold' : 'text-gray-400 font-bold';
-                    }
+                }
+                if (demoSavedKey) {
+                    const isSet = testnet.configured && testnet.api_key_masked && testnet.api_key_masked !== 'NOT SET';
+                    demoSavedKey.innerText = isSet ? testnet.api_key_masked : 'NO DEMO API KEY SAVED';
+                    demoSavedKey.className = isSet ? 'text-amber-400 font-bold' : 'text-gray-400 font-bold';
                 }
 
                 // 2. Update Live Card
                 const liveBadge = document.getElementById('binance-live-status-badge');
                 const liveSavedKey = document.getElementById('lbl-binance-live-saved-key');
-                if (data.live) {
-                    if (liveBadge) {
-                        liveBadge.className = data.live.configured ? 'px-2.5 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded text-[10px] font-black' : 'px-2.5 py-1 bg-gray-800 text-gray-400 border border-gray-700 rounded text-[10px] font-black';
-                        liveBadge.innerText = data.live.configured ? 'LIVE AUTHENTICATED' : 'NOT CONFIGURED';
+                if (liveBadge) {
+                    if (live.authenticated) {
+                        liveBadge.className = 'px-2.5 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded text-[10px] font-black';
+                        liveBadge.innerText = 'LIVE AUTHENTICATED';
+                    } else if (live.configured) {
+                        liveBadge.className = 'px-2.5 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/30 rounded text-[10px] font-black';
+                        liveBadge.innerText = 'KEY SAVED (UNVERIFIED)';
+                    } else {
+                        liveBadge.className = 'px-2.5 py-1 bg-gray-800 text-gray-400 border border-gray-700 rounded text-[10px] font-black';
+                        liveBadge.innerText = 'NOT CONFIGURED';
                     }
-                    if (liveSavedKey) {
-                        liveSavedKey.innerText = data.live.masked_api_key || 'NO LIVE API KEY SAVED';
+                }
+                if (liveSavedKey) {
+                    const isSet = live.configured && live.api_key_masked && live.api_key_masked !== 'NOT SET';
+                    liveSavedKey.innerText = isSet ? live.api_key_masked : 'NO LIVE API KEY SAVED';
+                    liveSavedKey.className = isSet ? 'text-emerald-400 font-bold' : 'text-gray-400 font-bold';
+                }
+
+                // 3. Update Header Badge & Margin if current workspace is CRYPTO
+                if (window.activeMarketVenue === 'CRYPTO') {
+                    const badge = document.getElementById('badge-upstox-status');
+                    const marginVal = document.getElementById('val-broker-margin');
+                    const isLive = data.active_environment === 'LIVE';
+                    const activeBlock = isLive ? live : testnet;
+                    if (badge) {
+                        if (activeBlock.authenticated) {
+                            badge.className = 'font-bold text-emerald-400';
+                            badge.innerHTML = `<i class="fa-solid fa-circle-check mr-1"></i>BINANCE: ${isLive ? 'LIVE' : 'TESTNET'} AUTHENTICATED`;
+                        } else {
+                            badge.className = 'font-bold text-amber-400';
+                            badge.innerHTML = '<i class="fa-solid fa-cube mr-1"></i>BINANCE: SIMULATION / DEMO (NO KEYS)';
+                        }
+                    }
+                    if (marginVal) {
+                        if (activeBlock.authenticated) {
+                            const bal = activeBlock.available_balance || 0.0;
+                            marginVal.innerText = `${bal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} USDT`;
+                        } else {
+                            const poolBal = (window.lastOperationalData && window.lastOperationalData.pool_equity) || 20000.0;
+                            marginVal.innerText = `${Number(poolBal).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} USDT (SIM)`;
+                        }
                     }
                 }
             } catch (e) {
