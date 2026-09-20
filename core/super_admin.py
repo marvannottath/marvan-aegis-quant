@@ -188,6 +188,8 @@ class SuperAdminEngine:
             valid_code = self.generate_totp_code(secret, time_step=step)
             if valid_code and hmac.compare_digest(clean_code, valid_code):
                 return True
+        return False
+
     def get_totp_provisioning_uri(self, username: str) -> Dict[str, Any]:
         """Generate standard otpauth:// URI and QR code image URL for Google Authenticator."""
         user = self.users.get(username.lower().strip())

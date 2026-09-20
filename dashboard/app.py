@@ -1752,14 +1752,32 @@ async def get_latest_backtest_run():
 
 @app.post("/api/admin/login")
 async def admin_login(data: dict):
-    """Authenticate Super Admin / Trader credentials."""
+    """Authenticate Super Admin / Trader credentials with strict TOTP 2FA enforcement."""
     username = data.get("username", "")
     password = data.get("password", "")
+    totp_code = data.get("totp_code") or data.get("totp", "")
+    
     user = super_admin.verify_credentials(username, password)
     if not user:
         return JSONResponse({"status": "FAILED", "message": "Invalid username or password."}, status_code=401)
     
-    session_token = super_admin.create_session(username, auth_method="PASSWORD")
+    # Enforce strict Google Authenticator TOTP when enabled on the account
+    if user.get("totp_enabled", False):
+        if not totp_code or not str(totp_code).strip():
+            return JSONResponse({
+                "status": "TOTP_REQUIRED",
+                "message": "Google Authenticator 6-digit 2FA code is strictly required.",
+                "totp_required": True
+            }, status_code=401)
+        
+        if not super_admin.verify_totp(username, str(totp_code).strip()):
+            return JSONResponse({
+                "status": "INVALID_TOTP",
+                "message": "Invalid Google Authenticator 2FA code. Please check your authenticator app and enter the active 6-digit code.",
+                "totp_required": True
+            }, status_code=401)
+    
+    session_token = super_admin.create_session(username, auth_method="PASSWORD_TOTP" if user.get("totp_enabled") else "PASSWORD")
     return JSONResponse({
         "status": "SUCCESS",
         "session_token": session_token,
@@ -1767,16 +1785,40 @@ async def admin_login(data: dict):
         "full_name": user["full_name"],
         "role": user["role"],
         "totp_enabled": user.get("totp_enabled", False),
-        "biometric_enabled": user.get("biometric_enabled", True)
+        "biometric_enabled": user.get("biometric_enabled", False)
+    })
+
+@app.get("/api/admin/biometric-challenge/{username}")
+async def admin_biometric_challenge(username: str):
+    """Generate fresh single-use cryptographic WebAuthn challenge."""
+    user = super_admin.users.get(username.lower().strip())
+    if not user:
+        return JSONResponse({"status": "FAILED", "message": "User not found."}, status_code=404)
+    
+    challenge = super_admin.generate_biometric_challenge(username)
+    return JSONResponse({
+        "status": "SUCCESS",
+        "challenge": challenge,
+        "username": user["username"],
+        "credential_id": user.get("biometric_credential_id")
     })
 
 @app.post("/api/admin/biometric-auth")
 async def admin_biometric_auth(data: dict):
-    """Authenticate via WebAuthn Face ID / Touch ID Biometrics."""
+    """Authenticate via WebAuthn Face ID / Touch ID Hardware Biometrics."""
     username = data.get("username", "marvan")
+    challenge = data.get("challenge", "")
+    assertion_id = data.get("assertion_id", "")
+    
     user = super_admin.users.get(username.lower().strip())
     if not user:
         return JSONResponse({"status": "FAILED", "message": "User not found."}, status_code=404)
+    
+    if not challenge or not super_admin.verify_biometric_response(username, challenge):
+        return JSONResponse({
+            "status": "FAILED", 
+            "message": "WebAuthn hardware biometric challenge verification failed or expired. Please trigger Touch ID / Face ID sensor again."
+        }, status_code=401)
     
     session_token = super_admin.create_session(username, auth_method="BIOMETRIC_FACE_ID")
     return JSONResponse({
