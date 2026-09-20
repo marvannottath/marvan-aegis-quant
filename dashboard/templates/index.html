@@ -3264,9 +3264,26 @@
             const targetVault = vault || cachedVaultData;
             const tbody = document.getElementById('vault-transactions-tbody');
             if (!tbody) return;
-            const history = (targetVault && (targetVault.sweep_history || targetVault.recent_sweeps || targetVault.transactions)) ? (targetVault.sweep_history || targetVault.recent_sweeps || targetVault.transactions) : [];
+            const rawHistory = (targetVault && (targetVault.sweep_history || targetVault.recent_sweeps || targetVault.transactions)) ? (targetVault.sweep_history || targetVault.recent_sweeps || targetVault.transactions) : [];
+
+            const ws = window.activeMarketVenue || 'INDIA';
+            const curSym = (ws === 'INDIA') ? '₹' : ((ws === 'CRYPTO') ? 'USDT ' : '$');
+
+            // Workspace-isolated asset filtering
+            const history = rawHistory.filter(h => {
+                const asset = (h.asset || '').toUpperCase();
+                if (!asset) return true;
+                if (ws === 'INDIA') {
+                    return !asset.includes('USDT') && !asset.includes('USD') && !['BTC', 'ETH', 'SOL', 'XRP', 'BNB', 'DOGE', 'ADA', 'EUR', 'GBP', 'JPY', 'XAU'].some(c => asset.startsWith(c));
+                } else if (ws === 'CRYPTO') {
+                    return asset.includes('USDT') || ['BTC', 'ETH', 'SOL', 'XRP', 'BNB', 'DOGE', 'ADA'].some(c => asset.startsWith(c));
+                } else {
+                    return !asset.includes('USDT') && (asset.includes('USD') || ['EUR', 'GBP', 'JPY', 'XAU'].some(c => asset.includes(c)));
+                }
+            });
+
             if (!history || history.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-gray-500 font-mono text-xs"><i class="fa-solid fa-vault text-emerald-400 mr-2"></i> NO PROFIT SWEEPS RECORDED — Realized profits automatically sweep into vault ledger</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-gray-500 font-mono text-xs"><i class="fa-solid fa-vault text-emerald-400 mr-2"></i> NO ${ws} PROFIT SWEEPS RECORDED — Realized profits automatically sweep into vault ledger</td></tr>`;
                 const pagin = document.getElementById('vault-pagination');
                 if (pagin) pagin.innerHTML = '';
                 return;
@@ -3305,9 +3322,9 @@
                     <td class="py-2.5 px-3 text-gray-400">${h.timestamp || '2026-09-03'}</td>
                     <td class="py-2.5 px-3 text-amber-400 font-bold">${h.transaction_id || h.tx_id || h.id || 'SWP-001'}</td>
                     <td class="py-2.5 px-3 text-emerald-400 font-bold">${h.type || h.exit_reason || 'PROFIT_SWEEP'}</td>
-                    <td class="py-2.5 px-3 text-white font-bold">${h.asset || 'BTCUSD'}</td>
-                    <td class="py-2.5 px-3 text-emerald-400 font-bold">+$${(h.sweep_amount || h.realized_profit || h.amount || 0).toFixed(2)}</td>
-                    <td class="py-2.5 px-3 text-amber-400 font-bold">$${(h.calculated_balance_after || 0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+                    <td class="py-2.5 px-3 text-white font-bold">${h.asset || 'RELIANCE'}</td>
+                    <td class="py-2.5 px-3 text-emerald-400 font-bold">+${curSym}${(h.sweep_amount || h.realized_profit || h.amount || 0).toFixed(2)}</td>
+                    <td class="py-2.5 px-3 text-amber-400 font-bold">${curSym}${(h.calculated_balance_after || 0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
                     <td class="py-2.5 px-3 text-right"><span class="px-2 py-0.5 text-[9px] font-black rounded bg-emerald-500/10 text-emerald-400">${h.status || 'SECURED'}</span></td>
                 </tr>
             `).join('');
@@ -3344,13 +3361,14 @@
             const items = deposits && deposits.length > 0 ? deposits : [
                 {timestamp: "2026-09-02 01:15:00", method: "TRC20 USDT Deposit", asset: "USDT (TRC20)", tx_hash: "0xREDTEAM_1788289776276", amount: 200.0, status: "CREDITED"}
             ];
+            const curSym = (window.activeMarketVenue === 'INDIA') ? '₹' : ((window.activeMarketVenue === 'CRYPTO') ? 'USDT ' : '$');
             tbody.innerHTML = items.map(d => `
                 <tr class="border-b border-gray-800/60 hover:bg-gray-900/50 text-xs">
                     <td class="py-2.5 px-3 text-gray-400">${d.timestamp || '2026-09-02'}</td>
                     <td class="py-2.5 px-3 text-white font-bold">${d.method || 'USDT TRC20'}</td>
                     <td class="py-2.5 px-3 text-amber-400">${d.asset || 'USDT TRC20'}</td>
                     <td class="py-2.5 px-3 text-gray-400 font-mono">${d.tx_hash || '0x...'}</td>
-                    <td class="py-2.5 px-3 text-emerald-400 font-bold">+$${(d.amount || 0).toFixed(2)}</td>
+                    <td class="py-2.5 px-3 text-emerald-400 font-bold">+${curSym}${(d.amount || 0).toFixed(2)}</td>
                     <td class="py-2.5 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded bg-emerald-500/10 text-emerald-400">${d.status || 'CREDITED'}</span></td>
                 </tr>
             `).join('');
