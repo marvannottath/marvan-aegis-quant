@@ -447,24 +447,23 @@ class RiskEngine:
             init_cap = 100000.0
 
         try:
-            from execution.paper_broker import paper_broker
             from core.position_snapshot_service import position_snapshot_service
-            snap = position_snapshot_service.get_snapshot(norm_ws)
-            unrealized = float(snap.get("unrealized_pnl", 0.0))
-            default_pool = ws_meta.get("default_pool", "AEGIS_QUANT_MASTER")
-            allowed_pools = ws_meta.get("allowed_pools", [default_pool])
-            pool_name = paper_broker.active_pool_name if paper_broker.active_pool_name in allowed_pools else default_pool
-            pool = getattr(paper_broker, "pools", {}).get(pool_name, {})
-            init_cap = float(pool.get("initial_capital", ws_meta.get("initial_capital", 100000.0)))
-            cash = float(pool.get("virtual_cash", getattr(paper_broker, "virtual_cash", init_cap)))
-            equity = float(pool.get("equity", round(cash + unrealized, 2)))
+            agg = position_snapshot_service.get_portfolio_aggregate(norm_ws)
+            equity = float(agg.get("total_equity", init_cap))
+            peak = float(agg.get("peak_equity") or max(init_cap, equity))
+            dd_pct = float(agg.get("drawdown_pct", 0.0))
         except Exception:
             equity = init_cap
+            peak = init_cap
+            dd_pct = 0.0
 
-        peak = max(init_cap, equity)
-        dd_pct = max(0.0, round(((peak - equity) / peak) * 100.0, 2)) if peak > 0 else 0.0
         max_dd = float(self.max_drawdown_pct)
         breached = dd_pct >= max_dd
+
+        # If drawdown is safe, clear any stale circuit breaker trip
+        if not breached and self.circuit_tripped and "MAX_DRAWDOWN_BREACHED" in self.trip_reason:
+            self.circuit_tripped = False
+            self.trip_reason = "NORMAL_OPERATIONS"
 
         return {
             "workspace": norm_ws,
