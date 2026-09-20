@@ -233,7 +233,7 @@ class AutonomousTrader:
                         size_usd = self.risk_engine.calculate_position_size(self.broker.virtual_cash, volatility, opp_score)
 
                         is_risk_valid, _ = self.risk_engine.validate_order(size_usd, calc_leverage, len(self.broker.positions))
-                        if is_risk_valid and size_usd >= 50.0:
+                        if is_risk_valid and size_usd >= 5.0:
                             order = self._execute_and_profile_order(
                                 ticker=ticker,
                                 action=act,

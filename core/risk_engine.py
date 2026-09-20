@@ -161,12 +161,25 @@ class RiskEngine:
         }
 
     def calculate_position_size(self, virtual_cash: float, volatility: float, confidence_score: float) -> float:
+        if virtual_cash <= 0:
+            return 0.0
         risk_pct = self.active_profile["max_risk_per_trade_pct"] / 100.0
         base_size = virtual_cash * risk_pct
         vol_scalar = max(0.5, min(1.5, (0.01 / max(0.001, volatility))))
         conf_scalar = max(0.6, min(1.3, confidence_score / 70.0))
         size = base_size * vol_scalar * conf_scalar
-        return min(self.custom_trade_cap_usd, max(1.0, round(size, 2)))
+
+        # Retail / Micro-Account Support ($10 - $100):
+        # Binance minimum notional is $5.00 USDT.
+        # If the account has between $10 and $100, allow a viable order size of min(virtual_cash, 10.0)
+        # or proportional size if larger, so micro accounts are not blocked by sub-dollar sizing.
+        if 10.0 <= virtual_cash < 100.0:
+            size = max(10.0, size)
+
+        # Ensure order size never exceeds available cash or user custom trade cap,
+        # and has a minimum floor of 5.0 (exchange min notional) when cash allows.
+        capped_size = min(self.custom_trade_cap_usd, min(virtual_cash, max(5.0 if virtual_cash >= 5.0 else virtual_cash, round(size, 2))))
+        return round(capped_size, 2)
 
     def validate_order_pipeline(
         self,
