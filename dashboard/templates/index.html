@@ -829,8 +829,8 @@
                         <select id="backtest-run-selector" class="bg-gray-900 border border-gray-800 rounded-lg text-xs font-mono text-white px-3 py-1.5 focus:border-indigo-500 focus:outline-none" onchange="loadBacktestRun(this.value)">
                             <!-- Dynamic Options -->
                         </select>
-                        <button id="btn-run-fast-bt" onclick="executeLiveEngineBacktest()" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg transition shadow flex items-center text-xs font-mono">
-                            <i class="fa-solid fa-bolt text-amber-400 mr-1.5"></i> RUN FAST 15-YEAR ENGINE
+                        <button id="btn-run-fast-bt" onclick="executeLiveEngineBacktest()" title="Simulate 15-Year Historical Performance with Current Engine" class="p-2 bg-indigo-600/80 hover:bg-indigo-600 text-white rounded-lg border border-indigo-500/30 transition shadow flex items-center justify-center text-xs group relative">
+                            <i class="fa-solid fa-rotate text-indigo-200 group-hover:rotate-180 transition-transform duration-500 text-sm"></i>
                         </button>
                     </div>
 
@@ -4074,7 +4074,7 @@
             const btn = document.getElementById('btn-run-fast-bt');
             if (btn) {
                 btn.disabled = true;
-                btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1.5"></i> EXECUTING 15Y ENGINE...`;
+                btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-indigo-300 text-sm"></i>`;
             }
             try {
                 const res = await fetch('/api/backtest/run-fast-engine', {
@@ -4083,7 +4083,7 @@
                 });
                 const data = await res.json();
                 if (data.status === 'SUCCESS') {
-                    showNotification('15-Year Backtest Engine', `⚡ High-Speed 15-Year Continuous Engine Backtest Completed!\n\nBacktest ID: ${data.backtest.backtest_id || 'BQ-BT-2012-2026-365D-15Y'}\nNet Realized Profit: +$${(data.backtest.net_pnl || 0).toLocaleString()}\nWin Rate: ${data.backtest.win_rate_pct}%\nTotal Trades: ${data.backtest.total_trades}`, 'success');
+                    showNotification('15-Year Backtest Engine', `⚡ 15-Year Engine Backtest Completed!\n\nBacktest ID: ${data.backtest.backtest_id || 'BQ-BT-2012-2026-365D-15Y'}\nNet Realized Profit: +$${(data.backtest.net_pnl || 0).toLocaleString()}\nWin Rate: ${data.backtest.win_rate_pct}%\nTotal Trades: ${data.backtest.total_trades}`, 'success');
                     await fetchBacktestRuns();
                 } else {
                     showNotification('Backtest Execution', `Backtest Execution Notice: ${data.message || data.status}`, 'warning');
@@ -4094,7 +4094,7 @@
             } finally {
                 if (btn) {
                     btn.disabled = false;
-                    btn.innerHTML = `<i class="fa-solid fa-bolt text-amber-400 mr-1.5"></i> RUN FAST 15-YEAR ENGINE`;
+                    btn.innerHTML = `<i class="fa-solid fa-rotate text-indigo-200 group-hover:rotate-180 transition-transform duration-500 text-sm"></i>`;
                 }
             }
         }

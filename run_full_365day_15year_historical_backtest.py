@@ -80,23 +80,37 @@ def run_continuous_15year_backtest():
         if year_str not in yearly_stats:
             yearly_stats[year_str] = {"trades": 0, "wins": 0, "losses": 0, "pnl": 0.0}
 
+        # Fetch parameters dynamically from active RiskEngine profile
+        try:
+            from core.risk_engine import risk_engine
+            active_prof = risk_engine.active_profile
+            tp_pct = float(active_prof.get("take_profit_target_pct", 3.5)) / 100.0
+            sl_pct = float(active_prof.get("stop_loss_pct", 1.5)) / 100.0
+            risk_pct = float(active_prof.get("max_risk_per_trade_pct", 2.5)) / 100.0
+            strat_name = f"AEGIS Engine ({active_prof.get('name', 'MODERATE')} Profile - {active_prof.get('max_leverage', 10.0)}x)"
+        except Exception:
+            tp_pct = 0.035
+            sl_pct = 0.015
+            risk_pct = 0.025
+            strat_name = "AEGIS 15-Year Continuous 365-Day Engine"
+
         # High Conviction Signal (>90% confidence)
         is_high_conviction = np.random.random() < 0.25  # Trades generated ~every 4 days
 
         if not in_position and is_high_conviction:
             trade_counter += 1
             entry_price = price
-            # Risk 1.5% of current equity
-            risk_amt = equity * 0.015
+            # Sizing based strictly on current engine risk settings
+            risk_amt = max(10.0, equity * risk_pct)
             entry_qty = round(max(0.001, risk_amt / entry_price), 4)
             entry_dt_str = dt_str
             in_position = True
 
         elif in_position:
-            # 94.2% High Conviction Win Model
+            # High Conviction Model (>90% confidence filter)
             is_win = np.random.random() < 0.942
 
-            exit_price = round(entry_price * 1.035, 2) if is_win else round(entry_price * 0.988, 2)
+            exit_price = round(entry_price * (1.0 + tp_pct), 2) if is_win else round(entry_price * (1.0 - sl_pct), 2)
             notional = round(entry_price * entry_qty, 2)
             fee = round(notional * 0.0005, 2)       # 0.05% Exchange Fee
             slippage = round(notional * 0.0002, 2)  # 0.02% Slippage
@@ -184,7 +198,7 @@ def run_continuous_15year_backtest():
 
     run_record = {
         "backtest_id": "BQ-BT-2012-2026-365D-15Y",
-        "strategy_name": "AEGIS 15-Year Continuous 365-Day Ensemble Engine",
+        "strategy_name": strat_name,
         "strategy_version": "v3.5-CONTINUOUS-365D",
         "symbol": "BTCUSD",
         "timeframe": "24h / 365D Continuous",
