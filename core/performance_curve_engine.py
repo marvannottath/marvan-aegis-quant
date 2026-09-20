@@ -86,7 +86,7 @@ class PerformanceCurveEngine:
         target_ws = "CRYPTO"
         if "INDIA" in environment:
             target_ws = "INDIA"
-        elif "FOREX" in environment:
+        elif "FOREX" in environment or environment == "AEGIS_QUANT_MASTER":
             target_ws = "FOREX_GOLD"
 
         try:
@@ -95,7 +95,11 @@ class PerformanceCurveEngine:
         except Exception:
             if environment in paper_broker.pools and environment != "AEGIS_QUANT_MASTER":
                 pool_data = paper_broker.pools[environment]
-                cur_equity = round(float(pool_data.get("equity", pool_data.get("portfolio_equity", pool_data.get("virtual_cash", opening_amt)))), 2)
+                v_cash = float(pool_data.get("virtual_cash", opening_amt))
+                v_vault = float(profit_vault.get_vault_balance(environment))
+                v_pos = pool_data.get("positions", {})
+                v_margin = sum(float(p.get("capital_allocated", p.get("margin", 0.0))) for p in v_pos.values()) if isinstance(v_pos, dict) else 0.0
+                cur_equity = round(v_cash + v_vault + v_margin, 2)
             else:
                 cur_equity = round(float(paper_broker.equity) + float(profit_vault.vault_balance), 2)
 
