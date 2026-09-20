@@ -189,17 +189,10 @@ class AutonomousTrader:
                         reasoning=f"Scanning Live Ticks: {top['category']} Opp Score {top['opportunity_score']}% ({top['ai_action']})"
                     )
 
-                # 2. Determine target capacity based on active risk profile
-                profile_name = self.risk_engine.active_profile.get("name", "MODERATE")
-                if profile_name == "CONSERVATIVE":
-                    target_capacity = 3
-                    base_lev = 2.0
-                elif profile_name == "MODERATE":
-                    target_capacity = 6
-                    base_lev = 5.0
-                else:  # AGGRESSIVE
-                    target_capacity = 8
-                    base_lev = 10.0
+                # 2. Determine target capacity and leverage based on active risk profile
+                profile_name = self.risk_engine.active_profile.get("name", "CONSERVATIVE")
+                target_capacity = int(self.risk_engine.active_profile.get("max_open_positions", 4))
+                base_lev = float(self.risk_engine.active_profile.get("default_leverage", 2.0))
 
                 # 3. New Position Entry Evaluation (Pool-Aware Asset Filtering)
                 from core.workspace_manager import workspace_manager
@@ -236,7 +229,8 @@ class AutonomousTrader:
                         if pool in ["AEGIS_INDIA_INR", "UPSTOX_DEMO", "UPSTOX_LIVE"] or active_ws == "INDIA":
                             calc_leverage = min(5.0, calc_leverage)
 
-                        size_usd = min(500.0, max(100.0, self.broker.virtual_cash * 0.05))
+                        # Dynamically scale position capital based on active risk profile (1% CONSERVATIVE, 2.5% MODERATE, 5% AGGRESSIVE)
+                        size_usd = self.risk_engine.calculate_position_size(self.broker.virtual_cash, volatility, opp_score)
 
                         is_risk_valid, _ = self.risk_engine.validate_order(size_usd, calc_leverage, len(self.broker.positions))
                         if is_risk_valid and size_usd >= 50.0:
