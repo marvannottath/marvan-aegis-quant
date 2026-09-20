@@ -1788,6 +1788,24 @@ async def admin_biometric_auth(data: dict):
         "role": user["role"]
     })
 
+@app.get("/api/admin/totp-setup/{username}")
+async def admin_totp_setup(username: str):
+    """Return Google Authenticator QR Code SVG URL and secret for instant setup."""
+    return JSONResponse(super_admin.get_totp_provisioning_uri(username))
+
+@app.post("/api/admin/totp-reset")
+async def admin_totp_reset(data: dict):
+    """Regenerate a brand new TOTP secret & QR Code for user."""
+    username = data.get("username", "marvan")
+    return JSONResponse(super_admin.generate_new_totp_secret(username))
+
+@app.post("/api/admin/biometric-register")
+async def admin_biometric_register(data: dict):
+    """Register biometric credential ID for Face ID / Touch ID hardware."""
+    username = data.get("username", "marvan")
+    credential_id = data.get("credential_id", "")
+    return JSONResponse(super_admin.register_biometric_credential(username, credential_id))
+
 @app.post("/api/admin/totp-verify")
 async def admin_totp_verify(data: dict):
     """Verify Google Authenticator / Authy 6-digit TOTP code (Strict RFC 6238)."""

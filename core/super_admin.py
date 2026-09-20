@@ -188,9 +188,50 @@ class SuperAdminEngine:
             valid_code = self.generate_totp_code(secret, time_step=step)
             if valid_code and hmac.compare_digest(clean_code, valid_code):
                 return True
-        return False
+    def get_totp_provisioning_uri(self, username: str) -> Dict[str, Any]:
+        """Generate standard otpauth:// URI and QR code image URL for Google Authenticator."""
+        user = self.users.get(username.lower().strip())
+        if not user:
+            return {"status": "FAILED", "message": "User not found"}
+        secret = user.get("totp_secret", "JBSWY3DPEHPK3PXP")
+        issuer = "AegisQuant"
+        account_name = f"{username} ({user.get('email', 'admin')})"
+        otpauth_url = f"otpauth://totp/{issuer}:{account_name}?secret={secret}&issuer={issuer}&algorithm=SHA1&digits=6&period=30"
+        
+        # Free, ultra-fast, zero-dependency QR code SVG / PNG generation via QuickChart QR API
+        import urllib.parse
+        encoded_otpauth = urllib.parse.quote(otpauth_url)
+        qr_image_url = f"https://quickchart.io/qr?text={encoded_otpauth}&size=220&margin=1&format=svg"
 
-    # --- Replay-Proof WebAuthn Challenge Biometrics ---
+        return {
+            "status": "SUCCESS",
+            "username": username,
+            "secret": secret,
+            "otpauth_url": otpauth_url,
+            "qr_image_url": qr_image_url,
+            "totp_enabled": user.get("totp_enabled", True)
+        }
+
+    def generate_new_totp_secret(self, username: str) -> Dict[str, Any]:
+        """Generate a brand new cryptographically random 16-character base32 secret for user."""
+        user = self.users.get(username.lower().strip())
+        if not user:
+            return {"status": "FAILED", "message": "User not found"}
+        new_secret = base64.b32encode(secrets.token_bytes(10)).decode('utf-8').replace('=', '')
+        user["totp_secret"] = new_secret
+        user["totp_enabled"] = True
+        self._save_users()
+        return self.get_totp_provisioning_uri(username)
+
+    def register_biometric_credential(self, username: str, credential_id: str) -> Dict[str, Any]:
+        """Register hardware Touch ID / Face ID credential for user."""
+        user = self.users.get(username.lower().strip())
+        if not user:
+            return {"status": "FAILED", "message": "User not found"}
+        user["biometric_enabled"] = True
+        user["biometric_credential_id"] = credential_id
+        self._save_users()
+        return {"status": "SUCCESS", "message": "Biometric Face ID / Touch ID hardware registered successfully!"}
 
     def generate_biometric_challenge(self, username: str) -> str:
         """Generate single-use cryptographic WebAuthn challenge."""
