@@ -693,13 +693,30 @@ async def reset_workspace_pool(request: Request):
     default_pool = meta.get("default_pool", "AEGIS_INDIA_INR")
     allowed_pools = meta.get("allowed_pools", [default_pool])
     target_pool = paper_broker.active_pool_name if paper_broker.active_pool_name in allowed_pools else default_pool
-    cap = meta.get("initial_capital", 100000.0)
+    if target_pool == "BINANCE_LIVE_REAL":
+        from execution.binance_broker import binance_broker
+        cap = binance_broker.get_real_live_spot_balance()
+    else:
+        cap = meta.get("initial_capital", 100000.0)
 
     # Reset both default pool and active pool to ensure zero residual positions or drawdown
-    paper_broker.reset_pool(default_pool, cap)
-    if target_pool != default_pool:
-        paper_broker.reset_pool(target_pool, cap)
-    paper_broker.switch_pool(target_pool, cap)
+    if target_pool == "BINANCE_LIVE_REAL":
+        paper_broker.pools["BINANCE_LIVE_REAL"] = {
+            "initial_capital": cap,
+            "virtual_cash": cap,
+            "equity": cap,
+            "base_equity": cap,
+            "positions": {},
+            "trade_history": [],
+            "ai_active": True,
+            "order_stream": []
+        }
+        paper_broker.switch_pool("BINANCE_LIVE_REAL")
+    else:
+        paper_broker.reset_pool(default_pool, cap)
+        if target_pool != default_pool:
+            paper_broker.reset_pool(target_pool, cap)
+        paper_broker.switch_pool(target_pool, cap)
 
     # Reset risk engine daily realized loss and circuit breaker
     try:
