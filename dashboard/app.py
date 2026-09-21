@@ -1327,10 +1327,11 @@ async def close_position_endpoint(request: Request):
         else:
             body = await request.json()
         asset = body.get("asset", "")
-        if asset not in paper_broker.positions and paper_broker.active_pool_name == "BINANCE_LIVE_REAL":
+        if asset not in paper_broker.positions:
             try:
                 from execution.binance_broker import binance_broker
-                live_pos = binance_broker.get_open_positions("BINANCE_LIVE")
+                env = "BINANCE_LIVE" if ("LIVE" in paper_broker.active_pool_name or "REAL" in paper_broker.active_pool_name) else "BINANCE_TESTNET"
+                live_pos = binance_broker.get_open_positions(env)
                 for lp in live_pos:
                     if lp.get("symbol") == asset or lp.get("asset") == asset:
                         paper_broker.positions[asset] = lp
@@ -1340,6 +1341,9 @@ async def close_position_endpoint(request: Request):
         pos = paper_broker.positions.get(asset, {})
         exit_price = pos.get("last_price", pos.get("entry_price", 64250.0 if "BTC" in asset else 100.0))
         res = paper_broker.close_position(asset, exit_price=exit_price, reason="MANUAL_TRADER_EXIT")
+        if not res or (isinstance(res, dict) and res.get("status") == "FAILED"):
+            err_msg = res.get("error", "Failed to close position on exchange.") if isinstance(res, dict) else "Position close failed on exchange."
+            return JSONResponse({"status": "FAILED", "message": err_msg}, status_code=400)
         try:
             from core.audit_logger import audit_logger
             from core.workspace_manager import workspace_manager
@@ -1350,12 +1354,12 @@ async def close_position_endpoint(request: Request):
                 venue="NSE/BSE" if ws == "INDIA" else ("BINANCE" if ws == "CRYPTO" else "GLOBAL_FX"),
                 symbol=asset,
                 amount=abs(float(res.get("pnl_usd", 0.0))) if res else 0.0,
-                result="SUCCESS" if res else "FAILED",
+                result="SUCCESS",
                 reference_id=f"CLS-{int(time.time()*1000)}"
             )
         except Exception:
             pass
-        return JSONResponse({"status": "SUCCESS" if res else "FAILED", "closed_trade": res, "realized_pnl": res.get("pnl_usd", 0.0) if res else 0.0})
+        return JSONResponse({"status": "SUCCESS", "closed_trade": res, "realized_pnl": res.get("pnl_usd", 0.0) if res else 0.0})
     except Exception as e:
         return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=400)
 

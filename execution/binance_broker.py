@@ -338,44 +338,83 @@ class BinanceBroker:
         return float(acc.get("balance_usd", 0.0))
 
     def get_exchange_info(self, environment: str = "BINANCE_TESTNET", symbol: Optional[str] = None) -> Dict[str, Any]:
-        """Fetch trading rules and filters for symbols (cached for 5 minutes)."""
+        """Fetch trading rules and filters for symbol with 10-minute caching."""
         now = time.time()
-        if (now - self._exchange_info_cache_ts) < 300.0 and self._exchange_info_cache:
-            data = self._exchange_info_cache
-        else:
-            _, _, base_url, _ = self._get_credentials_for_env(environment)
+        sym_upper = symbol.upper() if symbol else None
+
+        if not hasattr(self, "_symbol_info_cache"):
+            self._symbol_info_cache = {}
+            self._symbol_info_cache_ts = {}
+
+        if sym_upper and (now - self._symbol_info_cache_ts.get(sym_upper, 0)) < 600.0:
+            cached = self._symbol_info_cache.get(sym_upper)
+            if cached:
+                return cached
+
+        _, _, base_url, _ = self._get_credentials_for_env(environment)
+        endpoints = [LIVE_BASE_URL, base_url] if base_url else [LIVE_BASE_URL]
+
+        for b_url in endpoints:
             try:
-                resp = requests.get(f"{base_url}/api/v3/exchangeInfo", timeout=5.0)
+                params = {"symbol": sym_upper} if sym_upper else {}
+                resp = requests.get(f"{b_url}/api/v3/exchangeInfo", params=params, timeout=3.0)
                 if resp.status_code == 200:
                     data = resp.json()
-                    self._exchange_info_cache = data
-                    self._exchange_info_cache_ts = now
-                else:
-                    data = {}
+                    symbols_list = data.get("symbols", [])
+                    if sym_upper:
+                        match = next((s for s in symbols_list if s.get("symbol") == sym_upper), None)
+                        if match:
+                            self._symbol_info_cache[sym_upper] = match
+                            self._symbol_info_cache_ts[sym_upper] = now
+                            return match
+                    return data
             except Exception:
-                data = {}
+                continue
 
-        if symbol and data:
-            sym_upper = symbol.upper()
-            match = next((s for s in data.get("symbols", []) if s.get("symbol") == sym_upper), None)
-            return match or {}
-        return data
+        return {}
 
     def format_quantity(self, environment: str, symbol: str, quantity: float) -> float:
-        """Format order quantity according to exchange LOT_SIZE stepSize filter."""
+        """Format order quantity strictly conforming to exchange LOT_SIZE stepSize filter."""
+        sym_upper = (symbol or "").upper()
+        KNOWN_STEP_SIZES = {
+            "XRPUSDT": 0.1,
+            "BTCUSDT": 0.00001,
+            "ETHUSDT": 0.0001,
+            "SOLUSDT": 0.01,
+            "BNBUSDT": 0.001,
+            "DOGEUSDT": 1.0,
+            "ADAUSDT": 0.1,
+            "TRXUSDT": 0.1,
+            "DOTUSDT": 0.01,
+            "AVAXUSDT": 0.01,
+            "LINKUSDT": 0.01,
+            "LTCUSDT": 0.001,
+            "NEARUSDT": 0.1,
+            "MATICUSDT": 0.1,
+            "SHIBUSDT": 1.0,
+            "PEPEUSDT": 1.0,
+        }
+        step = None
         try:
             sym_info = self.get_exchange_info(environment, symbol)
             for f in sym_info.get("filters", []):
                 if f.get("filterType") == "LOT_SIZE":
-                    step = float(f.get("stepSize", 1.0))
-                    if step > 0:
-                        import math
-                        precision = max(0, int(round(-math.log10(step))))
-                        floored = math.floor(quantity / step) * step
-                        return round(floored, precision)
+                    step = float(f.get("stepSize", 0.0))
+                    break
         except Exception:
-            pass
-        return round(quantity, 4)
+            step = None
+
+        if not step or step <= 0:
+            step = KNOWN_STEP_SIZES.get(sym_upper, 0.0)
+
+        if step and step > 0:
+            import math
+            precision = max(0, int(round(-math.log10(step))))
+            floored = math.floor(quantity / step) * step
+            return round(floored, precision)
+
+        import math
+        return math.floor(quantity * 10.0) / 10.0 if "XRP" in sym_upper else round(quantity, 4)
 
 
     def get_market_data(self, environment: str = "BINANCE_TESTNET", symbol: str = "BTCUSDT") -> Dict[str, Any]:
@@ -682,15 +721,15 @@ class BinanceBroker:
         """
         Submit a real order to Binance (Testnet or Live) after safety checks.
         """
-        # LIVE Safety Lock: reject if LIVE_TRADING_ENABLED is False
+        # LIVE Safety Lock: reject if LIVE_TRADING_ENABLED is False (SELL/closing always allowed for risk reduction)
         env_upper = (environment or "").upper()
         if ("LIVE" in env_upper or "REAL" in env_upper):
             from core.environment_gate import environment_gate
-            if not environment_gate.LIVE_TRADING_ENABLED:
+            if not environment_gate.LIVE_TRADING_ENABLED and side.upper() != "SELL":
                 return {
                     "status": "REJECTED",
                     "code": "LIVE_TRADING_LOCKED",
-                    "message": "Binance LIVE order execution is strictly LOCKED (LIVE_TRADING_ENABLED=false)"
+                    "message": "Binance LIVE order opening is strictly LOCKED (LIVE_TRADING_ENABLED=false)"
                 }
         # Paper execution route
         if environment == "PAPER":

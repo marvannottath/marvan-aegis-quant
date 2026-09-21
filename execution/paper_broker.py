@@ -533,15 +533,28 @@ class PaperBroker:
                         if b.get("asset") == base_asset:
                             close_qty = float(b.get("free", units))
                             break
-                binance_broker.create_order(
+                b_res = binance_broker.create_order(
                     environment=env,
                     symbol=asset,
                     side=closing_side,
                     quantity=close_qty,
                     order_type="MARKET"
                 )
+                print(f"[PAPER_BROKER -> BINANCE CLOSE]: result = {b_res}")
+                if b_res.get("status") not in ["SUCCESS", "FILLED"]:
+                    self.positions[asset] = pos
+                    print(f"[PAPER_BROKER -> BINANCE CLOSE REJECTED]: {b_res}")
+                    return None
+
+                # Invalidate cache so open positions and wallet balance immediately refresh
+                if hasattr(binance_broker, "_account_info_cache"):
+                    binance_broker._account_info_cache.clear()
+                if hasattr(binance_broker, "_entry_price_cache"):
+                    binance_broker._entry_price_cache.pop(asset, None)
             except Exception as e:
-                print(f"[PAPER_BROKER -> BINANCE CLOSE NOTICE]: {e}")
+                print(f"[PAPER_BROKER -> BINANCE CLOSE EXCEPTION]: {e}")
+                self.positions[asset] = pos
+                return None
 
         pool["virtual_cash"] = pool_cash
         self.virtual_cash = pool_cash

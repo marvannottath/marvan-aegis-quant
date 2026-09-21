@@ -3007,6 +3007,7 @@
 
         async function closePosition(symbol) {
             try {
+                showNotification('Closing Position', `Submitting sell order to exchange for ${symbol}...`, 'info');
                 const res = await fetch('/api/close-position', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
@@ -3020,13 +3021,14 @@
                     const curSym = isIndia ? '₹' : (isCrypto ? '' : '$');
                     const curSuffix = isCrypto ? ' USDT' : '';
                     const sign = pnl >= 0 ? '+' : '-';
-                    showNotification('Position Closed', `Position ${symbol} Closed! Realized PnL: ${sign}${curSym}${Math.abs(pnl).toFixed(2)}${curSuffix}`, 'success');
+                    showNotification('Position Closed', `Position ${symbol} successfully closed on exchange! Realized PnL: ${sign}${curSym}${Math.abs(pnl).toFixed(2)}${curSuffix}`, 'success');
                 } else {
-                    showNotification('Position Action', `Close Position notice: ${data.message || data.status}`, 'warning');
+                    showNotification('Close Position Notice', `${data.message || data.status}`, 'warning');
                 }
-                fetchState();
+                setTimeout(() => fetchState(window.activeMarketVenue), 600);
             } catch (e) {
                 console.error('Close position error:', e);
+                showNotification('Error', 'Network error while closing position', 'warning');
             }
         }
 
