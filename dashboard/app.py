@@ -787,10 +787,13 @@ async def get_state(workspace: Optional[str] = None, request_id: Optional[str] =
     IST_TZ = timezone(timedelta(hours=5, minutes=30))
     now_str = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S IST")
 
-    raw_orders = [o for o in (trader.get_live_stream() or []) if workspace_manager.is_symbol_allowed(o.get("symbol", o.get("asset", "")), ws)]
-    if not raw_orders:
-        candidates = pool_data.get("order_stream", pool_data.get("orders", [])) or list(order_state_machine.orders.values())
-        raw_orders = [o for o in candidates if workspace_manager.is_symbol_allowed(o.get("symbol", o.get("asset", "")), ws)]
+    if active_pool == "BINANCE_LIVE_REAL":
+        raw_orders = pool_data.get("order_stream", [])
+    else:
+        raw_orders = [o for o in (trader.get_live_stream() or []) if workspace_manager.is_symbol_allowed(o.get("symbol", o.get("asset", "")), ws)]
+        if not raw_orders:
+            candidates = pool_data.get("order_stream", pool_data.get("orders", [])) or list(order_state_machine.orders.values())
+            raw_orders = [o for o in candidates if workspace_manager.is_symbol_allowed(o.get("symbol", o.get("asset", "")), ws)]
 
     orders = [
         o for o in (raw_orders or [])
@@ -907,7 +910,7 @@ async def get_state(workspace: Optional[str] = None, request_id: Optional[str] =
     active_trades = pool_data.get("trade_history", [])
     today_trades = [t for t in active_trades if str(t.get("timestamp", "")).startswith(today_str)]
     pool_realized_pnl = round(sum(t.get("realized_pnl", 0.0) or t.get("pnl_usd", 0.0) for t in today_trades), 2)
-    today_pnl = pool_realized_pnl if pool_realized_pnl != 0.0 else vault_summary.get("realized_profit_today", 0.0)
+    today_pnl = pool_realized_pnl if active_pool == "BINANCE_LIVE_REAL" else (pool_realized_pnl if pool_realized_pnl != 0.0 else vault_summary.get("realized_profit_today", 0.0))
 
     # Complete 13-Component Infrastructure Health Matrix with Workspace Venue Awareness
     now_ist = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S IST")

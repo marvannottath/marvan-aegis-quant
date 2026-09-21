@@ -129,6 +129,12 @@ class ProfitVault:
         transfers_sum = sum(float(t.get("amount", 0.0)) for t in store.get("transfers", []) if t.get("status") == "CONFIRMED")
         return round(base + sweeps_sum - withdrawals_sum - transfers_sum, 2)
 
+    def reset_vault(self, environment: str = "BINANCE_LIVE_REAL") -> float:
+        """Reset vault for an environment to zero."""
+        self.vault_stores[environment] = {"transactions": [], "withdrawals": [], "transfers": [], "base_balance": 0.0}
+        self._save_state()
+        return 0.0
+
     @property
     def vault_balance(self) -> float:
         return self.get_vault_balance("AEGIS_QUANT_MASTER")

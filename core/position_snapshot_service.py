@@ -222,8 +222,8 @@ class PositionSnapshotService:
         initial_cap = float(pool.get("initial_capital", meta.get("initial_capital", 100000.0)))
         free_cash = round(float(pool.get("virtual_cash", initial_cap)), 2)
 
-        # Vault reserve (0 for India per segregation rules)
-        vault_balance = round(float(profit_vault.get_vault_balance(pool_name)), 2) if target_ws != "INDIA" else 0.0
+        # Vault reserve (0 for India and Binance Live per real-balance transparency rules)
+        vault_balance = round(float(profit_vault.get_vault_balance(pool_name)), 2) if (target_ws != "INDIA" and pool_name != "BINANCE_LIVE_REAL") else 0.0
 
         # Realized PnL from ledger
         realized_pnl = round(double_entry_ledger.get_account_balance("REALIZED_PNL_ACCOUNT", pool_name), 2)

@@ -255,6 +255,15 @@ class PaperBroker:
             self.pools["BINANCE_LIVE_REAL"]["initial_capital"] = real_b
             self.pools["BINANCE_LIVE_REAL"]["virtual_cash"] = real_b
             self.pools["BINANCE_LIVE_REAL"]["equity"] = real_b
+            self.pools["BINANCE_LIVE_REAL"]["base_equity"] = real_b
+            self.pools["BINANCE_LIVE_REAL"]["trade_history"] = []
+            self.pools["BINANCE_LIVE_REAL"]["order_stream"] = []
+            self.pools["BINANCE_LIVE_REAL"]["positions"] = {}
+            try:
+                from execution.profit_vault import profit_vault
+                profit_vault.reset_vault("BINANCE_LIVE_REAL")
+            except Exception:
+                pass
 
         self._sync_active_pool_refs()
         self._update_equity()
