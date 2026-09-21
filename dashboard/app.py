@@ -1185,8 +1185,22 @@ async def ai_resume_preflight(workspace: str):
     Returns the 14-gate preflight result for the given workspace.
     """
     from core.ai_trading_controller import ai_trading_controller
-    result = ai_trading_controller.resume_preflight_check(workspace.upper())
+    result = ai_trading_controller.resume_preflight_check(workspace.upper(), user="OPERATOR")
     return JSONResponse(result)
+
+
+@app.post("/api/ai/paper-broker-override")
+async def toggle_paper_broker_override(request: Request):
+    """Toggle paper broker override for a workspace."""
+    from core.ai_trading_controller import ai_trading_controller
+    try:
+        body = await request.json()
+        ws = body.get("workspace", "INDIA").upper()
+        enabled = body.get("enabled", True)
+        ai_trading_controller.set_paper_broker_override(ws, enabled)
+        return JSONResponse({"status": "SUCCESS", "workspace": ws, "enabled": enabled})
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=400)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

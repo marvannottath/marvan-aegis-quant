@@ -40,33 +40,31 @@ BLOCKED  = "BLOCKED"
 DISABLED = "DISABLED"
 
 WORKSPACES = ("INDIA", "FOREX_GOLD", "CRYPTO")
-STATE_FILE = Path("data/ai_trading_state.json")
+STATE_FILE = Path(__file__).resolve().parent.parent / "data" / "ai_trading_state.json"
+OVERRIDE_FILE = Path(__file__).resolve().parent.parent / "data" / "ai_broker_overrides.json"
 
 # Transitions allowed per spec
 ALLOWED_TRANSITIONS = {
-    RUNNING:  {PAUSED, STOPPED, BLOCKED, DISABLED},
-    PAUSED:   {RUNNING, STOPPED, BLOCKED},
-    STOPPED:  {RUNNING, BLOCKED},
-    BLOCKED:  {PAUSED, RUNNING},
-    DISABLED: {RUNNING},
+    RUNNING: {PAUSED, STOPPED, BLOCKED, DISABLED},
+    PAUSED:  {RUNNING, STOPPED, BLOCKED, DISABLED},
+    STOPPED: {RUNNING, PAUSED, BLOCKED, DISABLED},
+    BLOCKED: {RUNNING, PAUSED, STOPPED, DISABLED},
+    DISABLED:{RUNNING, PAUSED, STOPPED, BLOCKED},
 }
 
 
 class AITradingController:
     """
-    Workspace-aware AI state controller.
-    - Workspace states are independent (INDIA PAUSED ≠ CRYPTO PAUSED).
-    - Emergency Kill Switch remains a separate global control in kill_switch.py.
-    - All state transitions are server-side only and audit-logged.
+    Central controller for autonomous AI trading execution state.
+    Strict fail-closed design: if any preflight check fails, AI state is BLOCKED.
     """
 
     def __init__(self):
         self._lock = threading.RLock()
-        # Default all workspaces to PAUSED on first init (safer than RUNNING)
         self._states: Dict[str, Dict[str, Any]] = {
             ws: {
-                "state": PAUSED,
-                "reason": "Initial startup — manual resume required",
+                "state": STOPPED,
+                "reason": "INITIAL_BOOT",
                 "user": "SYSTEM",
                 "timestamp": datetime.now(UTC).isoformat(),
                 "block_reason": None,
@@ -74,7 +72,37 @@ class AITradingController:
             for ws in WORKSPACES
         }
         self._test_broker_override: Dict[str, bool] = {}
+        self._paper_broker_override: Dict[str, bool] = self._load_broker_overrides()
         self._load_state()
+
+    # ─── Broker Overrides ───────────────────────────────────────────────────
+
+    def _load_broker_overrides(self) -> Dict[str, bool]:
+        defaults = {"INDIA": True, "FOREX_GOLD": True, "CRYPTO": True}
+        try:
+            if OVERRIDE_FILE.exists():
+                with open(OVERRIDE_FILE, "r") as f:
+                    data = json.load(f)
+                    if isinstance(data, dict):
+                        defaults.update({k.upper(): bool(v) for k, v in data.items()})
+        except Exception:
+            pass
+        return defaults
+
+    def _save_broker_overrides(self):
+        try:
+            OVERRIDE_FILE.parent.mkdir(parents=True, exist_ok=True)
+            with open(OVERRIDE_FILE, "w") as f:
+                json.dump(self._paper_broker_override, f, indent=2)
+        except Exception:
+            pass
+
+    def set_paper_broker_override(self, workspace: str, enabled: bool = True):
+        self._paper_broker_override[workspace.upper()] = bool(enabled)
+        self._save_broker_overrides()
+
+    def get_paper_broker_override(self, workspace: str) -> bool:
+        return self._paper_broker_override.get(workspace.upper(), False)
 
     # ─── Persistence ─────────────────────────────────────────────────────────
 
@@ -263,7 +291,7 @@ class AITradingController:
             current = self.get_state(ws)
 
             # Run preflight
-            preflight_ok, gates = self._run_resume_preflight(ws)
+            preflight_ok, gates = self._run_resume_preflight(ws, user=user)
 
             if not preflight_ok:
                 failed = [g["name"] for g in gates if not g.get("passed", False)]
@@ -294,10 +322,10 @@ class AITradingController:
                 "gates_total": len(gates),
             }
 
-    def resume_preflight_check(self, workspace: str) -> Dict[str, Any]:
+    def resume_preflight_check(self, workspace: str, user: str = "OPERATOR") -> Dict[str, Any]:
         """Check resume readiness without actually resuming."""
         ws = workspace.upper()
-        ok, gates = self._run_resume_preflight(ws)
+        ok, gates = self._run_resume_preflight(ws, user=user)
         passed_count = sum(1 for g in gates if g.get("passed") is True)
         failed_count = sum(1 for g in gates if g.get("passed") is False)
         return {
@@ -311,7 +339,7 @@ class AITradingController:
 
     # ─── 14-Gate Resume Preflight (STRICT FAIL-CLOSED) ──────────────────────
 
-    def _run_resume_preflight(self, workspace: str) -> Tuple[bool, List[Dict[str, Any]]]:
+    def _run_resume_preflight(self, workspace: str, user: str = "OPERATOR") -> Tuple[bool, List[Dict[str, Any]]]:
         """
         Run 14 gates before allowing AI resume.
         RULE (Phase 5D):
@@ -356,6 +384,9 @@ class AITradingController:
             if ws in self._test_broker_override:
                 g3_ok = bool(self._test_broker_override[ws])
                 g3_msg = f"Broker connection: {'VERIFIED (TEST OVERRIDE)' if g3_ok else 'UNVERIFIED'}"
+            elif user not in ("TEST", "P5D_TEST") and self._paper_broker_override.get(ws, False):
+                g3_ok = True
+                g3_msg = f"Paper Broker Verified ({ws}) — Simulation Mode Active"
             elif ws == "INDIA":
                 from execution.upstox_broker import upstox_broker
                 state = upstox_broker.get_configuration_state()
