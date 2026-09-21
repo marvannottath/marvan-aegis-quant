@@ -346,6 +346,13 @@ class PaperBroker:
 
         # Base equity tracks closed-trade portfolio value
         if self.active_pool_name == "BINANCE_LIVE_REAL":
+            try:
+                from execution.binance_broker import binance_broker
+                live_b = binance_broker.get_live_spot_balance("USDT")
+                if live_b > 0:
+                    self.virtual_cash = round(live_b, 2)
+            except Exception:
+                pass
             self.equity = round(self.virtual_cash + allocated_margin + unrealized, 2)
         else:
             base_eq = float(pool.get("base_equity", pool.get("equity", self.equity)))
@@ -396,19 +403,33 @@ class PaperBroker:
             "timestamp": datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S")
         }
 
-        # Deduct margin from active pool cash
-        pool = self.pools.setdefault(self.active_pool_name, {})
-        pool_cash = float(pool.get("virtual_cash", self.virtual_cash))
-        pool["virtual_cash"] = round(max(0.0, pool_cash - amount_usd), 2)
-        self.virtual_cash = pool["virtual_cash"]
-
-        # Trigger real spot order placement on Binance if active pool is Binance
-        if self.active_pool_name in ["BINANCE_TESTNET_DEMO", "BINANCE_LIVE_REAL", "BINANCE_DEMO", "BINANCE_LIVE"]:
+        # Gate check for BINANCE_LIVE_REAL: strictly require LIVE_TRADING_ENABLED and real exchange order
+        if self.active_pool_name == "BINANCE_LIVE_REAL":
+            from core.environment_gate import environment_gate
+            if not environment_gate.LIVE_TRADING_ENABLED:
+                print(f"[PAPER_BROKER] Order BLOCKED in BINANCE_LIVE_REAL: LIVE_TRADING_ENABLED is false.")
+                return {}
+            try:
+                from execution.binance_broker import binance_broker
+                b_res = binance_broker.place_spot_market_order(symbol=asset, side=action, quote_order_qty=amount_usd)
+                if b_res.get("status") not in ["SUCCESS", "FILLED"]:
+                    print(f"[PAPER_BROKER] Binance order rejected: {b_res}")
+                    return {}
+            except Exception as e:
+                print(f"[PAPER_BROKER -> BINANCE EXECUTION] Error: {e}")
+                return {}
+        elif self.active_pool_name in ["BINANCE_TESTNET_DEMO", "BINANCE_DEMO", "BINANCE_LIVE"]:
             try:
                 from execution.binance_broker import binance_broker
                 binance_broker.place_spot_market_order(symbol=asset, side=action, quote_order_qty=amount_usd)
             except Exception as e:
                 print(f"[PAPER_BROKER -> BINANCE EXECUTION] Notice: {e}")
+
+        # Deduct margin from active pool cash
+        pool = self.pools.setdefault(self.active_pool_name, {})
+        pool_cash = float(pool.get("virtual_cash", self.virtual_cash))
+        pool["virtual_cash"] = round(max(0.0, pool_cash - amount_usd), 2)
+        self.virtual_cash = pool["virtual_cash"]
 
         self.positions[asset] = position
         pool["positions"] = self.positions
