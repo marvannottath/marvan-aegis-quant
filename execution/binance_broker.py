@@ -347,6 +347,23 @@ class BinanceBroker:
             return match or {}
         return data
 
+    def format_quantity(self, environment: str, symbol: str, quantity: float) -> float:
+        """Format order quantity according to exchange LOT_SIZE stepSize filter."""
+        try:
+            sym_info = self.get_exchange_info(environment, symbol)
+            for f in sym_info.get("filters", []):
+                if f.get("filterType") == "LOT_SIZE":
+                    step = float(f.get("stepSize", 1.0))
+                    if step > 0:
+                        import math
+                        precision = max(0, int(round(-math.log10(step))))
+                        floored = math.floor(quantity / step) * step
+                        return round(floored, precision)
+        except Exception:
+            pass
+        return round(quantity, 4)
+
+
     def get_market_data(self, environment: str = "BINANCE_TESTNET", symbol: str = "BTCUSDT") -> Dict[str, Any]:
         """Fetch real market data tick (bid, ask, last, spread) from Binance public API (Requirement 8)."""
         sym = symbol.upper()
@@ -673,7 +690,7 @@ class BinanceBroker:
                 params["quantity"] = round(quantity, 6)
             elif order_type.upper() == "MARKET":
                 if quantity > 0:
-                    params["quantity"] = round(quantity, 6)
+                    params["quantity"] = self.format_quantity(environment, symbol, quantity)
                 elif price > 0:
                     params["quoteOrderQty"] = round(price, 2)
                 else:

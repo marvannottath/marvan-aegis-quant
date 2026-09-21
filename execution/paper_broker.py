@@ -519,6 +519,30 @@ class PaperBroker:
         else:
             pool_cash = round(max(0.0, pool_cash + cap + pnl_u), 2)
         
+        # For Binance Live / Testnet: route real closing spot order to exchange
+        if self.active_pool_name in ["BINANCE_LIVE_REAL", "BINANCE_TESTNET_DEMO", "BINANCE_LIVE"]:
+            try:
+                from execution.binance_broker import binance_broker
+                closing_side = "SELL" if act == "BUY" else "BUY"
+                env = "BINANCE_TESTNET" if "TESTNET" in self.active_pool_name else "BINANCE_LIVE"
+                close_qty = units
+                if closing_side == "SELL":
+                    base_asset = asset.replace("USDT", "").replace("BUSD", "")
+                    bals = binance_broker.get_balances(env)
+                    for b in bals:
+                        if b.get("asset") == base_asset:
+                            close_qty = float(b.get("free", units))
+                            break
+                binance_broker.create_order(
+                    environment=env,
+                    symbol=asset,
+                    side=closing_side,
+                    quantity=close_qty,
+                    order_type="MARKET"
+                )
+            except Exception as e:
+                print(f"[PAPER_BROKER -> BINANCE CLOSE NOTICE]: {e}")
+
         pool["virtual_cash"] = pool_cash
         self.virtual_cash = pool_cash
 
