@@ -1327,6 +1327,16 @@ async def close_position_endpoint(request: Request):
         else:
             body = await request.json()
         asset = body.get("asset", "")
+        if asset not in paper_broker.positions and paper_broker.active_pool_name == "BINANCE_LIVE_REAL":
+            try:
+                from execution.binance_broker import binance_broker
+                live_pos = binance_broker.get_open_positions("BINANCE_LIVE")
+                for lp in live_pos:
+                    if lp.get("symbol") == asset or lp.get("asset") == asset:
+                        paper_broker.positions[asset] = lp
+                        break
+            except Exception:
+                pass
         pos = paper_broker.positions.get(asset, {})
         exit_price = pos.get("last_price", pos.get("entry_price", 64250.0 if "BTC" in asset else 100.0))
         res = paper_broker.close_position(asset, exit_price=exit_price, reason="MANUAL_TRADER_EXIT")
