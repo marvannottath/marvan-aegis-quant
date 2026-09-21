@@ -345,11 +345,14 @@ class PaperBroker:
         self.virtual_cash = round(float(saved_cash), 2)
 
         # Base equity tracks closed-trade portfolio value
-        base_eq = float(pool.get("base_equity", pool.get("equity", self.equity)))
-        if base_eq > 0 and base_eq > (self.virtual_cash + allocated_margin):
-            self.equity = round(base_eq + unrealized, 2)
-        else:
+        if self.active_pool_name == "BINANCE_LIVE_REAL":
             self.equity = round(self.virtual_cash + allocated_margin + unrealized, 2)
+        else:
+            base_eq = float(pool.get("base_equity", pool.get("equity", self.equity)))
+            if base_eq > 0 and base_eq > (self.virtual_cash + allocated_margin):
+                self.equity = round(base_eq + unrealized, 2)
+            else:
+                self.equity = round(self.virtual_cash + allocated_margin + unrealized, 2)
 
         pool["virtual_cash"] = self.virtual_cash
         pool["equity"] = self.equity
