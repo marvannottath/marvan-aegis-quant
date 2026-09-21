@@ -1524,6 +1524,9 @@ async def switch_trading_pool_endpoint(request: Request):
                 return JSONResponse({"status": "ERROR", "message": "Binance Live API credentials not configured."}, status_code=400)
 
         res = paper_broker.set_active_capital_pool(pool)
+        from core.workspace_manager import workspace_manager
+        ws = workspace_manager.get_active_workspace()
+        workspace_manager.set_workspace_pool(ws, pool)
         binance_broker.market_type = "SPOT_LIVE" if "LIVE" in pool else "SPOT_TESTNET"
         binance_broker.testnet = not ("LIVE" in pool)
         binance_broker.is_demo = binance_broker.testnet

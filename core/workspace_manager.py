@@ -96,6 +96,11 @@ class WorkspaceManager:
     def __init__(self):
         self._active_workspace: str = self.WORKSPACE_INDIA
         self._switch_count: int = 0
+        self._active_pool_per_workspace: Dict[str, str] = {
+            self.WORKSPACE_INDIA: 'AEGIS_INDIA_INR',
+            self.WORKSPACE_CRYPTO: 'BINANCE_LIVE_REAL',
+            self.WORKSPACE_FOREX_GOLD: 'AEGIS_QUANT_MASTER'
+        }
         self._load_state()
 
     def _normalize_workspace(self, ws: Optional[str]) -> str:
@@ -120,7 +125,10 @@ class WorkspaceManager:
                     if ws in self.VALID_WORKSPACES:
                         self._active_workspace = ws
                         self._switch_count = int(data.get('switch_count', 0))
-                        return
+                    saved_pools = data.get('active_pool_per_workspace', {})
+                    if isinstance(saved_pools, dict):
+                        self._active_pool_per_workspace.update(saved_pools)
+                    return
             except Exception as e:
                 print(f'[WORKSPACE_MGR] Load state error: {e}')
         self._active_workspace = self.WORKSPACE_INDIA
@@ -133,6 +141,7 @@ class WorkspaceManager:
             now_str = datetime.now(timezone.utc).astimezone(IST_TZ).strftime('%Y-%m-%d %H:%M:%S IST')
             data = {
                 'active_workspace': self._active_workspace,
+                'active_pool_per_workspace': self._active_pool_per_workspace,
                 'switch_count': self._switch_count,
                 'updated_at': now_str,
                 'metadata': self.METADATA.get(self._active_workspace, {})
@@ -247,7 +256,8 @@ class WorkspaceManager:
         self._save_state()
 
         meta = self.METADATA[target_ws]
-        target_pool = meta['default_pool']
+        saved_pool = self._active_pool_per_workspace.get(target_ws)
+        target_pool = saved_pool if (saved_pool and saved_pool in meta['allowed_pools']) else meta['default_pool']
 
         try:
             from execution.paper_broker import paper_broker
@@ -293,5 +303,11 @@ class WorkspaceManager:
             'instruments': meta['instruments'],
             'switch_count': self._switch_count
         }
+
+    def set_workspace_pool(self, workspace: str, pool: str):
+        ws = self._normalize_workspace(workspace)
+        if ws in self.METADATA and pool in self.METADATA[ws]['allowed_pools']:
+            self._active_pool_per_workspace[ws] = pool
+            self._save_state()
 
 workspace_manager = WorkspaceManager()
