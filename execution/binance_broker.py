@@ -202,9 +202,10 @@ class BinanceBroker:
                 "error": str(e)
             }
 
-    def get_account_info(self, environment: str = "BINANCE_TESTNET") -> Dict[str, Any]:
-        """Fetch canonical account details, permissions, and balances according to Requirement 9."""
+    def get_account_info(self, environment: str = "BINANCE_TESTNET", force_refresh: bool = False) -> Dict[str, Any]:
+        """Fetch canonical account details, permissions, and balances with 2.5s TTL caching."""
         now_ms = int(time.time() * 1000)
+        now = time.time()
         if environment == "PAPER":
             return {
                 "authenticated": False,
@@ -221,6 +222,16 @@ class BinanceBroker:
                 "environment": "PAPER",
                 "balances": [{"asset": "USDT", "free": "100000.00", "locked": "0.00"}]
             }
+
+        cache_key = f"acc_{environment}"
+        if not hasattr(self, "_account_info_cache"):
+            self._account_info_cache = {}
+            self._account_info_cache_ts = {}
+
+        if not force_refresh and (now - self._account_info_cache_ts.get(cache_key, 0)) < 2.5:
+            cached = self._account_info_cache.get(cache_key)
+            if cached and cached.get("authenticated"):
+                return cached
 
         api_k, sec_k, base_url, is_testnet = self._get_credentials_for_env(environment)
         if not api_k or not sec_k:
@@ -256,7 +267,7 @@ class BinanceBroker:
                 perms = data.get("permissions", [])
                 srv_ts = data.get("updateTime") or now_ms
 
-                return {
+                acc_res = {
                     "authenticated": True,
                     "account_status": "AUTHENTICATED",
                     "status": "AUTHENTICATED",
@@ -274,6 +285,9 @@ class BinanceBroker:
                     "maker_commission": data.get("makerCommission", 10),
                     "taker_commission": data.get("takerCommission", 10),
                 }
+                self._account_info_cache[cache_key] = acc_res
+                self._account_info_cache_ts[cache_key] = now
+                return acc_res
             else:
                 return {
                     "authenticated": False,
@@ -365,8 +379,16 @@ class BinanceBroker:
 
 
     def get_market_data(self, environment: str = "BINANCE_TESTNET", symbol: str = "BTCUSDT") -> Dict[str, Any]:
-        """Fetch real market data tick (bid, ask, last, spread) from Binance public API (Requirement 8)."""
+        """Fetch real market data tick (bid, ask, last, spread) from Binance public API with 1.5s TTL cache."""
         sym = symbol.upper()
+        now = time.time()
+        if not hasattr(self, "_ticker_cache"):
+            self._ticker_cache = {}
+            self._ticker_cache_ts = {}
+
+        if (now - self._ticker_cache_ts.get(sym, 0)) < 1.5 and sym in self._ticker_cache:
+            return self._ticker_cache[sym]
+
         _, _, base_url, is_testnet = self._get_credentials_for_env(environment)
         t_recv = time.time()
         t_recv_ms = int(t_recv * 1000)
@@ -395,7 +417,7 @@ class BinanceBroker:
                     except Exception:
                         pass
 
-                    return {
+                    res_tick = {
                         "status": "LIVE",
                         "symbol": sym,
                         "bid": bid,
@@ -410,6 +432,9 @@ class BinanceBroker:
                         "age_seconds": round((now_ms - t_recv_ms) / 1000.0, 3),
                         "environment": environment
                     }
+                    self._ticker_cache[sym] = res_tick
+                    self._ticker_cache_ts[sym] = now
+                    return res_tick
             except Exception:
                 continue
 
@@ -433,17 +458,29 @@ class BinanceBroker:
     def get_bulk_market_data(self, symbols: Optional[List[str]] = None, environment: str = "BINANCE_TESTNET") -> Dict[str, Dict[str, Any]]:
         """
         Fetch real-time bookTickers for all symbols in ONE fast HTTP request directly from Binance.
-        Feeds market data watchdog with genuine live prices.
+        Feeds market data watchdog with genuine live prices. Caches for 2.0s to minimize CPU and latency.
         """
+        now = time.time()
+        if not hasattr(self, "_bulk_ticker_cache"):
+            self._bulk_ticker_cache = {}
+            self._bulk_ticker_cache_ts = 0.0
+
+        if (now - self._bulk_ticker_cache_ts) < 2.0 and self._bulk_ticker_cache:
+            if symbols:
+                target_set = set(s.upper() for s in symbols)
+                return {k: v for k, v in self._bulk_ticker_cache.items() if k in target_set}
+            return self._bulk_ticker_cache
+
         t_recv = time.time()
         t_recv_ms = int(t_recv * 1000)
         target_set = set(s.upper() for s in symbols) if symbols else None
         results: Dict[str, Dict[str, Any]] = {}
 
-        endpoints = [f"{TESTNET_BASE_URL}/api/v3/ticker/bookTicker", f"{LIVE_BASE_URL}/api/v3/ticker/bookTicker"]
+        # Query LIVE_BASE_URL first as Binance public bookTicker is fastest and globally replicated
+        endpoints = [f"{LIVE_BASE_URL}/api/v3/ticker/bookTicker", f"{TESTNET_BASE_URL}/api/v3/ticker/bookTicker"]
         for ep in endpoints:
             try:
-                resp = requests.get(ep, timeout=3.0)
+                resp = requests.get(ep, timeout=2.5)
                 if resp.status_code == 200:
                     tickers = resp.json()
                     now_ms = int(time.time() * 1000)
@@ -477,6 +514,8 @@ class BinanceBroker:
                             "environment": environment
                         }
                     if results:
+                        self._bulk_ticker_cache = results
+                        self._bulk_ticker_cache_ts = now
                         break
             except Exception:
                 continue
@@ -713,6 +752,10 @@ class BinanceBroker:
                     if total_vol > 0:
                         avg_price = round(sum(float(f.get("price", 0.0)) * float(f.get("qty", 0.0)) for f in fills) / total_vol, 2)
                         exec_qty = total_vol
+
+                # Invalidate cache so balances refresh immediately on new trade
+                if hasattr(self, "_account_info_cache"):
+                    self._account_info_cache.clear()
 
                 return {
                     "status": "SUCCESS",

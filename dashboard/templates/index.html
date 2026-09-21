@@ -2282,12 +2282,8 @@
         async function refreshVenueData(seq) {
             if (window.activeMarketVenue === 'INDIA') {
                 fetchIndiaMarketSession();
-                fetchUpstoxStatus();
-            } else if (window.activeMarketVenue === 'CRYPTO') {
-                fetchBinanceStatus();
             }
             fetchState(window.activeMarketVenue, seq);
-            fetchPerformanceCurve();
             updatePreOrderEstimates();
         }
 
@@ -5426,18 +5422,20 @@
             fetchPerformanceCurve();
             initWebSocket();
 
-            // Consolidated venue & state periodic refresh (single heartbeat)
+            // Consolidated venue & state periodic refresh (single lightweight heartbeat)
             setInterval(() => refreshVenueData(), 3500);
 
-            // Low-frequency telemetry intervals
+            // Low-frequency telemetry and credential intervals
             setInterval(fetchPerformanceCurve, 30000); // 30s
             setInterval(fetchExecutionLatency, 15000);  // 15s
+            setInterval(fetchBinanceStatus, 30000);     // 30s
+            setInterval(fetchUpstoxStatus, 30000);      // 30s
 
             // Operational status + AI control panel polling
             fetchOperationalStatus();
             fetchMarketSession();
-            setInterval(fetchOperationalStatus, 5000);
-            setInterval(fetchMarketSession, 15000);
+            setInterval(fetchOperationalStatus, 10000); // 10s
+            setInterval(fetchMarketSession, 20000);     // 20s
         });
     </script>
 
