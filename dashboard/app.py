@@ -2191,6 +2191,7 @@ async def get_vault_history():
 async def toggle_live_trading(request: Request):
     """Toggle Binance Live Trading ON or OFF dynamically."""
     try:
+        from core.environment_gate import environment_gate
         body = await request.json()
         enabled = bool(body.get("enabled", False))
         environment_gate.toggle_live_trading(enabled)
