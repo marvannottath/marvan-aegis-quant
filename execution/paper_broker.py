@@ -252,6 +252,10 @@ class PaperBroker:
 
         if target_name == "BINANCE_LIVE_REAL":
             real_b = binance_broker.get_real_live_spot_balance()
+            if real_b <= 0:
+                real_b = float(self.pools.get("BINANCE_LIVE_REAL", {}).get("virtual_cash", 14.70))
+            if real_b <= 0:
+                real_b = 14.70
             self.pools["BINANCE_LIVE_REAL"]["initial_capital"] = real_b
             self.pools["BINANCE_LIVE_REAL"]["virtual_cash"] = real_b
             self.pools["BINANCE_LIVE_REAL"]["equity"] = real_b
@@ -287,21 +291,37 @@ class PaperBroker:
         target_name = pool_name
         if pool_name in ["MASTER_SIMULATION", "AEGIS_QUANT_MASTER", "FOREX", "FOREX_GOLD"]:
             target_name = "AEGIS_QUANT_MASTER"
+        elif pool_name in ["BINANCE_LIVE_REAL", "BINANCE_LIVE"]:
+            target_name = "BINANCE_LIVE_REAL"
         elif pool_name in ["BINANCE_DEMO", "BINANCE_TESTNET_DEMO", "CRYPTO"]:
             target_name = "BINANCE_TESTNET_DEMO"
         elif pool_name in ["INDIA", "AEGIS_INDIA", "AEGIS_INDIA_INR"]:
             target_name = "AEGIS_INDIA_INR"
 
-        cap = capital or (19950.55 if target_name == "BINANCE_TESTNET_DEMO" else 100000.0)
+        if target_name == "BINANCE_LIVE_REAL":
+            from execution.binance_broker import binance_broker
+            real_b = binance_broker.get_live_spot_balance("USDT")
+            cap = capital or (real_b if real_b > 0 else 14.70)
+        else:
+            cap = capital or (19950.55 if target_name == "BINANCE_TESTNET_DEMO" else 100000.0)
+
         self.pools[target_name] = {
             "initial_capital": cap,
             "virtual_cash": cap,
             "equity": cap,
+            "base_equity": cap,
             "positions": {},
             "trade_history": [],
             "ai_active": True,
             "order_stream": []
         }
+        if target_name == "BINANCE_LIVE_REAL":
+            try:
+                from execution.profit_vault import profit_vault
+                profit_vault.reset_vault("BINANCE_LIVE_REAL")
+            except Exception:
+                pass
+
         if self.active_pool_name == target_name:
             self._sync_active_pool_refs()
             self._update_equity()

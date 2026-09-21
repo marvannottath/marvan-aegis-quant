@@ -6295,12 +6295,13 @@
       "order_stream": []
     },
     "BINANCE_LIVE_REAL": {
-      "initial_capital": 0.0,
-      "virtual_cash": 0.0,
-      "equity": 0.0,
+      "initial_capital": 14.7,
+      "virtual_cash": 14.7,
+      "equity": 14.7,
+      "base_equity": 14.7,
       "positions": {},
       "trade_history": [],
-      "ai_active": false,
+      "ai_active": true,
       "order_stream": []
     }
   },

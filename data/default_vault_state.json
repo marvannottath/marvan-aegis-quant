@@ -10015,7 +10015,8 @@
     "BINANCE_LIVE_REAL": {
       "transactions": [],
       "withdrawals": [],
-      "transfers": []
+      "transfers": [],
+      "base_balance": 0.0
     }
   },
   "vault_balance": 720712.47,

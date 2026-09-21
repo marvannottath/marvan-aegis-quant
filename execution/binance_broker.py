@@ -1094,6 +1094,14 @@ class BinanceBroker:
         """Fetch real USDT balance from Live Binance Exchange with fast timeout and caching."""
         return self.get_real_balance("BINANCE_LIVE")
 
+    def get_live_spot_balance(self, asset: str = "USDT") -> float:
+        """Fetch real spot balance from Live Binance Exchange for specified asset."""
+        bals = self.get_balances("BINANCE_LIVE")
+        for b in bals:
+            if b.get("asset") == asset:
+                return round(float(b.get("free", 0.0)), 2)
+        return self.get_real_live_spot_balance()
+
     def get_open_positions(self, environment: str = "BINANCE_TESTNET") -> List[Dict[str, Any]]:
         """Fetch active spot balances and holdings from Binance API formatted as open positions."""
         is_testnet_env = ("TESTNET" in environment.upper() or "DEMO" in environment.upper())
