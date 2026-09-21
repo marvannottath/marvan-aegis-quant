@@ -161,9 +161,10 @@ class BinanceBroker:
         ).hexdigest()
         return signature, {**params, "signature": signature}
 
-    # ------------------------------------------------------------------ #
-    # Canonical Interface
-    # ------------------------------------------------------------------ #
+    def _get_server_time_ms(self) -> int:
+        """Return safe timestamp synchronized with Binance server clock with 1000ms safety backoff."""
+        now_ms = int(time.time() * 1000)
+        return int(now_ms + getattr(self, "_time_offset", 0)) - 1000
 
     def check_connectivity(self, environment: str = "BINANCE_TESTNET") -> Dict[str, Any]:
         """Verify network connectivity and time synchronization with Binance."""
@@ -177,6 +178,7 @@ class BinanceBroker:
             latency_ms = round((time.time() - t_start) * 1000, 2)
             if resp.status_code == 200:
                 server_time = resp.json().get("serverTime", int(time.time()*1000))
+                self._time_offset = server_time - int(time.time()*1000)
                 drift_ms = abs(server_time - int(time.time()*1000))
                 return {
                     "status": "SUCCESS",
@@ -253,8 +255,8 @@ class BinanceBroker:
             }
 
         try:
-            st = int(time.time() * 1000)
-            params = {"timestamp": st, "recvWindow": 10000}
+            st = self._get_server_time_ms()
+            params = {"timestamp": st, "recvWindow": 60000}
             sig, signed_params = self._sign_query(sec_k, params)
             headers = {"X-MBX-APIKEY": api_k}
 
@@ -753,14 +755,14 @@ class BinanceBroker:
         new_client_id = client_order_id or f"AQ-{environment[:3].upper()}-{int(time.time()*1000)}"
 
         try:
-            st = int(time.time() * 1000)
+            st = self._get_server_time_ms()
             params = {
                 "symbol": symbol.upper(),
                 "side": side.upper(),
                 "type": order_type.upper(),
                 "newClientOrderId": new_client_id,
                 "timestamp": st,
-                "recvWindow": 10000
+                "recvWindow": 60000
             }
             if order_type.upper() == "LIMIT":
                 params["price"] = round(price, 2)
@@ -881,8 +883,8 @@ class BinanceBroker:
             return []
 
         try:
-            st = int(time.time() * 1000)
-            params = {"symbol": symbol.upper(), "limit": limit, "timestamp": st, "recvWindow": 10000}
+            st = self._get_server_time_ms()
+            params = {"symbol": symbol.upper(), "limit": limit, "timestamp": st, "recvWindow": 60000}
             sig, signed_params = self._sign_query(sec_k, params)
             headers = {"X-MBX-APIKEY": api_k}
 
@@ -1258,7 +1260,7 @@ class BinanceBroker:
 
             val_usd = round(total_qty * cur_price, 2)
             capital_allocated = round(total_qty * entry_price, 2)
-            if val_usd < 1.0 and total_qty < 0.001:
+            if val_usd < 1.0:
                 continue
 
             unrealized_pnl = round((cur_price - entry_price) * total_qty, 2)
