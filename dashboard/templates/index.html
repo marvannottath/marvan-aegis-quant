@@ -1619,6 +1619,14 @@
                                 </div>
 
                                 <div class="space-y-2.5 font-mono text-xs">
+                                    <div class="p-2.5 bg-gray-950 border border-darkborder rounded-xl flex items-center justify-between text-[11px]">
+                                        <span class="text-gray-400 font-sans">Active Key:</span>
+                                        <span id="lbl-upstox-saved-key" class="text-sky-400 font-bold truncate max-w-[140px]">NO KEY SAVED</span>
+                                    </div>
+                                    <div class="p-2.5 bg-gray-950 border border-darkborder rounded-xl flex items-center justify-between text-[11px]">
+                                        <span class="text-gray-400 font-sans">Upstox Margin:</span>
+                                        <span id="lbl-upstox-live-balance" class="text-white font-bold font-mono">₹0.00</span>
+                                    </div>
                                     <div>
                                         <label class="block text-gray-400 mb-1 text-[11px] font-sans">Upstox API Key</label>
                                         <input id="upstox-api-key-input" type="text" placeholder="Enter Upstox API Key" class="w-full bg-gray-950 border border-darkborder rounded-xl px-3 py-1.5 text-xs text-white focus:border-sky-500 focus:outline-none transition">
@@ -2315,15 +2323,36 @@
                 const res = await fetch('/api/india/broker/status');
                 const data = await res.json();
                 const badge = document.getElementById('badge-upstox-status');
+                const settingsBadge = document.getElementById('badge-upstox-settings-status');
                 const marginVal = document.getElementById('val-broker-margin');
+                const keyLabel = document.getElementById('lbl-upstox-saved-key');
+                const balanceLabel = document.getElementById('lbl-upstox-live-balance');
+                const isConnected = data.status === 'CONNECTED';
+
                 if (badge) {
-                    if (data.status === 'CONNECTED') {
+                    if (isConnected) {
                         badge.className = 'font-bold text-emerald-400';
                         badge.innerHTML = '<i class="fa-solid fa-circle-check mr-1"></i>UPSTOX: LIVE CONNECTED';
                     } else {
                         badge.className = 'font-bold text-amber-400';
                         badge.innerHTML = '<i class="fa-solid fa-bolt mr-1"></i>UPSTOX: DEMO / PAPER';
                     }
+                }
+                if (settingsBadge) {
+                    if (isConnected) {
+                        settingsBadge.className = 'px-2 py-0.5 text-[9px] font-black rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-mono';
+                        settingsBadge.innerText = 'LIVE CONNECTED';
+                    } else {
+                        settingsBadge.className = 'px-2 py-0.5 bg-gray-800 text-gray-400 border border-gray-700 rounded text-[9px] font-black font-mono';
+                        settingsBadge.innerText = 'STANDBY / PAPER';
+                    }
+                }
+                if (keyLabel) {
+                    keyLabel.innerText = data.active_key || (isConnected ? 'ACTIVE & VERIFIED' : 'NO KEY SAVED');
+                }
+                if (balanceLabel && data.funds) {
+                    const avail = data.funds.available_margin || 0.0;
+                    balanceLabel.innerText = `₹${avail.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
                 }
                 if (marginVal && data.funds) {
                     const avail = data.funds.available_margin || 100000.0;
@@ -5392,6 +5421,7 @@
             fetchExecutionLatency();
             fetchBacktestRuns();
             fetchBinanceStatus();
+            fetchUpstoxStatus();
             fetchPerformanceCurve();
             initWebSocket();
 

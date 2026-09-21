@@ -3883,9 +3883,12 @@ async def get_upstox_status():
         from execution.upstox_broker import upstox_broker
         funds = upstox_broker.get_funds()
         reconciliation = upstox_broker.reconcile()
+        k = upstox_broker._api_key
+        masked_key = (k[:4] + "••••••••" + k[-4:]) if (k and len(k) >= 8) else ("NO KEY SAVED" if not k else "SAVED")
         return JSONResponse({
             "broker": "UPSTOX",
             "status": upstox_broker.status,
+            "active_key": masked_key,
             "funds": funds,
             "reconciliation": reconciliation
         })
