@@ -366,14 +366,17 @@ class PaperBroker:
 
         # Base equity tracks closed-trade portfolio value
         if self.active_pool_name == "BINANCE_LIVE_REAL":
+            crypto_val = 0.0
             try:
                 from execution.binance_broker import binance_broker
                 live_b = binance_broker.get_live_spot_balance("USDT")
                 if live_b > 0:
                     self.virtual_cash = round(live_b, 2)
+                open_pos = binance_broker.get_open_positions("BINANCE_LIVE")
+                crypto_val = sum(float(p.get("capital_allocated", 0.0)) for p in open_pos)
             except Exception:
                 pass
-            self.equity = round(self.virtual_cash + allocated_margin + unrealized, 2)
+            self.equity = round(self.virtual_cash + crypto_val + allocated_margin + unrealized, 2)
         else:
             base_eq = float(pool.get("base_equity", pool.get("equity", self.equity)))
             if base_eq > 0 and base_eq > (self.virtual_cash + allocated_margin):

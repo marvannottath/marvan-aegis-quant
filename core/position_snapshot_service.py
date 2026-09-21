@@ -82,6 +82,18 @@ class PositionSnapshotService:
         else:
             internal_pos_list = []
 
+        # For BINANCE_LIVE_REAL: sync real held crypto positions from Binance Spot Wallet
+        if pool_name == "BINANCE_LIVE_REAL":
+            try:
+                from execution.binance_broker import binance_broker
+                live_positions = binance_broker.get_open_positions("BINANCE_LIVE")
+                existing_symbols = {p.get("symbol") or p.get("asset") for p in internal_pos_list}
+                for lp in live_positions:
+                    if (lp.get("symbol") or lp.get("asset")) not in existing_symbols:
+                        internal_pos_list.append(lp)
+            except Exception as e:
+                print(f"[POSITION_SNAPSHOT] Live position sync notice: {e}")
+
         # 2. Strict workspace isolation filtering
         verified_positions: List[Dict[str, Any]] = []
         for pos in internal_pos_list:
