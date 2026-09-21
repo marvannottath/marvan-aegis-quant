@@ -89,8 +89,14 @@ class PositionSnapshotService:
                 live_positions = binance_broker.get_open_positions("BINANCE_LIVE")
                 existing_symbols = {p.get("symbol") or p.get("asset") for p in internal_pos_list}
                 for lp in live_positions:
-                    if (lp.get("symbol") or lp.get("asset")) not in existing_symbols:
+                    sym_name = lp.get("symbol") or lp.get("asset")
+                    if sym_name not in existing_symbols:
                         internal_pos_list.append(lp)
+                    else:
+                        for p in internal_pos_list:
+                            if (p.get("symbol") or p.get("asset")) == sym_name:
+                                p.update(lp)
+                                break
             except Exception as e:
                 print(f"[POSITION_SNAPSHOT] Live position sync notice: {e}")
 
@@ -102,13 +108,15 @@ class PositionSnapshotService:
                 # Enrich position record with canonical fields
                 units = float(pos.get("units", pos.get("quantity", 0.0)))
                 entry_px = float(pos.get("entry_price", pos.get("buy_price", 0.0)))
-                last_px = float(pos.get("last_price", pos.get("ltp", entry_px)))
+                last_px = float(pos.get("last_price", pos.get("mark_price", pos.get("current_price", pos.get("ltp", entry_px)))))
                 allocated = float(pos.get("capital_allocated", 0.0))
                 if allocated <= 0.0 and entry_px > 0 and units > 0:
                     allocated = round(entry_px * units, 2)
 
                 side = str(pos.get("side", pos.get("action", "BUY"))).upper()
-                if side == "BUY":
+                if pos.get("unrealized_pnl") is not None and abs(float(pos.get("unrealized_pnl", 0.0))) > 0.0001:
+                    unrealized = float(pos.get("unrealized_pnl"))
+                elif side == "BUY":
                     unrealized = round((last_px - entry_px) * units, 2)
                 else:
                     unrealized = round((entry_px - last_px) * units, 2)

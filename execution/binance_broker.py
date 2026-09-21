@@ -1120,10 +1120,13 @@ class BinanceBroker:
         return self.get_real_live_spot_balance()
 
     def get_open_positions(self, environment: str = "BINANCE_TESTNET") -> List[Dict[str, Any]]:
-        """Fetch active spot balances and holdings from Binance API formatted as open positions."""
+        """Fetch active spot balances and holdings from Binance API formatted as dynamic open positions with live PnL."""
         is_testnet_env = ("TESTNET" in environment.upper() or "DEMO" in environment.upper())
         bals = self.get_balances(environment)
         positions = []
+
+        if not hasattr(self, "_entry_price_cache"):
+            self._entry_price_cache = {}
 
         for b in bals:
             asset = b.get("asset", "")
@@ -1131,15 +1134,53 @@ class BinanceBroker:
                 continue
             total_qty = float(b.get("free", 0.0)) + float(b.get("locked", 0.0))
             if total_qty <= 0.0001:
+                self._entry_price_cache.pop(f"{asset}USDT", None)
                 continue
 
             ticker_symbol = f"{asset}USDT"
             mdata = self.get_market_data(environment, ticker_symbol)
             cur_price = float(mdata.get("last_price", 1.0))
+            precision = 4 if cur_price < 10.0 else 2
+            cur_price = round(cur_price, precision)
+
+            # 1. Determine authentic entry price
+            entry_price = self._entry_price_cache.get(ticker_symbol)
+            if not entry_price:
+                # Check paper_broker recorded positions
+                try:
+                    from execution.paper_broker import paper_broker
+                    pos_obj = paper_broker.positions.get(ticker_symbol) or paper_broker.pools.get("BINANCE_LIVE_REAL", {}).get("positions", {}).get(ticker_symbol)
+                    if pos_obj and float(pos_obj.get("entry_price", 0.0)) > 0:
+                        entry_price = float(pos_obj.get("entry_price"))
+                except Exception:
+                    pass
+
+            if not entry_price:
+                # Query historical trade fills on Binance for the true buy price
+                try:
+                    fills = self.get_execution_fills(environment, ticker_symbol, limit=10)
+                    for fill in reversed(fills):
+                        if fill.get("isBuyer") or fill.get("buyer"):
+                            f_px = float(fill.get("price", 0.0))
+                            if f_px > 0:
+                                entry_price = f_px
+                                break
+                except Exception:
+                    pass
+
+            if not entry_price or entry_price <= 0:
+                entry_price = cur_price
+
+            entry_price = round(entry_price, precision)
+            self._entry_price_cache[ticker_symbol] = entry_price
 
             val_usd = round(total_qty * cur_price, 2)
+            capital_allocated = round(total_qty * entry_price, 2)
             if val_usd < 1.0 and total_qty < 0.001:
                 continue
+
+            unrealized_pnl = round((cur_price - entry_price) * total_qty, 2)
+            pnl_pct = round(((cur_price - entry_price) / entry_price * 100.0), 2) if entry_price > 0 else 0.0
 
             positions.append({
                 "trade_id": f"TRD-{environment[:4]}-{asset}",
@@ -1148,15 +1189,18 @@ class BinanceBroker:
                 "action": "BUY",
                 "side": "BUY",
                 "units": round(total_qty, 4),
-                "entry_price": cur_price,
+                "quantity": round(total_qty, 4),
+                "entry_price": entry_price,
                 "mark_price": cur_price,
+                "last_price": cur_price,
                 "current_price": cur_price,
-                "capital_allocated": val_usd,
-                "allocated_margin": val_usd,
+                "capital_allocated": capital_allocated,
+                "allocated_margin": capital_allocated,
+                "market_value": val_usd,
                 "leverage": 1.0,
-                "pnl_usd": 0.0,
-                "pnl_pct": 0.0,
-                "unrealized_pnl": 0.0,
+                "pnl_usd": unrealized_pnl,
+                "pnl_pct": pnl_pct,
+                "unrealized_pnl": unrealized_pnl,
                 "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
             })
 

@@ -3747,10 +3747,10 @@
             }
             tbody.innerHTML = validPositions.map(pos => {
                 const entry = parseFloat(pos.entry_price) || 0;
-                const mark = parseFloat(pos.last_price || pos.mark_price || pos.entry_price) || entry;
+                const mark = parseFloat(pos.last_price || pos.mark_price || pos.current_price || pos.entry_price) || entry;
                 const allocated = parseFloat(pos.capital_allocated) || 1000;
-                const lev = parseFloat(pos.leverage) || 10;
-                const units = parseFloat(pos.units) || (allocated * lev / (entry || 1));
+                const lev = parseFloat(pos.leverage) || 1;
+                const units = parseFloat(pos.units || pos.quantity) || (allocated * lev / (entry || 1));
                 const side = (pos.action || pos.side || 'BUY').toUpperCase();
 
                 let pnlUsd = (pos.unrealized_pnl !== undefined) ? parseFloat(pos.unrealized_pnl) : (pos.pnl_usd !== undefined ? parseFloat(pos.pnl_usd) : 0);
@@ -3762,6 +3762,7 @@
                 const colorClass = pnlUsd > 0.001 ? 'text-emerald-400' : (pnlUsd < -0.001 ? 'text-red-400' : 'text-gray-400');
                 const pnlSign = pnlUsd > 0.001 ? '+' : (pnlUsd < -0.001 ? '-' : '');
                 const pctSign = pnlPct > 0.001 ? '+' : (pnlPct < -0.001 ? '-' : '');
+                const priceDecimals = (entry < 10 || mark < 10) ? 4 : 2;
 
                 return `
                     <tr class="border-b border-gray-800/60 hover:bg-gray-900/50 text-xs">
@@ -3769,10 +3770,10 @@
                         <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded ${side === 'BUY' ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}">${side}</span></td>
                         <td class="py-3 px-3">${curSym}${allocated.toLocaleString(curLoc, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                         <td class="py-3 px-3 text-amber-400 font-bold">${lev}x</td>
-                        <td class="py-3 px-3">${curSym}${entry.toLocaleString(curLoc, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                        <td class="py-3 px-3">${curSym}${mark.toLocaleString(curLoc, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                        <td class="py-3 px-3 ${colorClass} font-bold">${pnlSign}${curSym}${Math.abs(pnlUsd).toFixed(2)}</td>
-                        <td class="py-3 px-3 ${colorClass} font-bold">${pctSign}${Math.abs(pnlPct).toFixed(2)}%</td>
+                        <td class="py-3 px-3 font-mono">${curSym}${entry.toLocaleString(curLoc, {minimumFractionDigits: 2, maximumFractionDigits: priceDecimals})}</td>
+                        <td class="py-3 px-3 font-mono font-bold text-white">${curSym}${mark.toLocaleString(curLoc, {minimumFractionDigits: 2, maximumFractionDigits: priceDecimals})}</td>
+                        <td class="py-3 px-3 ${colorClass} font-bold font-mono">${pnlSign}${curSym}${Math.abs(pnlUsd).toFixed(2)}</td>
+                        <td class="py-3 px-3 ${colorClass} font-bold font-mono">${pctSign}${Math.abs(pnlPct).toFixed(2)}%</td>
                         <td class="py-3 px-3 text-right">
                             <button onclick="closePosition('${pos.asset || pos.symbol || pos.ticker}')" class="px-2.5 py-1 bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white font-bold rounded transition text-[10px]">
                                 CLOSE
