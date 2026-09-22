@@ -1355,9 +1355,9 @@ class BinanceBroker:
 
         return positions
 
-    def place_spot_market_order(self, symbol: str, side: str, quote_order_qty: float = 25.0) -> Dict[str, Any]:
-        """Legacy market order placement."""
-        env = "BINANCE_TESTNET" if self.testnet else "BINANCE_LIVE"
+    def place_spot_market_order(self, symbol: str, side: str, quote_order_qty: float = 25.0, environment: Optional[str] = None) -> Dict[str, Any]:
+        """Legacy market order placement with explicit environment support."""
+        env = environment or ("BINANCE_TESTNET" if self.testnet else "BINANCE_LIVE")
         res = self.create_order(env, symbol, side, quantity=0.0, price=quote_order_qty, order_type="MARKET")
         if res.get("status") == "SUCCESS":
             return {"status": "SUCCESS", "order_id": res.get("provider_order_id"), "data": res.get("raw_data")}

@@ -434,7 +434,7 @@ class PaperBroker:
                 return {}
             try:
                 from execution.binance_broker import binance_broker
-                b_res = binance_broker.place_spot_market_order(symbol=asset, side=action, quote_order_qty=amount_usd)
+                b_res = binance_broker.place_spot_market_order(symbol=asset, side=action, quote_order_qty=amount_usd, environment="BINANCE_LIVE")
                 if b_res.get("status") not in ["SUCCESS", "FILLED"]:
                     print(f"[PAPER_BROKER] Binance order rejected: {b_res}")
                     return {}

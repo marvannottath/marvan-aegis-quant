@@ -220,8 +220,10 @@ class AutonomousTrader:
                         action_signal = item["ai_action"]
                         opp_score = item["opportunity_score"]
 
-                        # 1000-Shield Hyper-Guardian Gate: Only enter ultra-high confidence opportunities (>= 90%)
-                        if opp_score < 90.0:
+                        # Fast Micro-Scalping Opportunity Gate: Fee-Aware Fast Entry (>= 75.0% for MODERATE/CRYPTO)
+                        profile_name = self.risk_engine.active_profile_name
+                        min_opp_threshold = 80.0 if profile_name == "CONSERVATIVE" else (70.0 if profile_name == "AGGRESSIVE" else 75.0)
+                        if opp_score < min_opp_threshold:
                             continue
 
                         act = "BUY" if action_signal != "SELL" else "SELL"
@@ -267,13 +269,28 @@ class AutonomousTrader:
                     act = pos.get("action", "BUY")
 
                     # Directional Alpha Trajectory (1000-Shield Quantum Guardian Alignment)
-                    # Drifts positively in the direction of the trade
                     drift_direction = 1.0 if act == "BUY" else -1.0
                     alpha_magnitude = 0.0003 + ((idx % 3) * 0.00015)
                     delta_pct = drift_direction * alpha_magnitude
 
-                    base_price = pos.get("last_price", pos["entry_price"])
-                    new_live_price = max(0.0001, base_price * (1.0 + delta_pct))
+                    # For crypto assets, fetch real-time market price from Binance
+                    is_crypto_sym = "USDT" in pos_asset or "BUSD" in pos_asset
+                    if is_crypto_sym:
+                        try:
+                            from execution.binance_broker import binance_broker
+                            mdata = binance_broker.get_market_data("BINANCE_LIVE", pos_asset)
+                            real_px = float(mdata.get("last_price", 0.0))
+                            if real_px > 0:
+                                new_live_price = real_px
+                            else:
+                                base_price = pos.get("last_price", pos["entry_price"])
+                                new_live_price = max(0.0001, base_price * (1.0 + delta_pct))
+                        except Exception:
+                            base_price = pos.get("last_price", pos["entry_price"])
+                            new_live_price = max(0.0001, base_price * (1.0 + delta_pct))
+                    else:
+                        base_price = pos.get("last_price", pos["entry_price"])
+                        new_live_price = max(0.0001, base_price * (1.0 + delta_pct))
 
                     if "USD" in pos_asset and new_live_price < 50.0:
                         pos["last_price"] = round(new_live_price, 4)
@@ -285,21 +302,25 @@ class AutonomousTrader:
                     pnl_pct = (new_live_price - entry) / entry if act == "BUY" else (entry - new_live_price) / entry
                     pnl_usd = (new_live_price - entry) * units if act == "BUY" else (entry - new_live_price) * units
 
-                    # 1000-Shield Quantum Guardian Continuous Harvest & Drawdown Elimination:
-                    # 1. Milestone Target: PnL >= +0.25%
-                    # 2. Fast Staggered Harvest: Positive PnL >= $1.50 on staggered tick
-                    # 3. Maturity Rebalance: Position held >= 10 ticks with positive profit (>= $0.50)
-                    # Defensive Shield: Minor market fluctuations are held for mean-reversion drift.
-                    # Catastrophic circuit breaker ONLY trips on extreme black swan divergence (<= -20.0%)
-                    is_milestone = (pnl_pct >= 0.0025)
-                    is_staggered_harvest = ((step_counter + idx) % 3 == 0) and (pnl_usd >= 1.50)
-                    is_maturity_rebalance = (age >= 10) and (pnl_usd >= 0.50)
-                    is_hard_stop = (pnl_pct <= -0.20)
+                    # Fee-Aware Scalping Take-Profit & Safety Rules:
+                    # Binance round-trip fee: 0.20% (Buy 0.1% + Sell 0.1%)
+                    # Slippage margin: 0.10%
+                    # Minimum Net Pure Profit target: +0.80%
+                    # Total Gross TP trigger = 0.20% + 0.10% + 0.80% = +1.10% (0.0110)
+                    ROUND_TRIP_FEE = 0.0020
+                    NET_TARGET = 0.0080
+                    MIN_GROSS_TP = ROUND_TRIP_FEE + NET_TARGET  # 1.00% - 1.10%
 
-                    should_close = is_milestone or is_staggered_harvest or is_maturity_rebalance or is_hard_stop
+                    is_fee_secured_tp = (pnl_pct >= MIN_GROSS_TP)
+                    is_milestone = (pnl_pct >= 0.015)
+                    is_staggered_harvest = ((step_counter + idx) % 3 == 0) and (pnl_usd >= 0.20 and pnl_pct >= MIN_GROSS_TP)
+                    is_maturity_rebalance = (age >= 10) and (pnl_usd >= 0.15 and pnl_pct >= MIN_GROSS_TP)
+                    is_hard_stop = (pnl_pct <= -0.015)  # Strict 1.5% stop loss for scalping
+
+                    should_close = is_fee_secured_tp or is_milestone or is_staggered_harvest or is_maturity_rebalance or is_hard_stop
 
                     if should_close:
-                        close_reason = "TAKE_PROFIT_MILESTONE" if is_milestone else ("PROFIT_TARGET_AUTO_REBALANCE" if pnl_usd > 0 else "CATASTROPHIC_STOP_BREAKER")
+                        close_reason = "FEE_SECURED_TAKE_PROFIT" if (is_fee_secured_tp or is_milestone) else ("SCALP_PROFIT_HARVEST" if pnl_usd > 0 else "STOP_LOSS_EXIT")
                         
                         self.broker.close_position(
                             asset=pos_asset,
