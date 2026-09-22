@@ -306,14 +306,14 @@ async def read_dashboard(request: Request):
     if open_positions:
         pos_rows_html = ""
         for p in open_positions:
-            asset = p.get('asset', '')
+            asset = p.get('asset', p.get('symbol', ''))
             action = p.get('side', p.get('action', 'BUY'))
             cap = f"{cur_sym}{p.get('capital_allocated', 1000):,.2f}"
             lev = f"{p.get('leverage', 10):.0f}x"
             entry = f"{cur_sym}{p.get('entry_price', 0.0):,.2f}"
-            live_p = f"{cur_sym}{p.get('live_price', p.get('entry_price', 0.0)):,.2f}"
-            pnl_u = p.get('unrealized_pnl_usd', 0.0)
-            pnl_p = p.get('unrealized_pnl_pct', 0.0)
+            live_p = f"{cur_sym}{p.get('last_price', p.get('current_price', p.get('live_price', p.get('entry_price', 0.0)))):,.2f}"
+            pnl_u = float(p.get('unrealized_pnl', p.get('unrealized_pnl_usd', p.get('pnl_usd', 0.0))))
+            pnl_p = float(p.get('pnl_pct', p.get('unrealized_pnl_pct', 0.0)))
             is_pos = pnl_u >= 0
             pnl_class = "text-emerald-400 font-bold" if is_pos else "text-red-400 font-bold"
             act_class = "bg-emerald-500/10 text-emerald-400" if action == "BUY" else "bg-red-500/10 text-red-400"
@@ -1343,7 +1343,17 @@ async def close_position_endpoint(request: Request):
                 print(f"[CLOSE_POSITION_ENDPOINT_LOOKUP_ERR]: {e}")
 
         pos = paper_broker.positions.get(asset, {})
+        # CRITICAL FIX: Fetch the LIVE market price from Binance at close time so PnL is calculated
+        # against actual exit price, not a stale cached price. Fallback to last_price if fetch fails.
         exit_price = pos.get("last_price", pos.get("entry_price", 64250.0 if "BTC" in asset else 100.0))
+        try:
+            from execution.binance_broker import binance_broker
+            tickers = binance_broker.get_bulk_market_data([asset], environment="BINANCE_LIVE")
+            live_tick = tickers.get(asset.upper())
+            if live_tick and live_tick.get("last", 0) > 0:
+                exit_price = float(live_tick["last"])
+        except Exception as _ep:
+            pass  # fallback to last_price already set above
         res = paper_broker.close_position(asset, exit_price=exit_price, reason="MANUAL_TRADER_EXIT")
         if not res or (isinstance(res, dict) and res.get("status") == "FAILED"):
             err_msg = res.get("error", "Failed to close position on exchange.") if isinstance(res, dict) else "Position close failed on exchange."
