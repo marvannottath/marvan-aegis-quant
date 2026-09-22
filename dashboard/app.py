@@ -1735,6 +1735,23 @@ async def connect_mt5_endpoint(data: dict):
     except Exception as e:
         return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=400)
 
+@app.get("/api/mt5/status")
+async def get_mt5_status_endpoint():
+    """Fetch current MT5 connection status, account metrics, and active positions."""
+    try:
+        from execution.mt5_broker import mt5_broker
+        stat = mt5_broker.get_status()
+        acc = mt5_broker.get_account_info()
+        positions = mt5_broker.get_open_positions()
+        return JSONResponse({
+            "status": "SUCCESS",
+            "connection": stat,
+            "account": acc,
+            "positions": positions
+        })
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
 @app.get("/api/brokers/list")
 async def list_brokers_endpoint():
     """List all supported institutional execution brokers with real-time status and isolated balances."""
