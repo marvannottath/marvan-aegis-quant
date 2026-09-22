@@ -1378,7 +1378,121 @@ async def close_position_endpoint(request: Request):
         return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=400)
 
 
+
+@app.post("/api/reconcile-trade-history")
+async def reconcile_trade_history():
+    """
+    Retroactively fetch real Binance fill prices from /api/v3/myTrades for all
+    crypto symbols and patch historical trade_history records so that past manual
+    closes show correct PnL instead of the previously stale cached exit price.
+    """
+    try:
+        from execution.binance_broker import binance_broker
+        import time as _time
+
+        CRYPTO_SYMBOLS = [
+            "BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT",
+            "XRPUSDT", "DOGEUSDT", "ADAUSDT"
+        ]
+
+        # 1. Collect all Binance real SELL fills (these are our position CLOSE fills)
+        fill_index: dict = {}  # key: symbol -> list of {price, qty, time, commission, commissionAsset}
+        for sym in CRYPTO_SYMBOLS:
+            try:
+                fills = binance_broker.get_execution_fills("BINANCE_LIVE", sym, limit=50)
+                sell_fills = [f for f in fills if not f.get("isBuyer", True)]
+                buy_fills  = [f for f in fills if f.get("isBuyer", True)]
+                fill_index[sym] = {"sell": sell_fills, "buy": buy_fills}
+            except Exception as _e:
+                fill_index[sym] = {"sell": [], "buy": []}
+
+        # 2. Walk through all pools' trade_history and patch zero-or-stale PnL entries
+        patched_count = 0
+        skipped_count = 0
+
+        for pool_name, pool_data in paper_broker.pools.items():
+            history = pool_data.get("trade_history", [])
+            if not isinstance(history, list):
+                continue
+
+            for trade in history:
+                asset = trade.get("asset", "")
+                action = str(trade.get("action", "BUY")).upper()
+                units  = float(trade.get("units", 0.0))
+                cap    = float(trade.get("capital_allocated", 0.0))
+
+                # Only patch crypto BUY-closed trades (the SELL fills on Binance)
+                if not asset.endswith("USDT") or action != "BUY" or units <= 0:
+                    skipped_count += 1
+                    continue
+
+                sym_fills = fill_index.get(asset, {})
+                closing_fills = sym_fills.get("sell", [])
+                if not closing_fills:
+                    skipped_count += 1
+                    continue
+
+                # Match the best fill: find the sell fill whose qty is closest to our position units
+                best_fill = None
+                best_diff = float("inf")
+                for f in closing_fills:
+                    f_qty = float(f.get("qty", 0.0))
+                    diff = abs(f_qty - units)
+                    if diff < best_diff:
+                        best_diff = diff
+                        best_fill = f
+
+                if best_fill is None or best_diff > (units * 0.5):
+                    # qty mismatch too large — skip to avoid wrong match
+                    skipped_count += 1
+                    continue
+
+                real_exit_px = float(best_fill.get("price", 0.0))
+                if real_exit_px <= 0:
+                    skipped_count += 1
+                    continue
+
+                entry_px = float(trade.get("entry_price", 0.0))
+                if entry_px <= 0:
+                    skipped_count += 1
+                    continue
+
+                # Compute correct PnL
+                new_pnl_u = round((real_exit_px - entry_px) * units, 2)
+                new_pnl_u = max(-cap, new_pnl_u)  # cap loss at full capital
+                new_pnl_p = round((new_pnl_u / cap) * 100.0, 2) if cap > 0 else 0.0
+
+                old_pnl = float(trade.get("pnl_usd", 0.0))
+
+                # Patch: update the record in-place
+                trade["exit_price"]  = real_exit_px
+                trade["pnl_usd"]     = new_pnl_u
+                trade["pnl_pct"]     = new_pnl_p
+                trade["realized_pnl"] = new_pnl_u
+                trade["reconciled"]  = True
+                trade["reconciled_at"] = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S")
+
+                patched_count += 1
+
+            pool_data["trade_history"] = history
+
+        # 3. Persist patched state
+        paper_broker._save_state()
+
+        return JSONResponse({
+            "status": "SUCCESS",
+            "message": f"Reconciliation complete. {patched_count} trade(s) patched with real Binance exit prices.",
+            "patched": patched_count,
+            "skipped": skipped_count,
+            "symbols_checked": CRYPTO_SYMBOLS
+        })
+
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
 @app.post("/api/withdraw-vault-profit")
+
 @app.post("/api/withdraw")
 async def process_withdrawal(data: dict):
     """Withdrawals require server-side authorization and balance verification."""
