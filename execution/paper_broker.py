@@ -256,18 +256,15 @@ class PaperBroker:
                 real_b = float(self.pools.get("BINANCE_LIVE_REAL", {}).get("virtual_cash", 14.70))
             if real_b <= 0:
                 real_b = 14.70
-            self.pools["BINANCE_LIVE_REAL"]["initial_capital"] = real_b
-            self.pools["BINANCE_LIVE_REAL"]["virtual_cash"] = real_b
-            self.pools["BINANCE_LIVE_REAL"]["equity"] = real_b
-            self.pools["BINANCE_LIVE_REAL"]["base_equity"] = real_b
-            self.pools["BINANCE_LIVE_REAL"]["trade_history"] = []
-            self.pools["BINANCE_LIVE_REAL"]["order_stream"] = []
-            self.pools["BINANCE_LIVE_REAL"]["positions"] = {}
-            try:
-                from execution.profit_vault import profit_vault
-                profit_vault.reset_vault("BINANCE_LIVE_REAL")
-            except Exception:
-                pass
+            live_pool = self.pools.setdefault("BINANCE_LIVE_REAL", {})
+            if "initial_capital" not in live_pool or live_pool.get("initial_capital", 0.0) <= 0:
+                live_pool["initial_capital"] = real_b
+            live_pool["virtual_cash"] = real_b
+            live_pool["equity"] = real_b
+            live_pool["base_equity"] = real_b
+            live_pool.setdefault("trade_history", [])
+            live_pool.setdefault("order_stream", [])
+            live_pool.setdefault("positions", {})
 
         self._sync_active_pool_refs()
         self._update_equity()

@@ -1342,6 +1342,11 @@ async def close_position_endpoint(request: Request):
             except Exception as e:
                 print(f"[CLOSE_POSITION_ENDPOINT_LOOKUP_ERR]: {e}")
 
+        if asset.endswith("USDT") or "USDT" in asset:
+            from core.workspace_manager import workspace_manager
+            if workspace_manager.get_active_workspace() == "CRYPTO":
+                paper_broker.switch_pool("BINANCE_LIVE_REAL")
+
         pos = paper_broker.positions.get(asset, {})
         # CRITICAL FIX: Fetch the LIVE market price from Binance at close time so PnL is calculated
         # against actual exit price, not a stale cached price. Fallback to last_price if fetch fails.
@@ -1373,7 +1378,17 @@ async def close_position_endpoint(request: Request):
             )
         except Exception:
             pass
-        return JSONResponse({"status": "SUCCESS", "closed_trade": res, "realized_pnl": res.get("pnl_usd", 0.0) if res else 0.0})
+
+        v_bal = profit_vault.get_vault_balance(paper_broker.active_pool_name)
+        pnl_val = res.get("pnl_usd", 0.0) if res else 0.0
+        return JSONResponse({
+            "status": "SUCCESS",
+            "closed_trade": res,
+            "realized_pnl": pnl_val,
+            "vault_sweep": pnl_val if pnl_val > 0 else 0.0,
+            "vault_balance": v_bal,
+            "vault_summary": profit_vault.get_vault_summary(paper_broker.active_pool_name)
+        })
     except Exception as e:
         return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=400)
 

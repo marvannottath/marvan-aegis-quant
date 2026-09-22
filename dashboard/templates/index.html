@@ -3036,11 +3036,15 @@
                     const curSym = isIndia ? '₹' : (isCrypto ? '' : '$');
                     const curSuffix = isCrypto ? ' USDT' : '';
                     const sign = pnl >= 0 ? '+' : '-';
-                    showNotification('Position Closed', `Position ${symbol} successfully closed on exchange! Realized PnL: ${sign}${curSym}${Math.abs(pnl).toFixed(2)}${curSuffix}`, 'success');
+                    const vSweepMsg = (pnl > 0) ? ` | Swept ${curSym}${pnl.toFixed(2)}${curSuffix} to Vault!` : '';
+                    showNotification('Position Closed', `Position ${symbol} closed! Realized PnL: ${sign}${curSym}${Math.abs(pnl).toFixed(2)}${curSuffix}${vSweepMsg}`, 'success');
+                    if (data.vault_summary) {
+                        try { renderVaultTransactions(data.vault_summary); } catch (e) {}
+                    }
                 } else {
                     showNotification('Close Position Notice', `${data.message || data.status}`, 'warning');
                 }
-                setTimeout(() => fetchState(window.activeMarketVenue), 600);
+                setTimeout(() => fetchState(window.activeMarketVenue), 500);
             } catch (e) {
                 console.error('Close position error:', e);
                 showNotification('Error', 'Network error while closing position', 'warning');
