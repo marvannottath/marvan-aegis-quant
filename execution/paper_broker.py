@@ -472,6 +472,8 @@ class PaperBroker:
         if p <= 0:
             p = 65000.0 if "BTC" in symbol else 100.0
         pos = self.execute_order(asset=symbol, action=side, amount_usd=amount_usd, current_price=p, **kwargs)
+        if not pos:
+            return {"status": "FAILED", "message": "Order was rejected by broker or blocked by safety gate"}
         return {"status": "SUCCESS", "entry_price": pos.get("entry_price", p), "position": pos}
 
     def close_position(self, asset: str, exit_price: float, current_indicators: Optional[dict] = None, sentiment_score: float = 0.5, reason: str = "MANUAL_CLOSE") -> Optional[dict]:

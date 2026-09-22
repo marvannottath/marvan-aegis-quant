@@ -2914,7 +2914,22 @@
                         };
                         assetPrice = fallbackPrices[symbol] || 100.0;
                     }
-                    const calculatedQty = Number((amountInput / assetPrice).toFixed(6));
+                    let targetEnv = 'PAPER';
+                    if (window.activeTradingPool === 'BINANCE_LIVE_REAL' || window.activeTradingPool === 'BINANCE_LIVE') {
+                        targetEnv = 'BINANCE_LIVE';
+                    } else if (window.activeTradingPool === 'BINANCE_TESTNET_DEMO') {
+                        targetEnv = 'BINANCE_TESTNET';
+                    } else if (window.activeMarketVenue === 'CRYPTO') {
+                        targetEnv = (window.activeTradingPool && window.activeTradingPool.includes('LIVE')) ? 'BINANCE_LIVE' : 'BINANCE_TESTNET';
+                    }
+
+                    // Enforce safe micro-account sizing for Crypto live when amount is left at default or excessive
+                    let effectiveAmount = amountInput;
+                    if (targetEnv === 'BINANCE_LIVE' && (effectiveAmount > 15.0 || effectiveAmount <= 0)) {
+                        effectiveAmount = 6.00;
+                    }
+
+                    const calculatedQty = Number((effectiveAmount / assetPrice).toFixed(6));
                     res = await fetch('/api/orders/submit', {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
@@ -2924,7 +2939,7 @@
                             quantity: calculatedQty,
                             order_type: currentOrderType,
                             price: assetPrice,
-                            environment: (window.activeMarketVenue === 'CRYPTO') ? 'TESTNET' : 'PAPER',
+                            environment: targetEnv,
                             workspace: window.activeMarketVenue,
                             strategy: 'TERMINAL_MANUAL',
                             leverage: levVal,
@@ -4347,6 +4362,11 @@
                 window.selectedAssetPrice = Number(px);
             }
             window.selectedOrderSide = (action || 'BUY').toUpperCase();
+
+            const amtInput = document.getElementById('order-amount-input');
+            if (amtInput && (cleanSym.endsWith('USDT') || window.activeMarketVenue === 'CRYPTO')) {
+                amtInput.value = '6.00';
+            }
 
             switchTab('orders');
 

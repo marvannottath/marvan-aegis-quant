@@ -299,6 +299,7 @@ class AutonomousTrader:
                                     pass
 
                 # 4. 1000-Shield Quantum Guardian Alpha Harvesting Loop
+                closed_any = False
                 for idx, (pos_asset, pos) in enumerate(list(self.broker.positions.items())):
                     self.position_age[pos_asset] = self.position_age.get(pos_asset, 0) + 1
                     age = self.position_age[pos_asset]
@@ -356,6 +357,7 @@ class AutonomousTrader:
                     should_close = is_fee_secured_tp or is_milestone or is_staggered_harvest or is_maturity_rebalance or is_hard_stop
 
                     if should_close:
+                        closed_any = True
                         close_reason = "FEE_SECURED_TAKE_PROFIT" if (is_fee_secured_tp or is_milestone) else ("SCALP_PROFIT_HARVEST" if pnl_usd > 0 else "STOP_LOSS_EXIT")
                         
                         self.broker.close_position(
@@ -380,6 +382,10 @@ class AutonomousTrader:
                 # 5. Update equity and persist state
                 self.broker._update_equity()
                 self.broker._save_state()
+
+                # Fast Instant Re-entry: if a trade was closed and we have open capacity, immediately scan without delay
+                if closed_any and len(self.broker.positions) < target_capacity:
+                    continue
 
             except Exception as e:
                 import traceback

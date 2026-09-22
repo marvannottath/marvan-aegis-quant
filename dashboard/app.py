@@ -1646,6 +1646,88 @@ async def connect_upstox_endpoint(data: dict):
     res = upstox_broker.save_credentials(api_key, api_secret, access_token)
     return JSONResponse(res)
 
+@app.post("/api/connect-mt5")
+async def connect_mt5_endpoint(data: dict):
+    """Save & connect MetaTrader 5 (MT5) credentials."""
+    try:
+        from execution.mt5_broker import mt5_broker
+        login = int(data.get("login", 0))
+        password = str(data.get("password", "")).strip()
+        server = str(data.get("server", "")).strip()
+        bridge_url = str(data.get("bridge_url", "")).strip()
+        api_type = str(data.get("api_type", "DIRECT")).strip()
+        res = mt5_broker.save_credentials(login, password, server, bridge_url, api_type)
+        return JSONResponse(res)
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=400)
+
+@app.get("/api/brokers/list")
+async def list_brokers_endpoint():
+    """List all supported institutional execution brokers with real-time status and isolated balances."""
+    from execution.binance_broker import binance_broker
+    from execution.upstox_broker import upstox_broker
+    from execution.mt5_broker import mt5_broker
+
+    # Binance metrics
+    binance_live_bal = binance_broker.get_real_live_spot_balance()
+    binance_status = "HEALTHY" if binance_broker.live_api_key and binance_live_bal > 0 else ("CONNECTED" if binance_broker.live_api_key else "NOT_CONFIGURED")
+
+    # Upstox metrics
+    upstox_stat = upstox_broker.get_status()
+
+    # MT5 metrics
+    mt5_stat = mt5_broker.get_status()
+    mt5_acc = mt5_broker.get_account_info()
+
+    brokers = [
+        {
+            "id": "BINANCE_LIVE",
+            "name": "Binance Spot Live",
+            "venue": "CRYPTO",
+            "currency": "USDT",
+            "balance": round(binance_live_bal, 2),
+            "status": binance_status,
+            "is_active": paper_broker.active_pool_name == "BINANCE_LIVE_REAL",
+            "details": f"Spot Live Wallet: {binance_live_bal:.2f} USDT"
+        },
+        {
+            "id": "MT5_FOREX",
+            "name": "MetaTrader 5 (MT5)",
+            "venue": "FOREX_GOLD",
+            "currency": mt5_acc.get("currency", "USD"),
+            "balance": round(float(mt5_acc.get("balance", 0.0)), 2),
+            "status": mt5_stat.get("status", "NOT_CONFIGURED"),
+            "is_active": False,
+            "details": f"Server: {mt5_stat.get('server') or 'Not configured'} | Login: {mt5_stat.get('login') or 'N/A'}"
+        },
+        {
+            "id": "UPSTOX_INDIA",
+            "name": "Upstox (NSE/BSE)",
+            "venue": "INDIA",
+            "currency": "INR",
+            "balance": round(float(upstox_stat.get("funds", {}).get("available_margin", 0.0)), 2),
+            "status": upstox_stat.get("status", "NOT_CONFIGURED"),
+            "is_active": paper_broker.active_pool_name in ["UPSTOX_LIVE", "UPSTOX_DEMO"],
+            "details": "Indian Equities & Derivatives (SEBI Compliant)"
+        },
+        {
+            "id": "AEGIS_PAPER",
+            "name": "Aegis Institutional Paper Engine",
+            "venue": "MULTI_ASSET",
+            "currency": "USD",
+            "balance": round(float(paper_broker.pools.get("AEGIS_QUANT_MASTER", {}).get("virtual_cash", 100000.0)), 2),
+            "status": "HEALTHY",
+            "is_active": paper_broker.active_pool_name == "AEGIS_QUANT_MASTER",
+            "details": "High-Fidelity Quantum Simulator"
+        }
+    ]
+
+    return JSONResponse({
+        "status": "SUCCESS",
+        "active_pool": paper_broker.active_pool_name,
+        "brokers": brokers
+    })
+
 @app.post("/api/switch-trading-pool")
 @app.post("/api/select-pool")
 async def switch_trading_pool_endpoint(request: Request):
@@ -3605,8 +3687,20 @@ async def submit_order(request: Request):
         dur_ens = round((t5 - t4) * 1000, 2)
 
         # Stage 6: Risk Engine Evaluation (Comprehensive Workspace-Aware Risk Pipeline)
-        amount_val = price * quantity if price > 0 else 1000.0
+        amount_val = price * quantity if price > 0 else 6.0
         req_curr = "INR" if ws == "INDIA" else ("USDT" if ws == "CRYPTO" else "USD")
+
+        # Dynamic available cash resolution:
+        avail_cash = paper_broker.virtual_cash
+        if ws == "CRYPTO" or "LIVE" in environment.upper():
+            try:
+                from execution.binance_broker import binance_broker
+                live_spot_b = binance_broker.get_real_live_spot_balance()
+                if live_spot_b > 0:
+                    avail_cash = live_spot_b
+            except Exception:
+                avail_cash = float(paper_broker.pools.get("BINANCE_LIVE_REAL", {}).get("virtual_cash", avail_cash))
+
         approved, rej_code, risk_msg = risk_engine.validate_workspace_order(
             symbol=symbol,
             workspace=ws,
@@ -3614,7 +3708,7 @@ async def submit_order(request: Request):
             amount=amount_val,
             leverage=req_leverage,
             current_open_positions=len(paper_broker.positions),
-            available_cash=paper_broker.virtual_cash,
+            available_cash=avail_cash,
             price=price,
             quantity=quantity,
             data_age_seconds=data_age
@@ -3664,7 +3758,9 @@ async def submit_order(request: Request):
         dur_sub = round((t8 - t7) * 1000, 2)
 
         # Stage 9: Exchange/Fills
-        if environment in ["PAPER", "TESTNET", "BINANCE_TESTNET", "BINANCE_TESTNET_DEMO"]:
+        if environment in ["PAPER", "TESTNET", "BINANCE_TESTNET", "BINANCE_TESTNET_DEMO", "BINANCE_LIVE", "BINANCE_LIVE_REAL", "LIVE"]:
+            if "LIVE" in environment.upper() and ws == "CRYPTO":
+                paper_broker.switch_pool("BINANCE_LIVE_REAL")
             osm.transition(order_id, "SUBMITTED", reason=f"Submitting to {environment} broker")
             exec_result = paper_broker.place_order(symbol=symbol, side=side, amount_usd=amount_val, price=price)
             if exec_result.get("status") == "SUCCESS":
@@ -3675,6 +3771,7 @@ async def submit_order(request: Request):
                                fill_qty=quantity, avg_fill_price=exec_result.get("entry_price", price))
             else:
                 osm.transition(order_id, "FAILED", reason=exec_result.get("message", f"{environment} execution failed"))
+                return JSONResponse({"status": "FAILED", "reason": exec_result.get("message", f"{environment} execution failed")}, status_code=400)
         t9 = time.perf_counter()
         dur_fill = round((t9 - t8) * 1000, 2)
 
