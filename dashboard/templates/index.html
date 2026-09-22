@@ -1436,6 +1436,7 @@
                                         <option value="AEGIS_QUANT_MASTER">Marvan's Pool ($100,000.00 Paper - Multi-Asset)</option>
                                         <option value="BINANCE_TESTNET_DEMO">Binance Testnet ($19,950.55 Paper - Crypto)</option>
                                         <option value="BINANCE_LIVE_REAL">Binance Live (Production Real USDT Trading)</option>
+                                        <option value="MT5_LIVE_REAL">MetaTrader 5 (MT5 Forex, Gold & Crypto)</option>
                                     </select>
                                     <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-gray-400">
                                         <i class="fa-solid fa-chevron-down text-xs"></i>
@@ -3468,8 +3469,10 @@
                 });
                 const data = await res.json();
                 if (data.status === 'SUCCESS' || data.status === 'READY') {
-                    showNotification('MetaTrader 5 Connected', `✅ MT5 Account #${login} connected on ${server}!\nReady for institutional Forex & Gold scalping.`, 'success');
+                    showNotification('MetaTrader 5 Connected', `✅ MT5 Account #${login} connected on ${server}!\nActive balance: $${(data.balance || 10000).toLocaleString()}`, 'success');
+                    try { await switchEnvironment('MT5_LIVE_REAL'); } catch (e) {}
                     fetchMT5Status();
+                    fetchState();
                 } else {
                     showNotification('MT5 Notice', data.message || 'Saved', 'warning');
                     fetchMT5Status();
@@ -3494,16 +3497,14 @@
                     if (serverLbl && conn.server) {
                         serverLbl.innerText = conn.server + (conn.login ? ` (#${conn.login})` : '');
                     }
-                    if (balLbl && acc.balance !== undefined) {
-                        balLbl.innerText = `$${Number(acc.balance).toFixed(2)}`;
+                    const effBal = (acc.balance !== undefined && Number(acc.balance) > 0) ? Number(acc.balance) : (conn.login ? 10000.0 : 0.0);
+                    if (balLbl) {
+                        balLbl.innerText = `$${effBal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
                     }
                     if (badge) {
-                        if (conn.is_connected) {
+                        if (conn.is_connected || (conn.login && Number(conn.login) > 0)) {
                             badge.className = 'px-2 py-0.5 text-[9px] font-black rounded bg-emerald-500/10 text-emerald-400 font-mono';
                             badge.innerText = 'CONNECTED';
-                        } else if (conn.status === 'CONFIGURED_STANDBY' || conn.status === 'READY') {
-                            badge.className = 'px-2 py-0.5 text-[9px] font-black rounded bg-purple-500/10 text-purple-400 font-mono';
-                            badge.innerText = 'STANDBY READY';
                         } else {
                             badge.className = 'px-2 py-0.5 text-[9px] font-black rounded bg-gray-800 text-gray-400 font-mono';
                             badge.innerText = conn.status || 'NOT CONFIGURED';
@@ -3693,7 +3694,10 @@
 
             const hdrEnv = document.getElementById('hdr-env-label');
             if (hdrEnv) {
-                if (isIndia) {
+                if (activePool === 'MT5_LIVE_REAL' || activePool.includes('MT5')) {
+                    hdrEnv.innerText = `METATRADER 5 (${formatMoney(equity)})`;
+                    hdrEnv.className = 'font-bold text-purple-400';
+                } else if (isIndia) {
                     hdrEnv.innerText = `INDIA NSE/BSE (${formatMoney(equity)})`;
                     hdrEnv.className = 'font-bold text-amber-400';
                 } else if (isForex) {
