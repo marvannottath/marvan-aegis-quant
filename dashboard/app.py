@@ -1330,14 +1330,18 @@ async def close_position_endpoint(request: Request):
         if asset not in paper_broker.positions:
             try:
                 from execution.binance_broker import binance_broker
-                env = "BINANCE_LIVE" if ("LIVE" in paper_broker.active_pool_name or "REAL" in paper_broker.active_pool_name) else "BINANCE_TESTNET"
-                live_pos = binance_broker.get_open_positions(env)
-                for lp in live_pos:
-                    if lp.get("symbol") == asset or lp.get("asset") == asset:
-                        paper_broker.positions[asset] = lp
+                for check_env in ["BINANCE_LIVE", "BINANCE_TESTNET"]:
+                    live_pos = binance_broker.get_open_positions(check_env)
+                    for lp in live_pos:
+                        if lp.get("symbol") == asset or lp.get("asset") == asset:
+                            lp["environment"] = check_env
+                            paper_broker.positions[asset] = lp
+                            break
+                    if asset in paper_broker.positions:
                         break
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"[CLOSE_POSITION_ENDPOINT_LOOKUP_ERR]: {e}")
+
         pos = paper_broker.positions.get(asset, {})
         exit_price = pos.get("last_price", pos.get("entry_price", 64250.0 if "BTC" in asset else 100.0))
         res = paper_broker.close_position(asset, exit_price=exit_price, reason="MANUAL_TRADER_EXIT")

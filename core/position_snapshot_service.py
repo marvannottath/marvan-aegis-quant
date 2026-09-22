@@ -82,8 +82,8 @@ class PositionSnapshotService:
         else:
             internal_pos_list = []
 
-        # For BINANCE_LIVE_REAL: sync real held crypto positions from Binance Spot Wallet
-        if pool_name == "BINANCE_LIVE_REAL":
+        # For BINANCE_LIVE_REAL / BINANCE_LIVE: sync real held crypto positions from Binance Spot Wallet
+        if pool_name in ["BINANCE_LIVE_REAL", "BINANCE_LIVE"]:
             try:
                 from execution.binance_broker import binance_broker
                 live_positions = binance_broker.get_open_positions("BINANCE_LIVE")

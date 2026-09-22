@@ -520,18 +520,37 @@ class PaperBroker:
             pool_cash = round(max(0.0, pool_cash + cap + pnl_u), 2)
         
         # For Binance Live / Testnet: route real closing spot order to exchange
-        if self.active_pool_name in ["BINANCE_LIVE_REAL", "BINANCE_TESTNET_DEMO", "BINANCE_LIVE"]:
+        is_crypto_asset = asset.endswith("USDT") or asset.endswith("BUSD") or any(c in asset for c in ["BTC", "ETH", "SOL", "XRP", "BNB", "DOGE", "ADA"])
+        if self.active_pool_name in ["BINANCE_LIVE_REAL", "BINANCE_TESTNET_DEMO", "BINANCE_LIVE"] or is_crypto_asset:
             try:
                 from execution.binance_broker import binance_broker
                 closing_side = "SELL" if act == "BUY" else "BUY"
-                env = "BINANCE_TESTNET" if "TESTNET" in self.active_pool_name else "BINANCE_LIVE"
+                
+                # Determine target environment:
+                # Prefer explicit pos['environment'] if set; otherwise check if balance exists on Live
+                env = pos.get("environment")
+                if not env:
+                    base_asset = asset.replace("USDT", "").replace("BUSD", "")
+                    try:
+                        live_bals = binance_broker.get_balances("BINANCE_LIVE")
+                        has_live_tokens = any(b.get("asset") == base_asset and float(b.get("free", 0.0)) > 0 for b in live_bals)
+                    except Exception:
+                        has_live_tokens = False
+                    
+                    if has_live_tokens or "LIVE" in self.active_pool_name or "REAL" in self.active_pool_name:
+                        env = "BINANCE_LIVE"
+                    else:
+                        env = "BINANCE_TESTNET" if "TESTNET" in self.active_pool_name else "BINANCE_LIVE"
+
                 close_qty = units
                 if closing_side == "SELL":
                     base_asset = asset.replace("USDT", "").replace("BUSD", "")
                     bals = binance_broker.get_balances(env)
                     for b in bals:
                         if b.get("asset") == base_asset:
-                            close_qty = float(b.get("free", units))
+                            free_amt = float(b.get("free", units))
+                            if free_amt > 0:
+                                close_qty = free_amt
                             break
                 b_res = binance_broker.create_order(
                     environment=env,
@@ -540,11 +559,12 @@ class PaperBroker:
                     quantity=close_qty,
                     order_type="MARKET"
                 )
-                print(f"[PAPER_BROKER -> BINANCE CLOSE]: result = {b_res}")
+                print(f"[PAPER_BROKER -> BINANCE CLOSE]: env={env} asset={asset} qty={close_qty} result = {b_res}")
                 if b_res.get("status") not in ["SUCCESS", "FILLED"]:
                     self.positions[asset] = pos
-                    print(f"[PAPER_BROKER -> BINANCE CLOSE REJECTED]: {b_res}")
-                    return None
+                    err_msg = b_res.get("message") or b_res.get("raw_error") or str(b_res)
+                    print(f"[PAPER_BROKER -> BINANCE CLOSE REJECTED]: {err_msg}")
+                    return {"status": "FAILED", "error": f"Binance rejected: {err_msg}"}
 
                 # Invalidate cache so open positions and wallet balance immediately refresh
                 if hasattr(binance_broker, "_account_info_cache"):
@@ -554,7 +574,7 @@ class PaperBroker:
             except Exception as e:
                 print(f"[PAPER_BROKER -> BINANCE CLOSE EXCEPTION]: {e}")
                 self.positions[asset] = pos
-                return None
+                return {"status": "FAILED", "error": f"Order routing exception: {str(e)}"}
 
         pool["virtual_cash"] = pool_cash
         self.virtual_cash = pool_cash
