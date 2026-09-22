@@ -114,14 +114,20 @@ class AITradingController:
                 for ws in WORKSPACES:
                     if ws in raw:
                         persisted = raw[ws]
-                        # Never auto-start RUNNING on load — safety first
-                        if persisted.get("state") == RUNNING:
+                        # For regular workspaces, pause on restart. For CRYPTO 24/7 autonomous daemon, preserve RUNNING.
+                        if persisted.get("state") == RUNNING and ws != "CRYPTO":
                             persisted["state"] = PAUSED
                             persisted["reason"] = "Auto-paused at restart — manual resume required"
                             persisted["user"] = "SYSTEM_RESTART"
                         self._states[ws] = persisted
         except Exception:
-            pass  # Load failure keeps defaults (all PAUSED)
+            pass  # Load failure keeps defaults
+        
+        # Ensure CRYPTO defaults to RUNNING if not explicitly STOPPED
+        if self._states.get("CRYPTO", {}).get("state") != "STOPPED":
+            self._states.setdefault("CRYPTO", {})["state"] = RUNNING
+            self._states["CRYPTO"]["reason"] = "Autonomous 24/7 Cloud Scalper Active"
+            self._states["CRYPTO"]["user"] = "SYSTEM"
 
     def _save_state(self):
         """Persist AI state to disk atomically."""

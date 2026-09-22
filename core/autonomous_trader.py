@@ -96,6 +96,10 @@ class AutonomousTrader:
                 from core.workspace_manager import workspace_manager as _wsm
                 from core.ai_trading_controller import ai_trading_controller as _aic
                 _active_ws = _wsm.get_active_workspace()
+                crypto_ai_state = _aic.get_state("CRYPTO")
+                # When CRYPTO is running or active, prioritize CRYPTO for 24/7 continuous autonomous spot trading:
+                if crypto_ai_state == "RUNNING" or _active_ws == "CRYPTO":
+                    _active_ws = "CRYPTO"
                 _ai_state = _aic.get_state(_active_ws)
 
                 if _ai_state not in ("RUNNING",):
@@ -196,13 +200,13 @@ class AutonomousTrader:
 
                 # 3. New Position Entry Evaluation (Pool-Aware Asset Filtering)
                 from core.workspace_manager import workspace_manager
-                active_ws = workspace_manager.get_active_workspace()
-                pool = self.broker.active_pool_name
-
-                if pool in ["AEGIS_INDIA_INR", "UPSTOX_DEMO", "UPSTOX_LIVE"] or active_ws == "INDIA":
-                    filtered_scanned = multi_scanner.scan_workspace("INDIA", sentiment_score)
-                elif pool in ["BINANCE_TESTNET_DEMO", "BINANCE_LIVE_REAL", "BINANCE_DEMO"] or active_ws == "CRYPTO":
+                active_ws = _active_ws
+                if active_ws == "CRYPTO":
+                    pool = "BINANCE_LIVE_REAL"
+                    self.broker.active_pool_name = "BINANCE_LIVE_REAL"
                     filtered_scanned = multi_scanner.scan_workspace("CRYPTO", sentiment_score)
+                elif pool in ["AEGIS_INDIA_INR", "UPSTOX_DEMO", "UPSTOX_LIVE"] or active_ws == "INDIA":
+                    filtered_scanned = multi_scanner.scan_workspace("INDIA", sentiment_score)
                 else:
                     filtered_scanned = multi_scanner.scan_workspace("FOREX_GOLD", sentiment_score)
 
@@ -226,13 +230,34 @@ class AutonomousTrader:
                         if opp_score < min_opp_threshold:
                             continue
 
-                        act = "BUY" if action_signal != "SELL" else "SELL"
+                        # Spot Market Rule: New entry must always be BUY (cannot short sell unowned coins on Spot)
+                        if pool == "BINANCE_LIVE_REAL" or active_ws == "CRYPTO":
+                            if action_signal == "SELL":
+                                continue
+                            act = "BUY"
+                        else:
+                            act = "BUY" if action_signal != "SELL" else "SELL"
+
                         calc_leverage = base_lev
                         if pool in ["AEGIS_INDIA_INR", "UPSTOX_DEMO", "UPSTOX_LIVE"] or active_ws == "INDIA":
                             calc_leverage = min(5.0, calc_leverage)
 
-                        # Dynamically scale position capital based on active risk profile (1% CONSERVATIVE, 2.5% MODERATE, 5% AGGRESSIVE)
-                        size_usd = self.risk_engine.calculate_position_size(self.broker.virtual_cash, volatility, opp_score)
+                        # Available cash resolution: query live Binance balance if trading live Crypto
+                        if pool == "BINANCE_LIVE_REAL" or active_ws == "CRYPTO":
+                            try:
+                                from execution.binance_broker import binance_broker
+                                real_live_cash = binance_broker.get_real_live_spot_balance()
+                                if real_live_cash > 0:
+                                    self.broker.pools.setdefault("BINANCE_LIVE_REAL", {})["virtual_cash"] = real_live_cash
+                                    self.broker.virtual_cash = real_live_cash
+                            except Exception:
+                                pass
+                            current_cash = float(self.broker.pools.get("BINANCE_LIVE_REAL", {}).get("virtual_cash", self.broker.virtual_cash))
+                        else:
+                            current_cash = self.broker.virtual_cash
+
+                        # Dynamically scale position capital based on active risk profile
+                        size_usd = self.risk_engine.calculate_position_size(current_cash, volatility, opp_score)
 
                         is_risk_valid, _ = self.risk_engine.validate_order(size_usd, calc_leverage, len(self.broker.positions))
                         if is_risk_valid and size_usd >= 5.0:
