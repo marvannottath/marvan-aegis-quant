@@ -1487,6 +1487,20 @@ async def reconcile_trade_history():
                 trade["reconciled"]  = True
                 trade["reconciled_at"] = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S")
 
+                # If profitable, ensure it is swept into the Secured Profit Vault as well
+                if new_pnl_u > 0:
+                    try:
+                        from execution.profit_vault import profit_vault
+                        profit_vault.sweep_profit(
+                            trade_pnl=new_pnl_u,
+                            asset=asset,
+                            exit_reason="HISTORICAL_RECONCILE_SWEEP",
+                            source_trade_id=trade.get("trade_id", "TRD-HIST"),
+                            environment="BINANCE_LIVE_REAL"
+                        )
+                    except Exception as _ve:
+                        print(f"[RECONCILE VAULT SWEEP NOTICE]: {_ve}")
+
                 patched_count += 1
 
             pool_data["trade_history"] = history
@@ -1494,16 +1508,61 @@ async def reconcile_trade_history():
         # 3. Persist patched state
         paper_broker._save_state()
 
+        from execution.profit_vault import profit_vault
+        v_bal = profit_vault.get_vault_balance("BINANCE_LIVE_REAL")
+
         return JSONResponse({
             "status": "SUCCESS",
-            "message": f"Reconciliation complete. {patched_count} trade(s) patched with real Binance exit prices.",
+            "message": f"Reconciliation complete. {patched_count} trade(s) patched with real Binance exit prices. Vault balance: {v_bal:.2f} USDT",
             "patched": patched_count,
             "skipped": skipped_count,
+            "vault_balance": v_bal,
             "symbols_checked": CRYPTO_SYMBOLS
         })
 
     except Exception as e:
         return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+@app.post("/api/vault/record-past-profit")
+async def record_past_profit_endpoint(request: Request):
+    """
+    Directly credit past realized profit into the Secured Profit Vault for Binance Live.
+    Useful for bringing previous manual trade gains into the vault ledger.
+    """
+    try:
+        if isinstance(request, dict):
+            body = request
+        else:
+            try:
+                body = await request.json()
+            except Exception:
+                body = {}
+        amount = float(body.get("amount", 0.50))
+        asset = str(body.get("asset", "XRPUSDT")).upper()
+        reason = str(body.get("reason", "HISTORICAL_LIVE_PROFIT_SYNC"))
+
+        if amount <= 0:
+            return JSONResponse({"status": "ERROR", "message": "Amount must be strictly positive."}, status_code=400)
+
+        from execution.profit_vault import profit_vault
+        tx = profit_vault.sweep_profit(
+            trade_pnl=amount,
+            asset=asset,
+            exit_reason=reason,
+            source_trade_id=f"TRD-PAST-{asset}-{int(time.time())}",
+            environment="BINANCE_LIVE_REAL"
+        )
+        new_bal = profit_vault.get_vault_balance("BINANCE_LIVE_REAL")
+        return JSONResponse({
+            "status": "SUCCESS",
+            "message": f"Successfully credited +{amount:.2f} USDT past profit into Secured Profit Vault!",
+            "transaction": tx,
+            "vault_balance": new_bal,
+            "vault_summary": profit_vault.get_vault_summary("BINANCE_LIVE_REAL")
+        })
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=400)
 
 
 @app.post("/api/withdraw-vault-profit")
