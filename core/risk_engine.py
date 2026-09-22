@@ -169,11 +169,13 @@ class RiskEngine:
         conf_scalar = max(0.6, min(1.3, confidence_score / 70.0))
         size = base_size * vol_scalar * conf_scalar
 
-        # Retail / Micro-Account Support ($10 - $100):
+        # Retail / Micro-Account Support ($5.50 - $100):
         # Binance minimum notional is $5.00 USDT.
-        # If the account has between $10 and $100, allow a viable order size of min(virtual_cash, 10.0)
-        # or proportional size if larger, so micro accounts are not blocked by sub-dollar sizing.
-        if 10.0 <= virtual_cash < 100.0:
+        # For micro-accounts between $5.50 and $30.0 USDT, size each trade at $6.00 USDT so that
+        # 2 concurrent trades can be opened and tested simultaneously (e.g. $6 + $6 = $12 from ~$14.76).
+        if 5.50 <= virtual_cash < 30.0:
+            size = min(virtual_cash, 6.00)
+        elif 30.0 <= virtual_cash < 100.0:
             size = max(10.0, size)
 
         # Ensure order size never exceeds available cash or user custom trade cap,

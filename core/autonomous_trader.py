@@ -196,6 +196,8 @@ class AutonomousTrader:
                 # 2. Determine target capacity and leverage based on active risk profile
                 profile_name = self.risk_engine.active_profile.get("name", "CONSERVATIVE")
                 target_capacity = int(self.risk_engine.active_profile.get("max_open_positions", 4))
+                if _active_ws == "CRYPTO":
+                    target_capacity = max(2, target_capacity)
                 base_lev = float(self.risk_engine.active_profile.get("default_leverage", 2.0))
 
                 # 3. New Position Entry Evaluation (Pool-Aware Asset Filtering)
@@ -224,9 +226,14 @@ class AutonomousTrader:
                         action_signal = item["ai_action"]
                         opp_score = item["opportunity_score"]
 
-                        # Fast Micro-Scalping Opportunity Gate: Fee-Aware Fast Entry (>= 75.0% for MODERATE/CRYPTO)
+                        # Fast Micro-Scalping Opportunity Gate: Fee-Aware Fast Entry
                         profile_name = self.risk_engine.active_profile_name
-                        min_opp_threshold = 80.0 if profile_name == "CONSERVATIVE" else (70.0 if profile_name == "AGGRESSIVE" else 75.0)
+                        # For CRYPTO / Binance Live: Strict 90%+ threshold per user configuration
+                        if pool == "BINANCE_LIVE_REAL" or active_ws == "CRYPTO":
+                            min_opp_threshold = 90.0
+                        else:
+                            min_opp_threshold = 80.0 if profile_name == "CONSERVATIVE" else (70.0 if profile_name == "AGGRESSIVE" else 75.0)
+
                         if opp_score < min_opp_threshold:
                             continue
 
@@ -244,20 +251,24 @@ class AutonomousTrader:
 
                         # Available cash resolution: query live Binance balance if trading live Crypto
                         if pool == "BINANCE_LIVE_REAL" or active_ws == "CRYPTO":
-                            try:
-                                from execution.binance_broker import binance_broker
-                                real_live_cash = binance_broker.get_real_live_spot_balance()
-                                if real_live_cash > 0:
-                                    self.broker.pools.setdefault("BINANCE_LIVE_REAL", {})["virtual_cash"] = real_live_cash
-                                    self.broker.virtual_cash = real_live_cash
-                            except Exception:
-                                pass
+                            if len(self.broker.positions) == 0:
+                                try:
+                                    from execution.binance_broker import binance_broker
+                                    real_live_cash = binance_broker.get_real_live_spot_balance()
+                                    if real_live_cash > 0:
+                                        self.broker.pools.setdefault("BINANCE_LIVE_REAL", {})["virtual_cash"] = real_live_cash
+                                        self.broker.virtual_cash = real_live_cash
+                                except Exception:
+                                    pass
                             current_cash = float(self.broker.pools.get("BINANCE_LIVE_REAL", {}).get("virtual_cash", self.broker.virtual_cash))
                         else:
                             current_cash = self.broker.virtual_cash
 
-                        # Dynamically scale position capital based on active risk profile
-                        size_usd = self.risk_engine.calculate_position_size(current_cash, volatility, opp_score)
+                        # Micro-Account Two-Trade Sizing ($6.00 per trade when cash permits to allow 2 concurrent positions):
+                        if (pool == "BINANCE_LIVE_REAL" or active_ws == "CRYPTO") and current_cash >= 5.50:
+                            size_usd = min(current_cash, 6.00)
+                        else:
+                            size_usd = self.risk_engine.calculate_position_size(current_cash, volatility, opp_score)
 
                         is_risk_valid, _ = self.risk_engine.validate_order(size_usd, calc_leverage, len(self.broker.positions))
                         if is_risk_valid and size_usd >= 5.0:
@@ -356,6 +367,15 @@ class AutonomousTrader:
                         )
                         self.position_age.pop(pos_asset, None)
                         self._log_action(pos_asset, "CLOSE", new_live_price, pos.get("capital_allocated", 500.0), f"Position Closed & Swept ({close_reason})")
+                        if pool == "BINANCE_LIVE_REAL" or active_ws == "CRYPTO":
+                            try:
+                                from execution.binance_broker import binance_broker
+                                real_live_cash = binance_broker.get_real_live_spot_balance()
+                                if real_live_cash > 0:
+                                    self.broker.pools.setdefault("BINANCE_LIVE_REAL", {})["virtual_cash"] = real_live_cash
+                                    self.broker.virtual_cash = real_live_cash
+                            except Exception:
+                                pass
 
                 # 5. Update equity and persist state
                 self.broker._update_equity()
