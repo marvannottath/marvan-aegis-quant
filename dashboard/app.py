@@ -144,7 +144,7 @@ async def read_dashboard(request: Request):
             active_ws = workspace_manager.get_active_workspace()
 
     meta = workspace_manager.get_metadata(active_ws)
-    active_pool = meta.get("default_pool", "AEGIS_INDIA_INR")
+    active_pool = workspace_manager.get_workspace_pool(active_ws) if hasattr(workspace_manager, "get_workspace_pool") else meta.get("default_pool", "AEGIS_INDIA_INR")
     paper_broker.switch_pool(active_pool)
 
     # 2. Authoritative Position Snapshot & Single Aggregation Layer (Section 1, 2, 10)
@@ -780,8 +780,10 @@ async def get_state(workspace: Optional[str] = None, request_id: Optional[str] =
     # Determine authoritative workspace and metadata
     ws = workspace_manager._normalize_workspace(workspace) if workspace else workspace_manager.get_active_workspace()
     meta = workspace_manager.get_workspace_meta(ws)
-    target_pool = meta["default_pool"]
-    active_pool = paper_broker.active_pool_name if paper_broker.active_pool_name in meta["allowed_pools"] else target_pool
+    target_pool = workspace_manager.get_workspace_pool(ws) if hasattr(workspace_manager, "get_workspace_pool") else meta["default_pool"]
+    active_pool = target_pool if target_pool in meta.get("allowed_pools", []) else meta["default_pool"]
+    if paper_broker.active_pool_name != active_pool:
+        paper_broker.switch_pool(active_pool)
 
     # Get pool account details
     pool_data = paper_broker.pools.get(active_pool, {})
@@ -1852,7 +1854,11 @@ async def switch_trading_pool_endpoint(request: Request):
 
         res = paper_broker.set_active_capital_pool(pool)
         from core.workspace_manager import workspace_manager
-        ws = workspace_manager.get_active_workspace()
+        ws = body.get("workspace") or workspace_manager.get_active_workspace()
+        if pool == "MT5_LIVE_REAL" or "MT5" in pool:
+            ws = "FOREX_GOLD"
+        ws = workspace_manager._normalize_workspace(ws)
+        workspace_manager.set_active_workspace(ws)
         workspace_manager.set_workspace_pool(ws, pool)
         binance_broker.market_type = "SPOT_LIVE" if "LIVE" in pool else "SPOT_TESTNET"
         binance_broker.testnet = not ("LIVE" in pool)

@@ -3211,18 +3211,23 @@
 
         async function switchEnvironment(env) {
             try {
+                window.activeTradingPool = env;
+                const sel = document.getElementById('sel-environment');
+                if (sel) sel.value = env;
+                const targetWs = (env.includes('MT5') || env === 'AEGIS_QUANT_MASTER') ? 'FOREX_GOLD' : (env.includes('BINANCE') ? 'CRYPTO' : (window.activeMarketVenue || 'INDIA'));
                 const res = await fetch('/api/switch-trading-pool', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
                         pool: env,
+                        workspace: targetWs,
                         confirm_live_authorization: (env === 'BINANCE_LIVE_REAL' || env === 'MT5_LIVE_REAL')
                     })
                 });
                 const data = await res.json();
                 if (data.status === 'SUCCESS') {
                     showNotification('Active Environment Switched', `Active Environment Switched to: ${data.active_pool}\n\nPortfolio Equity: $${(data.portfolio_equity || 0).toLocaleString()}\nCash: $${(data.virtual_cash || 0).toLocaleString()}\n\nAll historical data for other environments remains completely isolated and safely preserved.`, 'success');
-                    fetchState();
+                    fetchState(targetWs);
                     fetchPerformanceCurve();
                     fetchExecutionLatency();
                     fetchBinanceStatus();
