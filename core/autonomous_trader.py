@@ -341,16 +341,15 @@ class AutonomousTrader:
 
                     # Fee-Aware Scalping Take-Profit & Safety Rules:
                     # Binance round-trip fee: 0.20% (Buy 0.1% + Sell 0.1%)
-                    # TESTING MODE: MIN_GROSS_TP set to +0.15% so any tiny upward move triggers close.
-                    # To restore production: set NET_TARGET = 0.0080 and remove the override below.
+                    # User-Configured Target: +0.20% fee covered + +0.20% pure profit in hand = +0.40% (0.0040)
                     ROUND_TRIP_FEE = 0.0020
-                    NET_TARGET = 0.0  # TESTING: close at fee breakeven or better
-                    MIN_GROSS_TP = 0.0015  # TESTING: 0.15% — any small upward move triggers auto-close
+                    NET_TARGET = 0.0020  # +0.20% pure net profit to user after all fees
+                    MIN_GROSS_TP = ROUND_TRIP_FEE + NET_TARGET  # +0.40% total gross take-profit trigger
 
                     is_fee_secured_tp = (pnl_pct >= MIN_GROSS_TP)
-                    is_milestone = (pnl_pct >= 0.005)  # testing: 0.5% milestone (was 1.5%)
-                    is_staggered_harvest = ((step_counter + idx) % 3 == 0) and (pnl_usd >= 0.005 and pnl_pct >= MIN_GROSS_TP)
-                    is_maturity_rebalance = (age >= 5) and (pnl_usd >= 0.005 and pnl_pct >= MIN_GROSS_TP)
+                    is_milestone = (pnl_pct >= 0.008)  # +0.8% milestone
+                    is_staggered_harvest = ((step_counter + idx) % 3 == 0) and (pnl_usd >= 0.01 and pnl_pct >= MIN_GROSS_TP)
+                    is_maturity_rebalance = (age >= 5) and (pnl_usd >= 0.01 and pnl_pct >= MIN_GROSS_TP)
                     is_hard_stop = (pnl_pct <= -0.015)  # Strict 1.5% stop loss for scalping
 
                     should_close = is_fee_secured_tp or is_milestone or is_staggered_harvest or is_maturity_rebalance or is_hard_stop
