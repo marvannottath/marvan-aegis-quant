@@ -1327,6 +1327,16 @@ async def close_position_endpoint(request: Request):
         else:
             body = await request.json()
         asset = body.get("asset", "")
+
+        # Ensure we are on the right pool BEFORE checking positions
+        if asset.endswith("USDT") or "USDT" in asset:
+            from core.workspace_manager import workspace_manager
+            if workspace_manager.get_active_workspace() == "CRYPTO":
+                # Only switch if we are not already on BINANCE_LIVE_REAL to avoid wiping state
+                if paper_broker.active_pool_name != "BINANCE_LIVE_REAL":
+                    paper_broker.switch_pool("BINANCE_LIVE_REAL")
+
+        # If position is not found in broker memory, try to recover from Binance
         if asset not in paper_broker.positions:
             try:
                 from execution.binance_broker import binance_broker
@@ -1342,10 +1352,11 @@ async def close_position_endpoint(request: Request):
             except Exception as e:
                 print(f"[CLOSE_POSITION_ENDPOINT_LOOKUP_ERR]: {e}")
 
-        if asset.endswith("USDT") or "USDT" in asset:
-            from core.workspace_manager import workspace_manager
-            if workspace_manager.get_active_workspace() == "CRYPTO":
-                paper_broker.switch_pool("BINANCE_LIVE_REAL")
+        if asset not in paper_broker.positions:
+            return JSONResponse({
+                "status": "FAILED",
+                "message": f"Position '{asset}' not found. It may have already been closed or not yet opened."
+            }, status_code=404)
 
         pos = paper_broker.positions.get(asset, {})
         # CRITICAL FIX: Fetch the LIVE market price from Binance at close time so PnL is calculated
@@ -1363,6 +1374,7 @@ async def close_position_endpoint(request: Request):
         if not res or (isinstance(res, dict) and res.get("status") == "FAILED"):
             err_msg = res.get("error", "Failed to close position on exchange.") if isinstance(res, dict) else "Position close failed on exchange."
             return JSONResponse({"status": "FAILED", "message": err_msg}, status_code=400)
+
         try:
             from core.audit_logger import audit_logger
             from core.workspace_manager import workspace_manager
