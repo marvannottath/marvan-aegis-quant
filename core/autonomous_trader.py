@@ -99,6 +99,9 @@ class AutonomousTrader:
                 if _active_ws not in ("CRYPTO", "FOREX_GOLD", "INDIA"):
                     _active_ws = "FOREX_GOLD"
                 _ai_state = _aic.get_state(_active_ws)
+                if _ai_state != "RUNNING" and _ai_state != "STOPPED":
+                    _aic.set_state(_active_ws, "RUNNING", user="SYSTEM", reason="Auto-Active for MT5/Forex")
+                    _ai_state = "RUNNING"
 
                 if _ai_state not in ("RUNNING",):
                     # Signal may be computed for analytics but NEVER executed

@@ -147,6 +147,21 @@ class AITradingController:
 
     # ─── State Queries ────────────────────────────────────────────────────────
 
+    def set_state(self, workspace: str, new_state: str, user: str = "SYSTEM", reason: str = "AUTO") -> bool:
+        with self._lock:
+            ws = workspace.upper()
+            if ws in self._states:
+                self._states[ws] = {
+                    "state": new_state,
+                    "reason": reason,
+                    "user": user,
+                    "timestamp": datetime.now(UTC).isoformat(),
+                    "block_reason": None if new_state == RUNNING else self._states[ws].get("block_reason")
+                }
+                self._save_state()
+                return True
+            return False
+
     def get_state(self, workspace: str) -> str:
         """Return current AI state for the given workspace."""
         with self._lock:
