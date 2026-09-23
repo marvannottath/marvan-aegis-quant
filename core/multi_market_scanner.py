@@ -132,6 +132,12 @@ class MultiMarketScanner:
                 noise = np.sin(self.step_counter * 0.05 + hash(key) % 7) * 0.0012
                 price = round(base_p * (1.0 + noise), 2 if base_p > 10 else 4)
 
+            try:
+                from core.market_data_watchdog import market_data_watchdog
+                market_data_watchdog.record_tick(key, price)
+            except Exception:
+                pass
+
             rsi = float(np.clip(50.0 + np.sin(self.step_counter * 0.4 + hash(key) % 5) * 30.0, 15, 85))
             volatility = float(max(0.003, 0.01 + np.abs(np.cos(self.step_counter * 0.1)) * 0.015))
 

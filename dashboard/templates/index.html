@@ -3896,8 +3896,8 @@
 
             if (!validPositions || validPositions.length === 0) {
                 const emptyMsg = isIndia 
-                    ? 'NO OPEN INDIAN POSITIONS (NSE/BSE) — Market Closed (Weekend) / Risk Engine Ready' 
-                    : (isCrypto ? 'NO ACTIVE CRYPTO POSITIONS — Risk Engine Ready' : 'NO OPEN FOREX & COMMODITIES POSITIONS — Market Closed (Weekend)');
+                    ? 'NO OPEN INDIAN POSITIONS (NSE/BSE) — Risk Engine Ready' 
+                    : (isCrypto ? 'NO ACTIVE CRYPTO POSITIONS — AI Engine Scanning 24/7' : 'NO OPEN FOREX & COMMODITIES POSITIONS — AI Engine Scanning 24/5 Interbank Feed');
                 tbody.innerHTML = `
                     <tr>
                         <td colspan="9" class="py-8 text-center text-gray-500 font-mono text-xs">

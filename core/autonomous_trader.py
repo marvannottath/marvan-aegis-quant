@@ -183,8 +183,14 @@ class AutonomousTrader:
                 # 1. Scan Cross-Market Opportunities across all 12 global assets
                 scanned_assets = multi_scanner.scan_all_opportunities(sentiment_score)
 
-                # Log live tick scan into stream
+                # Log live tick scan into stream and record watchdog freshness
                 if scanned_assets:
+                    for s_asset in scanned_assets:
+                        try:
+                            from core.market_data_watchdog import market_data_watchdog
+                            market_data_watchdog.record_tick(s_asset["ticker"], s_asset["price"])
+                        except Exception:
+                            pass
                     top = scanned_assets[step_counter % len(scanned_assets)]
                     self._log_action(
                         asset=top["ticker"],
@@ -337,18 +343,23 @@ class AutonomousTrader:
                     pnl_pct = (new_live_price - entry) / entry if act == "BUY" else (entry - new_live_price) / entry
                     pnl_usd = (new_live_price - entry) * units if act == "BUY" else (entry - new_live_price) * units
 
-                    # Fee-Aware Scalping Take-Profit & Safety Rules:
-                    # Binance round-trip fee: 0.20% (Buy 0.1% + Sell 0.1%)
-                    # User-Configured Target: +0.20% fee covered + +0.20% pure profit in hand = +0.40% (0.0040)
-                    ROUND_TRIP_FEE = 0.0020
-                    NET_TARGET = 0.0020  # +0.20% pure net profit to user after all fees
-                    MIN_GROSS_TP = ROUND_TRIP_FEE + NET_TARGET  # +0.40% total gross take-profit trigger
-
-                    is_fee_secured_tp = (pnl_pct >= MIN_GROSS_TP)
-                    is_milestone = (pnl_pct >= 0.008)  # +0.8% milestone
-                    is_staggered_harvest = ((step_counter + idx) % 3 == 0) and (pnl_usd >= 0.01 and pnl_pct >= MIN_GROSS_TP)
-                    is_maturity_rebalance = (age >= 5) and (pnl_usd >= 0.01 and pnl_pct >= MIN_GROSS_TP)
-                    is_hard_stop = (pnl_pct <= -0.015)  # Strict 1.5% stop loss for scalping
+                    # Fee-Aware Scalping & Swing Take-Profit Rules:
+                    if pool in ["MT5_LIVE_REAL", "MT5_DEMO"] or active_ws == "FOREX_GOLD":
+                        is_fee_secured_tp = (pnl_pct >= 0.010)  # +1.0% Forex take profit
+                        is_milestone = (pnl_pct >= 0.020)       # +2.0% Milestone profit
+                        is_staggered_harvest = ((step_counter + idx) % 15 == 0) and (pnl_usd >= 1.0 and pnl_pct >= 0.008)
+                        is_maturity_rebalance = (age >= 120) and (pnl_usd >= 0.50 and pnl_pct >= 0.005)  # Rebalance after ~5 mins
+                        is_hard_stop = (pnl_pct <= -0.015)      # 1.5% Stop loss
+                    else:
+                        # Binance round-trip fee: 0.20% (Buy 0.1% + Sell 0.1%)
+                        ROUND_TRIP_FEE = 0.0020
+                        NET_TARGET = 0.0020
+                        MIN_GROSS_TP = ROUND_TRIP_FEE + NET_TARGET
+                        is_fee_secured_tp = (pnl_pct >= MIN_GROSS_TP)
+                        is_milestone = (pnl_pct >= 0.008)
+                        is_staggered_harvest = ((step_counter + idx) % 3 == 0) and (pnl_usd >= 0.01 and pnl_pct >= MIN_GROSS_TP)
+                        is_maturity_rebalance = (age >= 5) and (pnl_usd >= 0.01 and pnl_pct >= MIN_GROSS_TP)
+                        is_hard_stop = (pnl_pct <= -0.015)
 
                     should_close = is_fee_secured_tp or is_milestone or is_staggered_harvest or is_maturity_rebalance or is_hard_stop
 
