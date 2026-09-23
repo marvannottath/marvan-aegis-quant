@@ -92,13 +92,18 @@ class PositionSnapshotService:
                     sym_name = lp.get("symbol") or lp.get("asset")
                     if sym_name not in existing_symbols:
                         internal_pos_list.append(lp)
+                        if sym_name not in paper_broker.positions:
+                            paper_broker.positions[sym_name] = lp
                     else:
                         for p in internal_pos_list:
                             if (p.get("symbol") or p.get("asset")) == sym_name:
                                 p.update(lp)
                                 break
+                        if sym_name in paper_broker.positions:
+                            paper_broker.positions[sym_name].update(lp)
             except Exception as e:
                 print(f"[POSITION_SNAPSHOT] Live position sync notice: {e}")
+
 
         # 2. Strict workspace isolation filtering
         verified_positions: List[Dict[str, Any]] = []

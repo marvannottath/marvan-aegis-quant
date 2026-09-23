@@ -1270,15 +1270,22 @@ class BinanceBroker:
             if asset in ["USDT", "BUSD", "USDC", "FDUSD"]:
                 continue
             total_qty = float(b.get("free", 0.0)) + float(b.get("locked", 0.0))
-            if total_qty <= 0.0001:
+            if total_qty <= 0.0000001:
                 self._entry_price_cache.pop(f"{asset}USDT", None)
                 continue
 
             ticker_symbol = f"{asset}USDT"
             mdata = self.get_market_data(environment, ticker_symbol)
             cur_price = float(mdata.get("last_price", 1.0))
+            if cur_price <= 0:
+                continue
             precision = 4 if cur_price < 10.0 else 2
             cur_price = round(cur_price, precision)
+
+            val_usd = round(total_qty * cur_price, 2)
+            if val_usd < 0.50:
+                self._entry_price_cache.pop(f"{asset}USDT", None)
+                continue
 
             # 1. Determine authentic entry price
             KNOWN_ENTRY_PRICES = {
@@ -1323,13 +1330,13 @@ class BinanceBroker:
             if not is_fallback_cur:
                 self._entry_price_cache[ticker_symbol] = entry_price
 
-            val_usd = round(total_qty * cur_price, 2)
             capital_allocated = round(total_qty * entry_price, 2)
-            if val_usd < 1.0:
-                continue
 
             unrealized_pnl = round((cur_price - entry_price) * total_qty, 2)
             pnl_pct = round(((cur_price - entry_price) / entry_price * 100.0), 2) if entry_price > 0 else 0.0
+
+            qty_decimals = 6 if cur_price > 1000.0 else 4
+            formatted_qty = round(total_qty, qty_decimals)
 
             positions.append({
                 "trade_id": f"TRD-{environment[:4]}-{asset}",
@@ -1337,8 +1344,8 @@ class BinanceBroker:
                 "symbol": ticker_symbol,
                 "action": "BUY",
                 "side": "BUY",
-                "units": round(total_qty, 4),
-                "quantity": round(total_qty, 4),
+                "units": formatted_qty,
+                "quantity": formatted_qty,
                 "entry_price": entry_price,
                 "mark_price": cur_price,
                 "last_price": cur_price,
@@ -1352,6 +1359,7 @@ class BinanceBroker:
                 "unrealized_pnl": unrealized_pnl,
                 "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
             })
+
 
         return positions
 
