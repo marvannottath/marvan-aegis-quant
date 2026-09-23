@@ -3706,22 +3706,23 @@
                     hdrEnv.innerText = `INDIA NSE/BSE (${formatMoney(equity)})`;
                     hdrEnv.className = 'font-bold text-amber-400';
                 } else if (isForex) {
-                    hdrEnv.innerText = `FOREX & GOLD (${formatMoney(equity)})`;
-                    hdrEnv.className = 'font-bold text-blue-400';
+                    hdrEnv.innerText = `METATRADER 5 (${formatMoney(equity)})`;
+                    hdrEnv.className = 'font-bold text-purple-400';
                 } else if (isCrypto) {
                     const bType = activePool.includes('LIVE') ? 'BINANCE LIVE' : 'BINANCE TESTNET';
                     hdrEnv.innerText = `${bType} (${formatMoney(equity)})`;
                     hdrEnv.className = 'font-bold text-amber-400';
                 } else {
-                    hdrEnv.innerText = `MARVAN'S POOL (${formatMoney(equity)})`;
-                    hdrEnv.className = 'font-bold text-emerald-400';
+                    hdrEnv.innerText = `METATRADER 5 (${formatMoney(equity)})`;
+                    hdrEnv.className = 'font-bold text-purple-400';
                 }
             }
 
             const selEnv = document.getElementById('sel-environment');
             if (selEnv) {
-                if (selEnv.value !== activePool && (document.activeElement !== selEnv)) {
-                    selEnv.value = activePool;
+                const targetPoolVal = isForex ? 'MT5_LIVE_REAL' : activePool;
+                if (selEnv.value !== targetPoolVal && (document.activeElement !== selEnv)) {
+                    selEnv.value = targetPoolVal;
                 }
                 const optMaster = selEnv.querySelector('option[value="AEGIS_QUANT_MASTER"]');
                 if (optMaster && activePool === 'AEGIS_QUANT_MASTER') {
