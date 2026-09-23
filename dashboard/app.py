@@ -118,21 +118,13 @@ async def on_startup():
     except Exception as e:
         print(f"[STARTUP] Sync notice: {e}")
     
-    # Pre-seed active MT5 positions if empty so trades are immediately visible
     try:
         from core.workspace_manager import workspace_manager
         from core.ai_trading_controller import ai_trading_controller
         workspace_manager.set_active_workspace("FOREX_GOLD")
-        ai_trading_controller.set_state("FOREX_GOLD", "RUNNING", user="SYSTEM", reason="Startup Active")
-        mt5_p = paper_broker.pools.setdefault("MT5_LIVE_REAL", {})
-        if not mt5_p.get("positions"):
-            paper_broker.switch_pool("MT5_LIVE_REAL")
-            paper_broker.execute_order("EURUSD", "BUY", 100.0, 1.0845, leverage=20.0)
-            paper_broker.execute_order("GBPUSD", "BUY", 100.0, 1.2980, leverage=20.0)
-            paper_broker.execute_order("XAUUSD", "BUY", 100.0, 2748.50, leverage=20.0)
-            paper_broker._save_state()
+        ai_trading_controller.set_state("FOREX_GOLD", "RUNNING", user="SYSTEM", reason="Autonomous Cloud Active")
     except Exception as e:
-        print(f"[STARTUP] MT5 Seed notice: {e}")
+        print(f"[STARTUP] Workspace init notice: {e}")
 
     trader.start_autonomous_loop()
 
