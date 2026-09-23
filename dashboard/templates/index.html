@@ -3216,7 +3216,7 @@
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
                         pool: env,
-                        confirm_live_authorization: env === 'BINANCE_LIVE_REAL'
+                        confirm_live_authorization: (env === 'BINANCE_LIVE_REAL' || env === 'MT5_LIVE_REAL')
                     })
                 });
                 const data = await res.json();

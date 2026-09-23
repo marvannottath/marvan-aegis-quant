@@ -1846,7 +1846,7 @@ async def switch_trading_pool_endpoint(request: Request):
         pool = str(body.get("pool", body.get("pool_name", "AEGIS_QUANT_MASTER"))).strip()
         confirm_live = bool(body.get("confirm_live_authorization", False))
 
-        if "LIVE" in pool and not confirm_live:
+        if pool == "BINANCE_LIVE_REAL" and not confirm_live:
             if not binance_broker.live_api_key or not binance_broker.live_secret_key:
                 return JSONResponse({"status": "ERROR", "message": "Binance Live API credentials not configured."}, status_code=400)
 
