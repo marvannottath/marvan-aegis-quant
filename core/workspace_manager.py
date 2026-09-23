@@ -55,7 +55,7 @@ class WorkspaceManager:
             'currency': 'USD',
             'currency_symbol': '$',
             'default_pool': 'MT5_LIVE_REAL',
-            'allowed_pools': ['MT5_LIVE_REAL', 'AEGIS_QUANT_MASTER', 'MT5_DEMO', 'FOREX_GOLD'],
+            'allowed_pools': ['MT5_LIVE_REAL', 'MT5_DEMO', 'FOREX_GOLD'],
             'venue_name': 'Interbank OTC / Global FX',
             'settlement': 'T+2 Rolling Spot',
             'regulation': 'Global Multi-Regulated OTC',
@@ -128,8 +128,9 @@ class WorkspaceManager:
                     saved_pools = data.get('active_pool_per_workspace', {})
                     if isinstance(saved_pools, dict):
                         self._active_pool_per_workspace.update(saved_pools)
-                    if self._active_pool_per_workspace.get(self.WORKSPACE_FOREX_GOLD) == 'AEGIS_QUANT_MASTER':
+                    if self._active_pool_per_workspace.get(self.WORKSPACE_FOREX_GOLD) not in ['MT5_LIVE_REAL', 'MT5_DEMO']:
                         self._active_pool_per_workspace[self.WORKSPACE_FOREX_GOLD] = 'MT5_LIVE_REAL'
+                    self._save_state()
                     return
             except Exception as e:
                 print(f'[WORKSPACE_MGR] Load state error: {e}')
@@ -159,11 +160,16 @@ class WorkspaceManager:
 
     def get_workspace_pool(self, workspace: Optional[str] = None) -> str:
         ws = self._normalize_workspace(workspace)
+        if ws == self.WORKSPACE_FOREX_GOLD:
+            saved = self._active_pool_per_workspace.get(ws)
+            if saved and saved in ['MT5_LIVE_REAL', 'MT5_DEMO']:
+                return saved
+            return 'MT5_LIVE_REAL'
         meta = self.get_workspace_meta(ws)
         saved = self._active_pool_per_workspace.get(ws)
         if saved and saved in meta.get('allowed_pools', []):
             return saved
-        return meta.get('default_pool', 'MT5_LIVE_REAL' if ws == self.WORKSPACE_FOREX_GOLD else 'AEGIS_INDIA_INR')
+        return meta.get('default_pool', 'AEGIS_INDIA_INR')
 
     def get_active_workspace_config(self) -> Dict[str, Any]:
         return self.get_workspace_meta(self._active_workspace)
