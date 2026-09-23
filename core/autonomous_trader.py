@@ -96,10 +96,8 @@ class AutonomousTrader:
                 from core.workspace_manager import workspace_manager as _wsm
                 from core.ai_trading_controller import ai_trading_controller as _aic
                 _active_ws = _wsm.get_active_workspace()
-                crypto_ai_state = _aic.get_state("CRYPTO")
-                # When CRYPTO is running or active, prioritize CRYPTO for 24/7 continuous autonomous spot trading:
-                if crypto_ai_state == "RUNNING" or _active_ws == "CRYPTO":
-                    _active_ws = "CRYPTO"
+                if _active_ws not in ("CRYPTO", "FOREX_GOLD", "INDIA"):
+                    _active_ws = "FOREX_GOLD"
                 _ai_state = _aic.get_state(_active_ws)
 
                 if _ai_state not in ("RUNNING",):
@@ -110,7 +108,7 @@ class AutonomousTrader:
                             action="BLOCKED",
                             price=0.0,
                             amount_usd=0.0,
-                            reasoning=f"SIGNAL GENERATED — EXECUTION BLOCKED — Reason: AI {_ai_state}"
+                            reasoning=f"SIGNAL GENERATED — EXECUTION BLOCKED — Reason: AI {_ai_state} for {_active_ws}"
                         )
                     continue
 
@@ -203,14 +201,9 @@ class AutonomousTrader:
                 # 3. New Position Entry Evaluation (Pool-Aware Asset Filtering)
                 from core.workspace_manager import workspace_manager
                 active_ws = _active_ws
-                if active_ws == "CRYPTO":
-                    pool = "BINANCE_LIVE_REAL"
-                    self.broker.active_pool_name = "BINANCE_LIVE_REAL"
-                    filtered_scanned = multi_scanner.scan_workspace("CRYPTO", sentiment_score)
-                elif pool in ["AEGIS_INDIA_INR", "UPSTOX_DEMO", "UPSTOX_LIVE"] or active_ws == "INDIA":
-                    filtered_scanned = multi_scanner.scan_workspace("INDIA", sentiment_score)
-                else:
-                    filtered_scanned = multi_scanner.scan_workspace("FOREX_GOLD", sentiment_score)
+                pool = workspace_manager.get_workspace_pool(active_ws)
+                self.broker.switch_pool(pool)
+                filtered_scanned = multi_scanner.scan_workspace(active_ws, sentiment_score)
 
                 if len(self.broker.positions) < target_capacity and filtered_scanned:
                     for item in filtered_scanned:
@@ -232,7 +225,7 @@ class AutonomousTrader:
                         if pool == "BINANCE_LIVE_REAL" or active_ws == "CRYPTO":
                             min_opp_threshold = 90.0
                         else:
-                            min_opp_threshold = 80.0 if profile_name == "CONSERVATIVE" else (70.0 if profile_name == "AGGRESSIVE" else 75.0)
+                            min_opp_threshold = 70.0
 
                         if opp_score < min_opp_threshold:
                             continue
@@ -264,9 +257,11 @@ class AutonomousTrader:
                         else:
                             current_cash = self.broker.virtual_cash
 
-                        # Micro-Account Two-Trade Sizing ($6.00 per trade when cash permits to allow 2 concurrent positions):
+                        # Micro-Account Two-Trade Sizing ($6.00 for Crypto, $100.00 for MT5):
                         if (pool == "BINANCE_LIVE_REAL" or active_ws == "CRYPTO") and current_cash >= 5.50:
                             size_usd = min(current_cash, 6.00)
+                        elif pool in ["MT5_LIVE_REAL", "MT5_DEMO"] or active_ws == "FOREX_GOLD":
+                            size_usd = 100.0  # Micro-lot position ($100 margin on MT5)
                         else:
                             size_usd = self.risk_engine.calculate_position_size(current_cash, volatility, opp_score)
 

@@ -281,6 +281,8 @@ class PaperBroker:
             from execution.mt5_broker import mt5_broker
             mt5_acc = mt5_broker.get_account_info()
             mt5_b = float(mt5_acc.get("balance", 10000.0))
+            if mt5_b <= 0.0:
+                mt5_b = 10000.0
             mt5_pool = self.pools.setdefault("MT5_LIVE_REAL", {})
             if "initial_capital" not in mt5_pool or mt5_pool.get("initial_capital", 0.0) <= 0:
                 mt5_pool["initial_capital"] = mt5_b

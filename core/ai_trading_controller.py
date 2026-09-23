@@ -114,8 +114,8 @@ class AITradingController:
                 for ws in WORKSPACES:
                     if ws in raw:
                         persisted = raw[ws]
-                        # For regular workspaces, pause on restart. For CRYPTO 24/7 autonomous daemon, preserve RUNNING.
-                        if persisted.get("state") == RUNNING and ws != "CRYPTO":
+                        # Preserve RUNNING for 24/7 crypto and 24/5 forex markets:
+                        if persisted.get("state") == RUNNING and ws not in ("CRYPTO", "FOREX_GOLD"):
                             persisted["state"] = PAUSED
                             persisted["reason"] = "Auto-paused at restart — manual resume required"
                             persisted["user"] = "SYSTEM_RESTART"
@@ -123,11 +123,12 @@ class AITradingController:
         except Exception:
             pass  # Load failure keeps defaults
         
-        # Ensure CRYPTO defaults to RUNNING if not explicitly STOPPED
-        if self._states.get("CRYPTO", {}).get("state") != "STOPPED":
-            self._states.setdefault("CRYPTO", {})["state"] = RUNNING
-            self._states["CRYPTO"]["reason"] = "Autonomous 24/7 Cloud Scalper Active"
-            self._states["CRYPTO"]["user"] = "SYSTEM"
+        # Ensure CRYPTO and FOREX_GOLD default to RUNNING if not explicitly STOPPED
+        for auto_ws in ["CRYPTO", "FOREX_GOLD"]:
+            if self._states.get(auto_ws, {}).get("state") != "STOPPED":
+                self._states.setdefault(auto_ws, {})["state"] = RUNNING
+                self._states[auto_ws]["reason"] = f"Autonomous 24/5 {auto_ws} Cloud Engine Active"
+                self._states[auto_ws]["user"] = "SYSTEM"
 
     def _save_state(self):
         """Persist AI state to disk atomically."""
