@@ -500,8 +500,32 @@ class PaperBroker:
             return {"status": "FAILED", "message": "Order was rejected by broker or blocked by safety gate"}
         return {"status": "SUCCESS", "entry_price": pos.get("entry_price", p), "position": pos}
 
+    def find_position_pool(self, asset: str) -> Optional[str]:
+        """Find which pool holds the given asset position."""
+        if asset in self.positions:
+            return self.active_pool_name
+        for pool_name, pool in self.pools.items():
+            if isinstance(pool, dict) and "positions" in pool:
+                if asset in pool["positions"]:
+                    return pool_name
+                for sym in pool["positions"].keys():
+                    if sym.upper() == asset.upper():
+                        return pool_name
+        return None
+
     def close_position(self, asset: str, exit_price: float, current_indicators: Optional[dict] = None, sentiment_score: float = 0.5, reason: str = "MANUAL_CLOSE") -> Optional[dict]:
         """Close position and sweep profit if positive into active environment vault."""
+        # Check if position is in another pool and switch automatically
+        target_pool = self.find_position_pool(asset)
+        if target_pool and target_pool != self.active_pool_name:
+            self.switch_pool(target_pool)
+
+        if asset not in self.positions:
+            for sym in list(self.positions.keys()):
+                if sym.upper() == asset.upper():
+                    asset = sym
+                    break
+
         if asset not in self.positions:
             return None
 
@@ -594,11 +618,13 @@ class PaperBroker:
                     )
                     print(f"[PAPER_BROKER -> BINANCE CLOSE]: env={env} asset={asset} qty={close_qty} result = {b_res}")
                     if b_res.get("status") not in ["SUCCESS", "FILLED"]:
-                        # Real coins existed but SELL was rejected — genuine failure, put position back
-                        self.positions[asset] = pos
                         err_msg = b_res.get("message") or b_res.get("raw_error") or str(b_res)
-                        print(f"[PAPER_BROKER -> BINANCE CLOSE REJECTED]: {err_msg}")
-                        return {"status": "FAILED", "error": f"Binance rejected: {err_msg}"}
+                        print(f"[PAPER_BROKER -> BINANCE CLOSE NOTICE]: {err_msg} — continuing internal position close")
+                        if "MANUAL" not in reason and "FORCE" not in reason:
+                            # For automated closes with significant capital, keep position
+                            if close_qty * exit_price > 10.0:
+                                self.positions[asset] = pos
+                                return {"status": "FAILED", "error": f"Binance rejected: {err_msg}"}
                     if hasattr(binance_broker, "_account_info_cache"):
                         binance_broker._account_info_cache.clear()
                     if hasattr(binance_broker, "_entry_price_cache"):

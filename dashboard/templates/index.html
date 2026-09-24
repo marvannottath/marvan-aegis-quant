@@ -5175,32 +5175,55 @@
         }
 
         async function closePosition(symbol) {
+            if (!symbol) return;
+            const btn = (typeof event !== 'undefined' && event && event.target) ? event.target.closest('button') : null;
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+            }
             try {
-                showNotification('Closing Position', `Submitting sell order to exchange for ${symbol}...`, 'info');
+                showNotification('Closing Position', `Submitting close order for ${symbol}...`, 'info');
+                const curVenue = window.activeMarketVenue || 'INDIA';
                 const res = await fetch('/api/close-position', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ asset: symbol, reason: 'MANUAL_CLOSE_BTN' })
+                    body: JSON.stringify({ asset: symbol, symbol: symbol, workspace: curVenue, reason: 'MANUAL_CLOSE_BTN' })
                 });
                 const data = await res.json();
                 if (data.status === 'SUCCESS' || data.status === 'CLOSED') {
+                    // Remove row from UI immediately for crisp responsiveness
+                    const row = document.querySelector(`[data-pos-row="${symbol}"]`);
+                    if (row) row.remove();
+                    
                     const pnl = data.realized_pnl || 0;
-                    const isIndia = (window.activeMarketVenue === 'INDIA');
-                    const isCrypto = (window.activeMarketVenue === 'CRYPTO');
-                    const curSym = isIndia ? '₹' : (isCrypto ? '' : '$');
+                    const isIndia = (curVenue === 'INDIA');
+                    const isCrypto = (curVenue === 'CRYPTO');
+                    const curSym = isIndia ? '₹' : '$';
                     const curSuffix = isCrypto ? ' USDT' : '';
                     const sign = pnl >= 0 ? '+' : '-';
                     const vSweepMsg = (pnl > 0) ? ` | Swept ${curSym}${pnl.toFixed(2)}${curSuffix} to Vault!` : '';
                     showNotification('Position Closed', `Position ${symbol} closed! Realized PnL: ${sign}${curSym}${Math.abs(pnl).toFixed(2)}${curSuffix}${vSweepMsg}`, 'success');
+                    if (typeof playSynthChime === 'function') playSynthChime('SUCCESS');
                     if (data.vault_summary) {
                         try { renderVaultTransactions(data.vault_summary); } catch (e) {}
                     }
                 } else {
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerText = 'CLOSE';
+                    }
                     showNotification('Close Position Notice', `${data.message || data.status}`, 'warning');
+                    if (typeof playSynthChime === 'function') playSynthChime('WARNING');
                 }
-                setTimeout(() => fetchState(window.activeMarketVenue), 500);
+                setTimeout(() => {
+                    if (typeof fetchState === 'function') fetchState(window.activeMarketVenue);
+                }, 300);
             } catch (e) {
                 console.error('Close position error:', e);
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerText = 'CLOSE';
+                }
                 showNotification('Error', 'Network error while closing position', 'warning');
             }
         }

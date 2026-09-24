@@ -336,7 +336,7 @@ async def read_dashboard(request: Request):
             pnl_class = "text-emerald-400 font-bold" if is_pos else "text-red-400 font-bold"
             act_class = "bg-emerald-500/10 text-emerald-400" if action == "BUY" else "bg-red-500/10 text-red-400"
             pos_rows_html += f"""
-                <tr class="border-b border-gray-800/60 hover:bg-gray-900/50 text-xs font-mono">
+                <tr class="border-b border-gray-800/60 hover:bg-gray-900/50 text-xs font-mono" data-pos-row="{asset}">
                     <td class="py-3 px-3 font-bold text-white">{asset}</td>
                     <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded {act_class}">{action}</span></td>
                     <td class="py-3 px-3">{cap}</td>
@@ -1340,30 +1340,55 @@ async def get_operational_status():
 
 @app.post("/api/close-position")
 async def close_position_endpoint(request: Request):
-    """Manually close an open position."""
+    """Manually close an open position across any active market venue or pool."""
     try:
         if isinstance(request, dict):
             body = request
         else:
             body = await request.json()
-        asset = body.get("asset", "")
+        asset = (body.get("asset") or body.get("symbol") or body.get("ticker", "")).strip()
+        workspace = body.get("workspace", "")
 
-        # Ensure we are on the right pool BEFORE checking positions
-        if asset.endswith("USDT") or "USDT" in asset:
+        if not asset:
+            return JSONResponse({"status": "FAILED", "message": "Symbol or asset parameter is required."}, status_code=400)
+
+        # 1. Locate which pool holds this asset across all pools
+        pool_name = paper_broker.find_position_pool(asset)
+        
+        # If not found directly, check workspace hints
+        if not pool_name and workspace:
             from core.workspace_manager import workspace_manager
-            if workspace_manager.get_active_workspace() == "CRYPTO":
-                # Only switch if we are not already on BINANCE_LIVE_REAL to avoid wiping state
-                if paper_broker.active_pool_name != "BINANCE_LIVE_REAL":
-                    paper_broker.switch_pool("BINANCE_LIVE_REAL")
+            ws_pool = workspace_manager.get_workspace_pool(workspace)
+            if ws_pool and ws_pool in paper_broker.pools:
+                paper_broker.switch_pool(ws_pool)
+                pool_name = paper_broker.find_position_pool(asset)
 
-        # If position is not found in broker memory, try to recover from Binance
+        # If still not found, check case-insensitive across all pools
+        if not pool_name:
+            for p_name, p_data in paper_broker.pools.items():
+                if isinstance(p_data, dict) and "positions" in p_data:
+                    for sym in p_data["positions"].keys():
+                        if sym.upper() == asset.upper():
+                            asset = sym
+                            pool_name = p_name
+                            break
+                    if pool_name:
+                        break
+
+        # If pool found, switch to it
+        if pool_name:
+            paper_broker.switch_pool(pool_name)
+
+        # If position is still not in broker memory, try to recover from Binance
         if asset not in paper_broker.positions:
             try:
                 from execution.binance_broker import binance_broker
                 for check_env in ["BINANCE_LIVE", "BINANCE_TESTNET"]:
                     live_pos = binance_broker.get_open_positions(check_env)
                     for lp in live_pos:
-                        if lp.get("symbol") == asset or lp.get("asset") == asset:
+                        lp_sym = lp.get("symbol") or lp.get("asset")
+                        if lp_sym and lp_sym.upper() == asset.upper():
+                            asset = lp_sym
                             lp["environment"] = check_env
                             paper_broker.positions[asset] = lp
                             break
@@ -1372,27 +1397,46 @@ async def close_position_endpoint(request: Request):
             except Exception as e:
                 print(f"[CLOSE_POSITION_ENDPOINT_LOOKUP_ERR]: {e}")
 
+        # If STILL not found, reload from state file directly
+        if asset not in paper_broker.positions:
+            try:
+                state_file = Path(__file__).resolve().parent.parent / "data" / "paper_broker_state.json"
+                if state_file.exists():
+                    with open(state_file, "r") as sf:
+                        s_data = json.load(sf)
+                    for p_name, p_val in s_data.get("pools", {}).items():
+                        for sym, p_obj in p_val.get("positions", {}).items():
+                            if sym.upper() == asset.upper():
+                                asset = sym
+                                paper_broker.switch_pool(p_name)
+                                paper_broker.positions[asset] = p_obj
+                                break
+                        if asset in paper_broker.positions:
+                            break
+            except Exception:
+                pass
+
         if asset not in paper_broker.positions:
             return JSONResponse({
                 "status": "FAILED",
-                "message": f"Position '{asset}' not found. It may have already been closed or not yet opened."
+                "message": f"Position '{asset}' not found or already closed."
             }, status_code=404)
 
         pos = paper_broker.positions.get(asset, {})
-        # CRITICAL FIX: Fetch the LIVE market price from Binance at close time so PnL is calculated
-        # against actual exit price, not a stale cached price. Fallback to last_price if fetch fails.
-        exit_price = pos.get("last_price", pos.get("entry_price", 64250.0 if "BTC" in asset else 100.0))
-        try:
-            from execution.binance_broker import binance_broker
-            tickers = binance_broker.get_bulk_market_data([asset], environment="BINANCE_LIVE")
-            live_tick = tickers.get(asset.upper())
-            if live_tick and live_tick.get("last", 0) > 0:
-                exit_price = float(live_tick["last"])
-        except Exception as _ep:
-            pass  # fallback to last_price already set above
+        exit_price = pos.get("last_price", pos.get("entry_price", 100.0))
+        if "USDT" in asset or "BUSD" in asset:
+            try:
+                from execution.binance_broker import binance_broker
+                tickers = binance_broker.get_bulk_market_data([asset], environment="BINANCE_LIVE")
+                live_tick = tickers.get(asset.upper())
+                if live_tick and live_tick.get("last", 0) > 0:
+                    exit_price = float(live_tick["last"])
+            except Exception:
+                pass
+
         res = paper_broker.close_position(asset, exit_price=exit_price, reason="MANUAL_TRADER_EXIT")
         if not res or (isinstance(res, dict) and res.get("status") == "FAILED"):
-            err_msg = res.get("error", "Failed to close position on exchange.") if isinstance(res, dict) else "Position close failed on exchange."
+            err_msg = res.get("error", "Position close failed.") if isinstance(res, dict) else "Position close failed."
             return JSONResponse({"status": "FAILED", "message": err_msg}, status_code=400)
 
         try:
