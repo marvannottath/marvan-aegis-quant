@@ -1728,6 +1728,88 @@
                     </div>
                 </div>
 
+                <!-- INSTITUTIONAL PnL CALENDAR & MONTHLY HEATMAP -->
+                <div class="bg-darkcard border border-darkborder p-5 rounded-2xl space-y-5 shadow-xl">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-800 pb-3">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                                <i class="fa-solid fa-calendar-check text-sm"></i>
+                            </div>
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <h3 class="text-sm font-bold text-white uppercase tracking-wide">Monthly PnL Calendar Heatmap</h3>
+                                    <span id="pnl-cal-month-badge" class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">SEPTEMBER 2026</span>
+                                </div>
+                                <p class="text-[11px] text-gray-400 font-mono mt-0.5">Day-by-day realized PnL, win-rate attribution &amp; trade density across all desks</p>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-2">
+                            <button onclick="triggerTelegramDailySummary()" title="Send Today's Trading Summary to Telegram Bot" class="px-2.5 py-1.5 bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-500/40 text-indigo-300 hover:text-white rounded-xl text-xs font-mono font-bold transition flex items-center gap-1.5 shadow-sm cursor-pointer">
+                                <i class="fa-brands fa-telegram text-indigo-400"></i>
+                                <span>Push Telegram Summary</span>
+                            </button>
+                            <button onclick="fetchPnLCalendar()" title="Refresh Calendar Grid" class="p-1.5 bg-gray-900 hover:bg-gray-800 text-gray-300 hover:text-white rounded-xl border border-gray-800 transition cursor-pointer">
+                                <i class="fa-solid fa-rotate text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Monthly KPI Metric Bar -->
+                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 font-mono">
+                        <div class="bg-gray-950/80 border border-gray-800/80 p-3 rounded-xl">
+                            <span class="text-[9px] uppercase font-bold text-gray-400 block font-sans">Monthly Net PnL</span>
+                            <span id="cal-kpi-net-pnl" class="text-sm font-black text-emerald-400 mt-1 block">+$1,011.40</span>
+                            <span id="cal-kpi-net-inr" class="text-[10px] text-gray-400 block">₹88,497.50</span>
+                        </div>
+                        <div class="bg-gray-950/80 border border-gray-800/80 p-3 rounded-xl">
+                            <span class="text-[9px] uppercase font-bold text-gray-400 block font-sans">Green vs Red Days</span>
+                            <span id="cal-kpi-days-ratio" class="text-sm font-black text-white mt-1 block"><span class="text-emerald-400">17W</span> - <span class="text-rose-400">4L</span></span>
+                            <span id="cal-kpi-win-day-rate" class="text-[10px] text-emerald-400 block">81.0% Win Days</span>
+                        </div>
+                        <div class="bg-gray-950/80 border border-gray-800/80 p-3 rounded-xl">
+                            <span class="text-[9px] uppercase font-bold text-gray-400 block font-sans">Trade Win Rate</span>
+                            <span id="cal-kpi-win-rate" class="text-sm font-black text-indigo-400 mt-1 block">74.1%</span>
+                            <span id="cal-kpi-total-trades" class="text-[10px] text-gray-400 block">116 Executions</span>
+                        </div>
+                        <div class="bg-gray-950/80 border border-gray-800/80 p-3 rounded-xl">
+                            <span class="text-[9px] uppercase font-bold text-gray-400 block font-sans">Profit Factor</span>
+                            <span id="cal-kpi-profit-factor" class="text-sm font-black text-amber-400 mt-1 block">15.96</span>
+                            <span class="text-[10px] text-gray-400 block">Institutional Alpha</span>
+                        </div>
+                        <div class="bg-gray-950/80 border border-gray-800/80 p-3 rounded-xl">
+                            <span class="text-[9px] uppercase font-bold text-gray-400 block font-sans">Best Day</span>
+                            <span id="cal-kpi-best-day" class="text-sm font-black text-emerald-400 mt-1 block">+$112.40</span>
+                            <span id="cal-kpi-best-date" class="text-[10px] text-gray-400 block">21 Sep 2026</span>
+                        </div>
+                        <div class="bg-gray-950/80 border border-gray-800/80 p-3 rounded-xl">
+                            <span class="text-[9px] uppercase font-bold text-gray-400 block font-sans">Max Daily Loss</span>
+                            <span id="cal-kpi-worst-day" class="text-sm font-black text-rose-400 mt-1 block">-$22.10</span>
+                            <span id="cal-kpi-worst-date" class="text-[10px] text-gray-400 block">11 Sep 2026</span>
+                        </div>
+                    </div>
+
+                    <!-- Monthly Calendar Heatmap Grid -->
+                    <div class="overflow-x-auto pb-1">
+                        <div class="min-w-[650px]">
+                            <!-- Day of Week Headers -->
+                            <div class="grid grid-cols-7 gap-2 mb-2 text-center text-[10px] font-mono font-bold uppercase text-gray-400">
+                                <div class="py-1">Sun</div>
+                                <div class="py-1">Mon</div>
+                                <div class="py-1">Tue</div>
+                                <div class="py-1">Wed</div>
+                                <div class="py-1">Thu</div>
+                                <div class="py-1">Fri</div>
+                                <div class="py-1">Sat</div>
+                            </div>
+                            <!-- Dynamic Days Grid Container -->
+                            <div id="pnl-calendar-grid" class="grid grid-cols-7 gap-2 font-mono">
+                                <!-- Rendered dynamically via renderPnLCalendar() -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- HISTORICAL TRADE LOGS -->
                 <div class="bg-darkcard border border-darkborder p-5 rounded-2xl space-y-4 shadow-xl">
                     <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-gray-800 pb-3">
@@ -8747,6 +8829,130 @@
                     banner.innerText = 'Audit verification check completed.';
                 }
             }
+        // ── INSTITUTIONAL PnL CALENDAR HEATMAP ──────────────────────
+        async function fetchPnLCalendar(month) {
+            try {
+                const url = month ? `/api/analytics/pnl-calendar?month=${encodeURIComponent(month)}` : '/api/analytics/pnl-calendar';
+                const res = await fetch(url);
+                const data = await res.json();
+                if (data && data.status === 'SUCCESS') {
+                    renderPnLCalendar(data);
+                }
+            } catch (e) {
+                console.warn('PnL calendar fetch error:', e);
+            }
+        }
+
+        function renderPnLCalendar(data) {
+            if (!data || !data.days) return;
+            const kpis = data.kpis || {};
+            
+            // Badge & KPIs
+            const badge = document.getElementById('pnl-cal-month-badge');
+            if (badge) badge.textContent = (data.month_name || 'SEPTEMBER 2026').toUpperCase();
+
+            const netPnlEl = document.getElementById('cal-kpi-net-pnl');
+            if (netPnlEl) {
+                const net = kpis.total_net_pnl_usd || 0;
+                netPnlEl.textContent = (net >= 0 ? '+' : '') + '$' + net.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                netPnlEl.className = net >= 0 ? 'text-sm font-black text-emerald-400 mt-1 block' : 'text-sm font-black text-rose-400 mt-1 block';
+            }
+
+            const inrEl = document.getElementById('cal-kpi-net-inr');
+            if (inrEl) inrEl.textContent = '₹' + (kpis.total_net_pnl_inr || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+            const ratioEl = document.getElementById('cal-kpi-days-ratio');
+            if (ratioEl) ratioEl.innerHTML = `<span class="text-emerald-400">${kpis.green_days || 0}W</span> - <span class="text-rose-400">${kpis.red_days || 0}L</span>`;
+
+            const winDayEl = document.getElementById('cal-kpi-win-day-rate');
+            if (winDayEl) winDayEl.textContent = `${kpis.win_day_rate || 0}% Win Days`;
+
+            const winRateEl = document.getElementById('cal-kpi-win-rate');
+            if (winRateEl) winRateEl.textContent = `${kpis.overall_win_rate || 0}%`;
+
+            const tradesEl = document.getElementById('cal-kpi-total-trades');
+            if (tradesEl) tradesEl.textContent = `${kpis.total_trades || 0} Executions`;
+
+            const pfEl = document.getElementById('cal-kpi-profit-factor');
+            if (pfEl) pfEl.textContent = `${kpis.profit_factor || 0}`;
+
+            const bestEl = document.getElementById('cal-kpi-best-day');
+            if (bestEl) bestEl.textContent = '+$' + (kpis.best_day?.pnl_usd || 0).toFixed(2);
+            const bestDateEl = document.getElementById('cal-kpi-best-date');
+            if (bestDateEl) bestDateEl.textContent = kpis.best_day?.date || '-';
+
+            const worstEl = document.getElementById('cal-kpi-worst-day');
+            if (worstEl) worstEl.textContent = '-$' + Math.abs(kpis.worst_day?.pnl_usd || 0).toFixed(2);
+            const worstDateEl = document.getElementById('cal-kpi-worst-date');
+            if (worstDateEl) worstDateEl.textContent = kpis.worst_day?.date || '-';
+
+            // Calendar Grid
+            const grid = document.getElementById('pnl-calendar-grid');
+            if (!grid) return;
+            grid.innerHTML = '';
+
+            // 1st of Month Weekday (0=Mon .. 6=Sun in Python). For Sunday-first grid: (pyWeekday + 1) % 7
+            const firstWeekdayPy = data.calendar_metadata?.first_day_weekday ?? 1;
+            const leadingBlanks = (firstWeekdayPy + 1) % 7;
+
+            for (let i = 0; i < leadingBlanks; i++) {
+                const blank = document.createElement('div');
+                blank.className = 'h-20 rounded-xl bg-gray-950/20 border border-gray-900/40 opacity-30';
+                grid.appendChild(blank);
+            }
+
+            data.days.forEach(day => {
+                const cell = document.createElement('div');
+                const isProf = day.status === 'PROFIT';
+                const isLoss = day.status === 'LOSS';
+                const isFuture = day.is_future;
+
+                let bgClasses = 'bg-gray-950/40 border-gray-800/60 text-gray-400';
+                let pnlClasses = 'text-gray-500';
+
+                if (isFuture) {
+                    bgClasses = 'bg-gray-950/20 border-dashed border-gray-800/40 opacity-40';
+                    pnlClasses = 'text-gray-600';
+                } else if (isProf) {
+                    bgClasses = 'bg-gradient-to-br from-emerald-950/25 via-darkcard to-gray-950 border-emerald-500/30 hover:border-emerald-400 hover:shadow-lg hover:shadow-emerald-950/30 transition-all';
+                    pnlClasses = 'text-emerald-400 font-bold';
+                } else if (isLoss) {
+                    bgClasses = 'bg-gradient-to-br from-rose-950/25 via-darkcard to-gray-950 border-rose-500/30 hover:border-rose-400 hover:shadow-lg hover:shadow-rose-950/30 transition-all';
+                    pnlClasses = 'text-rose-400 font-bold';
+                }
+
+                cell.className = `p-2.5 rounded-xl border flex flex-col justify-between h-20 transition-all cursor-pointer ${bgClasses}`;
+
+                const pnlSign = day.net_pnl_usd > 0 ? '+' : '';
+                const pnlText = isFuture ? '—' : `${pnlSign}$${Math.abs(day.net_pnl_usd).toFixed(2)}`;
+                const subText = isFuture ? 'UPCOMING' : (day.trades_count > 0 ? `${day.trades_count} trds · ${day.win_rate}%` : (day.is_weekend ? 'Weekend' : 'Flat Cash'));
+
+                cell.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <span class="text-[11px] font-bold ${isFuture ? 'text-gray-600' : 'text-gray-300'}">${day.day_of_month}</span>
+                        ${day.top_asset && day.top_asset !== '-' ? `<span class="text-[8px] font-mono px-1 py-0.2 rounded bg-gray-900 border border-gray-800 text-gray-400">${day.top_asset}</span>` : ''}
+                    </div>
+                    <div class="text-xs font-black font-mono tracking-tight ${pnlClasses}">${pnlText}</div>
+                    <div class="text-[9px] font-mono text-gray-500 truncate">${subText}</div>
+                `;
+
+                grid.appendChild(cell);
+            });
+        }
+
+        async function triggerTelegramDailySummary() {
+            try {
+                if (typeof playSynthChime === 'function') playSynthChime('ORDER');
+                const res = await fetch('/api/telegram/daily_summary', { method: 'POST' });
+                const d = await res.json();
+                if (d.status === 'SUCCESS') {
+                    showNotification('Telegram Dispatched 📱', 'Daily PnL & performance summary sent to your phone!', 'success');
+                } else {
+                    showNotification('Dispatch Notice', d.message || 'Telegram notification skipped or unconfigured.', 'warning');
+                }
+            } catch (e) {
+                showNotification('Error', 'Failed to dispatch Telegram summary.', 'error');
+            }
         }
 
         // ── DOMContentLoaded ────────────────────────────────────────────────
@@ -8776,10 +8982,12 @@
             fetchContinuousLearningStatus();
             fetchAiRegime();
             fetchEconomicCalendar();
+            fetchPnLCalendar();
 
             // Consolidated venue & state periodic refresh (single lightweight heartbeat)
             setInterval(() => refreshVenueData(), 3500);
             setInterval(fetchEconomicCalendar, 30000); // 30s macro calendar sync
+            setInterval(fetchPnLCalendar, 60000);      // 60s PnL calendar sync
             setInterval(fetchHardwareMetrics, 5000);    // 5s VPS gauges
             setInterval(fetchContinuousLearningStatus, 15000); // 15s AI model status
 

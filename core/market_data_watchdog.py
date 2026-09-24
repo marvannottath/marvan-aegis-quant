@@ -187,3 +187,4 @@ class MarketDataWatchdog:
 
 # Global singleton
 market_data_watchdog = MarketDataWatchdog()
+watchdog = market_data_watchdog

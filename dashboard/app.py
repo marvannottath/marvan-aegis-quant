@@ -3661,6 +3661,32 @@ async def handle_telegram_command(request: Request):
     except Exception as e:
         return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
 
+@app.post("/api/telegram/daily_summary")
+async def trigger_daily_summary_push():
+    """Trigger daily performance summary push to Telegram Bot (callable via cron or dashboard)."""
+    try:
+        from core.notification_engine import notification_engine
+        summary_text = notification_engine.handle_bot_command("/daily_summary")
+        delivered, msg = notification_engine.send_telegram_message(summary_text)
+        return JSONResponse({
+            "status": "SUCCESS",
+            "delivered": delivered,
+            "message": msg,
+            "summary": summary_text
+        })
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+@app.get("/api/analytics/pnl-calendar")
+async def get_pnl_calendar(month: Optional[str] = None, workspace: str = "ALL"):
+    """Return institutional daily PnL calendar grid, win-rate breakdown, and monthly KPIs."""
+    try:
+        from core.pnl_calendar_service import pnl_calendar_service
+        cal_data = pnl_calendar_service.get_monthly_calendar(year_month=month, workspace=workspace)
+        return JSONResponse(cal_data)
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
 @app.get("/api/execution/analytics")
 async def get_execution_analytics():
     """Return Smart Order Execution Quality Analytics (Slippage, Latency, Spread, Fill %)."""

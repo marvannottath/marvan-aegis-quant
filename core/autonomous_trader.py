@@ -247,6 +247,22 @@ class AutonomousTrader:
                         else:
                             act = "BUY" if action_signal != "SELL" else "SELL"
 
+                        # ── MULTI-TIMEFRAME (MTF) CONFLUENCE FILTER ────────
+                        try:
+                            from core.mtf_confluence import mtf_confluence_engine
+                            mtf_check = mtf_confluence_engine.analyze_structure(
+                                symbol=ticker,
+                                current_price=current_price,
+                                action=act,
+                                micro_rsi=rsi,
+                                volatility=volatility
+                            )
+                            if not mtf_check.get("is_approved", True):
+                                self._log_action(ticker, "FAKEOUT_FILTERED", current_price, 0.0, f"MTF Confluence: {mtf_check.get('rejection_reason', 'Rejected')}")
+                                continue
+                        except Exception as mtf_err:
+                            print(f"[MTF CONFLUENCE] Validation bypass notice: {mtf_err}")
+
                         calc_leverage = base_lev
                         if pool in ["AEGIS_INDIA_INR", "UPSTOX_DEMO", "UPSTOX_LIVE"] or active_ws == "INDIA":
                             calc_leverage = min(5.0, calc_leverage)
@@ -347,9 +363,19 @@ class AutonomousTrader:
                     highest_pnl = max(pos.get("highest_pnl_pct", 0.0), pnl_pct)
                     pos["highest_pnl_pct"] = highest_pnl
 
-                    # Dynamic Trailing Stop Loss (TSL):
-                    # If profit reached +0.8% and drops by 0.30% from peak, lock in profit
-                    is_trailing_stop = (highest_pnl >= 0.008) and (pnl_pct <= highest_pnl - 0.0030)
+                    # ── BREAK-EVEN RATCHET (ZERO-RISK TRADE GUARD) ───
+                    # Once trade hits +0.80% gain, lock Stop Loss at entry + fees (+0.15%)
+                    if highest_pnl >= 0.008:
+                        pos["break_even_active"] = True
+
+                    is_break_even_guard = bool(pos.get("break_even_active") and pnl_pct <= 0.0015)
+
+                    # ── DYNAMIC TIERED TRAILING STOP LOSS (TSL) ──────
+                    # Tier 2 (Strong Runner >= +1.8%): Trail 0.40% below peak
+                    is_tsl_tier2 = (highest_pnl >= 0.018) and (pnl_pct <= highest_pnl - 0.0040)
+                    # Tier 1 (Initial Runner >= +0.8%): Trail 0.30% below peak
+                    is_tsl_tier1 = (highest_pnl >= 0.008) and (pnl_pct <= highest_pnl - 0.0030)
+                    is_trailing_stop = is_tsl_tier2 or is_tsl_tier1
 
                     # Fee-Aware Scalping & Swing Take-Profit Rules:
                     if pool in ["MT5_LIVE_REAL", "MT5_DEMO"] or active_ws == "FOREX_GOLD":
@@ -369,11 +395,13 @@ class AutonomousTrader:
                         is_maturity_rebalance = (age >= 5) and (pnl_usd >= 0.01 and pnl_pct >= MIN_GROSS_TP)
                         is_hard_stop = (pnl_pct <= -0.015)
 
-                    should_close = is_fee_secured_tp or is_milestone or is_staggered_harvest or is_maturity_rebalance or is_hard_stop or is_trailing_stop
+                    should_close = is_break_even_guard or is_fee_secured_tp or is_milestone or is_staggered_harvest or is_maturity_rebalance or is_hard_stop or is_trailing_stop
 
                     if should_close:
                         closed_any = True
-                        if is_trailing_stop:
+                        if is_break_even_guard:
+                            close_reason = "BREAK_EVEN_RATCHET_GUARD"
+                        elif is_trailing_stop:
                             close_reason = "TRAILING_STOP_LOSS_LOCKED"
                         elif is_fee_secured_tp or is_milestone:
                             close_reason = "FEE_SECURED_TAKE_PROFIT"
