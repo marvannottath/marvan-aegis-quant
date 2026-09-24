@@ -250,7 +250,7 @@ class BinanceBroker:
             self._account_info_cache = {}
             self._account_info_cache_ts = {}
 
-        if not force_refresh and (now - self._account_info_cache_ts.get(cache_key, 0)) < 2.5:
+        if not force_refresh and (now - self._account_info_cache_ts.get(cache_key, 0)) < 8.0:
             cached = self._account_info_cache.get(cache_key)
             if cached and cached.get("authenticated"):
                 return cached
@@ -526,7 +526,7 @@ class BinanceBroker:
             self._bulk_ticker_cache = {}
             self._bulk_ticker_cache_ts = 0.0
 
-        if (now - self._bulk_ticker_cache_ts) < 2.0 and self._bulk_ticker_cache:
+        if (now - self._bulk_ticker_cache_ts) < 4.0 and self._bulk_ticker_cache:
             if symbols:
                 target_set = set(s.upper() for s in symbols)
                 return {k: v for k, v in self._bulk_ticker_cache.items() if k in target_set}
@@ -1264,6 +1264,10 @@ class BinanceBroker:
 
         if not hasattr(self, "_entry_price_cache"):
             self._entry_price_cache = {}
+        if not hasattr(self, "_fills_checked_cache"):
+            self._fills_checked_cache = set()
+
+        bulk_data = self.get_bulk_market_data(environment)
 
         for b in bals:
             asset = b.get("asset", "")
@@ -1272,11 +1276,17 @@ class BinanceBroker:
             total_qty = float(b.get("free", 0.0)) + float(b.get("locked", 0.0))
             if total_qty <= 0.0000001:
                 self._entry_price_cache.pop(f"{asset}USDT", None)
+                self._fills_checked_cache.discard(f"{asset}USDT")
                 continue
 
             ticker_symbol = f"{asset}USDT"
-            mdata = self.get_market_data(environment, ticker_symbol)
-            cur_price = float(mdata.get("last_price", 1.0))
+            b_info = bulk_data.get(ticker_symbol)
+            if b_info and float(b_info.get("last_price", 0)) > 0:
+                cur_price = float(b_info["last_price"])
+            else:
+                mdata = self.get_market_data(environment, ticker_symbol)
+                cur_price = float(mdata.get("last_price", 1.0))
+
             if cur_price <= 0:
                 continue
             precision = 4 if cur_price < 10.0 else 2
@@ -1305,10 +1315,11 @@ class BinanceBroker:
                 except Exception:
                     pass
 
-            if not entry_price:
-                # Query historical trade fills on Binance for the true buy price
+            if not entry_price and ticker_symbol not in self._fills_checked_cache:
+                self._fills_checked_cache.add(ticker_symbol)
+                # Query historical trade fills on Binance for the true buy price once
                 try:
-                    fills = self.get_execution_fills(environment, ticker_symbol, limit=20)
+                    fills = self.get_execution_fills(environment, ticker_symbol, limit=10)
                     for fill in reversed(fills):
                         if fill.get("isBuyer") or fill.get("buyer"):
                             f_px = float(fill.get("price", 0.0))

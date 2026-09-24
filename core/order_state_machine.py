@@ -69,9 +69,12 @@ class OrderStateMachine:
 
     def _save(self, order: Optional[Dict[str, Any]] = None):
         try:
+            if len(self.orders) > 500:
+                sorted_keys = sorted(self.orders.keys(), key=lambda k: self.orders[k].get("created_at", ""), reverse=True)
+                self.orders = {k: self.orders[k] for k in sorted_keys[:500]}
             tmp = ORDERS_DB.with_suffix(".tmp")
             with open(tmp, "w") as f:
-                json.dump(self.orders, f, indent=2)
+                json.dump(self.orders, f, separators=(',', ':'))
             tmp.replace(ORDERS_DB)
         except Exception as e:
             print(f"[ORDER_SM] Save error: {e}")

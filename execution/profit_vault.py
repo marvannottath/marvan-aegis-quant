@@ -103,6 +103,9 @@ class ProfitVault:
 
     def _save_state(self):
         try:
+            for s in self.vault_stores.values():
+                if "transactions" in s and len(s["transactions"]) > 200:
+                    s["transactions"] = s["transactions"][:200]
             temp_file = VAULT_FILE.with_suffix(".tmp")
             master_store = self.vault_stores.get("AEGIS_QUANT_MASTER", {})
             with open(temp_file, "w") as f:
@@ -116,7 +119,7 @@ class ProfitVault:
                     "min_sweep_amount_usd": self.min_sweep_amount_usd,
                     "sweep_percentage": self.sweep_percentage,
                     "auto_external_sweep_enabled": self.auto_external_sweep_enabled
-                }, f, indent=2)
+                }, f, separators=(',', ':'))
             temp_file.replace(VAULT_FILE)
         except Exception as e:
             print(f"[PROFIT VAULT] Save notice: {e}")
