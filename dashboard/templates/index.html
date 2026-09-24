@@ -151,22 +151,23 @@
             </button>
         </div>
 
-        <div class="flex items-center space-x-3 text-xs font-mono">
-            <!-- Active Pool Indicator -->
-            <div onclick="switchTab('settings')" class="hidden xl:flex items-center space-x-1.5 px-3 py-1 bg-gray-900 border border-gray-800 rounded-lg cursor-pointer hover:border-amber-500/50 transition" title="Click to view Environment Settings">
-                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                <span class="text-gray-400">POOL:</span>
-                <span id="hdr-env-label" class="font-bold text-emerald-400">AEGIS INDIA POOL (₹100,000.00)</span>
+        <div class="flex items-center space-x-2.5 text-xs font-mono">
+            <!-- Hidden anchors to preserve JS bindings without cluttering navbar -->
+            <div class="hidden">
+                <span id="hdr-env-label">AEGIS INDIA POOL (₹100,000.00)</span>
+                <div id="market-session-badge">
+                    <span id="mkt-session-dot"></span>
+                    <span id="mkt-session-label"></span>
+                </div>
+                <button id="btn-live-toggle" onclick="toggleLiveTradingState()"><span id="lbl-live-toggle">LIVE: OFF</span></button>
+                <span id="lbl-conn-status">LIVE (WS)</span>
+                <div id="hdr-global-networth-pill">
+                    <span id="hdr-networth-val">$14.70</span>
+                    <span id="hdr-networth-badge">BINANCE LIVE</span>
+                </div>
             </div>
 
-            <!-- Market Session Badge -->
-            <div id="market-session-badge" class="hidden lg:flex items-center space-x-1.5 px-2.5 py-1 bg-gray-900 border border-gray-800 rounded-lg" title="Market session state">
-                <span id="mkt-session-dot" class="w-2 h-2 rounded-full bg-gray-500"></span>
-                <span class="text-gray-500 text-[10px]">MKT:</span>
-                <span id="mkt-session-label" class="font-bold text-gray-300 text-[10px]">LOADING...</span>
-            </div>
-
-            <!-- AI Trading Master Control (Streamlined switches only) -->
+            <!-- AI Trading Action Switches Only -->
             <div id="ai-control-panel" class="hidden md:flex items-center space-x-1.5 px-2 py-1 bg-gray-900/80 border border-gray-800 rounded-lg">
                 <!-- Preserved for JS state bindings, hidden from display -->
                 <div class="hidden">
@@ -179,37 +180,28 @@
                 <button id="btn-ai-resume" onclick="aiResume()" class="hidden px-2.5 py-1 rounded text-[10px] font-black bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/30 transition cursor-pointer" title="Resume AI Trading">▶ RESUME</button>
             </div>
 
-            <!-- Hidden legacy anchors to preserve JS bindings -->
-            <div class="hidden">
-                <button id="btn-live-toggle" onclick="toggleLiveTradingState()"><span id="lbl-live-toggle">LIVE: OFF</span></button>
-                <span id="lbl-conn-status">LIVE (WS)</span>
-            </div>
-
-            <!-- Unified Global Net Worth Pill -->
-            <div id="hdr-global-networth-pill" class="hidden sm:flex items-center space-x-2 px-3 py-1 bg-gray-900/90 border border-amber-500/30 rounded-lg shadow-sm" title="Unified Multi-Asset Net Worth across Binance Live, Spot Holdings & Indian Venues">
-                <span class="text-amber-400 text-xs font-black"><i class="fa-solid fa-vault mr-1"></i>NET WORTH:</span>
-                <span id="hdr-networth-val" class="font-black text-white font-mono text-xs">$14.70</span>
-                <span id="hdr-networth-badge" class="px-1.5 py-0.2 rounded text-[9px] font-mono bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30">BINANCE LIVE</span>
-            </div>
-
-            <!-- Desk Emergency Kill Switch Quick-Action -->
-            <button id="btn-hdr-killswitch" onclick="triggerEmergencyKillSwitch()" class="px-3 py-1 rounded-lg text-xs font-black transition flex items-center space-x-1.5 cursor-pointer bg-red-600/10 hover:bg-red-600 text-red-400 hover:text-white border border-red-500/30 shadow" title="Instant Emergency Halt: freeze all order routing and trading across all venues">
-                <span class="w-2 h-2 rounded-full bg-emerald-400" id="hdr-ks-dot"></span>
-                <span id="hdr-ks-text">KILL SWITCH</span>
-            </button>
-
             <!-- Server Time Clock -->
             <div id="lbl-server-time" class="font-bold text-gray-400 bg-gray-900 border border-gray-800 px-2.5 py-1 rounded-lg text-[11px]">--:--:-- IST</div>
 
-            <!-- Authenticated User Profile & Logout -->
-            <div id="user-nav-profile" class="flex items-center space-x-2 pl-2 border-l border-gray-800">
-                <button onclick="openProfileModal()" class="px-2.5 py-1 rounded-lg bg-gray-900 border border-gray-800 text-xs font-mono text-gray-300 hover:text-white transition flex items-center gap-1.5 cursor-pointer" title="My Profile, Password & 2FA Setup">
-                    <i class="fa-solid fa-user-gear text-amber-400"></i>
-                    <span id="user-display-name">marvan</span>
-                    <span id="user-display-role" class="px-1.5 py-0.2 text-[9px] font-black bg-amber-500/20 text-amber-300 rounded border border-amber-500/30">SUPER_ADMIN</span>
+            <!-- Desk Quick Actions & Profile -->
+            <div id="user-nav-profile" class="flex items-center space-x-1.5 pl-2 border-l border-gray-800">
+                <!-- Desk Emergency Kill Switch (Compact Icon Button) -->
+                <button id="btn-hdr-killswitch" onclick="triggerEmergencyKillSwitch()" class="w-8 h-8 rounded-lg text-xs font-black transition flex items-center justify-center cursor-pointer bg-red-600/10 hover:bg-red-600 text-red-400 hover:text-white border border-red-500/30 shadow relative" title="Emergency Kill Switch: Freeze all trading gateways">
+                    <i class="fa-solid fa-triangle-exclamation text-xs"></i>
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 absolute -top-0.5 -right-0.5 border border-gray-950" id="hdr-ks-dot"></span>
+                    <span id="hdr-ks-text" class="hidden">KILL SWITCH</span>
                 </button>
-                <button onclick="terminalLogout()" title="Logout of Terminal" class="px-2.5 py-1 rounded-lg bg-red-600/10 hover:bg-red-600/20 text-red-400 hover:text-red-300 border border-red-500/30 text-xs font-bold transition flex items-center gap-1 cursor-pointer">
-                    <i class="fa-solid fa-power-off"></i>
+
+                <!-- Authenticated User Profile Icon (Click to open full profile modal) -->
+                <button onclick="openProfileModal()" class="w-8 h-8 rounded-lg bg-gray-900 border border-gray-800 text-xs font-mono text-gray-300 hover:text-white hover:border-amber-500/50 transition flex items-center justify-center cursor-pointer shadow" title="Trader Profile & Security (Click to View Profile)">
+                    <i class="fa-solid fa-user-gear text-amber-400 text-xs"></i>
+                    <span id="user-display-name" class="hidden">marvan</span>
+                    <span id="user-display-role" class="hidden">SUPER_ADMIN</span>
+                </button>
+
+                <!-- Logout Icon -->
+                <button onclick="terminalLogout()" title="Logout of Terminal" class="w-8 h-8 rounded-lg bg-red-600/10 hover:bg-red-600/20 text-red-400 hover:text-red-300 border border-red-500/30 text-xs font-bold transition flex items-center justify-center cursor-pointer shadow">
+                    <i class="fa-solid fa-power-off text-xs"></i>
                 </button>
             </div>
         </div>
@@ -5018,11 +5010,11 @@
                     desc.innerHTML = '<span class="text-red-400 font-bold">⚠️ TRADING IS CURRENTLY FROZEN:</span> All order submissions, AI execution, and withdrawals are locked. Click the green button below to restore trading.';
                 }
                 if (hdrKsBtn && hdrKsDot && hdrKsText) {
-                    hdrKsBtn.className = 'px-3 py-1 rounded-lg text-xs font-black transition flex items-center space-x-1.5 cursor-pointer bg-red-600 text-white border border-red-400 shadow animate-pulse';
+                    hdrKsBtn.className = 'w-8 h-8 rounded-lg text-xs font-black transition flex items-center justify-center cursor-pointer bg-red-600 text-white border border-red-400 shadow animate-pulse relative';
                     hdrKsBtn.onclick = resetEmergencyKillSwitch;
                     hdrKsBtn.title = 'Kill Switch ACTIVE! Click to RESUME normal trading';
-                    hdrKsDot.className = 'w-2 h-2 rounded-full bg-white animate-ping';
-                    hdrKsText.textContent = 'HALTED (RESUME)';
+                    hdrKsDot.className = 'w-2 h-2 rounded-full bg-white animate-ping absolute -top-0.5 -right-0.5 border border-gray-950';
+                    hdrKsText.textContent = 'HALTED';
                 }
             } else {
                 if (banner) banner.classList.add('hidden');
@@ -5036,10 +5028,10 @@
                     desc.textContent = 'Server-Enforced Kill Switch allows instant emergency halting of all trading, rejects new orders, and protects capital. Traders can turn this ON to halt or turn back ON to resume anytime.';
                 }
                 if (hdrKsBtn && hdrKsDot && hdrKsText) {
-                    hdrKsBtn.className = 'px-3 py-1 rounded-lg text-xs font-black transition flex items-center space-x-1.5 cursor-pointer bg-red-600/10 hover:bg-red-600 text-red-400 hover:text-white border border-red-500/30 shadow';
+                    hdrKsBtn.className = 'w-8 h-8 rounded-lg text-xs font-black transition flex items-center justify-center cursor-pointer bg-red-600/10 hover:bg-red-600 text-red-400 hover:text-white border border-red-500/30 shadow relative';
                     hdrKsBtn.onclick = triggerEmergencyKillSwitch;
-                    hdrKsBtn.title = 'Instant Emergency Halt: freeze all order routing and trading across all venues';
-                    hdrKsDot.className = 'w-2 h-2 rounded-full bg-emerald-400';
+                    hdrKsBtn.title = 'Emergency Kill Switch: Freeze all trading gateways';
+                    hdrKsDot.className = 'w-2 h-2 rounded-full bg-emerald-400 absolute -top-0.5 -right-0.5 border border-gray-950';
                     hdrKsText.textContent = 'KILL SWITCH';
                 }
             }
