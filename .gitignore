@@ -13,6 +13,8 @@ data/backups/
 data/*.db-wal
 data/*.db-shm
 data/*.sqlite
+data/*.db
+data/disaster_recovery_snapshots/
 execution/*_state.json
 execution/binance_config.json
 execution/upstox_config.json
