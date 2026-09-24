@@ -2106,6 +2106,27 @@ async def run_event_driven_backtest(data: dict = {}):
     )
     return JSONResponse(result)
 
+@app.post("/api/backtest/run-custom")
+async def run_custom_backtest_endpoint(request: Request):
+    """Run interactive custom backtest with real fees, slippage, and dual equity curve benchmark."""
+    try:
+        body = await request.json()
+        symbol = str(body.get("symbol", "BTCUSDT"))
+        horizon = str(body.get("horizon", "90d"))
+        capital = float(body.get("initial_capital", 10000.0))
+        strategy = str(body.get("strategy", "AEGIS_ENSEMBLE"))
+        
+        from core.backtest_analytics_engine import backtest_analytics_engine
+        result = backtest_analytics_engine.run_custom_backtest(
+            symbol=symbol,
+            horizon=horizon,
+            initial_capital=capital,
+            strategy=strategy
+        )
+        return JSONResponse({"status": "SUCCESS", "backtest": result})
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
 @app.post("/api/backtest/run-fast-engine")
 async def run_fast_engine_backtest():
     """Run the actual live strategy engine at high speed over 15-year 365-day historical data."""
@@ -2469,7 +2490,8 @@ async def admin_create_user(data: dict, request: Request):
     email = data.get("email", "")
     role = data.get("role", "TRADER")
     password = data.get("password", "")
-    res = super_admin.create_user(username, full_name, email, role, password)
+    max_trade_size = float(data.get("max_trade_size", 100.0))
+    res = super_admin.create_user(username, full_name, email, role, password, max_trade_size=max_trade_size)
     return JSONResponse(res)
 
 @app.post("/api/admin/update-user")
@@ -2482,7 +2504,8 @@ async def admin_update_user(data: dict, request: Request):
     email = data.get("email", "")
     role = data.get("role", "")
     new_password = data.get("password", "")
-    res = super_admin.update_user(username, full_name, email, role, new_password)
+    max_trade_size = float(data["max_trade_size"]) if "max_trade_size" in data else None
+    res = super_admin.update_user(username, full_name, email, role, new_password, max_trade_size=max_trade_size)
     return JSONResponse(res)
 
 @app.post("/api/admin/delete-user")

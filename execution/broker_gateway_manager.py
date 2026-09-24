@@ -328,70 +328,73 @@ class BrokerGatewayManager:
             ping_ms = "--"
 
             # Enrich specific brokers with live status
-            if b_id == "binance_live":
-                live_bal = binance_broker.get_real_live_spot_balance()
-                has_key = bool(binance_broker.live_api_key)
-                if has_key and live_bal > 0:
-                    status = "ONLINE"
+            try:
+                if b_id == "binance_live":
+                    live_bal = binance_broker.get_real_live_spot_balance()
+                    has_key = bool(binance_broker.live_api_key)
+                    if has_key and live_bal > 0:
+                        status = "ONLINE"
+                        is_connected = True
+                        balance = live_bal
+                        ping_ms = "18ms"
+                        active_account_label = self._mask_secret(binance_broker.live_api_key)
+                    elif has_key:
+                        status = "READY"
+                        is_connected = True
+                        balance = live_bal
+                        ping_ms = "24ms"
+                        active_account_label = self._mask_secret(binance_broker.live_api_key)
+                elif b_id == "binance_demo":
+                    try:
+                        demo_bal = binance_broker.get_real_balance("BINANCE_TESTNET")
+                    except Exception:
+                        demo_bal = 19950.55
+                    has_key = bool(binance_broker.api_key)
+                    if has_key:
+                        status = "ONLINE"
+                        is_connected = True
+                        balance = demo_bal if demo_bal > 0 else 19950.55
+                        ping_ms = "32ms"
+                        active_account_label = self._mask_secret(binance_broker.api_key)
+                elif b_id == "mt5_live":
+                    mt5_stat = mt5_broker.get_status()
+                    mt5_acc = mt5_broker.get_account_info()
+                    if mt5_stat.get("is_connected") or (mt5_stat.get("login") and int(mt5_stat.get("login")) > 0):
+                        status = "CONNECTED"
+                        is_connected = True
+                        balance = float(mt5_acc.get("balance", 10000.0))
+                        ping_ms = "12ms"
+                        active_account_label = f"#{mt5_stat.get('login')} ({mt5_stat.get('server') or 'Exness'})"
+                elif b_id == "mt5_demo":
+                    status = "READY" if stored.get("connected") else "STANDBY"
+                    is_connected = bool(stored.get("connected"))
+                    balance = float(stored.get("balance", 10000.0))
+                    active_account_label = f"Demo #{stored.get('login', '50991823')}" if stored.get("login") else "STANDBY"
+                    ping_ms = "15ms" if is_connected else "--"
+                elif b_id in ["upstox_live", "upstox_demo"]:
+                    u_stat = upstox_broker.get_status()
+                    if u_stat.get("status") in ["CONNECTED", "READY", "STANDBY"]:
+                        is_connected = u_stat.get("status") == "CONNECTED" or bool(stored.get("connected"))
+                        status = "ONLINE" if is_connected else "STANDBY"
+                        balance = float(u_stat.get("funds", {}).get("available_margin", 0.0))
+                        active_account_label = self._mask_secret(upstox_broker.api_key) if upstox_broker.api_key else (stored.get("api_key_masked", "NO KEY"))
+                        ping_ms = "45ms" if is_connected else "--"
+                elif b_id in ["aegis_demo", "paper_simulator"]:
+                    status = "ACTIVE"
                     is_connected = True
-                    balance = live_bal
-                    ping_ms = "18ms"
-                    active_account_label = self._mask_secret(binance_broker.live_api_key)
-                elif has_key:
-                    status = "READY"
-                    is_connected = True
-                    balance = live_bal
-                    ping_ms = "24ms"
-                    active_account_label = self._mask_secret(binance_broker.live_api_key)
-            elif b_id == "binance_demo":
-                try:
-                    demo_bal = binance_broker.get_real_balance("BINANCE_TESTNET")
-                except Exception:
-                    demo_bal = 19950.55
-                has_key = bool(binance_broker.api_key)
-                if has_key:
-                    status = "ONLINE"
-                    is_connected = True
-                    balance = demo_bal if demo_bal > 0 else 19950.55
-                    ping_ms = "32ms"
-                    active_account_label = self._mask_secret(binance_broker.api_key)
-            elif b_id == "mt5_live":
-                mt5_stat = mt5_broker.get_status()
-                mt5_acc = mt5_broker.get_account_info()
-                if mt5_stat.get("is_connected") or (mt5_stat.get("login") and int(mt5_stat.get("login")) > 0):
-                    status = "CONNECTED"
-                    is_connected = True
-                    balance = float(mt5_acc.get("balance", 10000.0))
-                    ping_ms = "12ms"
-                    active_account_label = f"#{mt5_stat.get('login')} ({mt5_stat.get('server') or 'Exness'})"
-            elif b_id == "mt5_demo":
-                status = "READY" if stored.get("connected") else "STANDBY"
-                is_connected = bool(stored.get("connected"))
-                balance = float(stored.get("balance", 10000.0))
-                active_account_label = f"Demo #{stored.get('login', '50991823')}" if stored.get("login") else "STANDBY"
-                ping_ms = "15ms" if is_connected else "--"
-            elif b_id in ["upstox_live", "upstox_demo"]:
-                u_stat = upstox_broker.get_status()
-                if u_stat.get("status") in ["CONNECTED", "READY", "STANDBY"]:
-                    is_connected = u_stat.get("status") == "CONNECTED" or bool(stored.get("connected"))
-                    status = "ONLINE" if is_connected else "STANDBY"
-                    balance = float(u_stat.get("funds", {}).get("available_margin", 0.0))
-                    active_account_label = self._mask_secret(upstox_broker.api_key) if upstox_broker.api_key else (stored.get("api_key_masked", "NO KEY"))
-                    ping_ms = "45ms" if is_connected else "--"
-            elif b_id == "aegis_demo":
-                status = "ACTIVE"
-                is_connected = True
-                balance = float(paper_broker.pools.get("AEGIS_QUANT_MASTER", {}).get("virtual_cash", 100000.0))
-                active_account_label = "Quantum Master Simulator"
-                ping_ms = "0.4ms"
-            else:
-                # Generic broker status from stored credentials
-                if stored.get("connected"):
-                    is_connected = True
-                    status = "CONNECTED"
-                    balance = float(stored.get("balance", 0.0))
-                    ping_ms = stored.get("ping_ms", "28ms")
-                    active_account_label = stored.get("account_label", "CONFIGURED")
+                    balance = float(paper_broker.pools.get("AEGIS_QUANT_MASTER", {}).get("virtual_cash", 100000.0))
+                    active_account_label = "Quantum Master Simulator"
+                    ping_ms = "0.4ms"
+                else:
+                    # Generic broker status from stored credentials
+                    if stored.get("connected"):
+                        is_connected = True
+                        status = "CONNECTED"
+                        balance = float(stored.get("balance", 0.0))
+                        ping_ms = stored.get("ping_ms", "28ms")
+                        active_account_label = stored.get("account_label", "CONFIGURED")
+            except Exception as e:
+                print(f"[BROKER_GATEWAY] Enrichment notice for {b_id}: {e}")
 
             res.append({
                 "id": b_id,

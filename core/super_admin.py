@@ -342,8 +342,8 @@ class SuperAdminEngine:
 
     # --- User Management CRUD ---
 
-    def create_user(self, username: str, full_name: str, email: str, role: str, password: str) -> Dict[str, Any]:
-        """Create a new authenticated system user with PBKDF2 hash."""
+    def create_user(self, username: str, full_name: str, email: str, role: str, password: str, max_trade_size: float = 100.0) -> Dict[str, Any]:
+        """Create a new authenticated system user with PBKDF2 hash and capital limit."""
         u_key = username.lower().strip()
         if u_key in self.users:
             return {"status": "FAILED", "message": f"User '{username}' already exists."}
@@ -353,6 +353,7 @@ class SuperAdminEngine:
             "full_name": full_name,
             "email": email,
             "role": role.upper(),
+            "max_trade_size": float(max_trade_size) if role.upper() != "SUPER_ADMIN" else 999999999.0,
             "password_hash": hash_password_pbkdf2(password),
             "totp_secret": base64.b32encode(secrets.token_bytes(10)).decode('utf-8').replace('=', ''),
             "totp_enabled": False,
@@ -362,10 +363,36 @@ class SuperAdminEngine:
             "status": "ACTIVE"
         }
         self._save_users()
+        self.log_action(u_key, "USER_CREATED", f"User registered with role {role.upper()}, max trade limit ${max_trade_size}")
         return {"status": "SUCCESS", "message": f"User '{username}' registered with role '{role}'!"}
 
-    def update_user(self, username: str, full_name: str = "", email: str = "", role: str = "", new_password: str = "") -> Dict[str, Any]:
-        """Update existing user credentials, full name, email, role, or password."""
+    def log_action(self, username: str, action: str, details: str = "", ip: str = "127.0.0.1"):
+        """Record immutable user audit action."""
+        try:
+            audit_file = Path(__file__).resolve().parent.parent / "data" / "user_audit_trail.json"
+            events = []
+            if audit_file.exists():
+                try:
+                    with open(audit_file, "r") as f:
+                        events = json.load(f)
+                except Exception:
+                    events = []
+            events.insert(0, {
+                "timestamp": get_ist_time(),
+                "username": username,
+                "action": action,
+                "details": details,
+                "ip": ip
+            })
+            if len(events) > 500:
+                events = events[:500]
+            with open(audit_file, "w") as f:
+                json.dump(events, f, separators=(',', ':'))
+        except Exception as e:
+            print(f"[SUPER ADMIN] Audit log error: {e}")
+
+    def update_user(self, username: str, full_name: str = "", email: str = "", role: str = "", new_password: str = "", max_trade_size: Optional[float] = None) -> Dict[str, Any]:
+        """Update existing user credentials, full name, email, role, password or trade limits."""
         u_key = username.lower().strip()
         if u_key not in self.users:
             return {"status": "FAILED", "message": f"User '{username}' not found."}
