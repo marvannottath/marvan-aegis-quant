@@ -625,6 +625,18 @@ class PaperBroker:
         pool["trade_history"] = self.trade_history
         pool["positions"] = self.positions
 
+        # Safe Continuous Learning post-trade feedback loop
+        try:
+            from core.continuous_learner import continuous_learner
+            continuous_learner.evaluate_post_trade_outcome({
+                "realized_pnl": pnl_u,
+                "pnl_pct": pnl_p,
+                "symbol": asset,
+                "exit_reason": reason
+            })
+        except Exception:
+            pass
+
         # Post double-entry ledger transaction for realized trade PnL
         if abs(pnl_u) > 0.001:
             try:

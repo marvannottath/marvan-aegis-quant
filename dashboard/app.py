@@ -52,6 +52,8 @@ from sync.economic_calendar import economic_filter
 from core.multi_market_scanner import multi_scanner
 from sync.telegram_auditor import telegram_auditor
 from sync.telegram_listener import telegram_listener
+from core.continuous_learner import continuous_learner
+from core.system_watchdog import system_watchdog
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -2158,15 +2160,20 @@ async def get_latest_backtest_run():
     return JSONResponse({"status": "FAILED", "message": "No backtest runs found"}, status_code=404)
 
 @app.post("/api/admin/login")
-async def admin_login(data: dict):
+async def admin_login(data: dict, request: Request):
     """Authenticate Super Admin credentials with strict TOTP 2FA enforcement."""
     username = data.get("username", "")
     password = data.get("password", "")
     totp_code = data.get("totp_code") or data.get("totp", "")
+    client_ip = request.client.host if request.client else "127.0.0.1"
+    user_agent = request.headers.get("user-agent", "")
     
-    user = super_admin.verify_credentials(username, password)
+    user = super_admin.verify_credentials(username, password, client_ip=client_ip, user_agent=user_agent)
     if not user:
         return JSONResponse({"status": "FAILED", "message": "Invalid username or password."}, status_code=401)
+    
+    if isinstance(user, dict) and user.get("lockout"):
+        return JSONResponse(user, status_code=429)
     
     # Strictly restrict /admin portal to Super Admin only (traders must use the trading dashboard)
     if user.get("role") != "SUPER_ADMIN":
@@ -2298,8 +2305,9 @@ async def universal_user_login(data: dict, request: Request):
     password = data.get("password", "")
     totp_code = data.get("totp_code") or data.get("totp", "")
     client_ip = request.client.host if request.client else "127.0.0.1"
+    user_agent = request.headers.get("user-agent", "")
 
-    user = super_admin.verify_credentials(username, password, client_ip=client_ip)
+    user = super_admin.verify_credentials(username, password, client_ip=client_ip, user_agent=user_agent)
     if not user:
         return JSONResponse({"status": "FAILED", "message": "Invalid username or password."}, status_code=401)
 
@@ -2470,6 +2478,78 @@ async def admin_get_audit_trail(request: Request):
     
     events = super_admin.get_audit_trail(limit=100)
     return JSONResponse({"status": "SUCCESS", "events": events})
+
+@app.get("/api/admin/audit-chain/verify")
+async def admin_verify_audit_chain(request: Request):
+    """Cryptographically verify the tamper-proof SHA-256 hash chain of the audit trail."""
+    auth_header = request.headers.get("Authorization", "")
+    token = auth_header.split(" ", 1)[1].strip() if auth_header.startswith("Bearer ") else ""
+    session = super_admin.validate_session(token)
+    if not session:
+        return JSONResponse({"status": "FAILED", "message": "Unauthorized."}, status_code=401)
+    res = super_admin.verify_audit_chain_integrity()
+    return JSONResponse(res)
+
+@app.get("/api/admin/ip-whitelist")
+async def admin_get_ip_whitelist(request: Request):
+    """Retrieve active IP Whitelist configuration (Super Admin only)."""
+    auth_header = request.headers.get("Authorization", "")
+    token = auth_header.split(" ", 1)[1].strip() if auth_header.startswith("Bearer ") else ""
+    session = super_admin.validate_session(token, required_role="SUPER_ADMIN")
+    if not session:
+        return JSONResponse({"status": "FAILED", "message": "Unauthorized: Super Admin only"}, status_code=403)
+    return JSONResponse(super_admin.get_ip_whitelist())
+
+@app.post("/api/admin/ip-whitelist")
+async def admin_update_ip_whitelist(data: dict, request: Request):
+    """Configure institutional IP Whitelist policy (Super Admin only)."""
+    auth_header = request.headers.get("Authorization", "")
+    token = auth_header.split(" ", 1)[1].strip() if auth_header.startswith("Bearer ") else ""
+    session = super_admin.validate_session(token, required_role="SUPER_ADMIN")
+    if not session:
+        return JSONResponse({"status": "FAILED", "message": "Unauthorized: Super Admin only"}, status_code=403)
+    super_admin.save_ip_whitelist(data)
+    super_admin.log_action(session["username"], "IP_WHITELIST_MODIFIED", f"Enabled: {data.get('enabled')}, Count: {len(data.get('allowed_ips', []))}")
+    return JSONResponse({"status": "SUCCESS", "message": "IP Whitelist policy updated successfully."})
+
+@app.get("/api/system/hardware-metrics")
+async def get_system_hardware_metrics():
+    """Real-time VPS CPU, RAM, Disk utilization, and broker ping latencies."""
+    return JSONResponse(system_watchdog.get_system_telemetry())
+
+@app.post("/api/system/auto-heal")
+async def trigger_system_auto_heal(request: Request):
+    """Trigger proactive auto-healing garbage collection and memory optimization."""
+    return JSONResponse(system_watchdog.trigger_auto_healing())
+
+@app.post("/api/system/backup")
+async def trigger_system_backup(request: Request):
+    """Trigger on-demand encrypted backup of state and ledger databases."""
+    auth_header = request.headers.get("Authorization", "")
+    token = auth_header.split(" ", 1)[1].strip() if auth_header.startswith("Bearer ") else ""
+    session = super_admin.validate_session(token, required_role="SUPER_ADMIN")
+    if not session:
+        return JSONResponse({"status": "FAILED", "message": "Unauthorized: Super Admin only"}, status_code=403)
+    res = system_watchdog.create_daily_backup()
+    super_admin.log_action(session["username"], "SYSTEM_BACKUP_CREATED", f"Backup: {res.get('backup_file')}")
+    return JSONResponse(res)
+
+@app.get("/api/ai/continuous-learning/status")
+async def get_continuous_learning_status():
+    """Retrieve Champion vs Challenger continuous learning telemetry and guardrails."""
+    return JSONResponse(continuous_learner.get_learning_telemetry())
+
+@app.post("/api/ai/continuous-learning/rollback")
+async def rollback_continuous_learning(request: Request):
+    """Admin 1-click rollback of AI model weights to immutable Golden Baseline."""
+    auth_header = request.headers.get("Authorization", "")
+    token = auth_header.split(" ", 1)[1].strip() if auth_header.startswith("Bearer ") else ""
+    session = super_admin.validate_session(token, required_role="SUPER_ADMIN")
+    if not session:
+        return JSONResponse({"status": "FAILED", "message": "Unauthorized: Super Admin only"}, status_code=403)
+    res = continuous_learner.rollback_to_safe_baseline()
+    super_admin.log_action(session["username"], "AI_MODEL_ROLLBACK", "Rolled back to Golden Baseline v2.0.0")
+    return JSONResponse(res)
 
 @app.post("/api/auth/logout")
 async def universal_auth_logout(request: Request):

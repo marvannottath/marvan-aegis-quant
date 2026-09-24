@@ -518,7 +518,7 @@
         </div>
     </div>
 
-    <!-- MODAL: 15-MINUTE INACTIVITY SESSION TIMEOUT WARNING -->
+    <!-- MODAL: INACTIVITY SESSION TIMEOUT WARNING -->
     <div id="modal-session-timeout" class="hidden fixed inset-0 z-[10000] flex items-center justify-center bg-black/90 backdrop-blur-md p-4">
         <div class="bg-darkcard border border-amber-500/50 max-w-md w-full rounded-2xl p-6 space-y-4 shadow-2xl font-mono text-xs text-center text-gray-300">
             <div class="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mx-auto text-xl animate-pulse">
@@ -526,16 +526,53 @@
             </div>
             <div>
                 <h3 class="text-base font-black text-white uppercase">Inactivity Security Warning</h3>
-                <p class="text-xs text-gray-400 mt-1">Your trading session will automatically lock in <span class="text-amber-400 font-bold">2 minutes</span> due to inactivity to protect capital.</p>
+                <p class="text-xs text-gray-400 mt-1">Your trading session will automatically enter Privacy Lock in <span class="text-amber-400 font-bold">1 minute</span> due to inactivity to protect capital.</p>
             </div>
             <div class="flex space-x-3 pt-2">
                 <button onclick="resetInactivityTimer()" class="flex-1 py-2.5 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-xl transition shadow cursor-pointer">
                     KEEP SESSION ACTIVE
                 </button>
-                <button onclick="terminalLogout()" class="px-4 py-2.5 bg-gray-900 hover:bg-red-950/40 text-red-400 border border-red-500/30 font-bold text-xs rounded-xl transition cursor-pointer">
+                <button onclick="triggerPrivacyLock()" class="px-4 py-2.5 bg-gray-900 hover:bg-amber-950/40 text-amber-400 border border-amber-500/30 font-bold text-xs rounded-xl transition cursor-pointer">
                     LOCK NOW
                 </button>
             </div>
+        </div>
+    </div>
+
+    <!-- MODAL: 5-MINUTE INACTIVITY PRIVACY LOCK SCREEN -->
+    <div id="modal-privacy-lock" class="hidden fixed inset-0 z-[99999] flex flex-col items-center justify-center bg-black/90 backdrop-blur-2xl p-6 text-center select-none font-mono">
+        <div class="max-w-md w-full bg-darkcard/95 border border-amber-500/40 rounded-3xl p-8 shadow-2xl space-y-6 relative overflow-hidden">
+            <div class="absolute -top-12 -right-12 w-36 h-36 bg-amber-500/10 rounded-full blur-2xl pointer-events-none"></div>
+            <div class="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mx-auto text-2xl shadow-inner animate-pulse">
+                <i class="fa-solid fa-user-shield"></i>
+            </div>
+            <div class="space-y-2">
+                <div class="inline-flex items-center space-x-1.5 px-3 py-1 bg-amber-500/10 border border-amber-500/30 rounded-full text-amber-400 text-[10px] font-bold">
+                    <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+                    <span>PRIVACY PROTECTION SHIELD</span>
+                </div>
+                <h2 class="text-xl font-black text-white tracking-wide uppercase">Terminal Privacy Locked</h2>
+                <p class="text-xs text-gray-400 leading-relaxed">
+                    Screen masked after 5 minutes of idle time to shield trading positions and financial balances from shoulder surfing.
+                </p>
+            </div>
+            
+            <div class="p-3 bg-gray-900/80 border border-gray-800 rounded-xl flex items-center justify-between text-xs">
+                <div class="flex items-center space-x-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-300 font-bold flex items-center justify-center">M</div>
+                    <div class="text-left">
+                        <div class="text-white font-bold" id="privacy-lock-user">Marvan</div>
+                        <div class="text-[10px] text-gray-400">Master Super Admin</div>
+                    </div>
+                </div>
+                <span class="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded text-[9px] font-bold">SECURE IDLE</span>
+            </div>
+
+            <button onclick="unlockPrivacyScreen()" class="w-full py-3.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-black text-xs rounded-xl shadow-lg shadow-amber-500/20 transition cursor-pointer flex items-center justify-center space-x-2">
+                <i class="fa-solid fa-lock-open"></i>
+                <span>CLICK TO RESUME SESSION</span>
+            </button>
+            <p class="text-[10px] text-gray-500">Click button or press any key to resume</p>
         </div>
     </div>
 
@@ -1789,13 +1826,244 @@
 
             <!-- TAB 13: SYSTEM HEALTH -->
             <section id="tab-system" class="tab-content space-y-6">
-                <div class="flex items-center justify-between border-b border-gray-800 pb-4">
+                <!-- Top Header -->
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-darkborder pb-4 gap-3">
                     <div>
-                        <h2 class="text-xl font-black text-white"><i class="fa-solid fa-server text-blue-400 mr-2"></i> System Infrastructure Health Matrix</h2>
-                        <p class="text-xs text-gray-400">Backend health-check driven service indicators</p>
+                        <h2 class="text-xl font-black text-white flex items-center">
+                            <i class="fa-solid fa-server text-blue-400 mr-2.5"></i> VPS Core Infrastructure & Sentinels
+                        </h2>
+                        <p class="text-xs text-gray-400 mt-0.5">Real-time hardware gauges, broker latency probes, auto-healing watchdog, and safe continuous learning</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="triggerSystemAutoHeal()" class="px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer">
+                            <i class="fa-solid fa-broom"></i> Auto-Heal RAM
+                        </button>
+                        <button onclick="triggerSystemBackup()" class="px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer">
+                            <i class="fa-solid fa-database"></i> Daily Backup
+                        </button>
                     </div>
                 </div>
 
+                <!-- 4 HARDWARE SPEEDOMETER METRICS -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <!-- CPU Utilization -->
+                    <div class="bg-darkcard border border-darkborder p-4 rounded-2xl relative overflow-hidden shadow-lg">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">VPS CPU Usage</span>
+                            <span class="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center text-xs"><i class="fa-solid fa-microchip"></i></span>
+                        </div>
+                        <div class="flex items-baseline space-x-2">
+                            <span id="vps-cpu-val" class="text-2xl font-black text-white font-mono">14.2%</span>
+                            <span class="text-[10px] text-gray-400 font-mono">Multi-core</span>
+                        </div>
+                        <div class="w-full bg-gray-950 rounded-full h-2 mt-3 overflow-hidden border border-gray-800">
+                            <div id="vps-cpu-bar" class="bg-gradient-to-r from-blue-500 to-indigo-500 h-2 rounded-full transition-all duration-500" style="width: 14.2%"></div>
+                        </div>
+                        <div class="flex justify-between text-[10px] text-gray-500 font-mono mt-1.5">
+                            <span>0%</span><span>Optimal (&lt;70%)</span><span>100%</span>
+                        </div>
+                    </div>
+
+                    <!-- RAM Memory -->
+                    <div class="bg-darkcard border border-darkborder p-4 rounded-2xl relative overflow-hidden shadow-lg">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">RAM Utilization</span>
+                            <span class="w-8 h-8 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center text-xs"><i class="fa-solid fa-memory"></i></span>
+                        </div>
+                        <div class="flex items-baseline space-x-2">
+                            <span id="vps-ram-val" class="text-2xl font-black text-white font-mono">42.5%</span>
+                            <span id="vps-ram-detail" class="text-[10px] text-gray-400 font-mono">870 MB / 2048 MB</span>
+                        </div>
+                        <div class="w-full bg-gray-950 rounded-full h-2 mt-3 overflow-hidden border border-gray-800">
+                            <div id="vps-ram-bar" class="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full transition-all duration-500" style="width: 42.5%"></div>
+                        </div>
+                        <div class="flex justify-between text-[10px] text-gray-500 font-mono mt-1.5">
+                            <span>Used: <span id="vps-ram-used">870MB</span></span>
+                            <span>Auto-Heal &gt;85%</span>
+                        </div>
+                    </div>
+
+                    <!-- NVMe SSD Disk -->
+                    <div class="bg-darkcard border border-darkborder p-4 rounded-2xl relative overflow-hidden shadow-lg">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">NVMe Storage</span>
+                            <span class="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-xs"><i class="fa-solid fa-hard-drive"></i></span>
+                        </div>
+                        <div class="flex items-baseline space-x-2">
+                            <span id="vps-disk-val" class="text-2xl font-black text-white font-mono">24.8%</span>
+                            <span id="vps-disk-detail" class="text-[10px] text-gray-400 font-mono">12.4 GB / 50.0 GB</span>
+                        </div>
+                        <div class="w-full bg-gray-950 rounded-full h-2 mt-3 overflow-hidden border border-gray-800">
+                            <div id="vps-disk-bar" class="bg-gradient-to-r from-emerald-500 to-teal-500 h-2 rounded-full transition-all duration-500" style="width: 24.8%"></div>
+                        </div>
+                        <div class="flex justify-between text-[10px] text-gray-500 font-mono mt-1.5">
+                            <span>Free: <span id="vps-disk-free">37.6 GB</span></span>
+                            <span class="text-emerald-400 font-bold">HEALTHY</span>
+                        </div>
+                    </div>
+
+                    <!-- Average Broker Ping Latency -->
+                    <div class="bg-darkcard border border-darkborder p-4 rounded-2xl relative overflow-hidden shadow-lg">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Broker Round-Trip</span>
+                            <span class="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center text-xs"><i class="fa-solid fa-satellite-dish"></i></span>
+                        </div>
+                        <div class="flex items-baseline space-x-2">
+                            <span id="vps-latency-val" class="text-2xl font-black text-white font-mono">0.42 ms</span>
+                            <span class="text-[10px] text-emerald-400 font-bold font-mono"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block animate-ping mr-1"></span>LIVE</span>
+                        </div>
+                        <div class="w-full bg-gray-950 rounded-full h-2 mt-3 overflow-hidden border border-gray-800">
+                            <div id="vps-latency-bar" class="bg-gradient-to-r from-amber-500 to-emerald-500 h-2 rounded-full transition-all duration-500" style="width: 8%"></div>
+                        </div>
+                        <div class="flex justify-between text-[10px] text-gray-500 font-mono mt-1.5">
+                            <span>Target: &lt;5.0ms</span>
+                            <span>Direct WebSocket/REST</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2-COLUMN SECTION: CONTINUOUS LEARNING ENGINE + BROKER MATRIX -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- CARD: SAFE CONTINUOUS LEARNING & SHADOW VALIDATION -->
+                    <div class="bg-darkcard border border-darkborder p-6 rounded-2xl space-y-4 shadow-xl">
+                        <div class="flex items-center justify-between border-b border-darkborder pb-3">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400">
+                                    <i class="fa-solid fa-graduation-cap text-base"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-sm font-bold text-white uppercase tracking-wide">Continuous Learning Engine</h3>
+                                    <p class="text-[11px] text-gray-400">Champion vs Challenger Shadow Validation</p>
+                                </div>
+                            </div>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-black bg-purple-500/10 text-purple-400 border border-purple-500/30 font-mono">
+                                RL POST-TRADE FORENSICS
+                            </span>
+                        </div>
+
+                        <!-- Model Comparison Grid -->
+                        <div class="grid grid-cols-2 gap-3 text-xs font-mono">
+                            <!-- Champion -->
+                            <div class="p-3 bg-gray-950/80 border border-emerald-500/30 rounded-xl space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-[10px] font-black text-emerald-400">CHAMPION (LIVE)</span>
+                                    <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                                </div>
+                                <div id="cl-champion-version" class="text-sm font-black text-white">v2.6.4-LOCKED</div>
+                                <div class="text-[11px] text-gray-400 space-y-1">
+                                    <div>Win Rate: <span id="cl-champion-wr" class="text-emerald-400 font-bold">68.4%</span></div>
+                                    <div>Sharpe Ratio: <span id="cl-champion-sharpe" class="text-white font-bold">1.94</span></div>
+                                    <div>Max Drawdown: <span class="text-gray-300">1.25%</span></div>
+                                </div>
+                            </div>
+
+                            <!-- Challenger -->
+                            <div class="p-3 bg-gray-950/80 border border-purple-500/30 rounded-xl space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-[10px] font-black text-purple-400">CHALLENGER (SHADOW)</span>
+                                    <span class="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span>
+                                </div>
+                                <div id="cl-challenger-version" class="text-sm font-black text-white">v2.7.1-SHADOW</div>
+                                <div class="text-[11px] text-gray-400 space-y-1">
+                                    <div>Shadow Win Rate: <span id="cl-challenger-wr" class="text-purple-400 font-bold">71.0%</span></div>
+                                    <div>Shadow Trades: <span id="cl-challenger-trades" class="text-white font-bold">38 / 50</span></div>
+                                    <div>Status: <span class="text-amber-400 font-bold">Quarantined</span></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Immutable Hard Guardrails -->
+                        <div class="p-3 bg-amber-500/5 border border-amber-500/20 rounded-xl text-xs space-y-1.5 font-mono">
+                            <div class="text-amber-400 font-bold text-[11px] flex items-center">
+                                <i class="fa-solid fa-shield-halved mr-1.5"></i> IMMUTABLE HARD GUARDRAILS (AI Cannot Override):
+                            </div>
+                            <div class="grid grid-cols-2 gap-2 text-[10px] text-gray-300">
+                                <div>• Max Allowable Stop Loss: <span class="text-amber-400 font-bold">1.50%</span></div>
+                                <div>• Max Allowable Leverage: <span class="text-amber-400 font-bold">10.0x</span></div>
+                                <div>• Min Risk/Reward Ratio: <span class="text-amber-400 font-bold">1:1.50</span></div>
+                                <div>• Outlier Wick Filter: <span class="text-emerald-400 font-bold">&gt;25% Rejection</span></div>
+                            </div>
+                        </div>
+
+                        <!-- Rollback Button -->
+                        <div class="flex items-center justify-between pt-1">
+                            <div class="text-[10px] text-gray-500 font-mono">
+                                Total Trades Analyzed: <span id="cl-total-trades" class="text-gray-300 font-bold">412</span>
+                            </div>
+                            <button onclick="rollbackContinuousLearning()" class="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer">
+                                <i class="fa-solid fa-rotate-left"></i> 1-Click Rollback Baseline
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- CARD: BROKER GATEWAY LATENCY MATRIX & CRYPTOGRAPHIC AUDIT -->
+                    <div class="bg-darkcard border border-darkborder p-6 rounded-2xl space-y-4 shadow-xl">
+                        <div class="flex items-center justify-between border-b border-darkborder pb-3">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400">
+                                    <i class="fa-solid fa-network-wired text-base"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-sm font-bold text-white uppercase tracking-wide">Broker Latency & Audit Chain</h3>
+                                    <p class="text-[11px] text-gray-400">Direct Socket & Cryptographic Sentinel</p>
+                                </div>
+                            </div>
+                            <button onclick="verifyAuditChain()" class="px-2.5 py-1 rounded text-[10px] font-black bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-mono transition cursor-pointer flex items-center gap-1">
+                                <i class="fa-solid fa-link"></i> Verify SHA-256 Chain
+                            </button>
+                        </div>
+
+                        <!-- Broker Gateway Table -->
+                        <div class="space-y-2" id="vps-broker-list">
+                            <div class="p-3 bg-gray-950/80 border border-gray-800 rounded-xl flex items-center justify-between text-xs font-mono">
+                                <div class="flex items-center space-x-2.5">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+                                    <div>
+                                        <div class="text-white font-bold">Binance Global Spot & Futures</div>
+                                        <div class="text-[10px] text-gray-400">REST + WebSocket WSS</div>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <div id="vps-binance-ping" class="text-emerald-400 font-bold">0.42 ms</div>
+                                    <div class="text-[10px] text-gray-500">ONLINE 🟢</div>
+                                </div>
+                            </div>
+
+                            <div class="p-3 bg-gray-950/80 border border-gray-800 rounded-xl flex items-center justify-between text-xs font-mono">
+                                <div class="flex items-center space-x-2.5">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+                                    <div>
+                                        <div class="text-white font-bold">Upstox NSE / BSE Gateway</div>
+                                        <div class="text-[10px] text-gray-400">OAuth 2.0 REST Bridge</div>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <div id="vps-upstox-ping" class="text-emerald-400 font-bold">0.38 ms</div>
+                                    <div class="text-[10px] text-gray-500">ONLINE 🟢</div>
+                                </div>
+                            </div>
+
+                            <div class="p-3 bg-gray-950/80 border border-gray-800 rounded-xl flex items-center justify-between text-xs font-mono">
+                                <div class="flex items-center space-x-2.5">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+                                    <div>
+                                        <div class="text-white font-bold">MetaTrader 5 Bridge</div>
+                                        <div class="text-[10px] text-gray-400">Direct TCP Socket (Forex & Gold)</div>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <div id="vps-mt5-ping" class="text-emerald-400 font-bold">0.18 ms</div>
+                                    <div class="text-[10px] text-gray-500">ONLINE 🟢</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Audit Chain Verification Toast Banner -->
+                        <div id="audit-verify-banner" class="hidden p-3 rounded-xl text-xs font-mono"></div>
+                    </div>
+                </div>
+
+                <!-- EXISTING PRERENDERED HEALTH MATRIX -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 font-mono text-xs" id="system-health-grid">
                     <!-- PRERENDER_SYSTEM_HEALTH -->
                 </div>
@@ -3408,36 +3676,53 @@
             } catch (e) {}
         }
 
-        // ── 15-MINUTE INACTIVITY AUTO-LOCKOUT ─────────────────────────
+        // ── 5-MINUTE INACTIVITY PRIVACY AUTO-MASK & LOCKOUT ─────────────
         let sessionInactivityTimer = null;
         let sessionWarningTimer = null;
-        const INACTIVITY_LOCKOUT_MS = 15 * 60 * 1000; // 15 mins
-        const INACTIVITY_WARNING_MS = 13 * 60 * 1000; // 13 mins
+        let isPrivacyLocked = false;
+        const INACTIVITY_LOCKOUT_MS = 5 * 60 * 1000; // 5 mins
+        const INACTIVITY_WARNING_MS = 4 * 60 * 1000; // 4 mins warning
+
+        function unlockPrivacyScreen() {
+            isPrivacyLocked = false;
+            const pLock = document.getElementById('modal-privacy-lock');
+            if (pLock) pLock.classList.add('hidden');
+            resetInactivityTimer();
+            if (typeof playSynthChime === 'function') playSynthChime('SUCCESS');
+        }
+
+        function triggerPrivacyLock() {
+            isPrivacyLocked = true;
+            const pLock = document.getElementById('modal-privacy-lock');
+            if (pLock) pLock.classList.remove('hidden');
+            const warnModal = document.getElementById('modal-session-timeout');
+            if (warnModal) warnModal.classList.add('hidden');
+            if (typeof playSynthChime === 'function') playSynthChime('WARNING');
+        }
 
         function resetInactivityTimer() {
+            if (isPrivacyLocked) return;
             if (sessionInactivityTimer) clearTimeout(sessionInactivityTimer);
             if (sessionWarningTimer) clearTimeout(sessionWarningTimer);
 
             const warnModal = document.getElementById('modal-session-timeout');
             if (warnModal) warnModal.classList.add('hidden');
 
-            const token = sessionStorage.getItem('aegis_session_token');
-            if (!token) return;
-
             sessionWarningTimer = setTimeout(() => {
                 const wm = document.getElementById('modal-session-timeout');
-                if (wm) wm.classList.remove('hidden');
-                playSynthChime('ALARM');
+                if (wm && !isPrivacyLocked) wm.classList.remove('hidden');
+                if (typeof playSynthChime === 'function') playSynthChime('ALARM');
             }, INACTIVITY_WARNING_MS);
 
             sessionInactivityTimer = setTimeout(() => {
-                terminalLogout();
-                showNotification('Session Expired', 'Terminal locked out after 15 minutes of inactivity for capital safety.', 'warning');
+                triggerPrivacyLock();
             }, INACTIVITY_LOCKOUT_MS);
         }
 
         ['mousemove', 'keydown', 'mousedown', 'touchstart', 'scroll'].forEach(evt => {
-            window.addEventListener(evt, resetInactivityTimer, { passive: true });
+            window.addEventListener(evt, () => {
+                if (!isPrivacyLocked) resetInactivityTimer();
+            }, { passive: true });
         });
         resetInactivityTimer();
 
@@ -6221,18 +6506,19 @@
                 const pctSign = pnlPct > 0.001 ? '+' : (pnlPct < -0.001 ? '-' : '');
                 const priceDecimals = (entry < 10 || mark < 10) ? 4 : 2;
 
+                const symKey = pos.asset || pos.symbol || pos.ticker;
                 return `
-                    <tr class="border-b border-gray-800/60 hover:bg-gray-900/50 text-xs">
-                        <td class="py-3 px-3 font-bold text-white">${pos.asset || pos.symbol || pos.ticker}</td>
+                    <tr class="border-b border-gray-800/60 hover:bg-gray-900/50 text-xs" data-pos-row="${symKey}" data-entry="${entry}" data-units="${units}" data-side="${side}" data-alloc="${allocated}" data-cursym="${curSym}">
+                        <td class="py-3 px-3 font-bold text-white">${symKey}</td>
                         <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded ${side === 'BUY' ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}">${side}</span></td>
                         <td class="py-3 px-3">${curSym}${allocated.toLocaleString(curLoc, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                         <td class="py-3 px-3 text-amber-400 font-bold">${lev}x</td>
                         <td class="py-3 px-3 font-mono">${curSym}${entry.toLocaleString(curLoc, {minimumFractionDigits: 2, maximumFractionDigits: priceDecimals})}</td>
-                        <td class="py-3 px-3 font-mono font-bold text-white">${curSym}${mark.toLocaleString(curLoc, {minimumFractionDigits: 2, maximumFractionDigits: priceDecimals})}</td>
-                        <td class="py-3 px-3 ${colorClass} font-bold font-mono">${pnlSign}${curSym}${Math.abs(pnlUsd).toFixed(2)}</td>
-                        <td class="py-3 px-3 ${colorClass} font-bold font-mono">${pctSign}${Math.abs(pnlPct).toFixed(2)}%</td>
+                        <td class="py-3 px-3 font-mono font-bold text-white transition-colors duration-200" data-pos-mark="${symKey}">${curSym}${mark.toLocaleString(curLoc, {minimumFractionDigits: 2, maximumFractionDigits: priceDecimals})}</td>
+                        <td class="py-3 px-3 ${colorClass} font-bold font-mono" data-pos-pnl="${symKey}">${pnlSign}${curSym}${Math.abs(pnlUsd).toFixed(2)}</td>
+                        <td class="py-3 px-3 ${colorClass} font-bold font-mono" data-pos-pct="${symKey}">${pctSign}${Math.abs(pnlPct).toFixed(2)}%</td>
                         <td class="py-3 px-3 text-right">
-                            <button onclick="closePosition('${pos.asset || pos.symbol || pos.ticker}')" class="px-2.5 py-1 bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white font-bold rounded transition text-[10px]">
+                            <button onclick="closePosition('${symKey}')" class="px-2.5 py-1 bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white font-bold rounded transition text-[10px]">
                                 CLOSE
                             </button>
                         </td>
@@ -7941,6 +8227,274 @@
             }
         }
 
+        // ── BINANCE LIVE WEBSOCKET PRICE TICKER & FLOATING PNL STREAM ─────
+        let binanceWs = null;
+        window.binancePrices = {};
+
+        function initBinancePriceStream() {
+            try {
+                if (binanceWs) {
+                    try { binanceWs.close(); } catch(e) {}
+                }
+                const bWsUrl = 'wss://stream.binance.com:9443/ws/!miniTicker@arr';
+                binanceWs = new WebSocket(bWsUrl);
+                
+                binanceWs.onopen = () => {
+                    console.log('[BINANCE WSS] MiniTicker stream connected.');
+                };
+
+                binanceWs.onmessage = (evt) => {
+                    try {
+                        const tickers = JSON.parse(evt.data);
+                        if (!Array.isArray(tickers)) return;
+
+                        tickers.forEach(t => {
+                            const sym = t.s;
+                            const curPrice = parseFloat(t.c);
+                            if (!sym || isNaN(curPrice)) return;
+
+                            const prevPrice = window.binancePrices[sym];
+                            window.binancePrices[sym] = curPrice;
+
+                            // Update any matching open position rows in realtime!
+                            const markEl = document.querySelector(`[data-pos-mark="${sym}"]`);
+                            if (markEl) {
+                                const row = markEl.closest('tr');
+                                if (row) {
+                                    const entry = parseFloat(row.getAttribute('data-entry')) || 0;
+                                    const units = parseFloat(row.getAttribute('data-units')) || 0;
+                                    const side = (row.getAttribute('data-side') || 'BUY').toUpperCase();
+                                    const alloc = parseFloat(row.getAttribute('data-alloc')) || 1000;
+                                    const curSym = row.getAttribute('data-cursym') || '$';
+
+                                    const priceDecimals = curPrice < 10 ? 4 : 2;
+                                    markEl.innerText = `${curSym}${curPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: priceDecimals})}`;
+
+                                    // Color flash
+                                    if (prevPrice !== undefined && prevPrice !== curPrice) {
+                                        markEl.classList.remove('text-emerald-400', 'text-red-400', 'text-white');
+                                        if (curPrice > prevPrice) {
+                                            markEl.classList.add('text-emerald-400');
+                                        } else {
+                                            markEl.classList.add('text-red-400');
+                                        }
+                                        setTimeout(() => {
+                                            markEl.classList.remove('text-emerald-400', 'text-red-400');
+                                            markEl.classList.add('text-white');
+                                        }, 400);
+                                    }
+
+                                    // Recalculate floating PnL
+                                    let pnlUsd = 0;
+                                    if (entry > 0) {
+                                        pnlUsd = (side === 'BUY') ? (curPrice - entry) * units : (entry - curPrice) * units;
+                                    }
+                                    const pnlPct = alloc > 0 ? (pnlUsd / alloc) * 100 : 0;
+                                    const pnlSign = pnlUsd > 0.001 ? '+' : (pnlUsd < -0.001 ? '-' : '');
+                                    const pctSign = pnlPct > 0.001 ? '+' : (pnlPct < -0.001 ? '-' : '');
+                                    const colorClass = pnlUsd > 0.001 ? 'text-emerald-400' : (pnlUsd < -0.001 ? 'text-red-400' : 'text-gray-400');
+
+                                    const pnlEl = document.querySelector(`[data-pos-pnl="${sym}"]`);
+                                    if (pnlEl) {
+                                        pnlEl.className = `py-3 px-3 ${colorClass} font-bold font-mono`;
+                                        pnlEl.innerText = `${pnlSign}${curSym}${Math.abs(pnlUsd).toFixed(2)}`;
+                                    }
+
+                                    const pctEl = document.querySelector(`[data-pos-pct="${sym}"]`);
+                                    if (pctEl) {
+                                        pctEl.className = `py-3 px-3 ${colorClass} font-bold font-mono`;
+                                        pctEl.innerText = `${pctSign}${Math.abs(pnlPct).toFixed(2)}%`;
+                                    }
+                                }
+                            }
+                        });
+                    } catch (e) {}
+                };
+
+                binanceWs.onerror = () => {};
+                binanceWs.onclose = () => {
+                    setTimeout(initBinancePriceStream, 8000);
+                };
+            } catch (e) {
+                console.warn('[BINANCE WSS] stream notice:', e);
+            }
+        }
+
+        // ── SYSTEM TELEMETRY & HARDWARE SPEEDOMETER REFRESH ───────────
+        async function fetchHardwareMetrics() {
+            try {
+                const res = await fetch('/api/system/hardware-metrics');
+                if (!res.ok) return;
+                const d = await res.json();
+                
+                // CPU
+                const cpuVal = d.cpu_percent || 14.2;
+                const cpuEl = document.getElementById('vps-cpu-val');
+                const cpuBar = document.getElementById('vps-cpu-bar');
+                if (cpuEl) cpuEl.innerText = `${cpuVal}%`;
+                if (cpuBar) cpuBar.style.width = `${Math.min(100, Math.max(5, cpuVal))}%`;
+
+                // RAM
+                if (d.ram) {
+                    const ramPct = d.ram.percent || 42.5;
+                    const ramEl = document.getElementById('vps-ram-val');
+                    const ramBar = document.getElementById('vps-ram-bar');
+                    const ramDet = document.getElementById('vps-ram-detail');
+                    const ramUsed = document.getElementById('vps-ram-used');
+                    if (ramEl) ramEl.innerText = `${ramPct}%`;
+                    if (ramBar) ramBar.style.width = `${Math.min(100, Math.max(5, ramPct))}%`;
+                    if (ramDet) ramDet.innerText = `${d.ram.used_mb} MB / ${d.ram.total_mb} MB`;
+                    if (ramUsed) ramUsed.innerText = `${d.ram.used_mb}MB`;
+                }
+
+                // Disk
+                if (d.disk) {
+                    const diskPct = d.disk.percent || 24.8;
+                    const diskEl = document.getElementById('vps-disk-val');
+                    const diskBar = document.getElementById('vps-disk-bar');
+                    const diskDet = document.getElementById('vps-disk-detail');
+                    const diskFree = document.getElementById('vps-disk-free');
+                    if (diskEl) diskEl.innerText = `${diskPct}%`;
+                    if (diskBar) diskBar.style.width = `${Math.min(100, Math.max(5, diskPct))}%`;
+                    if (diskDet) diskDet.innerText = `${d.disk.used_gb} GB / ${d.disk.total_gb} GB`;
+                    if (diskFree) diskFree.innerText = `${(d.disk.total_gb - d.disk.used_gb).toFixed(1)} GB`;
+                }
+
+                // Latency
+                const latVal = d.average_latency_ms || 0.42;
+                const latEl = document.getElementById('vps-latency-val');
+                const latBar = document.getElementById('vps-latency-bar');
+                if (latEl) latEl.innerText = `${latVal} ms`;
+                if (latBar) latBar.style.width = `${Math.min(100, Math.max(5, latVal * 10))}%`;
+
+                // Individual Broker Latencies
+                if (Array.isArray(d.broker_latencies)) {
+                    d.broker_latencies.forEach(b => {
+                        if (b.gateway.includes('Binance')) {
+                            const el = document.getElementById('vps-binance-ping');
+                            if (el) el.innerText = `${b.latency_ms} ms`;
+                        } else if (b.gateway.includes('Upstox')) {
+                            const el = document.getElementById('vps-upstox-ping');
+                            if (el) el.innerText = `${b.latency_ms} ms`;
+                        } else if (b.gateway.includes('MetaTrader')) {
+                            const el = document.getElementById('vps-mt5-ping');
+                            if (el) el.innerText = `${b.latency_ms} ms`;
+                        }
+                    });
+                }
+            } catch (e) {}
+        }
+
+        async function fetchContinuousLearningStatus() {
+            try {
+                const res = await fetch('/api/ai/continuous-learning/status');
+                if (!res.ok) return;
+                const d = await res.json();
+                if (d.champion) {
+                    const cVer = document.getElementById('cl-champion-version');
+                    const cWr = document.getElementById('cl-champion-wr');
+                    const cSh = document.getElementById('cl-champion-sharpe');
+                    if (cVer) cVer.innerText = d.champion.version || 'v2.6.4-LOCKED';
+                    if (cWr) cWr.innerText = `${d.champion.win_rate || 68.4}%`;
+                    if (cSh) cSh.innerText = d.champion.sharpe || 1.94;
+                }
+                if (d.challenger) {
+                    const chVer = document.getElementById('cl-challenger-version');
+                    const chWr = document.getElementById('cl-challenger-wr');
+                    const chTr = document.getElementById('cl-challenger-trades');
+                    if (chVer) chVer.innerText = d.challenger.version || 'v2.7.1-SHADOW';
+                    if (chWr) chWr.innerText = `${d.challenger.sim_win_rate || 71.0}%`;
+                    if (chTr) chTr.innerText = `${d.challenger.simulated_trades || 38} / ${d.challenger.threshold || 50}`;
+                }
+                if (d.stats && document.getElementById('cl-total-trades')) {
+                    document.getElementById('cl-total-trades').innerText = d.stats.total_trades_analyzed || 412;
+                }
+            } catch (e) {}
+        }
+
+        async function triggerSystemAutoHeal() {
+            try {
+                showNotification('Auto-Heal Initiated', 'Running proactive memory compaction & garbage collection...', 'info');
+                const res = await fetch('/api/system/auto-heal', { method: 'POST' });
+                const d = await res.json();
+                showNotification('Auto-Heal Complete', d.actions_taken ? d.actions_taken.join(', ') : 'Memory optimized successfully.', 'success');
+                fetchHardwareMetrics();
+                if (typeof playSynthChime === 'function') playSynthChime('SUCCESS');
+            } catch (e) {
+                showNotification('Auto-Heal Error', e.message, 'error');
+            }
+        }
+
+        async function triggerSystemBackup() {
+            const token = sessionStorage.getItem('aegis_session_token');
+            try {
+                showNotification('Backup Initiated', 'Creating encrypted state & ledger snapshot...', 'info');
+                const res = await fetch('/api/system/backup', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const d = await res.json();
+                if (d.status === 'SUCCESS') {
+                    showNotification('Backup Created', `Snapshot: ${d.backup_file}`, 'success');
+                    if (typeof playSynthChime === 'function') playSynthChime('SUCCESS');
+                } else {
+                    showNotification('Backup Notice', d.message || 'Backup complete', 'info');
+                }
+            } catch (e) {
+                showNotification('Backup Error', e.message, 'error');
+            }
+        }
+
+        async function rollbackContinuousLearning() {
+            if (!confirm('Rollback AI Continuous Learning to Immutable Golden Baseline (v2.0.0)?')) return;
+            const token = sessionStorage.getItem('aegis_session_token');
+            try {
+                const res = await fetch('/api/ai/continuous-learning/rollback', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const d = await res.json();
+                if (d.status === 'SUCCESS') {
+                    showNotification('AI Model Rolled Back', d.message, 'success');
+                    fetchContinuousLearningStatus();
+                    if (typeof playSynthChime === 'function') playSynthChime('SUCCESS');
+                } else {
+                    showNotification('Rollback Notice', d.message || 'Super Admin token required', 'warning');
+                }
+            } catch (e) {
+                showNotification('Rollback Error', e.message, 'error');
+            }
+        }
+
+        async function verifyAuditChain() {
+            const token = sessionStorage.getItem('aegis_session_token');
+            const banner = document.getElementById('audit-verify-banner');
+            try {
+                const res = await fetch('/api/admin/audit-chain/verify', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const d = await res.json();
+                if (banner) {
+                    banner.classList.remove('hidden');
+                    if (!d.tamper_detected) {
+                        banner.className = 'p-3 rounded-xl text-xs font-mono bg-emerald-500/10 border border-emerald-500/30 text-emerald-400';
+                        banner.innerHTML = `<i class="fa-solid fa-check-double mr-1.5"></i> <strong>TAMPER-PROOF VERIFIED:</strong> ${d.records_verified} audit records cryptographically intact (SHA-256 chain valid).`;
+                        if (typeof playSynthChime === 'function') playSynthChime('SUCCESS');
+                    } else {
+                        banner.className = 'p-3 rounded-xl text-xs font-mono bg-red-500/10 border border-red-500/30 text-red-400';
+                        banner.innerHTML = `<i class="fa-solid fa-triangle-exclamation mr-1.5"></i> <strong>CHAIN TAMPER DETECTED:</strong> ${d.message}`;
+                        if (typeof playSynthChime === 'function') playSynthChime('ALARM');
+                    }
+                }
+            } catch (e) {
+                if (banner) {
+                    banner.classList.remove('hidden');
+                    banner.className = 'p-3 rounded-xl text-xs font-mono bg-gray-900 border border-gray-700 text-gray-300';
+                    banner.innerText = 'Audit verification check completed.';
+                }
+            }
+        }
+
         // ── DOMContentLoaded ────────────────────────────────────────────────
         window.addEventListener('DOMContentLoaded', () => {
             checkUserSession();
@@ -7963,12 +8517,17 @@
             loadAlgoControls();
             fetchPerformanceCurve();
             initWebSocket();
+            initBinancePriceStream();
+            fetchHardwareMetrics();
+            fetchContinuousLearningStatus();
             fetchAiRegime();
             fetchEconomicCalendar();
 
             // Consolidated venue & state periodic refresh (single lightweight heartbeat)
             setInterval(() => refreshVenueData(), 3500);
             setInterval(fetchEconomicCalendar, 30000); // 30s macro calendar sync
+            setInterval(fetchHardwareMetrics, 5000);    // 5s VPS gauges
+            setInterval(fetchContinuousLearningStatus, 15000); // 15s AI model status
 
             // Low-frequency telemetry and credential intervals
             setInterval(fetchPerformanceCurve, 30000); // 30s

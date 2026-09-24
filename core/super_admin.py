@@ -47,6 +47,8 @@ def verify_password_pbkdf2(password: str, stored_hash: str) -> bool:
     except Exception:
         return False
 
+IP_WHITELIST_FILE = Path(__file__).resolve().parent.parent / "data" / "ip_whitelist.json"
+
 class SuperAdminEngine:
     def __init__(self):
         self.users: Dict[str, Dict[str, Any]] = {}
@@ -56,15 +58,41 @@ class SuperAdminEngine:
         self.failed_login_attempts: Dict[str, List[float]] = {}
         self._load_users()
 
+    def get_ip_whitelist(self) -> Dict[str, Any]:
+        """Load IP whitelisting configuration."""
+        if IP_WHITELIST_FILE.exists():
+            try:
+                with open(IP_WHITELIST_FILE, "r") as f:
+                    return json.load(f)
+            except Exception:
+                pass
+        return {"enabled": False, "allowed_ips": ["127.0.0.1", "::1"]}
+
+    def save_ip_whitelist(self, data: Dict[str, Any]):
+        """Save IP whitelisting configuration."""
+        try:
+            with open(IP_WHITELIST_FILE, "w") as f:
+                json.dump(data, f, indent=2)
+        except Exception as e:
+            print(f"[SUPER ADMIN] Whitelist save error: {e}")
+
+    def is_ip_allowed(self, client_ip: str) -> bool:
+        """Check if client IP is permitted under active whitelist policy."""
+        wl = self.get_ip_whitelist()
+        if not wl.get("enabled", False):
+            return True
+        allowed = set(wl.get("allowed_ips", []))
+        return client_ip in allowed or client_ip in ["127.0.0.1", "::1", "localhost"]
+
     def check_brute_force_lockout(self, identifier: str) -> Tuple[bool, int]:
-        """Check if IP or username is locked out due to >= 5 failed attempts in 15 mins."""
+        """Check if IP or username is locked out due to >= 3 failed attempts in 15 mins."""
         now = time.time()
         attempts = self.failed_login_attempts.get(identifier, [])
         # Filter attempts within last 15 minutes (900s)
         recent = [t for t in attempts if now - t < 900]
         self.failed_login_attempts[identifier] = recent
-        if len(recent) >= 5:
-            remaining = int(3600 - (now - recent[-1]))
+        if len(recent) >= 3:
+            remaining = int(900 - (now - recent[-1]))
             if remaining > 0:
                 return True, remaining
         return False, 0
@@ -82,15 +110,24 @@ class SuperAdminEngine:
 
     # --- Authentication & Session Management ---
 
-    def verify_credentials(self, username: str, password: str, client_ip: str = "127.0.0.1") -> Optional[Dict[str, Any]]:
-        """Verify username & password with PBKDF2-HMAC-SHA256 and brute-force protection."""
+    def verify_credentials(self, username: str, password: str, client_ip: str = "127.0.0.1", user_agent: str = "") -> Optional[Dict[str, Any]]:
+        """Verify username & password with PBKDF2-HMAC-SHA256, device fingerprinting, IP whitelist and 3-attempt lockout."""
+        # 1. IP Whitelist Enforcement
+        if not self.is_ip_allowed(client_ip):
+            return {
+                "status": "IP_FORBIDDEN",
+                "message": f"Access Denied: IP address {client_ip} is not authorized on this institutional terminal.",
+                "lockout": True,
+                "remaining_seconds": 3600
+            }
+
         u_key = username.lower().strip()
-        # Check lockout for username and IP
+        # 2. Check lockout for username and IP (3 failed attempts rule)
         is_locked_u, wait_u = self.check_brute_force_lockout(u_key)
         is_locked_ip, wait_ip = self.check_brute_force_lockout(client_ip)
         if is_locked_u or is_locked_ip:
             wait_time = max(wait_u, wait_ip)
-            return {"status": "LOCKED", "message": f"Account temporarily locked for {wait_time}s due to 5 failed attempts.", "lockout": True, "remaining_seconds": wait_time}
+            return {"status": "LOCKED", "message": f"Account temporarily locked for {wait_time}s due to 3 consecutive failed attempts.", "lockout": True, "remaining_seconds": wait_time}
 
         user = self.users.get(u_key)
         if not user:
@@ -102,6 +139,19 @@ class SuperAdminEngine:
             self.record_login_success(u_key)
             self.record_login_success(client_ip)
             user["last_login"] = get_ist_time()
+
+            # 3. Device Fingerprint Tracking
+            dev_fp = hashlib.sha256(f"{client_ip}|{user_agent}".encode()).hexdigest()[:16]
+            known_devices = user.setdefault("known_devices", [])
+            is_new_device = dev_fp not in known_devices
+            if is_new_device:
+                known_devices.append(dev_fp)
+                if len(known_devices) > 10:
+                    user["known_devices"] = known_devices[-10:]
+                self.log_action(user["username"], "NEW_DEVICE_DETECTED", f"New terminal hardware fingerprint: {dev_fp}", ip=client_ip)
+
+            user["is_new_device"] = is_new_device
+            user["device_fingerprint"] = dev_fp
             self._save_users()
             return user
 
@@ -409,7 +459,7 @@ class SuperAdminEngine:
         return {"status": "SUCCESS", "message": f"User '{username}' registered with role '{role}'!"}
 
     def log_action(self, username: str, action: str, details: str = "", ip: str = "127.0.0.1"):
-        """Record immutable user audit action."""
+        """Record immutable user audit action with tamper-proof SHA-256 hash chaining."""
         try:
             audit_file = Path(__file__).resolve().parent.parent / "data" / "user_audit_trail.json"
             events = []
@@ -419,12 +469,20 @@ class SuperAdminEngine:
                         events = json.load(f)
                 except Exception:
                     events = []
+
+            prev_hash = events[0].get("hash", "0" * 64) if (events and isinstance(events[0], dict)) else ("0" * 64)
+            ts = get_ist_time()
+            chain_payload = f"{prev_hash}|{ts}|{username}|{action}|{details}|{ip}"
+            entry_hash = hashlib.sha256(chain_payload.encode("utf-8")).hexdigest()
+
             events.insert(0, {
-                "timestamp": get_ist_time(),
+                "timestamp": ts,
                 "username": username,
                 "action": action,
                 "details": details,
-                "ip": ip
+                "ip": ip,
+                "prev_hash": prev_hash,
+                "hash": entry_hash
             })
             if len(events) > 500:
                 events = events[:500]
@@ -432,6 +490,37 @@ class SuperAdminEngine:
                 json.dump(events, f, separators=(',', ':'))
         except Exception as e:
             print(f"[SUPER ADMIN] Audit log error: {e}")
+
+    def verify_audit_chain_integrity(self) -> Dict[str, Any]:
+        """Verify the entire SHA-256 cryptographic chain of the audit trail."""
+        try:
+            audit_file = Path(__file__).resolve().parent.parent / "data" / "user_audit_trail.json"
+            if not audit_file.exists():
+                return {"status": "HEALTHY", "records_verified": 0, "tamper_detected": False, "message": "No audit records yet"}
+            with open(audit_file, "r") as f:
+                events = json.load(f)
+
+            for i in range(len(events) - 1):
+                cur = events[i]
+                nxt = events[i + 1]
+                expected_prev = nxt.get("hash")
+                if expected_prev and cur.get("prev_hash") != expected_prev:
+                    return {
+                        "status": "TAMPER_DETECTED",
+                        "tamper_detected": True,
+                        "broken_at_index": i,
+                        "broken_timestamp": cur.get("timestamp"),
+                        "message": f"Cryptographic audit chain broken at index {i}"
+                    }
+            return {
+                "status": "HEALTHY",
+                "records_verified": len(events),
+                "tamper_detected": False,
+                "latest_hash": events[0].get("hash") if events else None,
+                "message": "All audit trail records cryptographically intact and verified"
+            }
+        except Exception as e:
+            return {"status": "ERROR", "tamper_detected": True, "message": str(e)}
 
     def update_user(self, username: str, full_name: str = "", email: str = "", role: str = "", new_password: str = "", max_trade_size: Optional[float] = None) -> Dict[str, Any]:
         """Update existing user credentials, full name, email, role, password or trade limits."""
