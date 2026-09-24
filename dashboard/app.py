@@ -2292,15 +2292,19 @@ async def admin_totp_verify(data: dict):
 # =====================================================================
 
 @app.post("/api/auth/login")
-async def universal_user_login(data: dict):
+async def universal_user_login(data: dict, request: Request):
     """Authenticate any system user with credentials, strict TOTP if enabled, and issue session."""
     username = data.get("username", "").strip()
     password = data.get("password", "")
     totp_code = data.get("totp_code") or data.get("totp", "")
+    client_ip = request.client.host if request.client else "127.0.0.1"
 
-    user = super_admin.verify_credentials(username, password)
+    user = super_admin.verify_credentials(username, password, client_ip=client_ip)
     if not user:
         return JSONResponse({"status": "FAILED", "message": "Invalid username or password."}, status_code=401)
+
+    if isinstance(user, dict) and user.get("lockout"):
+        return JSONResponse(user, status_code=429)
 
     # Check if TOTP is enabled on this user account
     if user.get("totp_enabled", False):
@@ -2423,10 +2427,49 @@ async def universal_auth_me(request: Request):
         "full_name": user.get("full_name", username),
         "email": user.get("email", ""),
         "role": user.get("role", "TRADER"),
+        "max_trade_size": user.get("max_trade_size", 100.0 if user.get("role") != "SUPER_ADMIN" else 999999999.0),
         "totp_enabled": user.get("totp_enabled", False),
         "biometric_enabled": user.get("biometric_enabled", False),
         "is_super_admin": user.get("role") == "SUPER_ADMIN"
     })
+
+@app.post("/api/auth/change-password")
+async def universal_auth_change_password(request: Request):
+    """Allow logged in user to change their password with PBKDF2."""
+    auth_header = request.headers.get("Authorization", "")
+    token = ""
+    if auth_header.startswith("Bearer "):
+        token = auth_header.split(" ", 1)[1].strip()
+    session = super_admin.validate_session(token)
+    if not session:
+        return JSONResponse({"status": "FAILED", "message": "Unauthorized. Please log in."}, status_code=401)
+    
+    body = await request.json()
+    old_password = body.get("old_password", "")
+    new_password = body.get("new_password", "")
+    username = session.get("username", "")
+    res = super_admin.change_user_password(username, old_password, new_password)
+    if res.get("status") == "SUCCESS":
+        try:
+            from core.notification_engine import notification_engine
+            notification_engine.send_telegram(f"🔐 *SECURITY ALERT: PASSWORD CHANGED*\n\nUser: `{username}`\nTimestamp: {get_ist_time()}\nZero-Trust Identity Sentinel")
+        except Exception:
+            pass
+    return JSONResponse(res)
+
+@app.get("/api/admin/audit-trail")
+async def admin_get_audit_trail(request: Request):
+    """Retrieve immutable security and order audit trail."""
+    auth_header = request.headers.get("Authorization", "")
+    token = ""
+    if auth_header.startswith("Bearer "):
+        token = auth_header.split(" ", 1)[1].strip()
+    session = super_admin.validate_session(token)
+    if not session:
+        return JSONResponse({"status": "FAILED", "message": "Unauthorized."}, status_code=401)
+    
+    events = super_admin.get_audit_trail(limit=100)
+    return JSONResponse({"status": "SUCCESS", "events": events})
 
 @app.post("/api/auth/logout")
 async def universal_auth_logout(request: Request):
@@ -3239,6 +3282,13 @@ async def trigger_emergency_kill_switch(request: Request):
         user = body.get("user", "TRADER")
         reason = body.get("reason", "Manual Emergency Trigger via Dashboard")
         result = emergency_kill_switch.trigger_kill_switch(user, reason)
+        client_ip = request.client.host if request.client else "127.0.0.1"
+        super_admin.log_action(user, "KILL_SWITCH_TRIGGERED", f"Reason: {reason}", ip=client_ip)
+        try:
+            from core.notification_engine import notification_engine
+            notification_engine.send_telegram(f"🚨🚨 *EMERGENCY KILL SWITCH ACTIVATED* 🚨🚨\n\nTriggered By: `{user}`\nReason: {reason}\nTimestamp: {get_ist_time()}\n\n*All trading gateways frozen.*")
+        except Exception:
+            pass
         return JSONResponse(result)
     except Exception as e:
         return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
@@ -3250,7 +3300,198 @@ async def reset_emergency_kill_switch(request: Request):
         body = await request.json()
         user = body.get("user", "TRADER")
         result = emergency_kill_switch.reset_kill_switch(user)
+        client_ip = request.client.host if request.client else "127.0.0.1"
+        super_admin.log_action(user, "KILL_SWITCH_RESET", "Desk trading resumed", ip=client_ip)
+        try:
+            from core.notification_engine import notification_engine
+            notification_engine.send_telegram(f"✅ *TRADING RESUMED — KILL SWITCH RESET* ✅\n\nReset By: `{user}`\nTimestamp: {get_ist_time()}\nGateways restored to operational status.")
+        except Exception:
+            pass
         return JSONResponse(result)
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+# ── AI MARKET REGIME CONTROL ─────────────────────────────────────
+AI_REGIME_FILE = Path(__file__).resolve().parent.parent / "data" / "ai_regime_state.json"
+
+def get_current_ai_regime() -> dict:
+    if AI_REGIME_FILE.exists():
+        try:
+            with open(AI_REGIME_FILE, "r") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {
+        "regime": "BALANCED",
+        "description": "Standard institutional quant mode. 1.5% drawdown circuit, up to 5x leverage, balanced alpha harvest.",
+        "max_leverage": 5.0,
+        "drawdown_limit_pct": 1.5,
+        "target_sharpe": 1.8,
+        "updated_at": get_ist_time()
+    }
+
+def set_current_ai_regime(regime_name: str) -> dict:
+    regimes = {
+        "DEFENSIVE": {
+            "regime": "DEFENSIVE",
+            "description": "Capital preservation mode. Strict 0.5% max drawdown, 1x-2x leverage, tight trailing stop.",
+            "max_leverage": 2.0,
+            "drawdown_limit_pct": 0.5,
+            "target_sharpe": 2.2,
+            "updated_at": get_ist_time()
+        },
+        "BALANCED": {
+            "regime": "BALANCED",
+            "description": "Standard institutional quant mode. 1.5% drawdown circuit, up to 5x leverage, balanced alpha harvest.",
+            "max_leverage": 5.0,
+            "drawdown_limit_pct": 1.5,
+            "target_sharpe": 1.8,
+            "updated_at": get_ist_time()
+        },
+        "BULL_RUN": {
+            "regime": "BULL_RUN",
+            "description": "Aggressive trend expansion. Breakout momentum weighting, up to 10x leverage, dynamic profit ride.",
+            "max_leverage": 10.0,
+            "drawdown_limit_pct": 3.0,
+            "target_sharpe": 1.5,
+            "updated_at": get_ist_time()
+        }
+    }
+    regime = regimes.get(regime_name.upper(), regimes["BALANCED"])
+    try:
+        AI_REGIME_FILE.parent.mkdir(parents=True, exist_ok=True)
+        with open(AI_REGIME_FILE, "w") as f:
+            json.dump(regime, f, indent=2)
+    except Exception as e:
+        print(f"[AI REGIME] Save error: {e}")
+    return regime
+
+@app.get("/api/ai/regime")
+async def get_ai_regime():
+    return JSONResponse(get_current_ai_regime())
+
+@app.post("/api/ai/regime")
+async def update_ai_regime(request: Request):
+    body = await request.json()
+    new_regime = body.get("regime", "BALANCED")
+    saved = set_current_ai_regime(new_regime)
+    try:
+        from core.notification_engine import notification_engine
+        notification_engine.send_telegram(f"🧠 *AI REGIME SWITCHED*\n\nNew Regime: *{saved['regime']}*\n{saved['description']}\nDrawdown Limit: {saved['drawdown_limit_pct']}%\nTimestamp: {get_ist_time()}")
+    except Exception:
+        pass
+    return JSONResponse({"status": "SUCCESS", "regime": saved})
+
+# ── ECONOMIC CALENDAR FEED ───────────────────────────────────────
+@app.get("/api/economic-calendar")
+async def get_economic_calendar():
+    """Return high-impact macro news events with dynamic countdowns."""
+    now_ts = time.time()
+    events = [
+        {
+            "id": "cpi_us",
+            "country": "🇺🇸 USA",
+            "title": "US Consumer Price Index (YoY CPI)",
+            "impact": "HIGH",
+            "target_epoch": now_ts + 14400,
+            "forecast": "2.8%",
+            "previous": "2.9%",
+            "category": "INFLATION",
+            "desk_action": "Tighten stops 15m prior"
+        },
+        {
+            "id": "fomc_rate",
+            "country": "🇺🇸 USA",
+            "title": "Federal Reserve FOMC Interest Rate Decision",
+            "impact": "CRITICAL",
+            "target_epoch": now_ts + 86400 * 2 + 7200,
+            "forecast": "4.50%",
+            "previous": "4.75%",
+            "category": "CENTRAL_BANK",
+            "desk_action": "Auto-Circuit Breaker active during statement"
+        },
+        {
+            "id": "nfp_us",
+            "country": "🇺🇸 USA",
+            "title": "Non-Farm Payrolls & Unemployment Rate",
+            "impact": "HIGH",
+            "target_epoch": now_ts + 86400 * 5,
+            "forecast": "165K",
+            "previous": "142K",
+            "category": "EMPLOYMENT",
+            "desk_action": "Hedge exposure 30m prior"
+        },
+        {
+            "id": "rbi_mpc",
+            "country": "🇮🇳 IND",
+            "title": "RBI MPC Monetary Policy Committee Decision",
+            "impact": "HIGH",
+            "target_epoch": now_ts + 86400 * 8,
+            "forecast": "6.25%",
+            "previous": "6.50%",
+            "category": "CENTRAL_BANK",
+            "desk_action": "Upstox/NSE equity hedging"
+        }
+    ]
+    return JSONResponse({"status": "SUCCESS", "timestamp": get_ist_time(), "events": events})
+
+# ── TRADE HISTORY CSV EXPORT ─────────────────────────────────────
+@app.get("/api/reports/trades.csv")
+async def export_trades_csv():
+    """Generate and return CSV download of all historical executions and PnL."""
+    trades = paper_broker.trade_history
+    import io
+    import csv
+    from fastapi.responses import Response
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Trade ID", "Timestamp (IST)", "Symbol", "Side", "Quantity", "Price (USD)", "PnL (USD)", "PnL (%)", "Fee Deducted", "Exit Reason"])
+    for idx, t in enumerate(trades, 1):
+        writer.writerow([
+            t.get("trade_id", f"TRD-{idx:04d}"),
+            t.get("timestamp", get_ist_time()),
+            t.get("symbol", "BTCUSDT"),
+            t.get("side", "BUY"),
+            t.get("quantity", 0),
+            t.get("price", 0),
+            t.get("pnl", 0),
+            f"{t.get('pnl_pct', 0)*100:.2f}%" if "pnl_pct" in t else "0.0%",
+            t.get("fee", 0.05),
+            t.get("reason", "TARGET_HIT")
+        ])
+    csv_content = output.getvalue()
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=aegis_quant_trades_{int(time.time())}.csv"}
+    )
+
+# ── TWO-WAY TELEGRAM COMMAND DISPATCHER ─────────────────────────
+@app.post("/api/telegram/command")
+async def handle_telegram_command(request: Request):
+    """Webhook and API endpoint to handle 2-way Telegram bot commands."""
+    try:
+        body = await request.json()
+        if "message" in body:
+            msg = body["message"]
+            text = msg.get("text", "")
+            from_user = msg.get("from", {}).get("username", "TelegramUser")
+            chat_id = msg.get("chat", {}).get("id")
+        else:
+            text = body.get("command", "")
+            from_user = body.get("user", "TelegramUser")
+            chat_id = body.get("chat_id")
+
+        from core.notification_engine import notification_engine
+        reply = notification_engine.handle_bot_command(text, user_sender=from_user)
+        
+        if chat_id:
+            try:
+                notification_engine.send_telegram_message(reply, custom_chat_id=str(chat_id))
+            except Exception:
+                pass
+
+        return JSONResponse({"status": "SUCCESS", "reply": reply})
     except Exception as e:
         return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
 
@@ -3778,6 +4019,34 @@ async def submit_order(request: Request):
         strategy    = body.get("strategy", "MANUAL")
         req_leverage = float(body.get("leverage", 1.0))
 
+        # Check sub-trader max_trade_size limit
+        auth_header = request.headers.get("Authorization", "")
+        token = ""
+        current_username = "desk_trader"
+        current_user_role = "TRADER"
+        user_max_trade = 100.0
+        if auth_header.startswith("Bearer "):
+            token = auth_header.split(" ", 1)[1].strip()
+        if token in super_admin.active_sessions:
+            sess = super_admin.active_sessions[token]
+            current_username = sess.get("username", "desk_trader")
+            u_rec = super_admin.users.get(current_username.lower().strip(), {})
+            current_user_role = u_rec.get("role", "TRADER")
+            user_max_trade = float(u_rec.get("max_trade_size", 100.0))
+
+        client_ip = request.client.host if request.client else "127.0.0.1"
+
+        # Nominal order amount
+        nominal_val = price * quantity if price > 0 else (quantity * 65000.0 if "BTC" in symbol.upper() else 6.0)
+        if current_user_role != "SUPER_ADMIN" and nominal_val > user_max_trade:
+            super_admin.log_action(current_username, "ORDER_BLOCKED_RISK_LIMIT", f"Attempted ${nominal_val:.2f} > limit ${user_max_trade:.2f}", ip=client_ip)
+            return JSONResponse({
+                "status": "EXECUTION_REJECTED",
+                "rejection_code": "EXCEEDS_USER_MAX_TRADE_SIZE",
+                "reason": f"Order value ${nominal_val:.2f} exceeds your assigned risk limit of ${user_max_trade:.2f}. Please contact Super Admin.",
+                "message": f"Trader risk limit exceeded (${nominal_val:.2f} > ${user_max_trade:.2f})"
+            }, status_code=403)
+
         # Check through authoritative 20-Point Server-Side Execution Gate
         from core.execution_gate import execution_gate
         from core.workspace_manager import workspace_manager
@@ -3976,6 +4245,11 @@ async def submit_order(request: Request):
             environment=environment,
             workspace=ws
         )
+
+        try:
+            super_admin.log_action(current_username, "ORDER_SUBMITTED", f"{side} {quantity} {symbol} @ {price} ({environment})", ip=client_ip)
+        except Exception:
+            pass
 
         return JSONResponse({"status": "SUCCESS", "order": osm.get_order(order_id)})
 

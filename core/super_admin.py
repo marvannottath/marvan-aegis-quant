@@ -18,7 +18,7 @@ import hashlib
 import secrets
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 
 IST_TZ = timezone(timedelta(hours=5, minutes=30))
 ADMIN_USER_FILE = Path(__file__).resolve().parent.parent / "data" / "admin_users.json"
@@ -53,7 +53,61 @@ class SuperAdminEngine:
         self.active_sessions: Dict[str, Dict[str, Any]] = {}
         self.active_otps: Dict[str, Dict[str, Any]] = {}
         self.webauthn_challenges: Dict[str, Dict[str, Any]] = {}
+        self.failed_login_attempts: Dict[str, List[float]] = {}
         self._load_users()
+
+    def check_brute_force_lockout(self, identifier: str) -> Tuple[bool, int]:
+        """Check if IP or username is locked out due to >= 5 failed attempts in 15 mins."""
+        now = time.time()
+        attempts = self.failed_login_attempts.get(identifier, [])
+        # Filter attempts within last 15 minutes (900s)
+        recent = [t for t in attempts if now - t < 900]
+        self.failed_login_attempts[identifier] = recent
+        if len(recent) >= 5:
+            remaining = int(3600 - (now - recent[-1]))
+            if remaining > 0:
+                return True, remaining
+        return False, 0
+
+    def record_login_failure(self, identifier: str):
+        """Record a failed login attempt."""
+        now = time.time()
+        if identifier not in self.failed_login_attempts:
+            self.failed_login_attempts[identifier] = []
+        self.failed_login_attempts[identifier].append(now)
+
+    def record_login_success(self, identifier: str):
+        """Clear failed attempts on successful login."""
+        self.failed_login_attempts.pop(identifier, None)
+
+    # --- Authentication & Session Management ---
+
+    def verify_credentials(self, username: str, password: str, client_ip: str = "127.0.0.1") -> Optional[Dict[str, Any]]:
+        """Verify username & password with PBKDF2-HMAC-SHA256 and brute-force protection."""
+        u_key = username.lower().strip()
+        # Check lockout for username and IP
+        is_locked_u, wait_u = self.check_brute_force_lockout(u_key)
+        is_locked_ip, wait_ip = self.check_brute_force_lockout(client_ip)
+        if is_locked_u or is_locked_ip:
+            wait_time = max(wait_u, wait_ip)
+            return {"status": "LOCKED", "message": f"Account temporarily locked for {wait_time}s due to 5 failed attempts.", "lockout": True, "remaining_seconds": wait_time}
+
+        user = self.users.get(u_key)
+        if not user:
+            self.record_login_failure(u_key)
+            self.record_login_failure(client_ip)
+            return None
+
+        if verify_password_pbkdf2(password, user["password_hash"]):
+            self.record_login_success(u_key)
+            self.record_login_success(client_ip)
+            user["last_login"] = get_ist_time()
+            self._save_users()
+            return user
+
+        self.record_login_failure(u_key)
+        self.record_login_failure(client_ip)
+        return None
 
     def _load_users(self):
         """Load persisted admin users or initialize hardened default accounts."""
@@ -124,18 +178,6 @@ class SuperAdminEngine:
         except Exception as e:
             print(f"[SUPER ADMIN] Save error: {e}")
 
-    # --- Authentication & Session Management ---
-
-    def verify_credentials(self, username: str, password: str) -> Optional[Dict[str, Any]]:
-        """Verify username & password with PBKDF2-HMAC-SHA256."""
-        user = self.users.get(username.lower().strip())
-        if not user:
-            return None
-        if verify_password_pbkdf2(password, user["password_hash"]):
-            user["last_login"] = get_ist_time()
-            self._save_users()
-            return user
-        return None
 
     def create_session(self, username: str, auth_method: str = "PASSWORD") -> str:
         """Generate a cryptographically random, 384-bit session token."""
@@ -409,9 +451,40 @@ class SuperAdminEngine:
                 user["role"] = role.upper()
         if new_password and len(new_password) >= 6:
             user["password_hash"] = hash_password_pbkdf2(new_password)
+        if max_trade_size is not None:
+            user["max_trade_size"] = float(max_trade_size) if user.get("role") != "SUPER_ADMIN" else 999999999.0
 
         self._save_users()
+        self.log_action(u_key, "USER_UPDATED", "User profile/limits updated")
         return {"status": "SUCCESS", "message": f"User '{username}' updated successfully!"}
+
+    def change_user_password(self, username: str, old_password: str, new_password: str) -> Dict[str, Any]:
+        """Allow an authenticated user to change their own password."""
+        u_key = username.lower().strip()
+        if u_key not in self.users:
+            return {"status": "FAILED", "message": "User account not found."}
+        user = self.users[u_key]
+        if not verify_password_pbkdf2(old_password, user["password_hash"]):
+            return {"status": "FAILED", "message": "Current password is incorrect."}
+        if len(new_password) < 6:
+            return {"status": "FAILED", "message": "New password must be at least 6 characters."}
+        user["password_hash"] = hash_password_pbkdf2(new_password)
+        user["last_password_change"] = get_ist_time()
+        self._save_users()
+        self.log_action(u_key, "PASSWORD_CHANGED", "User changed account password")
+        return {"status": "SUCCESS", "message": "Password updated successfully!"}
+
+    def get_audit_trail(self, limit: int = 100) -> List[Dict[str, Any]]:
+        """Return the latest audit trail events."""
+        try:
+            audit_file = Path(__file__).resolve().parent.parent / "data" / "user_audit_trail.json"
+            if audit_file.exists():
+                with open(audit_file, "r") as f:
+                    events = json.load(f)
+                    return events[:limit]
+        except Exception as e:
+            print(f"[SUPER ADMIN] Read audit log error: {e}")
+        return []
 
     def delete_user(self, username: str) -> Dict[str, Any]:
         """Delete user account (Super Admin protected)."""

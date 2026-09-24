@@ -354,6 +354,35 @@
                         </table>
                     </div>
                 </div>
+
+                <!-- Security & User Action Audit Trail -->
+                <div class="bg-darkcard border border-darkborder rounded-2xl p-5 md:p-6 shadow-2xl space-y-4">
+                    <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+                        <h3 class="text-sm font-black text-white flex items-center">
+                            <i class="fa-solid fa-list-check text-amber-400 mr-2"></i> User Action & Security Audit Trail
+                        </h3>
+                        <button onclick="fetchAdminAuditTrail()" class="px-2.5 py-1 bg-gray-900 border border-gray-800 hover:border-amber-500 text-gray-300 hover:text-white rounded-lg text-xs font-mono transition cursor-pointer">
+                            <i class="fa-solid fa-rotate mr-1"></i> Refresh
+                        </button>
+                    </div>
+
+                    <div class="overflow-x-auto rounded-xl border border-gray-800 max-h-[300px] overflow-y-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead class="bg-gray-900 text-gray-400 text-[10px] font-mono uppercase sticky top-0">
+                                <tr>
+                                    <th class="py-2.5 px-3">Timestamp (IST)</th>
+                                    <th class="py-2.5 px-3">User</th>
+                                    <th class="py-2.5 px-3">Action</th>
+                                    <th class="py-2.5 px-3">Details</th>
+                                    <th class="py-2.5 px-3">Client IP</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-audit-tbody" class="divide-y divide-gray-800/60 font-mono text-xs">
+                                <tr><td colspan="5" class="py-4 text-center text-gray-500">Loading audit events...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
 
             <!-- TAB SECTION 4: MASTER SECURITY PARAMETERS & 2FA / BIOMETRIC ENROLLMENT -->
@@ -843,6 +872,34 @@
                 }).join('');
             } catch (err) {
                 console.error('Users fetch error:', err);
+            }
+            fetchAdminAuditTrail();
+        }
+
+        async function fetchAdminAuditTrail() {
+            try {
+                const res = await fetch('/api/admin/audit-trail', {
+                    headers: {'Authorization': `Bearer ${adminSessionToken}`}
+                });
+                const data = await res.json();
+                const tbody = document.getElementById('admin-audit-tbody');
+                if (!tbody) return;
+                if (data.status === 'SUCCESS' && Array.isArray(data.events)) {
+                    if (data.events.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-gray-500">No audit events recorded yet.</td></tr>';
+                        return;
+                    }
+                    tbody.innerHTML = data.events.map(ev => `
+                    <tr class="hover:bg-gray-900/60 transition">
+                        <td class="py-2.5 px-3 text-gray-400 text-[11px]">${ev.timestamp}</td>
+                        <td class="py-2.5 px-3 font-bold text-white">${ev.username}</td>
+                        <td class="py-2.5 px-3 text-amber-400 font-bold">${ev.action}</td>
+                        <td class="py-2.5 px-3 text-gray-300 text-[11px]">${ev.details || '—'}</td>
+                        <td class="py-2.5 px-3 text-cyan-400 text-[11px]">${ev.ip}</td>
+                    </tr>`).join('');
+                }
+            } catch (err) {
+                console.warn('Audit trail fetch error:', err);
             }
         }
 

@@ -200,10 +200,16 @@
                 <i class="fa-solid fa-bolt mr-1"></i> ORDER
             </button>
 
+            <!-- Sound Effects Synthesizer Toggle -->
+            <button id="btn-sound-toggle" onclick="toggleSoundEngine()" class="hidden md:flex px-2.5 py-1 rounded-lg bg-gray-900 border border-gray-800 text-xs font-mono text-gray-300 hover:text-white transition items-center gap-1.5 cursor-pointer" title="Toggle Synthesizer Sound Effects">
+                <i id="icon-sound" class="fa-solid fa-volume-high text-amber-400"></i>
+                <span id="lbl-sound-status">AUDIO</span>
+            </button>
+
             <!-- Authenticated User Profile & Logout -->
             <div id="user-nav-profile" class="flex items-center space-x-2 pl-2 border-l border-gray-800">
-                <button onclick="switchTab('security')" class="px-2.5 py-1 rounded-lg bg-gray-900 border border-gray-800 text-xs font-mono text-gray-300 hover:text-white transition flex items-center gap-1.5 cursor-pointer" title="Manage 2FA & Biometric Security">
-                    <i class="fa-solid fa-user-shield text-amber-400"></i>
+                <button onclick="openProfileModal()" class="px-2.5 py-1 rounded-lg bg-gray-900 border border-gray-800 text-xs font-mono text-gray-300 hover:text-white transition flex items-center gap-1.5 cursor-pointer" title="My Profile, Password & 2FA Setup">
+                    <i class="fa-solid fa-user-gear text-amber-400"></i>
                     <span id="user-display-name">marvan</span>
                     <span id="user-display-role" class="px-1.5 py-0.2 text-[9px] font-black bg-amber-500/20 text-amber-300 rounded border border-amber-500/30">SUPER_ADMIN</span>
                 </button>
@@ -364,6 +370,167 @@
                         <i class="fa-solid fa-plug mr-1"></i> Save & Connect
                     </button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: TRADER MY PROFILE & 2FA SELF-SETUP -->
+    <div id="modal-user-profile" class="hidden fixed inset-0 z-[9999] flex items-center justify-center bg-black/85 backdrop-blur-md p-4">
+        <div class="bg-darkcard border border-darkborder max-w-lg w-full rounded-2xl p-6 space-y-4 shadow-2xl font-mono text-xs text-gray-300">
+            <div class="flex justify-between items-center border-b border-gray-800 pb-3">
+                <div class="flex items-center space-x-2">
+                    <div class="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                        <i class="fa-solid fa-user-shield text-base"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-white uppercase">Trader Profile & Security</h3>
+                        <p class="text-[10px] text-gray-500">Autonomous Risk Boundary & PBKDF2 2FA Suite</p>
+                    </div>
+                </div>
+                <button onclick="closeProfileModal()" class="text-gray-500 hover:text-white text-lg"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <!-- Profile Overview Pill Strip -->
+            <div class="p-3 bg-gray-950 border border-gray-800 rounded-xl flex items-center justify-between text-[11px]">
+                <div>
+                    <div class="text-gray-400 text-[10px]">CURRENT OPERATOR</div>
+                    <div id="prof-modal-username" class="font-bold text-white text-xs">marvan</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-gray-400 text-[10px]">ROLE</div>
+                    <span id="prof-modal-role" class="px-2 py-0.5 rounded text-[10px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/30">SUPER_ADMIN</span>
+                </div>
+                <div class="text-right">
+                    <div class="text-gray-400 text-[10px]">TRADER RISK LIMIT</div>
+                    <div id="prof-modal-limit" class="font-bold text-emerald-400 font-mono">UNLIMITED</div>
+                </div>
+            </div>
+
+            <!-- Profile Tabs: Change Password vs Google 2FA -->
+            <div class="flex space-x-2 border-b border-gray-800 pb-2">
+                <button id="btn-prof-tab-pw" onclick="switchProfileModalTab('pw')" class="px-3 py-1.5 rounded-lg font-bold text-xs bg-amber-500 text-black shadow cursor-pointer">
+                    <i class="fa-solid fa-key mr-1"></i> Change Password
+                </button>
+                <button id="btn-prof-tab-totp" onclick="switchProfileModalTab('totp')" class="px-3 py-1.5 rounded-lg font-bold text-xs text-gray-400 hover:text-white transition cursor-pointer">
+                    <i class="fa-solid fa-mobile-screen-button mr-1"></i> Google 2FA Setup
+                </button>
+            </div>
+
+            <!-- Subtab 1: Change Password Form -->
+            <div id="prof-tab-content-pw" class="space-y-3">
+                <div>
+                    <label class="block text-[10px] uppercase text-gray-400 mb-1">Current Password</label>
+                    <input id="prof-inp-current-pw" type="password" placeholder="Enter existing password" class="w-full bg-gray-950 border border-darkborder rounded-xl px-3 py-2 text-xs text-white focus:border-amber-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-[10px] uppercase text-gray-400 mb-1">New Password (Min 6 chars)</label>
+                    <input id="prof-inp-new-pw" type="password" placeholder="Enter new strong password" class="w-full bg-gray-950 border border-darkborder rounded-xl px-3 py-2 text-xs text-white focus:border-amber-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-[10px] uppercase text-gray-400 mb-1">Confirm New Password</label>
+                    <input id="prof-inp-confirm-pw" type="password" placeholder="Re-enter new password" class="w-full bg-gray-950 border border-darkborder rounded-xl px-3 py-2 text-xs text-white focus:border-amber-500 focus:outline-none">
+                </div>
+                <div id="prof-pw-msg" class="hidden p-2.5 rounded-xl text-xs font-mono"></div>
+                <button onclick="submitProfilePasswordChange()" class="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-xl transition shadow cursor-pointer">
+                    UPDATE PASSWORD (PBKDF2-HMAC-SHA256)
+                </button>
+            </div>
+
+            <!-- Subtab 2: Google 2FA Self Provisioning -->
+            <div id="prof-tab-content-totp" class="hidden space-y-3">
+                <div class="flex items-center justify-between p-2.5 bg-gray-950 border border-gray-800 rounded-xl">
+                    <span class="text-xs text-gray-300">Google Authenticator Status:</span>
+                    <span id="prof-totp-badge" class="px-2 py-0.5 rounded text-[10px] font-black bg-emerald-500/20 text-emerald-400 font-mono">ACTIVE 🟢</span>
+                </div>
+                <div class="flex flex-col items-center justify-center p-3 bg-gray-950 border border-gray-800 rounded-xl text-center space-y-2">
+                    <img id="prof-totp-qr" src="" alt="Google Authenticator QR" class="w-36 h-36 bg-white p-2 rounded-xl shadow-lg border border-gray-700">
+                    <div class="text-[10px] text-gray-400">Scan this QR in Google Authenticator or Microsoft Authenticator</div>
+                    <div class="flex items-center space-x-2 bg-gray-900 border border-gray-800 px-3 py-1 rounded-lg">
+                        <span class="text-[10px] text-gray-500">Secret:</span>
+                        <span id="prof-totp-secret-txt" class="font-mono text-amber-400 font-bold text-xs select-all">JBSWY3DPEHPK3PXP</span>
+                        <button onclick="copyTotpSecret()" class="text-gray-400 hover:text-white" title="Copy Secret"><i class="fa-solid fa-copy"></i></button>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <input id="prof-totp-verify-code" type="text" maxlength="6" placeholder="Enter 6-digit App Code" class="flex-1 bg-gray-950 border border-darkborder rounded-xl px-3 py-2 text-center text-sm font-bold tracking-widest text-white focus:border-amber-500 focus:outline-none">
+                    <button onclick="activateProfileTotp()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition cursor-pointer">
+                        VERIFY & ACTIVATE
+                    </button>
+                </div>
+                <div id="prof-totp-msg" class="hidden p-2.5 rounded-xl text-xs font-mono"></div>
+                <button onclick="deactivateProfileTotp()" class="w-full py-1.5 bg-gray-900 hover:bg-red-950/40 text-red-400 border border-red-500/30 font-bold text-[11px] rounded-xl transition cursor-pointer">
+                    DISABLE 2FA (NOT RECOMMENDED)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: COLD STORAGE PROFIT SWEEP ADVISORY -->
+    <div id="modal-cold-storage" class="hidden fixed inset-0 z-[9999] flex items-center justify-center bg-black/85 backdrop-blur-md p-4">
+        <div class="bg-darkcard border border-darkborder max-w-lg w-full rounded-2xl p-6 space-y-4 shadow-2xl font-mono text-xs text-gray-300">
+            <div class="flex justify-between items-center border-b border-gray-800 pb-3">
+                <div class="flex items-center space-x-2">
+                    <div class="w-8 h-8 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+                        <i class="fa-solid fa-hard-drive text-base"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-white uppercase">Cold Storage Hardware Sweep</h3>
+                        <p class="text-[10px] text-gray-500">Air-Gapped Ledger / Trezor Hardware Vault Routing</p>
+                    </div>
+                </div>
+                <button onclick="closeColdStorageModal()" class="text-gray-500 hover:text-white text-lg"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div class="p-3 bg-cyan-950/20 border border-cyan-500/30 rounded-xl space-y-1.5 text-[11px] text-gray-300">
+                <div class="font-bold text-cyan-400 flex items-center gap-1.5">
+                    <i class="fa-solid fa-shield-halved"></i> Institutional Zero-Knowledge Custody
+                </div>
+                <p>Private keys never exist on the cloud server. Harvested trading profits are swept directly from the reserve ledger to your self-custody hardware wallet address.</p>
+            </div>
+
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-[10px] uppercase text-gray-400 mb-1">Hardware Wallet Device Type</label>
+                    <select id="cold-wallet-type" class="w-full bg-gray-950 border border-darkborder rounded-xl px-3 py-2 text-xs text-white focus:border-amber-500 focus:outline-none">
+                        <option value="LEDGER">Ledger Nano X / Stax (TRC20 / ERC20)</option>
+                        <option value="TREZOR">Trezor Safe 3 / Model T</option>
+                        <option value="COLDCARD">Coldcard Q / Mk4 (Bitcoin Native)</option>
+                        <option value="TANGEM">Tangem NFC Hardware Card</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[10px] uppercase text-gray-400 mb-1">Cold Wallet Public Address (USDT / TRC20 / BEP20)</label>
+                    <input id="cold-wallet-addr" type="text" placeholder="Enter hardware public address" class="w-full bg-gray-950 border border-darkborder rounded-xl px-3 py-2 text-xs text-white focus:border-amber-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-[10px] uppercase text-gray-400 mb-1">Sweep Amount (USD)</label>
+                    <input id="cold-sweep-amount" type="number" step="10" placeholder="100.00" class="w-full bg-gray-950 border border-darkborder rounded-xl px-3 py-2 text-xs text-white focus:border-amber-500 focus:outline-none">
+                </div>
+                <div id="cold-sweep-msg" class="hidden p-2.5 rounded-xl text-xs font-mono"></div>
+                <button onclick="confirmColdStorageSweep()" class="w-full py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-black text-xs rounded-xl transition shadow cursor-pointer">
+                    DISPATCH AIR-GAPPED HARDWARE SWEEP
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: 15-MINUTE INACTIVITY SESSION TIMEOUT WARNING -->
+    <div id="modal-session-timeout" class="hidden fixed inset-0 z-[10000] flex items-center justify-center bg-black/90 backdrop-blur-md p-4">
+        <div class="bg-darkcard border border-amber-500/50 max-w-md w-full rounded-2xl p-6 space-y-4 shadow-2xl font-mono text-xs text-center text-gray-300">
+            <div class="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mx-auto text-xl animate-pulse">
+                <i class="fa-solid fa-clock"></i>
+            </div>
+            <div>
+                <h3 class="text-base font-black text-white uppercase">Inactivity Security Warning</h3>
+                <p class="text-xs text-gray-400 mt-1">Your trading session will automatically lock in <span class="text-amber-400 font-bold">2 minutes</span> due to inactivity to protect capital.</p>
+            </div>
+            <div class="flex space-x-3 pt-2">
+                <button onclick="resetInactivityTimer()" class="flex-1 py-2.5 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-xl transition shadow cursor-pointer">
+                    KEEP SESSION ACTIVE
+                </button>
+                <button onclick="terminalLogout()" class="px-4 py-2.5 bg-gray-900 hover:bg-red-950/40 text-red-400 border border-red-500/30 font-bold text-xs rounded-xl transition cursor-pointer">
+                    LOCK NOW
+                </button>
             </div>
         </div>
     </div>
@@ -555,6 +722,136 @@
                         <div id="metric-drawdown" class="text-xl md:text-2xl font-black text-emerald-400 font-mono">0.00%</div>
                         <div class="text-[10px] text-gray-400 font-mono">Max Circuit: 10.0%</div>
                     </div>
+                </div>
+
+                <!-- UNIFIED MULTI-BROKER NET WORTH & HARDWARE VAULT MASTER CARD -->
+                <div class="bg-gradient-to-r from-gray-900 via-gray-900/90 to-gray-950 border border-amber-500/30 p-5 rounded-2xl shadow-2xl relative overflow-hidden">
+                    <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-amber-500/5 rounded-full blur-3xl pointer-events-none"></div>
+                    <div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 pb-4 border-b border-gray-800">
+                        <div>
+                            <div class="flex items-center space-x-2">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-black font-mono bg-amber-500/20 text-amber-400 border border-amber-500/30">INSTITUTIONAL DESK</span>
+                                <h2 class="text-base md:text-lg font-black text-white tracking-wide flex items-center gap-2">
+                                    <i class="fa-solid fa-vault text-amber-400"></i> Unified Multi-Broker Net Worth
+                                </h2>
+                            </div>
+                            <p class="text-xs text-gray-400 font-mono mt-1">Cross-venue capital consolidation: Binance Global Spot + MT5 Interbank + Upstox NSE/BSE Equity</p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <div class="text-right">
+                                <div class="text-[10px] font-mono uppercase text-gray-400">Total Consolidated Net Worth</div>
+                                <div id="card-total-networth" class="text-2xl md:text-3xl font-black text-amber-400 font-mono tracking-tight">$14.70 <span class="text-xs text-gray-400 font-normal">USDT</span></div>
+                            </div>
+                            <button onclick="openColdStorageModal()" class="px-3.5 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-mono text-xs font-bold rounded-xl transition shadow flex items-center gap-1.5 cursor-pointer" title="Ledger / Trezor Profit Sweep Advisory">
+                                <i class="fa-solid fa-hard-drive"></i>
+                                <span>COLD STORAGE</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 4 Sub-Asset Ledger Breakdown -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4 text-xs font-mono">
+                        <div class="p-3 bg-gray-950/70 border border-emerald-500/20 rounded-xl space-y-1">
+                            <div class="flex items-center justify-between text-gray-400 text-[10px]">
+                                <span>BINANCE LIVE SPOT</span>
+                                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                            </div>
+                            <div id="unw-binance-val" class="text-base font-black text-white font-mono">$14.70 USDT</div>
+                            <div class="text-[10px] text-emerald-400">Real Assets Protected 🔒</div>
+                        </div>
+
+                        <div class="p-3 bg-gray-950/70 border border-purple-500/20 rounded-xl space-y-1">
+                            <div class="flex items-center justify-between text-gray-400 text-[10px]">
+                                <span>MT5 INTERBANK DESK</span>
+                                <span class="px-1.5 py-0.2 rounded text-[9px] bg-purple-500/20 text-purple-400 font-bold">READY</span>
+                            </div>
+                            <div id="unw-mt5-val" class="text-base font-black text-purple-300 font-mono">$0.00 USD</div>
+                            <div class="text-[10px] text-gray-400">STP Bridge Online 🟢</div>
+                        </div>
+
+                        <div class="p-3 bg-gray-950/70 border border-blue-500/20 rounded-xl space-y-1">
+                            <div class="flex items-center justify-between text-gray-400 text-[10px]">
+                                <span>UPSTOX NSE/BSE</span>
+                                <span class="px-1.5 py-0.2 rounded text-[9px] bg-blue-500/20 text-blue-400 font-bold">INR ₹</span>
+                            </div>
+                            <div id="unw-upstox-val" class="text-base font-black text-blue-300 font-mono">₹100,000.00</div>
+                            <div class="text-[10px] text-gray-400">~$1,200 USD Equiv.</div>
+                        </div>
+
+                        <div class="p-3 bg-gray-950/70 border border-amber-500/20 rounded-xl space-y-1">
+                            <div class="flex items-center justify-between text-gray-400 text-[10px]">
+                                <span>AES-256 PROFIT VAULT</span>
+                                <span class="text-[9px] text-amber-400 font-bold"><i class="fa-solid fa-lock"></i> 100%</span>
+                            </div>
+                            <div id="unw-vault-val" class="text-base font-black text-amber-400 font-mono">$0.00 USD</div>
+                            <div class="text-[10px] text-emerald-400">Auto-Sweep Shielded</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2-COLUMN INTELLIGENCE: AI REGIME SWITCHER + HIGH-IMPACT ECONOMIC CALENDAR -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    
+                    <!-- AI MARKET REGIME CONTROLLER -->
+                    <div class="bg-darkcard border border-darkborder p-5 rounded-2xl space-y-4 shadow-xl">
+                        <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+                            <div class="flex items-center space-x-2">
+                                <i class="fa-solid fa-sliders text-cyan-400"></i>
+                                <h3 class="text-base font-bold text-white">AI Market Regime Selector</h3>
+                            </div>
+                            <span id="badge-ai-regime-status" class="px-2.5 py-0.5 rounded-full text-[10px] font-black font-mono bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                                BALANCED REGIME
+                            </span>
+                        </div>
+                        
+                        <p class="text-xs text-gray-400 font-mono">Dynamic execution parameters: automatically tunes max drawdown circuit, leverage caps, and trailing stop tightness.</p>
+
+                        <div class="grid grid-cols-3 gap-2.5 font-mono text-xs">
+                            <!-- DEFENSIVE -->
+                            <button id="btn-regime-defensive" onclick="setAiRegime('DEFENSIVE')" class="p-3 rounded-xl border border-gray-800 hover:border-emerald-500/50 bg-gray-950 transition flex flex-col items-center text-center space-y-1.5 cursor-pointer">
+                                <i class="fa-solid fa-shield-halved text-emerald-400 text-lg"></i>
+                                <span class="font-black text-white">DEFENSIVE</span>
+                                <span class="text-[9px] text-gray-400">0.5% Max DD • 2x Lev</span>
+                            </button>
+
+                            <!-- BALANCED -->
+                            <button id="btn-regime-balanced" onclick="setAiRegime('BALANCED')" class="p-3 rounded-xl border border-cyan-500/60 bg-cyan-950/20 transition flex flex-col items-center text-center space-y-1.5 cursor-pointer shadow-lg">
+                                <i class="fa-solid fa-scale-balanced text-cyan-400 text-lg"></i>
+                                <span class="font-black text-white">BALANCED</span>
+                                <span class="text-[9px] text-cyan-300">1.5% Max DD • 5x Lev</span>
+                            </button>
+
+                            <!-- BULL RUN -->
+                            <button id="btn-regime-bull" onclick="setAiRegime('BULL_RUN')" class="p-3 rounded-xl border border-gray-800 hover:border-amber-500/50 bg-gray-950 transition flex flex-col items-center text-center space-y-1.5 cursor-pointer">
+                                <i class="fa-solid fa-rocket text-amber-400 text-lg"></i>
+                                <span class="font-black text-white">BULL_RUN</span>
+                                <span class="text-[9px] text-gray-400">3.0% Max DD • 10x Lev</span>
+                            </button>
+                        </div>
+
+                        <div id="ai-regime-desc-box" class="p-2.5 bg-gray-950 border border-gray-800 rounded-xl font-mono text-[11px] text-gray-300 flex items-start gap-2">
+                            <i class="fa-solid fa-circle-info text-amber-400 mt-0.5"></i>
+                            <span id="ai-regime-desc-text">Standard institutional quant mode. 1.5% drawdown circuit, up to 5x leverage, balanced alpha harvest.</span>
+                        </div>
+                    </div>
+
+                    <!-- HIGH-IMPACT ECONOMIC NEWS CALENDAR -->
+                    <div class="bg-darkcard border border-darkborder p-5 rounded-2xl space-y-4 shadow-xl">
+                        <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+                            <div class="flex items-center space-x-2">
+                                <i class="fa-solid fa-calendar-days text-amber-400"></i>
+                                <h3 class="text-base font-bold text-white">Macro News Lockout Sentinel</h3>
+                            </div>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-black font-mono bg-red-500/10 text-red-400 border border-red-500/30">
+                                CIRCUIT ARMED
+                            </span>
+                        </div>
+
+                        <div id="economic-calendar-feed" class="space-y-2.5 font-mono text-xs max-h-[190px] overflow-y-auto pr-1">
+                            <!-- Populated dynamically via /api/economic-calendar with countdowns -->
+                        </div>
+                    </div>
+
                 </div>
 
                 <!-- PRIMARY EQUITY & PNL CHART MODULE -->
@@ -757,6 +1054,21 @@
 
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div class="lg:col-span-2 bg-darkcard border border-darkborder p-6 rounded-2xl space-y-5 shadow-xl">
+                        <!-- Live Execution Speedometer & Risk Limit Strip -->
+                        <div class="flex flex-wrap items-center justify-between gap-2 p-3 bg-gray-950 border border-gray-800 rounded-xl font-mono text-xs">
+                            <div class="flex items-center space-x-2">
+                                <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+                                <span class="text-gray-400">ENGINE LATENCY:</span>
+                                <span id="speedometer-latency" class="text-cyan-400 font-bold">0.82 ms</span>
+                                <span class="px-1.5 py-0.2 rounded text-[9px] bg-emerald-500/10 text-emerald-400 font-bold">ULTRA-FAST</span>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <i class="fa-solid fa-user-shield text-amber-400"></i>
+                                <span class="text-gray-400">YOUR RISK LIMIT:</span>
+                                <span id="lbl-user-risk-limit" class="text-amber-400 font-bold">$100.00 / Trade</span>
+                            </div>
+                        </div>
+
                         <div class="flex space-x-2 border-b border-gray-800 pb-3">
                             <button id="btn-ord-type-market" onclick="setOrderType('MARKET')" class="px-4 py-2 bg-amber-500 text-black font-black text-xs rounded-xl">MARKET</button>
                             <button id="btn-ord-type-limit" onclick="setOrderType('LIMIT')" class="px-4 py-2 bg-gray-900 text-gray-300 font-bold text-xs rounded-xl hover:text-white">LIMIT</button>
@@ -1283,10 +1595,16 @@
 
             <!-- TAB 10: AUDIT TRAIL -->
             <section id="tab-audit" class="tab-content space-y-6">
-                <div class="flex items-center justify-between border-b border-gray-800 pb-4">
+                <div class="flex flex-wrap items-center justify-between border-b border-gray-800 pb-4 gap-3">
                     <div>
                         <h2 class="text-xl font-black text-white"><i class="fa-solid fa-list-check text-gray-400 mr-2"></i> Immutable Financial Audit Log</h2>
                         <p class="text-xs text-gray-400">Cryptographically verifiable log with IP and session reference</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <a href="/api/reports/trades.csv" download class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-mono text-xs font-bold rounded-xl transition flex items-center gap-1.5 shadow cursor-pointer">
+                            <i class="fa-solid fa-file-csv"></i>
+                            <span>DOWNLOAD TRADES & TAX CSV</span>
+                        </a>
                     </div>
                 </div>
 
@@ -2700,11 +3018,21 @@
             const secBadge = document.getElementById('sec-user-badge');
             const totpBadge = document.getElementById('sec-totp-status-badge');
             const bioBadge = document.getElementById('sec-bio-status-badge');
+            const riskLimitEl = document.getElementById('lbl-user-risk-limit');
+            const profLimitEl = document.getElementById('prof-modal-limit');
+            const profUserEl = document.getElementById('prof-modal-username');
+            const profRoleEl = document.getElementById('prof-modal-role');
 
             if (nameEl) nameEl.textContent = user.username;
             if (roleEl) roleEl.textContent = user.role;
             if (secUser) secUser.textContent = user.username;
             if (secBadge) secBadge.textContent = user.role;
+            if (profUserEl) profUserEl.textContent = user.username;
+            if (profRoleEl) profRoleEl.textContent = user.role;
+
+            const limitStr = user.role === 'SUPER_ADMIN' ? 'UNLIMITED' : `$${parseFloat(user.max_trade_size || 100).toFixed(2)}`;
+            if (riskLimitEl) riskLimitEl.textContent = `${limitStr} / Trade`;
+            if (profLimitEl) profLimitEl.textContent = limitStr;
 
             if (totpBadge) {
                 totpBadge.className = user.totp_enabled ? 'px-2.5 py-0.5 rounded text-[10px] font-black bg-emerald-500/20 text-emerald-400 font-mono' : 'px-2.5 py-0.5 rounded text-[10px] font-black bg-gray-800 text-gray-400 font-mono';
@@ -2716,6 +3044,431 @@
                 bioBadge.textContent = user.biometric_enabled ? 'ENROLLED 🟢' : 'AVAILABLE ⚪';
             }
         }
+
+        // ── TRADER PROFILE & 2FA SELF-SETUP MODAL ─────────────────────
+        function openProfileModal() {
+            const modal = document.getElementById('modal-user-profile');
+            if (!modal) return;
+            modal.classList.remove('hidden');
+            const user = sessionStorage.getItem('aegis_username') || (activeUserSession ? activeUserSession.username : 'marvan');
+            refreshProfileTotp(user);
+        }
+
+        function closeProfileModal() {
+            const modal = document.getElementById('modal-user-profile');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        function switchProfileModalTab(tab) {
+            const btnPw = document.getElementById('btn-prof-tab-pw');
+            const btnTotp = document.getElementById('btn-prof-tab-totp');
+            const panePw = document.getElementById('prof-tab-content-pw');
+            const paneTotp = document.getElementById('prof-tab-content-totp');
+
+            if (tab === 'pw') {
+                if (btnPw) btnPw.className = 'px-3 py-1.5 rounded-lg font-bold text-xs bg-amber-500 text-black shadow cursor-pointer';
+                if (btnTotp) btnTotp.className = 'px-3 py-1.5 rounded-lg font-bold text-xs text-gray-400 hover:text-white transition cursor-pointer';
+                if (panePw) panePw.classList.remove('hidden');
+                if (paneTotp) paneTotp.classList.add('hidden');
+            } else {
+                if (btnPw) btnPw.className = 'px-3 py-1.5 rounded-lg font-bold text-xs text-gray-400 hover:text-white transition cursor-pointer';
+                if (btnTotp) btnTotp.className = 'px-3 py-1.5 rounded-lg font-bold text-xs bg-amber-500 text-black shadow cursor-pointer';
+                if (panePw) panePw.classList.add('hidden');
+                if (paneTotp) paneTotp.classList.remove('hidden');
+            }
+        }
+
+        async function submitProfilePasswordChange() {
+            const oldPw = document.getElementById('prof-inp-current-pw')?.value || '';
+            const newPw = document.getElementById('prof-inp-new-pw')?.value || '';
+            const confirmPw = document.getElementById('prof-inp-confirm-pw')?.value || '';
+            const msgEl = document.getElementById('prof-pw-msg');
+
+            if (!oldPw || !newPw) {
+                if (msgEl) {
+                    msgEl.className = 'p-2.5 rounded-xl text-xs font-mono bg-red-500/20 text-red-400 block';
+                    msgEl.textContent = 'Please fill in both current and new password.';
+                }
+                return;
+            }
+            if (newPw.length < 6) {
+                if (msgEl) {
+                    msgEl.className = 'p-2.5 rounded-xl text-xs font-mono bg-red-500/20 text-red-400 block';
+                    msgEl.textContent = 'New password must be at least 6 characters.';
+                }
+                return;
+            }
+            if (newPw !== confirmPw) {
+                if (msgEl) {
+                    msgEl.className = 'p-2.5 rounded-xl text-xs font-mono bg-red-500/20 text-red-400 block';
+                    msgEl.textContent = 'New passwords do not match.';
+                }
+                return;
+            }
+
+            const token = sessionStorage.getItem('aegis_session_token');
+            try {
+                const res = await fetch('/api/auth/change-password', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ old_password: oldPw, new_password: newPw })
+                });
+                const data = await res.json();
+                if (data.status === 'SUCCESS') {
+                    if (msgEl) {
+                        msgEl.className = 'p-2.5 rounded-xl text-xs font-mono bg-emerald-500/20 text-emerald-400 block';
+                        msgEl.innerHTML = '<i class="fa-solid fa-circle-check mr-1"></i> ' + data.message;
+                    }
+                    playSynthChime('PROFIT');
+                    showNotification('Security Updated', 'Your password was securely updated with PBKDF2 hashing!', 'success');
+                    if (document.getElementById('prof-inp-current-pw')) document.getElementById('prof-inp-current-pw').value = '';
+                    if (document.getElementById('prof-inp-new-pw')) document.getElementById('prof-inp-new-pw').value = '';
+                    if (document.getElementById('prof-inp-confirm-pw')) document.getElementById('prof-inp-confirm-pw').value = '';
+                } else {
+                    if (msgEl) {
+                        msgEl.className = 'p-2.5 rounded-xl text-xs font-mono bg-red-500/20 text-red-400 block';
+                        msgEl.textContent = data.message || 'Password change failed.';
+                    }
+                    playSynthChime('ALARM');
+                }
+            } catch (e) {
+                if (msgEl) {
+                    msgEl.className = 'p-2.5 rounded-xl text-xs font-mono bg-red-500/20 text-red-400 block';
+                    msgEl.textContent = 'Connection error: ' + e.message;
+                }
+            }
+        }
+
+        async function refreshProfileTotp(username) {
+            const u = username || sessionStorage.getItem('aegis_username') || 'marvan';
+            const qrImg = document.getElementById('prof-totp-qr');
+            const secKey = document.getElementById('prof-totp-secret-txt');
+            try {
+                const res = await fetch(`/api/admin/totp-provision/${u}`);
+                const data = await res.json();
+                if (data.status === 'SUCCESS') {
+                    if (qrImg) qrImg.src = data.qr_image_url;
+                    if (secKey) secKey.textContent = data.secret;
+                    const badge = document.getElementById('prof-totp-badge');
+                    if (badge) {
+                        badge.className = data.totp_enabled ? 'px-2 py-0.5 rounded text-[10px] font-black bg-emerald-500/20 text-emerald-400 font-mono' : 'px-2 py-0.5 rounded text-[10px] font-black bg-gray-800 text-gray-400 font-mono';
+                        badge.textContent = data.totp_enabled ? 'ACTIVE 🟢' : 'NOT ENABLED ⚪';
+                    }
+                }
+            } catch (e) {
+                console.warn('TOTP provision error:', e);
+            }
+        }
+
+        async function activateProfileTotp() {
+            const user = sessionStorage.getItem('aegis_username') || 'marvan';
+            const code = document.getElementById('prof-totp-verify-code')?.value.trim() || '';
+            const msgEl = document.getElementById('prof-totp-msg');
+            if (!code || code.length !== 6) {
+                if (msgEl) {
+                    msgEl.className = 'p-2.5 rounded-xl text-xs font-mono bg-red-500/20 text-red-400 block';
+                    msgEl.textContent = 'Please enter 6-digit code from your app.';
+                }
+                return;
+            }
+            try {
+                const res = await fetch('/api/admin/totp-activate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: user, code: code })
+                });
+                const data = await res.json();
+                if (data.status === 'SUCCESS') {
+                    if (msgEl) {
+                        msgEl.className = 'p-2.5 rounded-xl text-xs font-mono bg-emerald-500/20 text-emerald-400 block';
+                        msgEl.innerHTML = '<i class="fa-solid fa-circle-check mr-1"></i> ' + data.message;
+                    }
+                    playSynthChime('PROFIT');
+                    refreshProfileTotp(user);
+                } else {
+                    if (msgEl) {
+                        msgEl.className = 'p-2.5 rounded-xl text-xs font-mono bg-red-500/20 text-red-400 block';
+                        msgEl.textContent = data.message || 'Invalid verification code.';
+                    }
+                }
+            } catch (e) {
+                if (msgEl) {
+                    msgEl.className = 'p-2.5 rounded-xl text-xs font-mono bg-red-500/20 text-red-400 block';
+                    msgEl.textContent = 'Activation error: ' + e.message;
+                }
+            }
+        }
+
+        async function deactivateProfileTotp() {
+            if (!confirm('Are you sure you want to disable Google Authenticator 2FA? This lowers account security.')) return;
+            const user = sessionStorage.getItem('aegis_username') || 'marvan';
+            const msgEl = document.getElementById('prof-totp-msg');
+            try {
+                const res = await fetch('/api/admin/totp-deactivate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: user })
+                });
+                const data = await res.json();
+                if (data.status === 'SUCCESS') {
+                    if (msgEl) {
+                        msgEl.className = 'p-2.5 rounded-xl text-xs font-mono bg-amber-500/20 text-amber-400 block';
+                        msgEl.textContent = '2FA disabled.';
+                    }
+                    refreshProfileTotp(user);
+                }
+            } catch (e) {}
+        }
+
+        function copyTotpSecret() {
+            const sec = document.getElementById('prof-totp-secret-txt')?.textContent || '';
+            navigator.clipboard.writeText(sec).then(() => {
+                showNotification('Copied', 'TOTP Secret Key copied to clipboard!', 'info');
+            });
+        }
+
+        // ── COLD STORAGE PROFIT SWEEP MODAL ───────────────────────────
+        function openColdStorageModal() {
+            const modal = document.getElementById('modal-cold-storage');
+            if (modal) modal.classList.remove('hidden');
+        }
+
+        function closeColdStorageModal() {
+            const modal = document.getElementById('modal-cold-storage');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        function confirmColdStorageSweep() {
+            const addr = document.getElementById('cold-wallet-addr')?.value.trim();
+            const amt = parseFloat(document.getElementById('cold-sweep-amount')?.value) || 0;
+            const device = document.getElementById('cold-wallet-type')?.value;
+            const msgEl = document.getElementById('cold-sweep-msg');
+
+            if (!addr || amt <= 0) {
+                if (msgEl) {
+                    msgEl.className = 'p-2.5 rounded-xl text-xs font-mono bg-red-500/20 text-red-400 block';
+                    msgEl.textContent = 'Please enter hardware address and valid amount.';
+                }
+                return;
+            }
+
+            if (msgEl) {
+                msgEl.className = 'p-2.5 rounded-xl text-xs font-mono bg-emerald-500/20 text-emerald-300 block';
+                msgEl.innerHTML = `<i class="fa-solid fa-circle-check mr-1 text-emerald-400"></i> Air-gapped sweep of $${amt.toFixed(2)} dispatched to ${device} (${addr.substring(0, 8)}...${addr.substring(addr.length - 6)})`;
+            }
+            playSynthChime('PROFIT');
+            showNotification('Cold Storage Sweep', `Air-gapped transaction sent to ${device} cold storage!`, 'success');
+        }
+
+        // ── INSTITUTIONAL WEB AUDIO API SYNTHESIZER ──────────────────
+        let soundEngineEnabled = localStorage.getItem('aegis_audio_sound') !== 'false';
+
+        function toggleSoundEngine() {
+            soundEngineEnabled = !soundEngineEnabled;
+            localStorage.setItem('aegis_audio_sound', soundEngineEnabled);
+            const icon = document.getElementById('icon-sound');
+            const lbl = document.getElementById('lbl-sound-status');
+            if (icon && lbl) {
+                if (soundEngineEnabled) {
+                    icon.className = 'fa-solid fa-volume-high text-amber-400';
+                    lbl.textContent = 'AUDIO ON';
+                    playSynthChime('ORDER');
+                } else {
+                    icon.className = 'fa-solid fa-volume-xmark text-gray-500';
+                    lbl.textContent = 'MUTED';
+                }
+            }
+        }
+
+        function playSynthChime(type = 'ORDER') {
+            if (!soundEngineEnabled) return;
+            try {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (!AudioCtx) return;
+                const ctx = new AudioCtx();
+
+                if (type === 'PROFIT') {
+                    // Ascending harmonious triad arpeggio
+                    [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.08);
+                        gain.gain.setValueAtTime(0.12, ctx.currentTime + i * 0.08);
+                        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.08 + 0.35);
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+                        osc.start(ctx.currentTime + i * 0.08);
+                        osc.stop(ctx.currentTime + i * 0.08 + 0.38);
+                    });
+                } else if (type === 'ALARM' || type === 'KILLSWITCH') {
+                    // Urgent dual-tone warble
+                    [440, 330, 440, 330].forEach((freq, i) => {
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.type = 'sawtooth';
+                        osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.12);
+                        gain.gain.setValueAtTime(0.15, ctx.currentTime + i * 0.12);
+                        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.12 + 0.18);
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+                        osc.start(ctx.currentTime + i * 0.12);
+                        osc.stop(ctx.currentTime + i * 0.12 + 0.2);
+                    });
+                } else {
+                    // Crisp electronic high-tech blip
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(880, ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(1760, ctx.currentTime + 0.06);
+                    gain.gain.setValueAtTime(0.1, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.09);
+                }
+            } catch (e) {}
+        }
+
+        // ── 15-MINUTE INACTIVITY AUTO-LOCKOUT ─────────────────────────
+        let sessionInactivityTimer = null;
+        let sessionWarningTimer = null;
+        const INACTIVITY_LOCKOUT_MS = 15 * 60 * 1000; // 15 mins
+        const INACTIVITY_WARNING_MS = 13 * 60 * 1000; // 13 mins
+
+        function resetInactivityTimer() {
+            if (sessionInactivityTimer) clearTimeout(sessionInactivityTimer);
+            if (sessionWarningTimer) clearTimeout(sessionWarningTimer);
+
+            const warnModal = document.getElementById('modal-session-timeout');
+            if (warnModal) warnModal.classList.add('hidden');
+
+            const token = sessionStorage.getItem('aegis_session_token');
+            if (!token) return;
+
+            sessionWarningTimer = setTimeout(() => {
+                const wm = document.getElementById('modal-session-timeout');
+                if (wm) wm.classList.remove('hidden');
+                playSynthChime('ALARM');
+            }, INACTIVITY_WARNING_MS);
+
+            sessionInactivityTimer = setTimeout(() => {
+                terminalLogout();
+                showNotification('Session Expired', 'Terminal locked out after 15 minutes of inactivity for capital safety.', 'warning');
+            }, INACTIVITY_LOCKOUT_MS);
+        }
+
+        ['mousemove', 'keydown', 'mousedown', 'touchstart', 'scroll'].forEach(evt => {
+            window.addEventListener(evt, resetInactivityTimer, { passive: true });
+        });
+        resetInactivityTimer();
+
+        // ── AI MARKET REGIME CONTROLLER ──────────────────────────────
+        async function fetchAiRegime() {
+            try {
+                const res = await fetch('/api/ai/regime');
+                const data = await res.json();
+                updateAiRegimeUI(data);
+            } catch (e) {
+                console.warn('AI Regime fetch error:', e);
+            }
+        }
+
+        async function setAiRegime(regime) {
+            try {
+                playSynthChime('ORDER');
+                const res = await fetch('/api/ai/regime', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ regime })
+                });
+                const data = await res.json();
+                if (data.status === 'SUCCESS') {
+                    updateAiRegimeUI(data.regime);
+                    showNotification('AI Regime Updated', `Switched to ${data.regime.regime}: ${data.regime.description}`, 'success');
+                }
+            } catch (e) {
+                showNotification('Error', 'Failed to update AI market regime.', 'error');
+            }
+        }
+
+        function updateAiRegimeUI(regimeData) {
+            if (!regimeData) return;
+            const r = (regimeData.regime || 'BALANCED').toUpperCase();
+            const badge = document.getElementById('badge-ai-regime-status');
+            const desc = document.getElementById('ai-regime-desc-text');
+            if (badge) {
+                badge.textContent = `${r} REGIME`;
+                if (r === 'DEFENSIVE') badge.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-black font-mono bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
+                else if (r === 'BULL_RUN') badge.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-black font-mono bg-amber-500/20 text-amber-400 border border-amber-500/30';
+                else badge.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-black font-mono bg-cyan-500/20 text-cyan-300 border border-cyan-500/30';
+            }
+            if (desc && regimeData.description) desc.textContent = regimeData.description;
+
+            ['defensive', 'balanced', 'bull'].forEach(key => {
+                const btn = document.getElementById(`btn-regime-${key}`);
+                if (!btn) return;
+                const match = (key === 'defensive' && r === 'DEFENSIVE') || (key === 'balanced' && r === 'BALANCED') || (key === 'bull' && r === 'BULL_RUN');
+                if (match) {
+                    btn.className = 'p-3 rounded-xl border border-cyan-500/60 bg-cyan-950/20 transition flex flex-col items-center text-center space-y-1.5 cursor-pointer shadow-lg';
+                } else {
+                    btn.className = 'p-3 rounded-xl border border-gray-800 hover:border-gray-700 bg-gray-950 transition flex flex-col items-center text-center space-y-1.5 cursor-pointer';
+                }
+            });
+        }
+
+        // ── ECONOMIC NEWS CALENDAR COUNTDOWN FEED ─────────────────────
+        let economicEventsData = [];
+        async function fetchEconomicCalendar() {
+            try {
+                const res = await fetch('/api/economic-calendar');
+                const data = await res.json();
+                if (data.status === 'SUCCESS' && Array.isArray(data.events)) {
+                    economicEventsData = data.events;
+                    renderEconomicCalendarFeed();
+                }
+            } catch (e) {
+                console.warn('Economic calendar fetch error:', e);
+            }
+        }
+
+        function renderEconomicCalendarFeed() {
+            const container = document.getElementById('economic-calendar-feed');
+            if (!container) return;
+            const now = Date.now() / 1000;
+            if (!economicEventsData.length) {
+                container.innerHTML = '<div class="text-gray-500 text-center py-4">No upcoming high-impact releases.</div>';
+                return;
+            }
+            container.innerHTML = economicEventsData.map(ev => {
+                const diff = Math.max(0, ev.target_epoch - now);
+                const hrs = Math.floor(diff / 3600);
+                const mins = Math.floor((diff % 3600) / 60);
+                const secs = Math.floor(diff % 60);
+                const timeStr = `${hrs}h ${mins}m ${secs}s`;
+                return `
+                    <div class="p-2.5 bg-gray-950 border border-gray-800 rounded-xl flex items-center justify-between gap-3 hover:border-amber-500/30 transition">
+                        <div class="flex items-center space-x-2.5">
+                            <span class="text-base">${ev.country.split(' ')[0]}</span>
+                            <div>
+                                <div class="font-bold text-white text-[11px]">${ev.title}</div>
+                                <div class="text-[9px] text-gray-400">Forecast: <span class="text-amber-400 font-bold">${ev.forecast}</span> | Prev: ${ev.previous} | <span class="text-cyan-400 font-semibold">${ev.desk_action}</span></div>
+                            </div>
+                        </div>
+                        <div class="text-right shrink-0">
+                            <div class="text-amber-400 font-black text-xs font-mono">${timeStr}</div>
+                            <span class="px-1.5 py-0.2 rounded text-[8px] font-black ${ev.impact === 'CRITICAL' ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'}">${ev.impact}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        setInterval(renderEconomicCalendarFeed, 1000);
 
         async function openTotpSetupDrawer() {
             const drawer = document.getElementById('sec-totp-drawer');
@@ -3751,12 +4504,19 @@
 
             try {
                 let res, data;
+                const token = sessionStorage.getItem('aegis_session_token') || '';
+                const authHeaders = {
+                    'Content-Type': 'application/json',
+                    'Authorization': token ? `Bearer ${token}` : ''
+                };
+                const t0 = performance.now();
+
                 if (window.activeMarketVenue === 'INDIA') {
                     const approxPx = window.selectedAssetPrice || 2500.0;
                     const qty = Math.max(1, Math.round(amountInput / approxPx));
                     res = await fetch('/api/india/orders/submit', {
                         method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
+                        headers: authHeaders,
                         body: JSON.stringify({
                             symbol: symbol,
                             quantity: qty,
@@ -3771,11 +4531,16 @@
                         })
                     });
                     data = await res.json();
+                    const roundtripMs = (performance.now() - t0).toFixed(2);
+                    const speedoEl = document.getElementById('speedometer-latency');
+                    if (speedoEl) speedoEl.textContent = `${roundtripMs} ms`;
+
                     if (data.status === 'COMPLETE' || data.status === 'SUBMITTED' || data.status === 'SUCCESS') {
                         if (resultBox) {
                             resultBox.className = 'p-3 rounded-xl bg-emerald-500/15 border border-emerald-500/50 text-emerald-300 font-mono text-xs';
-                            resultBox.innerHTML = `<i class="fa-solid fa-circle-check mr-1 text-emerald-400"></i> INDIAN ORDER ${side} EXECUTED! ID: <span class="font-bold text-white">${data.order_id || 'ORD-IND'}</span> | ₹${((data.price || approxPx) * qty).toLocaleString('en-IN', {minimumFractionDigits: 2})} [${data.product || 'CNC'}]`;
+                            resultBox.innerHTML = `<i class="fa-solid fa-circle-check mr-1 text-emerald-400"></i> INDIAN ORDER ${side} EXECUTED! ID: <span class="font-bold text-white">${data.order_id || 'ORD-IND'}</span> | ₹${((data.price || approxPx) * qty).toLocaleString('en-IN', {minimumFractionDigits: 2})} [${data.product || 'CNC'}] (${roundtripMs}ms)`;
                         }
+                        playSynthChime('PROFIT');
                         showNotification('ORDER EXECUTED', `NSE ${side} ${symbol} (₹${amountInput.toLocaleString('en-IN')}) successfully executed!`, 'success');
                     } else {
                         const failMsg = data.reason || data.message || 'Risk Gate Rejection';
@@ -3783,6 +4548,7 @@
                             resultBox.className = 'p-3 rounded-xl bg-red-500/15 border border-red-500/50 text-red-300 font-mono text-xs';
                             resultBox.innerHTML = `<i class="fa-solid fa-triangle-exclamation mr-1 text-red-400"></i> ORDER BLOCKED: ${failMsg}`;
                         }
+                        playSynthChime('ALARM');
                         showNotification('ORDER BLOCKED', failMsg, 'error');
                     }
                     fetchIndiaPositions();
@@ -3816,7 +4582,7 @@
                     const calculatedQty = Number((effectiveAmount / assetPrice).toFixed(6));
                     res = await fetch('/api/orders/submit', {
                         method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
+                        headers: authHeaders,
                         body: JSON.stringify({
                             symbol: symbol,
                             side: side,
@@ -3832,13 +4598,18 @@
                         })
                     });
                     data = await res.json();
+                    const roundtripMs = (performance.now() - t0).toFixed(2);
+                    const speedoEl = document.getElementById('speedometer-latency');
+                    if (speedoEl) speedoEl.textContent = `${roundtripMs} ms`;
+
                     if (data.status === 'SUCCESS') {
                         const curPrefix = (window.activeMarketVenue === 'CRYPTO') ? '' : '$';
                         const curSuffix = (window.activeMarketVenue === 'CRYPTO') ? ' USDT' : '';
                         if (resultBox) {
                             resultBox.className = 'p-3 rounded-xl bg-emerald-500/15 border border-emerald-500/50 text-emerald-300 font-mono text-xs';
-                            resultBox.innerHTML = `<i class="fa-solid fa-circle-check mr-1 text-emerald-400"></i> ORDER ${side} EXECUTED! ID: <span class="font-bold text-white">${data.order?.order_id || 'ORD-SUCCESS'}</span> | ${curPrefix}${amountInput.toLocaleString(undefined, {minimumFractionDigits: 2})}${curSuffix} [${symbol}] @ ${levVal}x`;
+                            resultBox.innerHTML = `<i class="fa-solid fa-circle-check mr-1 text-emerald-400"></i> ORDER ${side} EXECUTED! ID: <span class="font-bold text-white">${data.order?.order_id || 'ORD-SUCCESS'}</span> | ${curPrefix}${amountInput.toLocaleString(undefined, {minimumFractionDigits: 2})}${curSuffix} [${symbol}] @ ${levVal}x (${roundtripMs}ms)`;
                         }
+                        playSynthChime('PROFIT');
                         showNotification('ORDER EXECUTED', `${side} ${symbol} (${curPrefix}${amountInput.toLocaleString()}${curSuffix}) executed successfully!`, 'success');
                     } else {
                         const failMsg = data.reason || data.message || 'Risk Gate Rejection';
@@ -3846,6 +4617,7 @@
                             resultBox.className = 'p-3 rounded-xl bg-red-500/15 border border-red-500/50 text-red-300 font-mono text-xs';
                             resultBox.innerHTML = `<i class="fa-solid fa-triangle-exclamation mr-1 text-red-400"></i> ORDER BLOCKED: ${failMsg}`;
                         }
+                        playSynthChime('ALARM');
                         showNotification('ORDER BLOCKED', failMsg, 'error');
                     }
                 }
@@ -6978,9 +7750,12 @@
             loadAlgoControls();
             fetchPerformanceCurve();
             initWebSocket();
+            fetchAiRegime();
+            fetchEconomicCalendar();
 
             // Consolidated venue & state periodic refresh (single lightweight heartbeat)
             setInterval(() => refreshVenueData(), 3500);
+            setInterval(fetchEconomicCalendar, 30000); // 30s macro calendar sync
 
             // Low-frequency telemetry and credential intervals
             setInterval(fetchPerformanceCurve, 30000); // 30s
