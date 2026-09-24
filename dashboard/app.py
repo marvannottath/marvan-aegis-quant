@@ -4583,34 +4583,90 @@ async def get_reconciliation_endpoint():
 
 
 # ------------------------------------------------------------------
-# 31. Broker Connection API (Used by broker_page.html)
+# 31. Unified Broker Gateway & Algo Controls API
 # ------------------------------------------------------------------
+@app.get("/api/brokers/all")
+async def get_all_brokers_endpoint(env: Optional[str] = None, category: Optional[str] = None):
+    """Return enriched directory of all supported live and demo brokers."""
+    try:
+        from execution.broker_gateway_manager import broker_gateway_manager
+        brokers = broker_gateway_manager.get_all_brokers(env_filter=env, cat_filter=category)
+        return JSONResponse({"status": "SUCCESS", "brokers": brokers})
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
 @app.post("/api/connect-broker")
 async def connect_broker_endpoint(request: Request):
-    """Verify and connect broker credentials."""
+    """Verify and save broker credentials across all supported broker gateways."""
     try:
         data = await request.json()
-        api_key = str(data.get("api_key", "")).strip()
-        secret_key = str(data.get("secret_key", "")).strip()
-        is_testnet = bool(data.get("is_testnet", True))
-        broker = str(data.get("broker", "BINANCE")).upper()
+        broker_id = str(data.get("broker_id") or data.get("broker", "")).strip().lower()
+        
+        # Legacy mapping fallback:
+        if broker_id == "binance":
+            broker_id = "binance_demo" if data.get("is_testnet", False) else "binance_live"
+        elif broker_id == "upstox":
+            broker_id = "upstox_live"
+        elif broker_id == "zerodha":
+            broker_id = "zerodha_live"
+        elif broker_id == "mt5":
+            broker_id = "mt5_live"
 
-        if not api_key or not secret_key:
-            return JSONResponse({"status": "ERROR", "message": "Both API Key and Secret Key are required."}, status_code=400)
+        from execution.broker_gateway_manager import broker_gateway_manager
+        res = broker_gateway_manager.save_broker_credentials(broker_id, data)
+        code = 200 if res.get("status") in ["SUCCESS", "READY"] else 400
+        return JSONResponse(res, status_code=code)
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
 
-        if broker == "BINANCE":
-            from execution.binance_broker import binance_broker
-            os.environ["BINANCE_API_KEY"] = api_key
-            os.environ["BINANCE_API_SECRET"] = secret_key
-            binance_broker.api_key = api_key
-            binance_broker.api_secret = secret_key
-            binance_broker.is_testnet = is_testnet
-            binance_broker._save_config_masked()
-            return JSONResponse({"status": "SUCCESS", "message": f"Binance {'Testnet' if is_testnet else 'Live'} credentials verified and saved."})
-        elif broker in ["UPSTOX", "ZERODHA"]:
-            return JSONResponse({"status": "SUCCESS", "message": f"{broker} credentials stored in secure encrypted vault."})
-        else:
-            return JSONResponse({"status": "ERROR", "message": f"Unsupported broker: {broker}"}, status_code=400)
+@app.post("/api/test-broker-connection")
+async def test_broker_connection_endpoint(request: Request):
+    """Test ping and authentication handshake for a broker."""
+    try:
+        data = await request.json()
+        broker_id = str(data.get("broker_id") or data.get("broker", "")).strip().lower()
+        if broker_id == "binance":
+            broker_id = "binance_demo" if data.get("is_testnet", False) else "binance_live"
+        elif broker_id == "mt5":
+            broker_id = "mt5_live"
+        elif broker_id == "upstox":
+            broker_id = "upstox_live"
+
+        from execution.broker_gateway_manager import broker_gateway_manager
+        res = broker_gateway_manager.test_broker_connection(broker_id, data)
+        return JSONResponse(res)
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+@app.post("/api/disconnect-broker")
+async def disconnect_broker_endpoint(request: Request):
+    """Disconnect and wipe stored credentials for a broker."""
+    try:
+        data = await request.json()
+        broker_id = str(data.get("broker_id", "")).strip().lower()
+        from execution.broker_gateway_manager import broker_gateway_manager
+        res = broker_gateway_manager.disconnect_broker(broker_id)
+        return JSONResponse(res)
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+@app.get("/api/algo-controls")
+async def get_algo_controls_endpoint():
+    """Fetch active algorithmic risk parameters (TSL, MTF, threshold)."""
+    try:
+        from execution.broker_gateway_manager import broker_gateway_manager
+        return JSONResponse({"status": "SUCCESS", "controls": broker_gateway_manager.get_algo_controls()})
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+@app.post("/api/algo-controls")
+async def save_algo_controls_endpoint(request: Request):
+    """Update algorithmic risk parameters (TSL, MTF, threshold)."""
+    try:
+        data = await request.json()
+        from execution.broker_gateway_manager import broker_gateway_manager
+        updated = broker_gateway_manager.save_algo_controls(data)
+        return JSONResponse({"status": "SUCCESS", "controls": updated, "message": "Algorithmic controls updated."})
     except Exception as e:
         return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
 

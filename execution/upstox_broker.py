@@ -109,6 +109,18 @@ class UpstoxBrokerAdapter(BrokerAdapter):
     def get_configuration_state(self) -> str:
         return self.configuration_state
 
+    def get_status(self) -> Dict[str, Any]:
+        """Return standardized status dict."""
+        cfg_state = self.configuration_state
+        funds = self.get_funds() if self._is_authenticated else {"available_margin": 0.0}
+        return {
+            "status": "CONNECTED" if self._is_authenticated else cfg_state,
+            "configuration_state": cfg_state,
+            "api_key": self._api_key,
+            "funds": funds,
+            "paper_mode": self._paper_mode
+        }
+
     def is_token_expired(self) -> Tuple[bool, Optional[str]]:
         from core.secure_credential_manager import secure_credential_manager
         return secure_credential_manager.is_upstox_token_expired()

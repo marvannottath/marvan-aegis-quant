@@ -343,6 +343,14 @@ class AutonomousTrader:
                     pnl_pct = (new_live_price - entry) / entry if act == "BUY" else (entry - new_live_price) / entry
                     pnl_usd = (new_live_price - entry) * units if act == "BUY" else (entry - new_live_price) * units
 
+                    # Peak Trailing PnL Tracking
+                    highest_pnl = max(pos.get("highest_pnl_pct", 0.0), pnl_pct)
+                    pos["highest_pnl_pct"] = highest_pnl
+
+                    # Dynamic Trailing Stop Loss (TSL):
+                    # If profit reached +0.8% and drops by 0.30% from peak, lock in profit
+                    is_trailing_stop = (highest_pnl >= 0.008) and (pnl_pct <= highest_pnl - 0.0030)
+
                     # Fee-Aware Scalping & Swing Take-Profit Rules:
                     if pool in ["MT5_LIVE_REAL", "MT5_DEMO"] or active_ws == "FOREX_GOLD":
                         is_fee_secured_tp = (pnl_pct >= 0.010)  # +1.0% Forex take profit
@@ -361,11 +369,18 @@ class AutonomousTrader:
                         is_maturity_rebalance = (age >= 5) and (pnl_usd >= 0.01 and pnl_pct >= MIN_GROSS_TP)
                         is_hard_stop = (pnl_pct <= -0.015)
 
-                    should_close = is_fee_secured_tp or is_milestone or is_staggered_harvest or is_maturity_rebalance or is_hard_stop
+                    should_close = is_fee_secured_tp or is_milestone or is_staggered_harvest or is_maturity_rebalance or is_hard_stop or is_trailing_stop
 
                     if should_close:
                         closed_any = True
-                        close_reason = "FEE_SECURED_TAKE_PROFIT" if (is_fee_secured_tp or is_milestone) else ("SCALP_PROFIT_HARVEST" if pnl_usd > 0 else "STOP_LOSS_EXIT")
+                        if is_trailing_stop:
+                            close_reason = "TRAILING_STOP_LOSS_LOCKED"
+                        elif is_fee_secured_tp or is_milestone:
+                            close_reason = "FEE_SECURED_TAKE_PROFIT"
+                        elif pnl_usd > 0:
+                            close_reason = "SCALP_PROFIT_HARVEST"
+                        else:
+                            close_reason = "STOP_LOSS_EXIT"
                         
                         self.broker.close_position(
                             asset=pos_asset,
@@ -376,6 +391,20 @@ class AutonomousTrader:
                         )
                         self.position_age.pop(pos_asset, None)
                         self._log_action(pos_asset, "CLOSE", new_live_price, pos.get("capital_allocated", 500.0), f"Position Closed & Swept ({close_reason})")
+                        
+                        try:
+                            from core.notification_engine import notification_engine
+                            notification_engine.notify_trade_closed(
+                                asset=pos_asset,
+                                action=act,
+                                pnl_usd=pnl_usd,
+                                pnl_pct=pnl_pct,
+                                exit_price=new_live_price,
+                                reason=close_reason
+                            )
+                        except Exception:
+                            pass
+
                         if pool == "BINANCE_LIVE_REAL" or active_ws == "CRYPTO":
                             try:
                                 from execution.binance_broker import binance_broker

@@ -166,6 +166,29 @@ class NotificationEngine:
         msg = "\n".join(lines)
         self.send_telegram_message(msg)
 
+    def notify_trade_closed(self, asset: str, action: str, pnl_usd: float, pnl_pct: float, exit_price: float, reason: str):
+        """Triggered when a trade is closed (TP, SL, Trailing SL, or Rebalance)."""
+        ist_now = datetime.now(timezone.utc).astimezone(IST_TZ)
+        ist_time_str = ist_now.strftime("%d %b %Y, %I:%M:%S %p")
+        is_profit = pnl_usd >= 0
+        status_icon = "🟢 PROFIT REALIZED" if is_profit else "🔴 STOP LOSS / EXIT"
+
+        pnl_prefix = "+$" if is_profit else "-$"
+        pct_prefix = "+" if is_profit else ""
+
+        lines = [
+            f"⚡ *MARVAN'S POOL - POSITION CLOSED* ({status_icon}) 💎\n",
+            f"📊 *Asset:* `{asset}`",
+            f"🎯 *Side:* `{action.upper()}`",
+            f"💵 *Realized PnL:* `{pnl_prefix}{abs(pnl_usd):,.2f} USD` ({pct_prefix}{pnl_pct*100:.2f}%)",
+            f"🚪 *Exit Price:* `${exit_price:,.4f}`",
+            f"📋 *Reason:* `{reason}`",
+            f"⏰ *Time (IST):* `{ist_time_str}`\n",
+            "🛡️ _Capital recycled into pool for next high-probability setup._"
+        ]
+        msg = "\n".join(lines)
+        self.send_telegram_message(msg)
+
     def notify_withdrawal(self, amount_usd: float, method: str, destination: str):
         """Triggered when a vault withdrawal is dispatched."""
         ist_now = datetime.now(timezone.utc).astimezone(IST_TZ)
