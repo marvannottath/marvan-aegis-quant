@@ -116,6 +116,12 @@
                 <button id="btn-terminal-submit" onclick="terminalPasswordLogin()" class="w-full bg-amber-500 hover:bg-amber-400 text-black font-black py-3 rounded-xl shadow-lg text-xs transition cursor-pointer">
                     <i class="fa-solid fa-lock-open mr-1.5"></i> Unlock Trading Terminal
                 </button>
+
+                <div class="text-center pt-2 border-t border-gray-800/60">
+                    <a href="/admin" target="_blank" class="text-[10px] text-gray-500 hover:text-amber-400 font-mono transition inline-flex items-center gap-1.5">
+                        <i class="fa-solid fa-shield-halved text-red-500"></i> Direct Super Admin Console Portal &rarr;
+                    </a>
+                </div>
             </div>
         </div>
     </div>
@@ -160,17 +166,17 @@
                 <span id="mkt-session-label" class="font-bold text-gray-300 text-[10px]">LOADING...</span>
             </div>
 
-            <!-- AI Trading Master Control -->
-            <div id="ai-control-panel" class="hidden md:flex items-center space-x-1.5 px-2.5 py-1 bg-gray-900 border border-gray-800 rounded-lg">
-                <span id="ai-state-dot" class="w-2 h-2 rounded-full bg-gray-500"></span>
-                <span class="text-gray-500 text-[10px] font-bold">AI:</span>
-                <span id="ai-state-label" class="font-black text-[10px] text-gray-400">PAUSED</span>
-                <!-- PAUSE button -->
-                <button id="btn-ai-pause" onclick="aiPause()" class="hidden px-2 py-0.5 rounded text-[9px] font-black bg-yellow-500/20 border border-yellow-500/40 text-yellow-400 hover:bg-yellow-500/30 transition cursor-pointer">⏸ PAUSE</button>
-                <!-- STOP button -->
-                <button id="btn-ai-stop" onclick="aiStopConfirm()" class="hidden px-2 py-0.5 rounded text-[9px] font-black bg-red-500/20 border border-red-500/40 text-red-400 hover:bg-red-500/30 transition cursor-pointer">⏹ STOP</button>
-                <!-- RESUME button -->
-                <button id="btn-ai-resume" onclick="aiResume()" class="hidden px-2 py-0.5 rounded text-[9px] font-black bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/30 transition cursor-pointer">▶ RESUME</button>
+            <!-- AI Trading Master Control (Streamlined switches only) -->
+            <div id="ai-control-panel" class="hidden md:flex items-center space-x-1.5 px-2 py-1 bg-gray-900/80 border border-gray-800 rounded-lg">
+                <!-- Preserved for JS state bindings, hidden from display -->
+                <div class="hidden">
+                    <span id="ai-state-dot"></span>
+                    <span id="ai-state-label"></span>
+                </div>
+                <!-- Clean Minimal Action Switches -->
+                <button id="btn-ai-pause" onclick="aiPause()" class="hidden px-2.5 py-1 rounded text-[10px] font-black bg-yellow-500/20 border border-yellow-500/40 text-yellow-400 hover:bg-yellow-500/30 transition cursor-pointer" title="Pause AI Trading">⏸ PAUSE</button>
+                <button id="btn-ai-stop" onclick="aiStopConfirm()" class="hidden px-2.5 py-1 rounded text-[10px] font-black bg-red-500/20 border border-red-500/40 text-red-400 hover:bg-red-500/30 transition cursor-pointer" title="Emergency Stop AI Trading">⏹ STOP</button>
+                <button id="btn-ai-resume" onclick="aiResume()" class="hidden px-2.5 py-1 rounded text-[10px] font-black bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/30 transition cursor-pointer" title="Resume AI Trading">▶ RESUME</button>
             </div>
 
             <!-- Hidden legacy anchors to preserve JS bindings -->
@@ -194,17 +200,6 @@
 
             <!-- Server Time Clock -->
             <div id="lbl-server-time" class="font-bold text-gray-400 bg-gray-900 border border-gray-800 px-2.5 py-1 rounded-lg text-[11px]">--:--:-- IST</div>
-
-            <!-- Order Action Button -->
-            <button onclick="switchTab('orders')" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-lg transition shadow flex items-center cursor-pointer text-xs">
-                <i class="fa-solid fa-bolt mr-1"></i> ORDER
-            </button>
-
-            <!-- Sound Effects Synthesizer Toggle -->
-            <button id="btn-sound-toggle" onclick="toggleSoundEngine()" class="hidden md:flex px-2.5 py-1 rounded-lg bg-gray-900 border border-gray-800 text-xs font-mono text-gray-300 hover:text-white transition items-center gap-1.5 cursor-pointer" title="Toggle Synthesizer Sound Effects">
-                <i id="icon-sound" class="fa-solid fa-volume-high text-amber-400"></i>
-                <span id="lbl-sound-status">AUDIO</span>
-            </button>
 
             <!-- Authenticated User Profile & Logout -->
             <div id="user-nav-profile" class="flex items-center space-x-2 pl-2 border-l border-gray-800">
@@ -406,6 +401,23 @@
                 </div>
             </div>
 
+            <!-- Audio & Sound Effects Synthesizer Control -->
+            <div class="p-3 bg-gray-950 border border-gray-800 rounded-xl flex items-center justify-between text-[11px]">
+                <div class="flex items-center space-x-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                        <i id="prof-icon-sound" class="fa-solid fa-volume-high text-xs"></i>
+                    </div>
+                    <div>
+                        <div class="font-bold text-white">Audio & Sound FX</div>
+                        <div class="text-[10px] text-gray-400">Synthesizer chimes for order execution & profit alerts</div>
+                    </div>
+                </div>
+                <button id="btn-sound-toggle" onclick="toggleSoundEngine()" class="px-3 py-1.5 rounded-lg bg-gray-900 border border-gray-700 text-xs font-mono text-gray-200 hover:text-white transition flex items-center gap-1.5 cursor-pointer">
+                    <i id="icon-sound" class="fa-solid fa-volume-high text-amber-400"></i>
+                    <span id="lbl-sound-status">AUDIO ON</span>
+                </button>
+            </div>
+
             <!-- Profile Tabs: Change Password vs Google 2FA -->
             <div class="flex space-x-2 border-b border-gray-800 pb-2">
                 <button id="btn-prof-tab-pw" onclick="switchProfileModalTab('pw')" class="px-3 py-1.5 rounded-lg font-bold text-xs bg-amber-500 text-black shadow cursor-pointer">
@@ -604,7 +616,7 @@
                 <button onclick="switchTab('settings')" id="nav-settings" class="sidebar-item w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-bold text-gray-300 hover:text-white transition">
                     <i class="fa-solid fa-gear w-4 text-gray-400"></i> <span>Settings</span>
                 </button>
-                <a href="/admin" target="_blank" class="sidebar-item w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-bold text-red-400 hover:text-white hover:bg-red-600/10 border border-red-500/20 transition mt-2">
+                <a id="sidebar-admin-link" href="/admin" target="_blank" class="hidden sidebar-item w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-bold text-red-400 hover:text-white hover:bg-red-600/10 border border-red-500/20 transition mt-2" title="Super Admin Console (Root Only)">
                     <div class="flex items-center space-x-3">
                         <i class="fa-solid fa-shield-halved w-4 text-red-500"></i> <span>Super Admin</span>
                     </div>
@@ -1070,12 +1082,43 @@
                         </div>
 
                         <div class="flex space-x-2 border-b border-gray-800 pb-3">
-                            <button id="btn-ord-type-market" onclick="setOrderType('MARKET')" class="px-4 py-2 bg-amber-500 text-black font-black text-xs rounded-xl">MARKET</button>
-                            <button id="btn-ord-type-limit" onclick="setOrderType('LIMIT')" class="px-4 py-2 bg-gray-900 text-gray-300 font-bold text-xs rounded-xl hover:text-white">LIMIT</button>
-                            <button id="btn-ord-type-stop" onclick="setOrderType('STOP_LIMIT')" class="px-4 py-2 bg-gray-900 text-gray-300 font-bold text-xs rounded-xl hover:text-white">STOP-LIMIT</button>
+                            <button id="btn-ord-type-market" onclick="setOrderType('MARKET')" class="px-4 py-2 bg-amber-500 text-black font-black text-xs rounded-xl shadow cursor-pointer">MARKET</button>
+                            <button id="btn-ord-type-limit" onclick="setOrderType('LIMIT')" class="px-4 py-2 bg-gray-900 text-gray-300 font-bold text-xs rounded-xl hover:text-white transition cursor-pointer">LIMIT</button>
+                            <button id="btn-ord-type-stop" onclick="setOrderType('STOP_LIMIT')" class="px-4 py-2 bg-gray-900 text-gray-300 font-bold text-xs rounded-xl hover:text-white transition cursor-pointer">STOP-LIMIT</button>
+                        </div>
+
+                        <!-- Dynamic Limit & Stop-Limit Pricing Container -->
+                        <div id="container-limit-inputs" class="hidden grid grid-cols-1 md:grid-cols-2 gap-4 p-3 bg-gray-950 border border-amber-500/30 rounded-xl">
+                            <div id="wrap-limit-price">
+                                <label class="block text-xs font-bold text-amber-400 uppercase mb-1 flex items-center justify-between">
+                                    <span>Limit Execution Price</span>
+                                    <span class="text-[10px] text-gray-400 font-mono">Fill At Or Better</span>
+                                </label>
+                                <input type="number" id="order-limit-price-input" placeholder="e.g. Enter limit price" step="any" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2 text-sm font-bold text-white font-mono focus:outline-none focus:border-amber-500">
+                            </div>
+                            <div id="wrap-stop-price" class="hidden">
+                                <label class="block text-xs font-bold text-red-400 uppercase mb-1 flex items-center justify-between">
+                                    <span>Stop Trigger Price</span>
+                                    <span class="text-[10px] text-gray-400 font-mono">Trigger Level</span>
+                                </label>
+                                <input type="number" id="order-stop-price-input" placeholder="e.g. Enter stop trigger price" step="any" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2 text-sm font-bold text-white font-mono focus:outline-none focus:border-red-500">
+                            </div>
                         </div>
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-400 uppercase mb-1 flex items-center justify-between">
+                                    <span>Execution Gateway / Broker</span>
+                                    <span id="gateway-status-tag" class="text-[10px] text-emerald-400 font-mono font-bold">CONNECTED 🟢</span>
+                                </label>
+                                <select id="order-execution-gateway" onchange="onExecutionGatewayChanged(this.value)" class="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2.5 text-sm font-bold text-amber-400 font-mono focus:outline-none focus:border-amber-500">
+                                    <option value="UPSTOX_PRO">Upstox Pro (NSE Equities & F&O — Live API)</option>
+                                    <option value="ZERODHA_KITE">Zerodha Kite Connect (NSE / BSE)</option>
+                                    <option value="ANGEL_ONE">Angel One SmartAPI (BSE / NSE)</option>
+                                    <option value="INDIA_PAPER">NSE / BSE Institutional Paper Simulation</option>
+                                </select>
+                            </div>
+
                             <div>
                                 <label class="block text-xs font-bold text-gray-400 uppercase mb-1">Select Asset Symbol</label>
                                 <select id="order-asset" onchange="updateTradingViewWidget(this.value); updatePreOrderEstimates();" class="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2.5 text-sm font-bold text-white focus:outline-none focus:border-amber-500">
@@ -1087,14 +1130,24 @@
                                     <option value="SBIN">SBIN — State Bank of India (NSE)</option>
                                     <option value="BHARTIARTL">BHARTIARTL — Bharti Airtel (NSE)</option>
                                     <option value="ITC">ITC — ITC Ltd (NSE)</option>
+                                    <option value="LT">LT — Larsen & Toubro (NSE)</option>
                                     <option value="NIFTY50">NIFTY50 — Nifty 50 Index (NSE)</option>
                                     <option value="BANKNIFTY">BANKNIFTY — Bank Nifty Index (NSE)</option>
                                 </select>
                             </div>
+                        </div>
 
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label id="lbl-trade-capital-alloc" class="block text-xs font-bold text-gray-400 uppercase mb-1">Trade Capital Allocation (₹)</label>
                                 <input type="number" id="order-amount-input" value="1000" class="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2.5 text-sm font-bold text-white font-mono focus:outline-none focus:border-amber-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-400 uppercase mb-1">Gateway Execution Status</label>
+                                <div class="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2.5 text-xs font-mono font-bold text-emerald-400 flex items-center justify-between">
+                                    <span><i class="fa-solid fa-network-wired mr-1.5 text-emerald-400"></i>ACTIVE ROUTING</span>
+                                    <span class="text-cyan-400 text-[10px]" id="gateway-route-badge">DIRECT DMA</span>
+                                </div>
                             </div>
                         </div>
 
@@ -3030,6 +3083,16 @@
             if (profUserEl) profUserEl.textContent = user.username;
             if (profRoleEl) profRoleEl.textContent = user.role;
 
+            // Enforce Super Admin link visibility in sidebar: ONLY show for SUPER_ADMIN
+            const adminLink = document.getElementById('sidebar-admin-link');
+            if (adminLink) {
+                if (user.role === 'SUPER_ADMIN') {
+                    adminLink.classList.remove('hidden');
+                } else {
+                    adminLink.classList.add('hidden');
+                }
+            }
+
             const limitStr = user.role === 'SUPER_ADMIN' ? 'UNLIMITED' : `$${parseFloat(user.max_trade_size || 100).toFixed(2)}`;
             if (riskLimitEl) riskLimitEl.textContent = `${limitStr} / Trade`;
             if (profLimitEl) profLimitEl.textContent = limitStr;
@@ -3049,6 +3112,21 @@
         function openProfileModal() {
             const modal = document.getElementById('modal-user-profile');
             if (!modal) return;
+            // Sync audio setting in profile modal
+            const icon = document.getElementById('icon-sound');
+            const profIcon = document.getElementById('prof-icon-sound');
+            const lbl = document.getElementById('lbl-sound-status');
+            if (icon && lbl) {
+                if (soundEngineEnabled) {
+                    icon.className = 'fa-solid fa-volume-high text-amber-400';
+                    if (profIcon) profIcon.className = 'fa-solid fa-volume-high text-amber-400 text-xs';
+                    lbl.textContent = 'AUDIO ON';
+                } else {
+                    icon.className = 'fa-solid fa-volume-xmark text-gray-500';
+                    if (profIcon) profIcon.className = 'fa-solid fa-volume-xmark text-gray-500 text-xs';
+                    lbl.textContent = 'MUTED';
+                }
+            }
             modal.classList.remove('hidden');
             const user = sessionStorage.getItem('aegis_username') || (activeUserSession ? activeUserSession.username : 'marvan');
             refreshProfileTotp(user);
@@ -3270,14 +3348,17 @@
             soundEngineEnabled = !soundEngineEnabled;
             localStorage.setItem('aegis_audio_sound', soundEngineEnabled);
             const icon = document.getElementById('icon-sound');
+            const profIcon = document.getElementById('prof-icon-sound');
             const lbl = document.getElementById('lbl-sound-status');
             if (icon && lbl) {
                 if (soundEngineEnabled) {
                     icon.className = 'fa-solid fa-volume-high text-amber-400';
+                    if (profIcon) profIcon.className = 'fa-solid fa-volume-high text-amber-400 text-xs';
                     lbl.textContent = 'AUDIO ON';
                     playSynthChime('ORDER');
                 } else {
                     icon.className = 'fa-solid fa-volume-xmark text-gray-500';
+                    if (profIcon) profIcon.className = 'fa-solid fa-volume-xmark text-gray-500 text-xs';
                     lbl.textContent = 'MUTED';
                 }
             }
@@ -3807,9 +3888,18 @@
 
         function updateOrderAssetsList(venue) {
             const sel = document.getElementById('order-asset');
+            const gwSel = document.getElementById('order-execution-gateway');
             if (!sel) return;
 
             if (venue === 'INDIA') {
+                if (gwSel) {
+                    gwSel.innerHTML = `
+                        <option value="UPSTOX_PRO">Upstox Pro (NSE Equities & F&O — Live API)</option>
+                        <option value="ZERODHA_KITE">Zerodha Kite Connect (NSE / BSE)</option>
+                        <option value="ANGEL_ONE">Angel One SmartAPI (BSE / NSE)</option>
+                        <option value="INDIA_PAPER">NSE / BSE Institutional Paper Simulation</option>
+                    `;
+                }
                 sel.innerHTML = `
                     <option value="RELIANCE">RELIANCE — Reliance Industries (₹2,980.50)</option>
                     <option value="TCS">TCS — Tata Consultancy Services (₹3,890.00)</option>
@@ -3819,15 +3909,31 @@
                     <option value="SBIN">SBIN — State Bank of India (₹785.60)</option>
                     <option value="BHARTIARTL">BHARTIARTL — Bharti Airtel (₹1,340.00)</option>
                     <option value="ITC">ITC — ITC Ltd (₹460.50)</option>
-                    <option value="LICI">LICI — Life Insurance Corp (₹940.00)</option>
                     <option value="LT">LT — Larsen & Toubro (₹3,620.00)</option>
+                    <option value="KOTAKBANK">KOTAKBANK — Kotak Mahindra Bank (₹1,780.00)</option>
+                    <option value="TATAMOTORS">TATAMOTORS — Tata Motors Ltd (₹965.00)</option>
+                    <option value="MARUTI">MARUTI — Maruti Suzuki India (₹12,450.00)</option>
+                    <option value="SUNPHARMA">SUNPHARMA — Sun Pharma (₹1,620.00)</option>
+                    <option value="AXISBANK">AXISBANK — Axis Bank Ltd (₹1,145.00)</option>
+                    <option value="TITAN">TITAN — Titan Company (₹3,420.00)</option>
+                    <option value="NIFTY50">NIFTY50 — Nifty 50 Index (₹24,850.00)</option>
+                    <option value="BANKNIFTY">BANKNIFTY — Bank Nifty Index (₹51,400.00)</option>
                     <option value="NIFTYBEES">NIFTYBEES — Nippon Nifty 50 ETF (₹265.40)</option>
                     <option value="GOLDBEES">GOLDBEES — Nippon Gold ETF (₹68.20)</option>
                     <option value="BANKBEES">BANKBEES — Nippon Bank ETF (₹512.00)</option>
-                    <option value="ITBEES">ITBEES — Nippon IT ETF (₹42.80)</option>
                 `;
             } else if (venue === 'FOREX' || venue === 'FOREX_GOLD') {
+                if (gwSel) {
+                    gwSel.innerHTML = `
+                        <option value="MT5_DIRECT">MetaTrader 5 Direct (Bridge Execution)</option>
+                        <option value="EXNESS_STP">Exness Global STP (Interbank OTC)</option>
+                        <option value="METAAPI_CLOUD">MetaApi Cloud Trading Gateway</option>
+                        <option value="FOREX_PAPER">Forex & Commodities Paper Simulation</option>
+                    `;
+                }
                 sel.innerHTML = `
+                    <option value="XAUUSD">XAUUSD — Gold Spot / USD ($2,748.50)</option>
+                    <option value="XAGUSD">XAGUSD — Silver Spot / USD ($33.60)</option>
                     <option value="EURUSD">EURUSD — Euro / US Dollar (1.0852)</option>
                     <option value="GBPUSD">GBPUSD — British Pound / US Dollar (1.2965)</option>
                     <option value="USDJPY">USDJPY — US Dollar / Japanese Yen (154.20)</option>
@@ -3835,22 +3941,66 @@
                     <option value="USDCAD">USDCAD — US Dollar / Canadian Dollar (1.3780)</option>
                     <option value="USDCHF">USDCHF — US Dollar / Swiss Franc (0.8840)</option>
                     <option value="NZDUSD">NZDUSD — New Zealand Dollar / US Dollar (0.5980)</option>
-                    <option value="XAUUSD">XAUUSD — Gold Spot / USD ($2,748.50)</option>
+                    <option value="EURGBP">EURGBP — Euro / British Pound (0.8370)</option>
+                    <option value="EURJPY">EURJPY — Euro / Japanese Yen (167.35)</option>
+                    <option value="GBPJPY">GBPJPY — British Pound / Japanese Yen (199.90)</option>
+                    <option value="USOIL">USOIL — WTI Crude Oil ($71.20)</option>
+                    <option value="UKOIL">UKOIL — Brent Crude Oil ($75.40)</option>
+                    <option value="SPX500">SPX500 — S&P 500 Index ($5,860.00)</option>
+                    <option value="NAS100">NAS100 — US Tech 100 / Nasdaq ($20,380.00)</option>
                     <option value="USDINR">USDINR — US Dollar / Indian Rupee (₹86.25)</option>
                     <option value="EURINR">EURINR — Euro / Indian Rupee (₹93.60)</option>
                 `;
             } else {
+                if (gwSel) {
+                    gwSel.innerHTML = `
+                        <option value="BINANCE_LIVE">Binance Spot Live ($14.70 Capital Connected)</option>
+                        <option value="BINANCE_TESTNET">Binance Futures / Spot Testnet</option>
+                        <option value="BYBIT_V5">Bybit V5 Institutional Gateway</option>
+                        <option value="OKX_INST">OKX Institutional Trading Gateway</option>
+                        <option value="CRYPTO_PAPER">Aegis Crypto Paper Sandbox</option>
+                    `;
+                }
                 sel.innerHTML = `
                     <option value="BTCUSDT">BTCUSDT — Bitcoin ($79,050.00)</option>
                     <option value="ETHUSDT">ETHUSDT — Ethereum ($2,680.00)</option>
                     <option value="SOLUSDT">SOLUSDT — Solana ($145.50)</option>
-                    <option value="BNBUSDT">BNBUSDT — BNB ($625.00)</option>
+                    <option value="BNBUSDT">BNBUSDT — BNB Binance Coin ($625.00)</option>
                     <option value="XRPUSDT">XRPUSDT — Ripple ($0.5820)</option>
                     <option value="DOGEUSDT">DOGEUSDT — Dogecoin ($0.1650)</option>
                     <option value="ADAUSDT">ADAUSDT — Cardano ($0.4210)</option>
+                    <option value="AVAXUSDT">AVAXUSDT — Avalanche ($28.50)</option>
+                    <option value="LINKUSDT">LINKUSDT — Chainlink ($11.80)</option>
+                    <option value="SUIUSDT">SUIUSDT — Sui Network ($1.95)</option>
+                    <option value="NEARUSDT">NEARUSDT — NEAR Protocol ($4.85)</option>
+                    <option value="PEPEUSDT">PEPEUSDT — Pepe Token ($0.0000095)</option>
+                    <option value="DOTUSDT">DOTUSDT — Polkadot ($4.15)</option>
+                    <option value="MATICUSDT">MATICUSDT — Polygon POL ($0.375)</option>
+                    <option value="SHIBUSDT">SHIBUSDT — Shiba Inu ($0.0000185)</option>
                 `;
             }
+            if (gwSel) onExecutionGatewayChanged(gwSel.value);
             updateTradingViewWidget(sel.value, venue);
+        }
+
+        function onExecutionGatewayChanged(gw) {
+            const routeBadge = document.getElementById('gateway-route-badge');
+            const latencyTag = document.getElementById('speedometer-latency');
+            if (routeBadge) {
+                if (gw.includes('LIVE') || gw.includes('UPSTOX') || gw.includes('MT5') || gw.includes('KITE')) {
+                    routeBadge.textContent = 'DIRECT DMA LIVE';
+                    routeBadge.className = 'text-emerald-400 text-[10px] font-bold';
+                } else if (gw.includes('TESTNET')) {
+                    routeBadge.textContent = 'TESTNET SANDBOX';
+                    routeBadge.className = 'text-yellow-400 text-[10px] font-bold';
+                } else {
+                    routeBadge.textContent = 'VIRTUAL SIMULATION';
+                    routeBadge.className = 'text-cyan-400 text-[10px] font-bold';
+                }
+            }
+            if (latencyTag) {
+                latencyTag.textContent = (gw.includes('PAPER') || gw.includes('SIM')) ? '0.45 ms' : '1.15 ms';
+            }
         }
 
         window.currentTvInterval = '15';
@@ -3870,24 +4020,52 @@
                 else if (s.includes('XRP')) tvSymbol = 'BINANCE:XRPUSDT';
                 else if (s.includes('DOGE')) tvSymbol = 'BINANCE:DOGEUSDT';
                 else if (s.includes('ADA')) tvSymbol = 'BINANCE:ADAUSDT';
-                else tvSymbol = 'BINANCE:BTCUSDT';
+                else if (s.includes('AVAX')) tvSymbol = 'BINANCE:AVAXUSDT';
+                else if (s.includes('LINK')) tvSymbol = 'BINANCE:LINKUSDT';
+                else if (s.includes('SUI')) tvSymbol = 'BINANCE:SUIUSDT';
+                else if (s.includes('NEAR')) tvSymbol = 'BINANCE:NEARUSDT';
+                else if (s.includes('PEPE')) tvSymbol = 'BINANCE:PEPEUSDT';
+                else if (s.includes('DOT')) tvSymbol = 'BINANCE:DOTUSDT';
+                else if (s.includes('MATIC')) tvSymbol = 'BINANCE:MATICUSDT';
+                else if (s.includes('SHIB')) tvSymbol = 'BINANCE:SHIBUSDT';
+                else tvSymbol = `BINANCE:${s}`;
             } else if (v === 'FOREX' || v === 'FOREX_GOLD') {
                 if (s.includes('XAU') || s.includes('GOLD')) tvSymbol = 'OANDA:XAUUSD';
+                else if (s.includes('XAG') || s.includes('SILVER')) tvSymbol = 'OANDA:XAGUSD';
                 else if (s.includes('EURUSD')) tvSymbol = 'FX:EURUSD';
                 else if (s.includes('GBPUSD')) tvSymbol = 'FX:GBPUSD';
                 else if (s.includes('USDJPY')) tvSymbol = 'FX:USDJPY';
                 else if (s.includes('AUDUSD')) tvSymbol = 'FX:AUDUSD';
+                else if (s.includes('USDCAD')) tvSymbol = 'FX:USDCAD';
                 else if (s.includes('USDCHF')) tvSymbol = 'FX:USDCHF';
+                else if (s.includes('NZDUSD')) tvSymbol = 'FX:NZDUSD';
+                else if (s.includes('EURGBP')) tvSymbol = 'FX:EURGBP';
+                else if (s.includes('EURJPY')) tvSymbol = 'FX:EURJPY';
+                else if (s.includes('GBPJPY')) tvSymbol = 'FX:GBPJPY';
+                else if (s.includes('USOIL')) tvSymbol = 'TVC:USOIL';
+                else if (s.includes('UKOIL')) tvSymbol = 'TVC:UKOIL';
+                else if (s.includes('SPX') || s.includes('500')) tvSymbol = 'FOREXCOM:SPX500';
+                else if (s.includes('NAS') || s.includes('100')) tvSymbol = 'FOREXCOM:NAS100';
                 else if (s.includes('USDINR')) tvSymbol = 'FX_IDC:USDINR';
-                else tvSymbol = 'OANDA:XAUUSD';
+                else if (s.includes('EURINR')) tvSymbol = 'FX_IDC:EURINR';
+                else tvSymbol = `OANDA:${s}`;
             } else { // INDIA
-                if (s.includes('NIFTY50') || s.includes('NIFTY')) tvSymbol = 'INDEX:NIFTY';
+                if (s.includes('NIFTY50') || s === 'NIFTY') tvSymbol = 'INDEX:NIFTY';
                 else if (s.includes('BANKNIFTY')) tvSymbol = 'INDEX:BANKNIFTY';
                 else if (s.includes('TCS')) tvSymbol = 'BSE:TCS';
                 else if (s.includes('HDFC')) tvSymbol = 'BSE:HDFCBANK';
                 else if (s.includes('INFY')) tvSymbol = 'BSE:INFY';
                 else if (s.includes('ICICI')) tvSymbol = 'BSE:ICICIBANK';
                 else if (s.includes('SBIN')) tvSymbol = 'BSE:SBIN';
+                else if (s.includes('BHARTI')) tvSymbol = 'BSE:BHARTIARTL';
+                else if (s.includes('ITC')) tvSymbol = 'BSE:ITC';
+                else if (s.includes('LT')) tvSymbol = 'BSE:LT';
+                else if (s.includes('KOTAK')) tvSymbol = 'BSE:KOTAKBANK';
+                else if (s.includes('TATAMOTORS')) tvSymbol = 'BSE:TATAMOTORS';
+                else if (s.includes('MARUTI')) tvSymbol = 'BSE:MARUTI';
+                else if (s.includes('SUNPHARMA')) tvSymbol = 'BSE:SUNPHARMA';
+                else if (s.includes('AXIS')) tvSymbol = 'BSE:AXISBANK';
+                else if (s.includes('TITAN')) tvSymbol = 'BSE:TITAN';
                 else if (s.includes('RELIANCE')) tvSymbol = 'BSE:RELIANCE';
                 else tvSymbol = `BSE:${s}`;
             }
@@ -4478,14 +4656,25 @@
             const btnMarket = document.getElementById('btn-ord-type-market');
             const btnLimit = document.getElementById('btn-ord-type-limit');
             const btnStop = document.getElementById('btn-ord-type-stop');
+            const limitContainer = document.getElementById('container-limit-inputs');
+            const stopWrap = document.getElementById('wrap-stop-price');
 
             [btnMarket, btnLimit, btnStop].forEach(b => {
-                if (b) b.className = 'px-4 py-2 bg-gray-900 text-gray-300 font-bold text-xs rounded-xl hover:text-white';
+                if (b) b.className = 'px-4 py-2 bg-gray-900 text-gray-300 font-bold text-xs rounded-xl hover:text-white transition cursor-pointer';
             });
 
-            if (orderType === 'MARKET' && btnMarket) btnMarket.className = 'px-4 py-2 bg-amber-500 text-black font-black text-xs rounded-xl';
-            if (orderType === 'LIMIT' && btnLimit) btnLimit.className = 'px-4 py-2 bg-amber-500 text-black font-black text-xs rounded-xl';
-            if (orderType === 'STOP_LIMIT' && btnStop) btnStop.className = 'px-4 py-2 bg-amber-500 text-black font-black text-xs rounded-xl';
+            if (orderType === 'MARKET') {
+                if (btnMarket) btnMarket.className = 'px-4 py-2 bg-amber-500 text-black font-black text-xs rounded-xl shadow cursor-pointer';
+                if (limitContainer) limitContainer.classList.add('hidden');
+            } else if (orderType === 'LIMIT') {
+                if (btnLimit) btnLimit.className = 'px-4 py-2 bg-amber-500 text-black font-black text-xs rounded-xl shadow cursor-pointer';
+                if (limitContainer) limitContainer.classList.remove('hidden');
+                if (stopWrap) stopWrap.classList.add('hidden');
+            } else if (orderType === 'STOP_LIMIT') {
+                if (btnStop) btnStop.className = 'px-4 py-2 bg-amber-500 text-black font-black text-xs rounded-xl shadow cursor-pointer';
+                if (limitContainer) limitContainer.classList.remove('hidden');
+                if (stopWrap) stopWrap.classList.remove('hidden');
+            }
         }
 
         async function executeTerminalOrder(side) {
@@ -4495,11 +4684,39 @@
             const tpInput = parseFloat(document.getElementById('order-tp-input')?.value) || 3.5;
             const levVal = parseFloat(window.selectedLeverage) || 10.0;
             const resultBox = document.getElementById('order-result-box');
+            const selectedGateway = document.getElementById('order-execution-gateway')?.value || '';
+
+            let limitPrice = 0.0;
+            let stopPrice = 0.0;
+            if (currentOrderType === 'LIMIT' || currentOrderType === 'STOP_LIMIT') {
+                limitPrice = parseFloat(document.getElementById('order-limit-price-input')?.value) || 0.0;
+                if (limitPrice <= 0) {
+                    if (resultBox) {
+                        resultBox.classList.remove('hidden');
+                        resultBox.className = 'p-3 rounded-xl bg-red-500/15 border border-red-500/50 text-red-300 font-mono text-xs';
+                        resultBox.innerHTML = '<i class="fa-solid fa-circle-exclamation mr-1 text-red-400"></i> Please specify a valid Limit Price for Limit Order.';
+                    }
+                    showNotification('INVALID LIMIT PRICE', 'Please enter a valid Limit Price.', 'error');
+                    return;
+                }
+            }
+            if (currentOrderType === 'STOP_LIMIT') {
+                stopPrice = parseFloat(document.getElementById('order-stop-price-input')?.value) || 0.0;
+                if (stopPrice <= 0) {
+                    if (resultBox) {
+                        resultBox.classList.remove('hidden');
+                        resultBox.className = 'p-3 rounded-xl bg-red-500/15 border border-red-500/50 text-red-300 font-mono text-xs';
+                        resultBox.innerHTML = '<i class="fa-solid fa-circle-exclamation mr-1 text-red-400"></i> Please specify a valid Stop Trigger Price.';
+                    }
+                    showNotification('INVALID STOP PRICE', 'Please enter a valid Stop Trigger Price.', 'error');
+                    return;
+                }
+            }
 
             if (resultBox) {
                 resultBox.classList.remove('hidden');
                 resultBox.className = 'p-3 rounded-xl bg-amber-500/10 border border-amber-500/40 text-amber-300 font-mono text-xs flex items-center';
-                resultBox.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Submitting ${side} order for ${symbol}...`;
+                resultBox.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Submitting ${currentOrderType} ${side} order for ${symbol} via ${selectedGateway || 'Gateway'}...`;
             }
 
             try {
@@ -4512,7 +4729,7 @@
                 const t0 = performance.now();
 
                 if (window.activeMarketVenue === 'INDIA') {
-                    const approxPx = window.selectedAssetPrice || 2500.0;
+                    const approxPx = limitPrice > 0 ? limitPrice : (window.selectedAssetPrice || 2500.0);
                     const qty = Math.max(1, Math.round(amountInput / approxPx));
                     res = await fetch('/api/india/orders/submit', {
                         method: 'POST',
@@ -4523,9 +4740,11 @@
                             side: side,
                             order_type: currentOrderType,
                             product: 'CNC',
-                            price: 0.0,
+                            price: limitPrice > 0 ? limitPrice : 0.0,
+                            stop_price: stopPrice > 0 ? stopPrice : 0.0,
                             is_amo: true,
                             leverage: levVal,
+                            gateway: selectedGateway,
                             stop_loss_pct: slInput,
                             take_profit_pct: tpInput
                         })
@@ -4538,7 +4757,7 @@
                     if (data.status === 'COMPLETE' || data.status === 'SUBMITTED' || data.status === 'SUCCESS') {
                         if (resultBox) {
                             resultBox.className = 'p-3 rounded-xl bg-emerald-500/15 border border-emerald-500/50 text-emerald-300 font-mono text-xs';
-                            resultBox.innerHTML = `<i class="fa-solid fa-circle-check mr-1 text-emerald-400"></i> INDIAN ORDER ${side} EXECUTED! ID: <span class="font-bold text-white">${data.order_id || 'ORD-IND'}</span> | ₹${((data.price || approxPx) * qty).toLocaleString('en-IN', {minimumFractionDigits: 2})} [${data.product || 'CNC'}] (${roundtripMs}ms)`;
+                            resultBox.innerHTML = `<i class="fa-solid fa-circle-check mr-1 text-emerald-400"></i> INDIAN ${currentOrderType} ${side} EXECUTED! ID: <span class="font-bold text-white">${data.order_id || 'ORD-IND'}</span> | ₹${((data.price || approxPx) * qty).toLocaleString('en-IN', {minimumFractionDigits: 2})} [${data.product || 'CNC'}] (${roundtripMs}ms)`;
                         }
                         playSynthChime('PROFIT');
                         showNotification('ORDER EXECUTED', `NSE ${side} ${symbol} (₹${amountInput.toLocaleString('en-IN')}) successfully executed!`, 'success');
@@ -4553,7 +4772,7 @@
                     }
                     fetchIndiaPositions();
                 } else {
-                    let assetPrice = window.selectedAssetPrice;
+                    let assetPrice = limitPrice > 0 ? limitPrice : window.selectedAssetPrice;
                     if (!assetPrice || assetPrice <= 0) {
                         const fallbackPrices = {
                             'BTCUSDT': 79050.0, 'BTCUSD': 64250.0, 'ETHUSDT': 2680.0, 'ETHUSD': 3450.0,
@@ -4565,9 +4784,9 @@
                         assetPrice = fallbackPrices[symbol] || 100.0;
                     }
                     let targetEnv = 'PAPER';
-                    if (window.activeTradingPool === 'BINANCE_LIVE_REAL' || window.activeTradingPool === 'BINANCE_LIVE') {
+                    if (selectedGateway === 'BINANCE_LIVE' || window.activeTradingPool === 'BINANCE_LIVE_REAL' || window.activeTradingPool === 'BINANCE_LIVE') {
                         targetEnv = 'BINANCE_LIVE';
-                    } else if (window.activeTradingPool === 'BINANCE_TESTNET_DEMO') {
+                    } else if (selectedGateway === 'BINANCE_TESTNET' || window.activeTradingPool === 'BINANCE_TESTNET_DEMO') {
                         targetEnv = 'BINANCE_TESTNET';
                     } else if (window.activeMarketVenue === 'CRYPTO') {
                         targetEnv = (window.activeTradingPool && window.activeTradingPool.includes('LIVE')) ? 'BINANCE_LIVE' : 'BINANCE_TESTNET';
@@ -4588,8 +4807,10 @@
                             side: side,
                             quantity: calculatedQty,
                             order_type: currentOrderType,
-                            price: assetPrice,
+                            price: limitPrice > 0 ? limitPrice : assetPrice,
+                            stop_price: stopPrice > 0 ? stopPrice : 0.0,
                             environment: targetEnv,
+                            gateway: selectedGateway,
                             workspace: window.activeMarketVenue,
                             strategy: 'TERMINAL_MANUAL',
                             leverage: levVal,

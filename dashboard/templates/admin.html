@@ -317,8 +317,19 @@
                             <input id="create-u-password" type="password" placeholder="••••••••" class="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none">
                         </div>
                         <div>
-                            <label class="block text-[10px] font-bold uppercase text-gray-400 mb-1">Max Order Capital ($)</label>
-                            <input id="create-u-maxsize" type="number" value="100" placeholder="e.g. 100" class="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-xs text-emerald-400 font-mono focus:outline-none">
+                            <div class="flex justify-between items-center mb-1">
+                                <label class="block text-[10px] font-bold uppercase text-gray-400">Max Trade Limit ($)</label>
+                                <span class="text-[9px] text-gray-500 font-mono">Any custom amount</span>
+                            </div>
+                            <input id="create-u-maxsize" type="number" step="any" min="1" value="100" placeholder="e.g. 25, 75, 250, 1500" class="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-xs text-emerald-400 font-mono font-bold focus:border-amber-500 focus:outline-none">
+                            <div class="flex flex-wrap gap-1 mt-1.5">
+                                <button type="button" onclick="document.getElementById('create-u-maxsize').value=25" class="px-1.5 py-0.5 rounded bg-gray-900 border border-gray-800 text-[9px] text-gray-400 hover:text-white cursor-pointer">$25</button>
+                                <button type="button" onclick="document.getElementById('create-u-maxsize').value=50" class="px-1.5 py-0.5 rounded bg-gray-900 border border-gray-800 text-[9px] text-gray-400 hover:text-white cursor-pointer">$50</button>
+                                <button type="button" onclick="document.getElementById('create-u-maxsize').value=100" class="px-1.5 py-0.5 rounded bg-gray-900 border border-gray-800 text-[9px] text-gray-400 hover:text-white cursor-pointer">$100</button>
+                                <button type="button" onclick="document.getElementById('create-u-maxsize').value=250" class="px-1.5 py-0.5 rounded bg-gray-900 border border-gray-800 text-[9px] text-gray-400 hover:text-white cursor-pointer">$250</button>
+                                <button type="button" onclick="document.getElementById('create-u-maxsize').value=500" class="px-1.5 py-0.5 rounded bg-gray-900 border border-gray-800 text-[9px] text-gray-400 hover:text-white cursor-pointer">$500</button>
+                                <button type="button" onclick="document.getElementById('create-u-maxsize').value=1000" class="px-1.5 py-0.5 rounded bg-gray-900 border border-gray-800 text-[9px] text-gray-400 hover:text-white cursor-pointer">$1,000</button>
+                            </div>
                         </div>
                         <div class="flex items-end">
                             <button type="submit" class="w-full bg-amber-500 hover:bg-amber-400 text-black font-black py-2 rounded-xl text-xs shadow-lg transition">
@@ -1196,8 +1207,20 @@
                     </select>
                 </div>
                 <div>
-                    <label class="block text-gray-400 uppercase font-bold text-[10px] mb-1">Max Order Capital Limit ($)</label>
-                    <input id="edit-u-maxsize" type="number" placeholder="100" class="w-full bg-black/60 border border-gray-800 rounded-xl px-3.5 py-2.5 text-emerald-400 font-mono text-xs focus:border-amber-500 focus:outline-none">
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="block text-gray-400 uppercase font-bold text-[10px]">Custom Max Trade Limit ($)</label>
+                        <span class="text-[9px] text-gray-500 font-mono">Any custom figure allowed</span>
+                    </div>
+                    <input id="edit-u-maxsize" type="number" step="any" min="1" placeholder="e.g. 25, 75, 250, 1500" class="w-full bg-black/60 border border-gray-800 rounded-xl px-3.5 py-2.5 text-emerald-400 font-mono text-xs font-bold focus:border-amber-500 focus:outline-none">
+                    <div class="flex flex-wrap gap-1 mt-1.5">
+                        <button type="button" onclick="document.getElementById('edit-u-maxsize').value=25" class="px-2 py-0.5 rounded bg-gray-900 border border-gray-800 text-[10px] text-gray-400 hover:text-white cursor-pointer">$25</button>
+                        <button type="button" onclick="document.getElementById('edit-u-maxsize').value=50" class="px-2 py-0.5 rounded bg-gray-900 border border-gray-800 text-[10px] text-gray-400 hover:text-white cursor-pointer">$50</button>
+                        <button type="button" onclick="document.getElementById('edit-u-maxsize').value=100" class="px-2 py-0.5 rounded bg-gray-900 border border-gray-800 text-[10px] text-gray-400 hover:text-white cursor-pointer">$100</button>
+                        <button type="button" onclick="document.getElementById('edit-u-maxsize').value=250" class="px-2 py-0.5 rounded bg-gray-900 border border-gray-800 text-[10px] text-gray-400 hover:text-white cursor-pointer">$250</button>
+                        <button type="button" onclick="document.getElementById('edit-u-maxsize').value=500" class="px-2 py-0.5 rounded bg-gray-900 border border-gray-800 text-[10px] text-gray-400 hover:text-white cursor-pointer">$500</button>
+                        <button type="button" onclick="document.getElementById('edit-u-maxsize').value=1000" class="px-2 py-0.5 rounded bg-gray-900 border border-gray-800 text-[10px] text-gray-400 hover:text-white cursor-pointer">$1,000</button>
+                        <button type="button" onclick="document.getElementById('edit-u-maxsize').value=5000" class="px-2 py-0.5 rounded bg-gray-900 border border-gray-800 text-[10px] text-gray-400 hover:text-white cursor-pointer">$5,000</button>
+                    </div>
                 </div>
                 <div>
                     <label class="block text-gray-400 uppercase font-bold text-[10px] mb-1">New Password (Leave blank to keep unchanged)</label>
