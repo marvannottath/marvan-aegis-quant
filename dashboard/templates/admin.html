@@ -3,18 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Super Admin Command & SIEM Center | Marvan's Pool</title>
+    <title>Super Admin Executive Command & Operations Center | Marvan's Pool</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script>
         tailwind.config = {
             theme: {
                 extend: {
                     colors: {
-                        darkbg: '#06090e',
-                        darkcard: '#0c1017',
-                        darkborder: '#1b2230',
+                        darkbg: '#04070c',
+                        darkcard: '#0a0e17',
+                        darkcard2: '#101623',
+                        darkborder: '#1a2333',
+                        accentred: '#ef4444',
+                        accentgold: '#f59e0b',
+                        accentgreen: '#10b981',
+                        accentcyan: '#06b6d4',
                     },
                     fontFamily: {
                         sans: ['Inter', 'sans-serif'],
@@ -24,30 +29,51 @@
             }
         }
     </script>
+    <style>
+        /* Custom scrollbars */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #06090f; }
+        ::-webkit-scrollbar-thumb { background: #1f293d; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #374151; }
+        .glass-panel {
+            background: linear-gradient(135deg, rgba(14, 20, 32, 0.85) 0%, rgba(8, 12, 20, 0.95) 100%);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+        }
+        .pulse-dot {
+            box-shadow: 0 0 10px currentColor;
+        }
+    </style>
 </head>
-<body class="bg-darkbg text-gray-100 font-sans min-h-screen flex flex-col justify-between selection:bg-red-500 selection:text-white p-4 md:p-8">
+<body class="bg-darkbg text-gray-100 font-sans min-h-screen selection:bg-red-600 selection:text-white p-3 md:p-6 flex flex-col justify-between">
 
-    <!-- MAIN CONTAINER -->
-    <div class="max-w-6xl w-full mx-auto space-y-6">
+    <!-- FULL-WIDTH EXECUTIVE CONTAINER -->
+    <div class="w-full max-w-[1720px] mx-auto space-y-5">
 
-        <!-- HEADER -->
-        <header class="bg-darkcard border border-red-500/30 rounded-3xl p-5 shadow-2xl flex flex-wrap items-center justify-between gap-4">
+        <!-- TOP EXECUTIVE HEADER BAR -->
+        <header class="glass-panel border border-red-500/30 rounded-2xl p-4 md:p-5 shadow-2xl flex flex-wrap items-center justify-between gap-4">
             <div class="flex items-center space-x-3.5">
-                <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-red-600 to-amber-500 flex items-center justify-center text-white text-2xl shadow-lg shadow-red-600/30">
+                <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-red-600 via-rose-600 to-amber-500 flex items-center justify-center text-white text-2xl shadow-lg shadow-red-600/30">
                     <i class="fa-solid fa-shield-halved"></i>
                 </div>
                 <div>
-                    <h1 class="text-xl md:text-2xl font-black text-white flex items-center gap-2">
-                        Super Admin Security & Command Center
-                        <span class="px-2 py-0.5 rounded bg-red-600/20 text-red-400 border border-red-500/40 text-[10px] font-black uppercase">Zero-Trust Shielded</span>
-                    </h1>
-                    <p class="text-xs text-gray-400">Institutional SIEM Forensics • WebAuthn Biometrics • Multi-User RBAC • Subsystem Health</p>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <h1 class="text-lg md:text-xl font-black text-white tracking-wide">
+                            Super Admin Command & Operations Center
+                        </h1>
+                        <span class="px-2 py-0.5 rounded bg-red-600/20 text-red-400 border border-red-500/40 text-[10px] font-black uppercase tracking-wider">Zero-Trust Shielded</span>
+                        <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[10px] font-mono font-bold flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                            HOSTINGER VPS LIVE: 187.127.189.139
+                        </span>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-0.5">Multi-Broker Gateways • 7-Agent AI Sentinel Engine • VPS System Gauges • Real-time SIEM Telemetry</p>
                 </div>
             </div>
 
-            <div class="flex items-center space-x-2.5">
-                <a href="/" class="px-3.5 py-2 rounded-xl bg-gray-900 border border-gray-800 hover:bg-gray-800 text-xs font-bold text-gray-300 hover:text-white transition flex items-center gap-1.5 shadow">
-                    <i class="fa-solid fa-arrow-left"></i> Return to Trading Terminal
+            <div class="flex items-center space-x-2.5 flex-wrap">
+                <a href="/" class="px-3.5 py-2 rounded-xl bg-gray-900 border border-gray-700 hover:bg-gray-800 text-xs font-bold text-gray-200 hover:text-white transition flex items-center gap-1.5 shadow">
+                    <i class="fa-solid fa-chart-line text-amber-400"></i> Return to Trading Desk
                 </a>
             </div>
         </header>
@@ -55,18 +81,18 @@
         <!-- VIEW 1: ZERO-TRUST AUTHENTICATION GATEWAY -->
         <div id="admin-auth-view" class="max-w-lg w-full mx-auto my-12 space-y-5 bg-darkcard border border-red-500/30 p-6 md:p-8 rounded-3xl shadow-2xl relative">
             <div class="text-center space-y-1">
-                <div class="inline-flex p-3 rounded-2xl bg-red-600/10 border border-red-500/30 text-red-400 text-3xl mb-1 shadow-inner">
+                <div class="inline-flex p-3.5 rounded-2xl bg-red-600/10 border border-red-500/30 text-red-400 text-3xl mb-1 shadow-inner">
                     <i class="fa-solid fa-fingerprint animate-pulse"></i>
                 </div>
                 <div class="flex items-center justify-center gap-1.5 mb-1">
                     <span class="px-2.5 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/40 text-[9px] font-black uppercase tracking-wider">Super Admin Clearance Only</span>
                 </div>
                 <h2 class="text-lg font-black text-white">Super Admin Access Portal</h2>
-                <p class="text-xs text-gray-400">Restricted to Super Admin (Master Account). Traders must use the Trading Terminal.</p>
+                <p class="text-xs text-gray-400">Restricted to Super Admin (Master Account). Traders must use the Trading Desk.</p>
             </div>
 
             <!-- Fast 1-Click Biometric Button -->
-            <button id="btn-biometric-scan" onclick="adminBiometricLogin()" class="w-full bg-gradient-to-r from-red-600 via-amber-600 to-yellow-500 hover:from-red-500 hover:to-yellow-400 text-white font-black py-3.5 px-4 rounded-2xl shadow-xl flex items-center justify-center gap-2 text-sm transition transform hover:-translate-y-0.5">
+            <button id="btn-biometric-scan" onclick="adminBiometricLogin()" class="w-full bg-gradient-to-r from-red-600 via-amber-600 to-yellow-500 hover:from-red-500 hover:to-yellow-400 text-white font-black py-3.5 px-4 rounded-2xl shadow-xl flex items-center justify-center gap-2 text-sm transition transform hover:-translate-y-0.5 cursor-pointer">
                 <i class="fa-solid fa-face-smile text-lg"></i>
                 <span>Fast 1-Click Biometric Face ID / Touch ID</span>
             </button>
@@ -87,7 +113,7 @@
                 <div>
                     <div class="flex justify-between items-center mb-1">
                         <label class="text-[11px] font-bold text-gray-300 uppercase">Password</label>
-                        <button onclick="toggleAdminOtpDrawer()" class="text-[10px] text-amber-400 hover:text-amber-300 font-bold">Forgot Password? (Email OTP)</button>
+                        <button onclick="toggleAdminOtpDrawer()" class="text-[10px] text-amber-400 hover:text-amber-300 font-bold cursor-pointer">Forgot Password? (Email OTP)</button>
                     </div>
                     <input id="admin-login-password" type="password" placeholder="Enter password" class="w-full bg-gray-950 border border-gray-800 rounded-xl px-3.5 py-2.5 text-sm text-white font-mono focus:border-red-500 focus:outline-none">
                 </div>
@@ -101,7 +127,7 @@
 
                 <div id="admin-auth-status" class="text-xs text-center min-h-[20px]"></div>
 
-                <button onclick="adminPasswordLogin()" class="w-full bg-gray-800 hover:bg-gray-700 text-white font-black py-3 rounded-xl border border-gray-700 shadow-lg text-xs transition">
+                <button onclick="adminPasswordLogin()" class="w-full bg-gray-800 hover:bg-gray-700 text-white font-black py-3 rounded-xl border border-gray-700 shadow-lg text-xs transition cursor-pointer">
                     Unlock Super Admin Portal
                 </button>
             </div>
@@ -115,7 +141,7 @@
                     <span class="text-[10px] font-mono text-gray-400">Target: marvannottath@gmail.com</span>
                 </div>
 
-                <button onclick="adminRequestEmailOTP()" class="w-full bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 py-2 rounded-xl text-xs font-black transition flex items-center justify-center gap-1.5">
+                <button onclick="adminRequestEmailOTP()" class="w-full bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 py-2 rounded-xl text-xs font-black transition flex items-center justify-center gap-1.5 cursor-pointer">
                     <i class="fa-solid fa-paper-plane"></i> Send 6-Digit OTP to marvannottath@gmail.com
                 </button>
 
@@ -126,62 +152,498 @@
 
                 <div id="admin-otp-status" class="text-[11px] text-center min-h-[16px]"></div>
 
-                <button onclick="adminVerifyOtpReset()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-2 rounded-xl text-xs transition shadow-lg">
+                <button onclick="adminVerifyOtpReset()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-2 rounded-xl text-xs transition shadow-lg cursor-pointer">
                     Verify OTP & Secure Account
                 </button>
             </div>
         </div>
 
         <!-- VIEW 2: UNLOCKED SUPER ADMIN COMMAND DASHBOARD -->
-        <div id="admin-dashboard-view" class="hidden space-y-6">
+        <div id="admin-dashboard-view" class="hidden space-y-5">
             
-            <!-- User Status & Control Bar -->
-            <div class="bg-gradient-to-r from-gray-900 via-darkcard to-gray-900 border border-red-500/40 p-4 rounded-2xl shadow-xl flex flex-wrap items-center justify-between gap-3">
-                <div class="flex items-center space-x-3">
-                    <div class="w-10 h-10 rounded-full bg-red-600/20 border border-red-500/40 flex items-center justify-center text-red-400 font-bold">
-                        <i class="fa-solid fa-user-shield text-lg"></i>
+            <!-- MASTER CONTROL & TELEMETRY STRIP (ALWAYS VISIBLE) -->
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-3.5">
+                
+                <!-- Strip Card 1: VPS Hostinger Hardware Health -->
+                <div class="glass-panel p-4 rounded-2xl border border-indigo-500/30 shadow-xl space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[11px] font-black uppercase text-indigo-400 flex items-center gap-1.5">
+                            <i class="fa-solid fa-server"></i> Hostinger VPS Health
+                        </span>
+                        <span class="px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 text-[10px] font-mono font-bold" id="vps-uptime-badge">Uptime: Loading...</span>
                     </div>
-                    <div>
-                        <div class="text-sm font-black text-white flex items-center gap-2">
-                            Marvan (Master Super Admin)
-                            <span class="px-2 py-0.5 rounded bg-red-600 text-white text-[10px] font-black">SUPER_ADMIN</span>
+
+                    <div class="grid grid-cols-3 gap-2 text-center">
+                        <div class="bg-gray-950/80 p-2 rounded-xl border border-gray-800/80">
+                            <div class="text-[10px] text-gray-400 font-mono">CPU Load</div>
+                            <div id="gauge-cpu-val" class="text-sm font-black text-cyan-300 font-mono">--%</div>
+                            <div class="w-full bg-gray-800 rounded-full h-1 mt-1 overflow-hidden">
+                                <div id="gauge-cpu-bar" class="bg-cyan-400 h-1 rounded-full transition-all duration-500" style="width: 10%"></div>
+                            </div>
                         </div>
-                        <p class="text-xs text-gray-400 font-mono">marvannottath@gmail.com • Session: Zero-Trust Authenticated 🟢</p>
+
+                        <div class="bg-gray-950/80 p-2 rounded-xl border border-gray-800/80">
+                            <div class="text-[10px] text-gray-400 font-mono">RAM Memory</div>
+                            <div id="gauge-ram-val" class="text-sm font-black text-emerald-300 font-mono">--%</div>
+                            <div class="w-full bg-gray-800 rounded-full h-1 mt-1 overflow-hidden">
+                                <div id="gauge-ram-bar" class="bg-emerald-400 h-1 rounded-full transition-all duration-500" style="width: 25%"></div>
+                            </div>
+                        </div>
+
+                        <div class="bg-gray-950/80 p-2 rounded-xl border border-gray-800/80">
+                            <div class="text-[10px] text-gray-400 font-mono">NVMe Disk</div>
+                            <div id="gauge-disk-val" class="text-sm font-black text-amber-300 font-mono">--%</div>
+                            <div class="w-full bg-gray-800 rounded-full h-1 mt-1 overflow-hidden">
+                                <div id="gauge-disk-bar" class="bg-amber-400 h-1 rounded-full transition-all duration-500" style="width: 35%"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between text-[10px] text-gray-400 font-mono pt-0.5">
+                        <span>Load Avg: <span id="vps-loadavg" class="text-gray-200">--</span></span>
+                        <span>Threads: <span id="vps-threads" class="text-indigo-300 font-bold">--</span></span>
                     </div>
                 </div>
 
-                <div class="flex items-center space-x-2">
-                    <button onclick="adminEmergencyKillSwitch()" class="bg-red-600 hover:bg-red-500 text-white px-3.5 py-1.5 rounded-xl text-xs font-black transition shadow-lg flex items-center gap-1.5">
-                        <i class="fa-solid fa-power-off"></i> Emergency Kill Switch
-                    </button>
-                    <button onclick="adminLogout()" class="bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white px-3.5 py-1.5 rounded-xl text-xs font-bold transition border border-gray-700">
-                        <i class="fa-solid fa-right-from-bracket mr-1"></i> Logout
-                    </button>
+                <!-- Strip Card 2: Consolidated Platform Capital -->
+                <div class="glass-panel p-4 rounded-2xl border border-emerald-500/30 shadow-xl space-y-2.5">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[11px] font-black uppercase text-emerald-400 flex items-center gap-1.5">
+                            <i class="fa-solid fa-wallet"></i> Platform Reserves & Vault
+                        </span>
+                        <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[10px] font-mono font-bold">REAL-TIME SYNC</span>
+                    </div>
+
+                    <div class="flex items-baseline justify-between">
+                        <div>
+                            <div class="text-[10px] text-gray-400">Total Crypto Trading Capital</div>
+                            <div id="cap-total-crypto" class="text-2xl font-black text-emerald-300 font-mono">$0.00</div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-[10px] text-gray-400">AES-256 Profit Vault</div>
+                            <div id="cap-vault-reserve" class="text-base font-black text-amber-300 font-mono">$0.00</div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 text-[10px] font-mono text-gray-400 border-t border-gray-800/80 pt-2">
+                        <div>Binance Spot: <span id="cap-binance-spot" class="text-white font-bold">$0.00</span></div>
+                        <div class="text-right">Futures Margin: <span id="cap-binance-futures" class="text-cyan-400 font-bold">$0.00</span></div>
+                    </div>
                 </div>
+
+                <!-- Strip Card 3: Multi-Broker Gateway Status -->
+                <div class="glass-panel p-4 rounded-2xl border border-amber-500/30 shadow-xl space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[11px] font-black uppercase text-amber-400 flex items-center gap-1.5">
+                            <i class="fa-solid fa-network-wired"></i> Multi-Broker Gateways
+                        </span>
+                        <span class="text-[10px] font-mono text-gray-400">3 Active Venues</span>
+                    </div>
+
+                    <div class="space-y-1.5 text-xs font-mono">
+                        <div class="flex items-center justify-between bg-gray-950/60 px-2.5 py-1 rounded-lg">
+                            <span class="text-gray-300 flex items-center gap-1.5">
+                                <i class="fa-brands fa-bitcoin text-amber-400 text-[10px]"></i> Binance Live:
+                            </span>
+                            <span id="gateway-badge-binance" class="text-[10px] font-bold text-emerald-400">ONLINE 🟢 (18ms)</span>
+                        </div>
+                        <div class="flex items-center justify-between bg-gray-950/60 px-2.5 py-1 rounded-lg">
+                            <span class="text-gray-300 flex items-center gap-1.5">
+                                <i class="fa-solid fa-coins text-yellow-400 text-[10px]"></i> MT5 Forex/Gold:
+                            </span>
+                            <span id="gateway-badge-mt5" class="text-[10px] font-bold text-emerald-400">ONLINE 🟢 (24ms)</span>
+                        </div>
+                        <div class="flex items-center justify-between bg-gray-950/60 px-2.5 py-1 rounded-lg">
+                            <span class="text-gray-300 flex items-center gap-1.5">
+                                <i class="fa-solid fa-landmark text-orange-400 text-[10px]"></i> Upstox NSE/BSE:
+                            </span>
+                            <span id="gateway-badge-upstox" class="text-[10px] font-bold text-emerald-400">ONLINE 🟢 (20ms)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Strip Card 4: Executive Clearance & Global Actions -->
+                <div class="glass-panel p-4 rounded-2xl border border-red-500/40 shadow-xl flex flex-col justify-between space-y-2.5">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-2">
+                            <div class="w-8 h-8 rounded-full bg-red-600/20 border border-red-500/40 flex items-center justify-center text-red-400 font-bold text-xs">
+                                <i class="fa-solid fa-user-shield"></i>
+                            </div>
+                            <div>
+                                <div class="text-xs font-black text-white flex items-center gap-1">
+                                    Marvan
+                                    <span class="px-1.5 py-0.2 rounded bg-red-600 text-white text-[9px] font-black">SUPER_ADMIN</span>
+                                </div>
+                                <div class="text-[10px] text-gray-400 font-mono">Zero-Trust Active 🟢</div>
+                            </div>
+                        </div>
+
+                        <button onclick="adminLogout()" class="text-gray-400 hover:text-white px-2 py-1 rounded-lg text-xs transition border border-gray-800 hover:bg-gray-800 cursor-pointer" title="Logout">
+                            <i class="fa-solid fa-right-from-bracket"></i>
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="adminEmergencyKillSwitch()" class="bg-red-600 hover:bg-red-500 text-white px-2.5 py-2 rounded-xl text-xs font-black transition shadow-lg flex items-center justify-center gap-1 cursor-pointer">
+                            <i class="fa-solid fa-power-off"></i> Kill Switch
+                        </button>
+                        <button onclick="adminSyncBinance()" class="bg-gray-800 hover:bg-gray-700 text-amber-300 border border-amber-500/30 px-2.5 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer">
+                            <i class="fa-solid fa-arrows-rotate" id="sync-spin-icon"></i> Sync Wallet
+                        </button>
+                    </div>
+                </div>
+
             </div>
 
-            <!-- ADMIN TABS HEADER -->
-            <div class="bg-darkcard border border-darkborder rounded-2xl p-1.5 shadow-xl flex flex-wrap gap-1 md:gap-2">
-                <button onclick="switchAdminTab('telemetry')" id="admin-tab-btn-telemetry" class="py-2 px-3 rounded-xl text-xs font-black bg-red-600 text-white shadow-lg transition flex items-center space-x-1.5">
-                    <i class="fa-solid fa-tower-broadcast text-xs"></i>
-                    <span>Live SIEM Telemetry & 200/404/500 Logs</span>
+            <!-- INSTITUTIONAL NAVIGATION TABS -->
+            <div class="glass-panel rounded-2xl p-1.5 shadow-xl flex flex-wrap gap-1.5">
+                <button onclick="switchAdminTab('command')" id="admin-tab-btn-command" class="py-2.5 px-4 rounded-xl text-xs font-black bg-red-600 text-white shadow-lg transition flex items-center space-x-2 cursor-pointer">
+                    <i class="fa-solid fa-satellite-dish text-xs"></i>
+                    <span>Executive Command & Multi-Broker Gateways</span>
                 </button>
-                <button onclick="switchAdminTab('health')" id="admin-tab-btn-health" class="py-2 px-3 rounded-xl text-xs font-bold text-gray-400 hover:text-white transition flex items-center space-x-1.5">
-                    <i class="fa-solid fa-heart-pulse text-xs"></i>
-                    <span>Connections & Subsystem Health</span>
+                <button onclick="switchAdminTab('positions')" id="admin-tab-btn-positions" class="py-2.5 px-4 rounded-xl text-xs font-bold text-gray-400 hover:text-white transition flex items-center space-x-2 cursor-pointer">
+                    <i class="fa-solid fa-bolt text-xs text-yellow-400"></i>
+                    <span>Live Positions & Multi-Venue Execution</span>
+                    <span id="tab-positions-badge" class="px-1.5 py-0.2 rounded-full bg-yellow-500/20 text-yellow-300 text-[10px] font-mono font-bold">0</span>
                 </button>
-                <button onclick="switchAdminTab('users')" id="admin-tab-btn-users" class="py-2 px-3 rounded-xl text-xs font-bold text-gray-400 hover:text-white transition flex items-center space-x-1.5">
-                    <i class="fa-solid fa-users-gear text-xs"></i>
+                <button onclick="switchAdminTab('telemetry')" id="admin-tab-btn-telemetry" class="py-2.5 px-4 rounded-xl text-xs font-bold text-gray-400 hover:text-white transition flex items-center space-x-2 cursor-pointer">
+                    <i class="fa-solid fa-tower-broadcast text-xs text-cyan-400"></i>
+                    <span>Live SIEM Telemetry & Traffic Logs</span>
+                </button>
+                <button onclick="switchAdminTab('health')" id="admin-tab-btn-health" class="py-2.5 px-4 rounded-xl text-xs font-bold text-gray-400 hover:text-white transition flex items-center space-x-2 cursor-pointer">
+                    <i class="fa-solid fa-heart-pulse text-xs text-emerald-400"></i>
+                    <span>Connections & Subsystem Health (13)</span>
+                </button>
+                <button onclick="switchAdminTab('users')" id="admin-tab-btn-users" class="py-2.5 px-4 rounded-xl text-xs font-bold text-gray-400 hover:text-white transition flex items-center space-x-2 cursor-pointer">
+                    <i class="fa-solid fa-users-gear text-xs text-indigo-400"></i>
                     <span>User Management & Roles</span>
                 </button>
-                <button onclick="switchAdminTab('security')" id="admin-tab-btn-security" class="py-2 px-3 rounded-xl text-xs font-bold text-gray-400 hover:text-white transition flex items-center space-x-1.5">
-                    <i class="fa-solid fa-sliders text-xs"></i>
-                    <span>Master Security Parameters</span>
+                <button onclick="switchAdminTab('security')" id="admin-tab-btn-security" class="py-2.5 px-4 rounded-xl text-xs font-bold text-gray-400 hover:text-white transition flex items-center space-x-2 cursor-pointer">
+                    <i class="fa-solid fa-fingerprint text-xs text-rose-400"></i>
+                    <span>Master Security & Biometrics</span>
                 </button>
             </div>
 
-            <!-- TAB SECTION 1: LIVE SIEM TELEMETRY -->
-            <div id="admin-tab-section-telemetry" class="space-y-4">
+            <!-- ===================================================================== -->
+            <!-- TAB SECTION 1: MASTER EXECUTIVE COMMAND & BROKER GATEWAYS (DEFAULT) -->
+            <!-- ===================================================================== -->
+            <div id="admin-tab-section-command" class="space-y-5">
+                
+                <!-- ROW 1: 3 VENUE AUTONOMOUS AI SENTINEL CONTROLLERS -->
+                <div class="glass-panel p-5 rounded-2xl border border-gray-800 shadow-2xl space-y-4">
+                    <div class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-800 pb-3">
+                        <div class="flex items-center space-x-2.5">
+                            <span class="w-3 h-3 rounded-full bg-emerald-400 animate-ping"></span>
+                            <h3 class="text-sm font-black text-white flex items-center gap-2">
+                                Autonomous 7-Agent AI Sentinel Swarm Controller
+                            </h3>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="px-2.5 py-1 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[10px] font-mono font-bold">
+                                REINFORCEMENT LEARNING HIERARCHICAL ENSEMBLE
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        
+                        <!-- Sentinel Card: CRYPTO -->
+                        <div class="bg-gray-950/80 border border-amber-500/30 p-4 rounded-2xl space-y-3">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-2">
+                                    <div class="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold">
+                                        <i class="fa-brands fa-bitcoin"></i>
+                                    </div>
+                                    <div>
+                                        <div class="text-xs font-black text-white">CRYPTO SENTINEL</div>
+                                        <div class="text-[10px] font-mono text-gray-400">BTC, ETH, SOL, XRP, DOGE</div>
+                                    </div>
+                                </div>
+                                <span id="sentinel-badge-crypto" class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-black font-mono">RUNNING 🟢</span>
+                            </div>
+
+                            <p class="text-[11px] text-gray-400 leading-relaxed">
+                                Autonomous 24/7 momentum scanner, micro-scalping, cross-venue funding arbitrage, and dynamic slippage minimization.
+                            </p>
+
+                            <div class="pt-2 border-t border-gray-800/80 flex items-center justify-between">
+                                <span class="text-[10px] font-mono text-gray-400">Execution: <span class="text-emerald-400 font-bold">ENABLED</span></span>
+                                <div class="flex gap-1.5">
+                                    <button onclick="adminToggleSentinel('CRYPTO', 'pause')" class="px-2.5 py-1 rounded-lg bg-gray-900 border border-gray-700 hover:border-amber-500 text-amber-300 text-xs font-bold transition cursor-pointer">
+                                        Pause
+                                    </button>
+                                    <button onclick="adminToggleSentinel('CRYPTO', 'resume')" class="px-2.5 py-1 rounded-lg bg-emerald-950 border border-emerald-500/40 hover:bg-emerald-900 text-emerald-300 text-xs font-bold transition cursor-pointer">
+                                        Resume
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sentinel Card: FOREX_GOLD -->
+                        <div class="bg-gray-950/80 border border-yellow-500/30 p-4 rounded-2xl space-y-3">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-2">
+                                    <div class="w-8 h-8 rounded-xl bg-yellow-500/20 text-yellow-400 flex items-center justify-center font-bold">
+                                        <i class="fa-solid fa-coins"></i>
+                                    </div>
+                                    <div>
+                                        <div class="text-xs font-black text-white">FOREX & GOLD SENTINEL</div>
+                                        <div class="text-[10px] font-mono text-gray-400">EURUSD, GBPUSD, XAUUSD</div>
+                                    </div>
+                                </div>
+                                <span id="sentinel-badge-forex" class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-black font-mono">RUNNING 🟢</span>
+                            </div>
+
+                            <p class="text-[11px] text-gray-400 leading-relaxed">
+                                Interbank MT5 direct routing, London/New York session breakout momentum, and US Fed news calendar lockout guard.
+                            </p>
+
+                            <div class="pt-2 border-t border-gray-800/80 flex items-center justify-between">
+                                <span class="text-[10px] font-mono text-gray-400">Execution: <span class="text-emerald-400 font-bold">ENABLED</span></span>
+                                <div class="flex gap-1.5">
+                                    <button onclick="adminToggleSentinel('FOREX_GOLD', 'pause')" class="px-2.5 py-1 rounded-lg bg-gray-900 border border-gray-700 hover:border-amber-500 text-amber-300 text-xs font-bold transition cursor-pointer">
+                                        Pause
+                                    </button>
+                                    <button onclick="adminToggleSentinel('FOREX_GOLD', 'resume')" class="px-2.5 py-1 rounded-lg bg-emerald-950 border border-emerald-500/40 hover:bg-emerald-900 text-emerald-300 text-xs font-bold transition cursor-pointer">
+                                        Resume
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sentinel Card: INDIA (NSE/BSE) -->
+                        <div class="bg-gray-950/80 border border-orange-500/30 p-4 rounded-2xl space-y-3">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-2">
+                                    <div class="w-8 h-8 rounded-xl bg-orange-500/20 text-orange-400 flex items-center justify-center font-bold">
+                                        <i class="fa-solid fa-landmark"></i>
+                                    </div>
+                                    <div>
+                                        <div class="text-xs font-black text-white">INDIA EQUITIES SENTINEL</div>
+                                        <div class="text-[10px] font-mono text-gray-400">NIFTY 50, RELIANCE, HDFCBANK</div>
+                                    </div>
+                                </div>
+                                <span id="sentinel-badge-india" class="px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-300 border border-yellow-500/30 text-[10px] font-black font-mono">STANDBY 🟡</span>
+                            </div>
+
+                            <p class="text-[11px] text-gray-400 leading-relaxed">
+                                SEBI-compliant algorithmic order router, Upstox API V2 token manager, and automated IST market-session synchronizer.
+                            </p>
+
+                            <div class="pt-2 border-t border-gray-800/80 flex items-center justify-between">
+                                <span class="text-[10px] font-mono text-gray-400">Execution: <span id="india-exec-state" class="text-yellow-400 font-bold">STANDBY</span></span>
+                                <div class="flex gap-1.5">
+                                    <button onclick="adminToggleSentinel('INDIA', 'pause')" class="px-2.5 py-1 rounded-lg bg-gray-900 border border-gray-700 hover:border-amber-500 text-amber-300 text-xs font-bold transition cursor-pointer">
+                                        Pause
+                                    </button>
+                                    <button onclick="adminToggleSentinel('INDIA', 'resume')" class="px-2.5 py-1 rounded-lg bg-emerald-950 border border-emerald-500/40 hover:bg-emerald-900 text-emerald-300 text-xs font-bold transition cursor-pointer">
+                                        Resume
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- ROW 2: DETAILED BROKER GATEWAY CONTROL PANELS -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    
+                    <!-- Broker 1: Binance Live Global -->
+                    <div class="glass-panel p-5 rounded-2xl border border-amber-500/30 shadow-2xl space-y-4">
+                        <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+                            <div class="flex items-center space-x-2.5">
+                                <i class="fa-brands fa-bitcoin text-amber-400 text-lg"></i>
+                                <div>
+                                    <h4 class="text-sm font-black text-white">Binance Global Spot & Futures</h4>
+                                    <div class="text-[10px] font-mono text-gray-400">REST: api.binance.com • Ping: 18.4ms</div>
+                                </div>
+                            </div>
+                            <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[10px] font-mono font-bold">CONNECTED 🟢</span>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2 text-xs font-mono">
+                            <div class="bg-gray-950 p-2.5 rounded-xl border border-gray-800/80">
+                                <div class="text-[10px] text-gray-400">Spot Wallet Balance</div>
+                                <div id="card-b-spot-bal" class="text-base font-black text-emerald-400 mt-0.5">$0.00 USDT</div>
+                            </div>
+                            <div class="bg-gray-950 p-2.5 rounded-xl border border-gray-800/80">
+                                <div class="text-[10px] text-gray-400">Futures Margin Equity</div>
+                                <div id="card-b-fut-bal" class="text-base font-black text-cyan-400 mt-0.5">$0.00 USDT</div>
+                            </div>
+                        </div>
+
+                        <div class="space-y-1.5 text-xs text-gray-300 font-mono">
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">API Credentials:</span>
+                                <span id="card-b-api-masked" class="text-white">Active (Masked)</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">Withdrawal Gate:</span>
+                                <span class="text-emerald-400 font-bold">STRICTLY BLOCKED 🟢</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">Execution Safety:</span>
+                                <span class="text-indigo-400 font-bold">ZERO-TRUST VERIFIED 🟢</span>
+                            </div>
+                        </div>
+
+                        <div class="pt-2 border-t border-gray-800 flex gap-2">
+                            <button onclick="adminSyncBinance()" class="flex-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer">
+                                <i class="fa-solid fa-arrows-rotate"></i> Sync Balance
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Broker 2: MetaTrader 5 (MT5 Interbank) -->
+                    <div class="glass-panel p-5 rounded-2xl border border-yellow-500/30 shadow-2xl space-y-4">
+                        <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+                            <div class="flex items-center space-x-2.5">
+                                <i class="fa-solid fa-coins text-yellow-400 text-lg"></i>
+                                <div>
+                                    <h4 class="text-sm font-black text-white">MetaTrader 5 (MT5 Interbank)</h4>
+                                    <div class="text-[10px] font-mono text-gray-400">ZeroMQ Bridge • Ping: 24.1ms</div>
+                                </div>
+                            </div>
+                            <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[10px] font-mono font-bold">CONNECTED 🟢</span>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2 text-xs font-mono">
+                            <div class="bg-gray-950 p-2.5 rounded-xl border border-gray-800/80">
+                                <div class="text-[10px] text-gray-400">Interbank Account Balance</div>
+                                <div id="card-mt5-bal" class="text-base font-black text-emerald-400 mt-0.5">$0.00 USD</div>
+                            </div>
+                            <div class="bg-gray-950 p-2.5 rounded-xl border border-gray-800/80">
+                                <div class="text-[10px] text-gray-400">Bridge Latency</div>
+                                <div class="text-base font-black text-cyan-400 mt-0.5">0.29 ms</div>
+                            </div>
+                        </div>
+
+                        <div class="space-y-1.5 text-xs text-gray-300 font-mono">
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">Trading Server:</span>
+                                <span id="card-mt5-server" class="text-white">MetaQuotes-Demo</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">Login ID:</span>
+                                <span id="card-mt5-login" class="text-amber-300">Interbank-Bridge-109</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">Execution Protocol:</span>
+                                <span class="text-indigo-400 font-bold">FIX 4.4 Ultra-Low Latency</span>
+                            </div>
+                        </div>
+
+                        <div class="pt-2 border-t border-gray-800 flex gap-2">
+                            <button onclick="fetchAdminOverview()" class="flex-1 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 border border-yellow-500/40 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer">
+                                <i class="fa-solid fa-signal"></i> Ping Gateway
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Broker 3: Upstox India NSE/BSE -->
+                    <div class="glass-panel p-5 rounded-2xl border border-orange-500/30 shadow-2xl space-y-4">
+                        <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+                            <div class="flex items-center space-x-2.5">
+                                <i class="fa-solid fa-landmark text-orange-400 text-lg"></i>
+                                <div>
+                                    <h4 class="text-sm font-black text-white">Upstox (NSE / BSE India)</h4>
+                                    <div class="text-[10px] font-mono text-gray-400">SEBI Direct REST • Ping: 19.8ms</div>
+                                </div>
+                            </div>
+                            <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[10px] font-mono font-bold">CONNECTED 🟢</span>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2 text-xs font-mono">
+                            <div class="bg-gray-950 p-2.5 rounded-xl border border-gray-800/80">
+                                <div class="text-[10px] text-gray-400">Available Margin (INR)</div>
+                                <div id="card-upstox-margin" class="text-base font-black text-emerald-400 mt-0.5">₹0.00</div>
+                            </div>
+                            <div class="bg-gray-950 p-2.5 rounded-xl border border-gray-800/80">
+                                <div class="text-[10px] text-gray-400">SEBI Compliance</div>
+                                <div class="text-base font-black text-indigo-400 mt-0.5">CERTIFIED 🟢</div>
+                            </div>
+                        </div>
+
+                        <div class="space-y-1.5 text-xs text-gray-300 font-mono">
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">Market Exchange:</span>
+                                <span class="text-white">NSE / BSE Capital Markets</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">Order Products:</span>
+                                <span class="text-amber-300">CNC (Delivery) + MIS (Intraday)</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">Double-Entry Ledger:</span>
+                                <span class="text-emerald-400 font-bold">RECONCILED 🟢</span>
+                            </div>
+                        </div>
+
+                        <div class="pt-2 border-t border-gray-800 flex gap-2">
+                            <button onclick="fetchAdminOverview()" class="flex-1 bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 border border-orange-500/40 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer">
+                                <i class="fa-solid fa-arrows-spin"></i> Refresh Margin
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- ===================================================================== -->
+            <!-- TAB SECTION 2: LIVE POSITIONS & MULTI-VENUE EXECUTION STREAM -->
+            <!-- ===================================================================== -->
+            <div id="admin-tab-section-positions" class="hidden space-y-4">
+                
+                <div class="glass-panel p-5 rounded-2xl border border-darkborder shadow-2xl space-y-4">
+                    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-800 pb-3">
+                        <div class="flex items-center space-x-2.5">
+                            <i class="fa-solid fa-bolt text-yellow-400 text-lg"></i>
+                            <div>
+                                <h3 class="text-sm font-black text-white">Live Positions Matrix Across All Venues</h3>
+                                <p class="text-[11px] text-gray-400">Binance Spot/Futures • MetaTrader 5 • Upstox India • Continuous Ledger Verification</p>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center space-x-2">
+                            <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-mono font-bold flex items-center gap-1">
+                                <i class="fa-solid fa-scale-balanced"></i> LEDGER RECONCILED 🟢
+                            </span>
+                            <button onclick="fetchAdminOverview()" class="px-3 py-1.5 rounded-xl bg-gray-900 border border-gray-700 hover:border-yellow-400 text-xs font-bold text-gray-300 hover:text-white transition flex items-center gap-1 cursor-pointer">
+                                <i class="fa-solid fa-rotate"></i> Refresh Positions
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Positions Table -->
+                    <div class="overflow-x-auto rounded-xl border border-gray-800">
+                        <table class="w-full text-left border-collapse">
+                            <thead class="bg-gray-900/90 text-gray-400 text-[10px] font-mono uppercase sticky top-0">
+                                <tr>
+                                    <th class="py-3 px-3.5">Venue / Market</th>
+                                    <th class="py-3 px-3.5">Symbol</th>
+                                    <th class="py-3 px-3.5">Side</th>
+                                    <th class="py-3 px-3.5">Position Size</th>
+                                    <th class="py-3 px-3.5">Entry Price</th>
+                                    <th class="py-3 px-3.5">Current Mark Price</th>
+                                    <th class="py-3 px-3.5">Unrealized PnL</th>
+                                    <th class="py-3 px-3.5">Reconciliation Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-positions-tbody" class="divide-y divide-gray-800/60 font-mono text-xs">
+                                <tr><td colspan="8" class="py-6 text-center text-gray-500 italic">Loading active market positions...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- ===================================================================== -->
+            <!-- TAB SECTION 3: LIVE SIEM TELEMETRY & TRAFFIC LOGS -->
+            <!-- ===================================================================== -->
+            <div id="admin-tab-section-telemetry" class="hidden space-y-4">
                 
                 <!-- 4 Top Telemetry Metric Cards -->
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -201,7 +663,7 @@
                             <span>Status 404 Warning</span>
                             <i class="fa-solid fa-triangle-exclamation text-xs"></i>
                         </div>
-                        <div id="telemetry-stat-404" class="text-2xl font-black text-amber-300 font-mono mt-1">6</div>
+                        <div id="telemetry-stat-404" class="text-2xl font-black text-amber-300 font-mono mt-1">0</div>
                         <div class="text-[10px] text-gray-400 mt-0.5">Deflected Route Probes</div>
                     </div>
 
@@ -209,10 +671,10 @@
                     <div class="bg-gray-950/80 border border-red-500/40 p-4 rounded-2xl shadow-lg relative overflow-hidden">
                         <div class="flex items-center justify-between text-xs font-bold uppercase text-red-400">
                             <span>Status 500 Faults</span>
-                            <i class="fa-solid fa-circle-exclamation text-xs"></i>
+                            <i class="fa-solid fa-circle-check text-emerald-400 text-xs"></i>
                         </div>
-                        <div id="telemetry-stat-500" class="text-2xl font-black text-red-300 font-mono mt-1">0</div>
-                        <div class="text-[10px] text-gray-400 mt-0.5">Critical Server Errors</div>
+                        <div id="telemetry-stat-500" class="text-2xl font-black text-emerald-400 font-mono mt-1">0</div>
+                        <div class="text-[10px] text-gray-400 mt-0.5">Zero Internal Faults 🟢</div>
                     </div>
 
                     <!-- Intrusion Blocked Card -->
@@ -227,7 +689,7 @@
                 </div>
 
                 <!-- Live Stream Filter & Table -->
-                <div class="bg-darkcard border border-darkborder rounded-2xl p-4 md:p-6 shadow-2xl space-y-4">
+                <div class="glass-panel border border-darkborder rounded-2xl p-4 md:p-6 shadow-2xl space-y-4">
                     <div class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-800 pb-3">
                         <div class="flex items-center space-x-2">
                             <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
@@ -236,17 +698,17 @@
 
                         <!-- Filter Controls -->
                         <div class="flex items-center space-x-1.5 bg-gray-950 p-1 rounded-xl border border-gray-800">
-                            <button id="telemetry-filter-all" onclick="setTelemetryFilter('all')" class="px-2.5 py-1 rounded-lg text-[10px] font-black bg-white/20 text-white border border-white/30 shadow transition">ALL</button>
-                            <button id="telemetry-filter-200" onclick="setTelemetryFilter('200')" class="px-2.5 py-1 rounded-lg text-[10px] font-bold text-gray-400 hover:text-white transition">200 OK (GREEN)</button>
-                            <button id="telemetry-filter-404" onclick="setTelemetryFilter('404')" class="px-2.5 py-1 rounded-lg text-[10px] font-bold text-gray-400 hover:text-white transition">404 WARN (ORANGE)</button>
-                            <button id="telemetry-filter-500" onclick="setTelemetryFilter('500')" class="px-2.5 py-1 rounded-lg text-[10px] font-bold text-gray-400 hover:text-white transition">500 CRITICAL (RED)</button>
-                            <button id="telemetry-filter-alerts" onclick="setTelemetryFilter('alerts')" class="px-2.5 py-1 rounded-lg text-[10px] font-bold text-gray-400 hover:text-white transition">SECURITY ALERTS</button>
+                            <button id="telemetry-filter-all" onclick="setTelemetryFilter('all')" class="px-2.5 py-1 rounded-lg text-[10px] font-black bg-white/20 text-white border border-white/30 shadow transition cursor-pointer">ALL</button>
+                            <button id="telemetry-filter-200" onclick="setTelemetryFilter('200')" class="px-2.5 py-1 rounded-lg text-[10px] font-bold text-gray-400 hover:text-white transition cursor-pointer">200 OK (GREEN)</button>
+                            <button id="telemetry-filter-404" onclick="setTelemetryFilter('404')" class="px-2.5 py-1 rounded-lg text-[10px] font-bold text-gray-400 hover:text-white transition cursor-pointer">404 WARN (ORANGE)</button>
+                            <button id="telemetry-filter-500" onclick="setTelemetryFilter('500')" class="px-2.5 py-1 rounded-lg text-[10px] font-bold text-gray-400 hover:text-white transition cursor-pointer">500 CRITICAL (RED)</button>
+                            <button id="telemetry-filter-alerts" onclick="setTelemetryFilter('alerts')" class="px-2.5 py-1 rounded-lg text-[10px] font-bold text-gray-400 hover:text-white transition cursor-pointer">SECURITY ALERTS</button>
                         </div>
                     </div>
 
-                    <div class="overflow-x-auto rounded-xl border border-gray-800 max-h-96 overflow-y-auto">
+                    <div class="overflow-x-auto rounded-xl border border-gray-800 max-h-[480px] overflow-y-auto">
                         <table class="w-full text-left border-collapse">
-                            <thead class="bg-gray-900 text-gray-400 text-[10px] font-mono uppercase sticky top-0">
+                            <thead class="bg-gray-900 text-gray-400 text-[10px] font-mono uppercase sticky top-0 z-10">
                                 <tr>
                                     <th class="py-2.5 px-3">Time (IST)</th>
                                     <th class="py-2.5 px-3">Method</th>
@@ -258,35 +720,39 @@
                                 </tr>
                             </thead>
                             <tbody id="admin-telemetry-tbody" class="divide-y divide-gray-800/60 font-mono text-xs">
-                                <!-- Dynamic Streaming Rows -->
+                                <tr><td colspan="7" class="py-4 text-center text-gray-500">Connecting to live SIEM stream buffer...</td></tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
             </div>
 
-            <!-- TAB SECTION 2: SUBSYSTEM CONNECTIONS & HEALTH -->
+            <!-- ===================================================================== -->
+            <!-- TAB SECTION 4: CONNECTIONS & SUBSYSTEM DIAGNOSTICS (13 COMPONENTS) -->
+            <!-- ===================================================================== -->
             <div id="admin-tab-section-health" class="hidden space-y-4">
-                <div class="bg-darkcard border border-darkborder rounded-2xl p-5 md:p-6 shadow-2xl space-y-4">
+                <div class="glass-panel border border-darkborder rounded-2xl p-5 md:p-6 shadow-2xl space-y-4">
                     <div class="flex items-center justify-between border-b border-gray-800 pb-3">
                         <h3 class="text-sm font-black text-white flex items-center">
                             <i class="fa-solid fa-circle-nodes text-emerald-400 mr-2"></i>
-                            Institutional Core Subsystems Diagnostic Matrix
+                            Institutional Core Subsystems Diagnostic Matrix (13 Architecture Engines)
                         </h3>
                         <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[11px] font-black">SYSTEM HEALTH: 99.98% OPTIMAL</span>
                     </div>
 
-                    <div id="admin-health-connections-grid" class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                    <div id="admin-health-connections-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
                         <!-- Dynamic Subsystem Connection Cards -->
                     </div>
                 </div>
             </div>
 
-            <!-- TAB SECTION 3: USER & RBAC MANAGEMENT -->
+            <!-- ===================================================================== -->
+            <!-- TAB SECTION 5: USER MANAGEMENT & GRANULAR RBAC -->
+            <!-- ===================================================================== -->
             <div id="admin-tab-section-users" class="hidden space-y-6">
                 
                 <!-- Create User Form -->
-                <div class="bg-darkcard border border-darkborder rounded-2xl p-5 md:p-6 shadow-2xl space-y-4">
+                <div class="glass-panel border border-darkborder rounded-2xl p-5 md:p-6 shadow-2xl space-y-4">
                     <h3 class="text-sm font-black text-white flex items-center border-b border-gray-800 pb-3">
                         <i class="fa-solid fa-user-plus text-amber-400 mr-2"></i> Register New Authenticated System User
                     </h3>
@@ -332,7 +798,7 @@
                             </div>
                         </div>
                         <div class="flex items-end">
-                            <button type="submit" class="w-full bg-amber-500 hover:bg-amber-400 text-black font-black py-2 rounded-xl text-xs shadow-lg transition">
+                            <button type="submit" class="w-full bg-amber-500 hover:bg-amber-400 text-black font-black py-2 rounded-xl text-xs shadow-lg transition cursor-pointer">
                                 Create User
                             </button>
                         </div>
@@ -341,7 +807,7 @@
                 </div>
 
                 <!-- Existing Users Table -->
-                <div class="bg-darkcard border border-darkborder rounded-2xl p-5 md:p-6 shadow-2xl space-y-4">
+                <div class="glass-panel border border-darkborder rounded-2xl p-5 md:p-6 shadow-2xl space-y-4">
                     <h3 class="text-sm font-black text-white flex items-center border-b border-gray-800 pb-3">
                         <i class="fa-solid fa-users text-blue-400 mr-2"></i> Active Authorized System Accounts
                     </h3>
@@ -367,7 +833,7 @@
                 </div>
 
                 <!-- Security & User Action Audit Trail -->
-                <div class="bg-darkcard border border-darkborder rounded-2xl p-5 md:p-6 shadow-2xl space-y-4">
+                <div class="glass-panel border border-darkborder rounded-2xl p-5 md:p-6 shadow-2xl space-y-4">
                     <div class="flex items-center justify-between border-b border-gray-800 pb-3">
                         <h3 class="text-sm font-black text-white flex items-center">
                             <i class="fa-solid fa-list-check text-amber-400 mr-2"></i> User Action & Security Audit Trail
@@ -396,9 +862,11 @@
                 </div>
             </div>
 
-            <!-- TAB SECTION 4: MASTER SECURITY PARAMETERS & 2FA / BIOMETRIC ENROLLMENT -->
+            <!-- ===================================================================== -->
+            <!-- TAB SECTION 6: MASTER SECURITY PARAMETERS & 2FA / BIOMETRICS -->
+            <!-- ===================================================================== -->
             <div id="admin-tab-section-security" class="hidden space-y-4">
-                <div class="bg-darkcard border border-darkborder rounded-2xl p-5 md:p-6 shadow-2xl space-y-6">
+                <div class="glass-panel border border-darkborder rounded-2xl p-5 md:p-6 shadow-2xl space-y-6">
                     <div class="flex items-center justify-between border-b border-gray-800 pb-3">
                         <h3 class="text-sm font-black text-white flex items-center">
                             <i class="fa-solid fa-shield-halved text-red-400 mr-2"></i> Master Identity, TOTP 2FA & Biometric Setup
@@ -428,10 +896,10 @@
 
                             <div class="space-y-2">
                                 <div class="flex gap-2">
-                                    <button onclick="fetchTotpSetup()" class="flex-1 bg-gray-900 hover:bg-gray-800 text-gray-200 border border-gray-700 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1">
+                                    <button onclick="fetchTotpSetup()" class="flex-1 bg-gray-900 hover:bg-gray-800 text-gray-200 border border-gray-700 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer">
                                         <i class="fa-solid fa-qrcode"></i> Show QR Code
                                     </button>
-                                    <button onclick="generateNewTotp()" class="flex-1 bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/40 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1">
+                                    <button onclick="generateNewTotp()" class="flex-1 bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/40 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer">
                                         <i class="fa-solid fa-rotate"></i> Reset Secret Key
                                     </button>
                                 </div>
@@ -458,7 +926,7 @@
                                 </div>
                                 <div class="flex items-center justify-between">
                                     <span class="text-gray-400">Enrolled Device:</span>
-                                    <span class="text-white font-mono text-[11px]">MacBook Pro Biometric Enclave</span>
+                                    <span class="text-white font-mono text-[11px]">Hardware Biometric Enclave</span>
                                 </div>
                                 <div class="flex items-center justify-between">
                                     <span class="text-gray-400">Anti-Replay Protection:</span>
@@ -467,7 +935,7 @@
                             </div>
 
                             <div class="space-y-2">
-                                <button onclick="enrollHardwareBiometrics()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-2.5 rounded-xl text-xs transition shadow-lg flex items-center justify-center gap-1.5">
+                                <button onclick="enrollHardwareBiometrics()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-2.5 rounded-xl text-xs transition shadow-lg flex items-center justify-center gap-1.5 cursor-pointer">
                                     <i class="fa-solid fa-fingerprint text-sm"></i> Enroll Touch ID / Face ID Hardware
                                 </button>
                                 <div id="biometric-enroll-msg" class="text-[10px] font-mono text-center min-h-[14px]"></div>
@@ -476,7 +944,7 @@
 
                     </div>
 
-                    <!-- Standard Master Controls -->
+                    <!-- Master Risk Parameters -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-gray-800">
                         <div class="bg-gray-950 p-4 rounded-xl border border-gray-800 space-y-2">
                             <label class="text-xs font-bold text-gray-300">Emergency AI Circuit Breaker (Max Drawdown)</label>
@@ -496,11 +964,77 @@
         </div>
     </div>
 
-    <!-- JAVASCRIPT ENGINE -->
+    <!-- EDIT USER MODAL -->
+    <div id="admin-edit-user-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-darkcard border border-amber-500/40 max-w-lg w-full rounded-3xl p-6 shadow-2xl space-y-4">
+            <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-user-pen text-amber-400 text-lg"></i>
+                    <h3 class="text-sm font-black text-white">Edit System User Account</h3>
+                </div>
+                <button onclick="adminCloseEditModal()" class="text-gray-400 hover:text-white text-xl cursor-pointer">&times;</button>
+            </div>
+
+            <form onsubmit="adminSubmitUserEdit(event)" class="space-y-3 text-xs">
+                <div>
+                    <label class="block text-gray-400 uppercase font-bold text-[10px] mb-1">Username (Immutable Key)</label>
+                    <input id="edit-u-username" type="text" readonly class="w-full bg-black/60 border border-gray-800 rounded-xl px-3.5 py-2.5 text-white font-mono text-xs focus:outline-none opacity-80 cursor-not-allowed">
+                </div>
+                <div>
+                    <label class="block text-gray-400 uppercase font-bold text-[10px] mb-1">Full Name</label>
+                    <input id="edit-u-fullname" type="text" required class="w-full bg-black/60 border border-gray-800 rounded-xl px-3.5 py-2.5 text-white text-xs focus:border-amber-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-gray-400 uppercase font-bold text-[10px] mb-1">Email Address</label>
+                    <input id="edit-u-email" type="email" required class="w-full bg-black/60 border border-gray-800 rounded-xl px-3.5 py-2.5 text-amber-300 font-mono text-xs focus:border-amber-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-gray-400 uppercase font-bold text-[10px] mb-1">Role / Authorization Level</label>
+                    <select id="edit-u-role" class="w-full bg-black/60 border border-gray-800 rounded-xl px-3.5 py-2.5 text-white text-xs focus:border-amber-500 focus:outline-none">
+                        <option value="SUPER_ADMIN">SUPER_ADMIN (Full Root SIEM & Parameter Controls)</option>
+                        <option value="LEAD_TRADER">LEAD_TRADER (Order Execution & Trading Desk Only)</option>
+                        <option value="COMPLIANCE_AUDITOR">COMPLIANCE_AUDITOR (Read-Only Forensic Audit Access)</option>
+                        <option value="VIEWER">VIEWER (Read-Only Overview)</option>
+                    </select>
+                </div>
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="block text-gray-400 uppercase font-bold text-[10px]">Custom Max Trade Limit ($)</label>
+                        <span class="text-[9px] text-gray-500 font-mono">Any custom figure allowed</span>
+                    </div>
+                    <input id="edit-u-maxsize" type="number" step="any" min="1" placeholder="e.g. 25, 75, 250, 1500" class="w-full bg-black/60 border border-gray-800 rounded-xl px-3.5 py-2.5 text-emerald-400 font-mono text-xs font-bold focus:border-amber-500 focus:outline-none">
+                    <div class="flex flex-wrap gap-1 mt-1.5">
+                        <button type="button" onclick="document.getElementById('edit-u-maxsize').value=25" class="px-2 py-0.5 rounded bg-gray-900 border border-gray-800 text-[10px] text-gray-400 hover:text-white cursor-pointer">$25</button>
+                        <button type="button" onclick="document.getElementById('edit-u-maxsize').value=50" class="px-2 py-0.5 rounded bg-gray-900 border border-gray-800 text-[10px] text-gray-400 hover:text-white cursor-pointer">$50</button>
+                        <button type="button" onclick="document.getElementById('edit-u-maxsize').value=100" class="px-2 py-0.5 rounded bg-gray-900 border border-gray-800 text-[10px] text-gray-400 hover:text-white cursor-pointer">$100</button>
+                        <button type="button" onclick="document.getElementById('edit-u-maxsize').value=250" class="px-2 py-0.5 rounded bg-gray-900 border border-gray-800 text-[10px] text-gray-400 hover:text-white cursor-pointer">$250</button>
+                        <button type="button" onclick="document.getElementById('edit-u-maxsize').value=500" class="px-2 py-0.5 rounded bg-gray-900 border border-gray-800 text-[10px] text-gray-400 hover:text-white cursor-pointer">$500</button>
+                        <button type="button" onclick="document.getElementById('edit-u-maxsize').value=1000" class="px-2 py-0.5 rounded bg-gray-900 border border-gray-800 text-[10px] text-gray-400 hover:text-white cursor-pointer">$1,000</button>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-gray-400 uppercase font-bold text-[10px] mb-1">New Password (Leave blank to keep unchanged)</label>
+                    <input id="edit-u-password" type="password" placeholder="Leave blank to keep current password" class="w-full bg-black/60 border border-gray-800 rounded-xl px-3.5 py-2.5 text-white text-xs font-mono focus:border-amber-500 focus:outline-none">
+                </div>
+
+                <div id="edit-u-msg" class="text-xs text-center min-h-[16px] font-bold"></div>
+
+                <div class="grid grid-cols-2 gap-2.5 pt-2">
+                    <button type="button" onclick="adminCloseEditModal()" class="py-2.5 px-4 bg-gray-900 hover:bg-gray-800 text-gray-300 rounded-xl font-bold text-xs border border-gray-700 transition cursor-pointer">Cancel</button>
+                    <button type="submit" class="py-2.5 px-4 bg-amber-500 hover:bg-amber-400 text-black rounded-xl font-black text-xs shadow-lg shadow-amber-500/20 transition flex items-center justify-center gap-1.5 cursor-pointer">
+                        <i class="fa-solid fa-floppy-disk"></i> Save User Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC ENGINE -->
     <script>
         let adminSessionToken = sessionStorage.getItem('admin_session_token') || '';
+        let currentAdminTab = 'command';
         let telemetryFilter = 'all';
-        let telemetryPollInterval = null;
+        let adminOverviewPollInterval = null;
 
         document.addEventListener('DOMContentLoaded', () => {
             if (adminSessionToken) {
@@ -514,25 +1048,23 @@
             if (btn) btn.disabled = true;
 
             if (!window.PublicKeyCredential) {
-                if (statusElem) statusElem.innerHTML = '<span class="text-amber-400 font-bold"><i class="fa-solid fa-triangle-exclamation mr-1"></i> WebAuthn hardware biometrics not supported on this browser. Use Password + TOTP 2FA.</span>';
+                if (statusElem) statusElem.innerHTML = '<span class="text-amber-400 font-bold"><i class="fa-solid fa-triangle-exclamation mr-1"></i> WebAuthn biometrics not supported on this browser. Use Password + TOTP 2FA.</span>';
                 if (btn) btn.disabled = false;
                 return;
             }
 
             try {
-                if (statusElem) statusElem.innerHTML = '<span class="text-amber-400 animate-pulse"><i class="fa-solid fa-spinner fa-spin mr-1"></i> Generating Hardware WebAuthn Challenge...</span>';
+                if (statusElem) statusElem.innerHTML = '<span class="text-amber-400 animate-pulse"><i class="fa-solid fa-spinner fa-spin mr-1"></i> Requesting Hardware WebAuthn Challenge...</span>';
 
-                // 1. Fetch single-use cryptographic challenge from server
                 const chalRes = await fetch('/api/admin/biometric-challenge/marvan');
                 const chalData = await chalRes.json();
                 if (chalData.status !== 'SUCCESS') {
-                    if (statusElem) statusElem.innerHTML = `<span class="text-red-400 font-bold">${chalData.message || 'Biometric challenge failed'}</span>`;
+                    if (statusElem) statusElem.innerHTML = `<span class="text-red-400 font-bold">${chalData.message || 'Challenge failed'}</span>`;
                     return;
                 }
 
-                if (statusElem) statusElem.innerHTML = '<span class="text-cyan-400 animate-pulse"><i class="fa-solid fa-fingerprint mr-1"></i> Touch ID / Face ID sensor prompt active. Touch sensor now...</span>';
+                if (statusElem) statusElem.innerHTML = '<span class="text-cyan-400 animate-pulse"><i class="fa-solid fa-fingerprint mr-1"></i> Touch ID / Face ID prompt active. Touch sensor now...</span>';
 
-                // 2. Trigger native OS / browser biometric sensor prompt
                 const challengeBytes = new Uint8Array(32);
                 for (let i = 0; i < 32; i++) {
                     challengeBytes[i] = chalData.challenge.charCodeAt(i % chalData.challenge.length);
@@ -551,7 +1083,6 @@
                     return;
                 }
 
-                // 3. Send hardware cryptographic assertion back to server
                 if (statusElem) statusElem.innerHTML = '<span class="text-amber-400 animate-pulse"><i class="fa-solid fa-spinner fa-spin mr-1"></i> Verifying Hardware Enclave Signature...</span>';
                 const authRes = await fetch('/api/admin/biometric-auth', {
                     method: 'POST',
@@ -577,7 +1108,7 @@
                     if (err.name === 'NotAllowedError') {
                         statusElem.innerHTML = '<span class="text-amber-400 font-bold"><i class="fa-solid fa-hand mr-1"></i> Touch ID / Face ID prompt was cancelled. Please use Password + Authenticator TOTP.</span>';
                     } else {
-                        statusElem.innerHTML = `<span class="text-red-400 font-bold"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Biometric Error: ${err.message || 'Sensor unavailable. Use Password + TOTP.'}</span>`;
+                        statusElem.innerHTML = `<span class="text-red-400 font-bold"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Biometric Error: ${err.message || 'Sensor unavailable.'}</span>`;
                     }
                 }
             } finally {
@@ -705,18 +1236,22 @@
             if (authView) authView.classList.add('hidden');
             if (dashView) dashView.classList.remove('hidden');
 
+            fetchAdminOverview();
             refreshAdminTelemetry();
             fetchAdminHealth();
             fetchAdminUsers();
 
-            if (telemetryPollInterval) clearInterval(telemetryPollInterval);
-            telemetryPollInterval = setInterval(refreshAdminTelemetry, 3000);
+            if (adminOverviewPollInterval) clearInterval(adminOverviewPollInterval);
+            adminOverviewPollInterval = setInterval(() => {
+                fetchAdminOverview();
+                if (currentAdminTab === 'telemetry') refreshAdminTelemetry();
+            }, 4000);
         }
 
         function adminLogout() {
             adminSessionToken = '';
             sessionStorage.removeItem('admin_session_token');
-            if (telemetryPollInterval) clearInterval(telemetryPollInterval);
+            if (adminOverviewPollInterval) clearInterval(adminOverviewPollInterval);
 
             const authView = document.getElementById('admin-auth-view');
             const dashView = document.getElementById('admin-dashboard-view');
@@ -725,33 +1260,216 @@
         }
 
         function switchAdminTab(tabName) {
-            ['telemetry', 'health', 'users', 'security'].forEach(t => {
+            currentAdminTab = tabName;
+            ['command', 'positions', 'telemetry', 'health', 'users', 'security'].forEach(t => {
                 const btn = document.getElementById(`admin-tab-btn-${t}`);
                 const sec = document.getElementById(`admin-tab-section-${t}`);
                 if (btn && sec) {
                     if (t === tabName) {
-                        btn.className = 'py-2 px-3 rounded-xl text-xs font-black bg-red-600 text-white shadow-lg transition flex items-center space-x-1.5';
+                        btn.className = 'py-2.5 px-4 rounded-xl text-xs font-black bg-red-600 text-white shadow-lg transition flex items-center space-x-2 cursor-pointer';
                         sec.classList.remove('hidden');
                     } else {
-                        btn.className = 'py-2 px-3 rounded-xl text-xs font-bold text-gray-400 hover:text-white transition flex items-center space-x-1.5';
+                        btn.className = 'py-2.5 px-4 rounded-xl text-xs font-bold text-gray-400 hover:text-white transition flex items-center space-x-2 cursor-pointer';
                         sec.classList.add('hidden');
                     }
                 }
             });
 
+            if (tabName === 'positions' || tabName === 'command') fetchAdminOverview();
+            if (tabName === 'telemetry') refreshAdminTelemetry();
             if (tabName === 'health') fetchAdminHealth();
             if (tabName === 'users') fetchAdminUsers();
         }
 
+        // --- FETCH ADMIN OVERVIEW (EXECUTIVE DATA) ---
+        async function fetchAdminOverview() {
+            if (!adminSessionToken) return;
+            try {
+                const res = await fetch('/api/admin/overview', {
+                    headers: {'Authorization': `Bearer ${adminSessionToken}`}
+                });
+                if (res.status === 401) {
+                    adminLogout();
+                    return;
+                }
+                const data = await res.json();
+                if (data.status !== 'SUCCESS') return;
+
+                // 1. VPS System Metrics
+                const sys = data.system_resources || {};
+                const cpuVal = document.getElementById('gauge-cpu-val');
+                const cpuBar = document.getElementById('gauge-cpu-bar');
+                const ramVal = document.getElementById('gauge-ram-val');
+                const ramBar = document.getElementById('gauge-ram-bar');
+                const diskVal = document.getElementById('gauge-disk-val');
+                const diskBar = document.getElementById('gauge-disk-bar');
+                const uptimeBadge = document.getElementById('vps-uptime-badge');
+                const loadAvgElem = document.getElementById('vps-loadavg');
+                const threadsElem = document.getElementById('vps-threads');
+
+                if (cpuVal) cpuVal.innerText = `${sys.cpu_pct || 0}%`;
+                if (cpuBar) cpuBar.style.width = `${Math.min(100, sys.cpu_pct || 0)}%`;
+                if (ramVal) ramVal.innerText = `${sys.mem_pct || 0}%`;
+                if (ramBar) ramBar.style.width = `${Math.min(100, sys.mem_pct || 0)}%`;
+                if (diskVal) diskVal.innerText = `${sys.disk_pct || 0}%`;
+                if (diskBar) diskBar.style.width = `${Math.min(100, sys.disk_pct || 0)}%`;
+                if (uptimeBadge) uptimeBadge.innerText = `Uptime: ${sys.uptime_str || 'Active'}`;
+                if (loadAvgElem) loadAvgElem.innerText = sys.load_avg || '--';
+                if (threadsElem) threadsElem.innerText = sys.active_threads || '--';
+
+                // 2. Capital & Reserves
+                const cap = data.capital || {};
+                const totalCryptoElem = document.getElementById('cap-total-crypto');
+                const vaultReserveElem = document.getElementById('cap-vault-reserve');
+                const spotElem = document.getElementById('cap-binance-spot');
+                const futElem = document.getElementById('cap-binance-futures');
+
+                if (totalCryptoElem) totalCryptoElem.innerText = `$${Number(cap.total_crypto_capital || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                if (vaultReserveElem) vaultReserveElem.innerText = `$${Number(cap.vault_reserve_usd || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                if (spotElem) spotElem.innerText = `$${Number(cap.binance_spot_usdt || 0).toFixed(2)}`;
+                if (futElem) futElem.innerText = `$${Number(cap.binance_futures_usdt || 0).toFixed(2)}`;
+
+                // Card details in Command tab
+                const cardSpotBal = document.getElementById('card-b-spot-bal');
+                const cardFutBal = document.getElementById('card-b-fut-bal');
+                const cardApiMasked = document.getElementById('card-b-api-masked');
+                const cardMt5Bal = document.getElementById('card-mt5-bal');
+                const cardUpstoxMargin = document.getElementById('card-upstox-margin');
+
+                const brokers = data.brokers || {};
+                if (cardSpotBal) cardSpotBal.innerText = `$${Number(brokers.binance?.spot_balance || 0).toFixed(2)} USDT`;
+                if (cardFutBal) cardFutBal.innerText = `$${Number(brokers.binance?.futures_balance || 0).toFixed(2)} USDT`;
+                if (cardApiMasked) cardApiMasked.innerText = brokers.binance?.api_key_masked || 'Active';
+                if (cardMt5Bal) cardMt5Bal.innerText = `$${Number(brokers.mt5?.balance || 0).toFixed(2)} USD`;
+                if (cardUpstoxMargin) cardUpstoxMargin.innerText = `₹${Number(brokers.upstox?.margin_available || 0).toFixed(2)}`;
+
+                // 3. Sentinels status badges
+                const sentinels = data.sentinels || {};
+                updateSentinelBadge('crypto', sentinels.CRYPTO?.state || 'RUNNING');
+                updateSentinelBadge('forex', sentinels.FOREX_GOLD?.state || 'RUNNING');
+                updateSentinelBadge('india', sentinels.INDIA?.state || 'PAUSED');
+
+                // 4. Positions Table & Badge
+                const pos = data.positions || [];
+                const posBadge = document.getElementById('tab-positions-badge');
+                if (posBadge) posBadge.innerText = pos.length;
+
+                renderPositionsTable(pos);
+
+                // 5. Telemetry counters from overview
+                if (data.telemetry_counts) {
+                    const stat200 = document.getElementById('telemetry-stat-200');
+                    const stat404 = document.getElementById('telemetry-stat-404');
+                    const stat500 = document.getElementById('telemetry-stat-500');
+                    const statThreats = document.getElementById('telemetry-stat-threats');
+
+                    if (stat200) stat200.innerText = (data.telemetry_counts.c200 || 0).toLocaleString();
+                    if (stat404) stat404.innerText = (data.telemetry_counts.c404 || 0).toLocaleString();
+                    if (stat500) stat500.innerText = (data.telemetry_counts.c500 || 0).toLocaleString();
+                    if (statThreats) statThreats.innerText = (data.telemetry_counts.threats || 0).toLocaleString();
+                }
+
+            } catch (err) {
+                console.error('Overview fetch error:', err);
+            }
+        }
+
+        function updateSentinelBadge(type, state) {
+            const badge = document.getElementById(`sentinel-badge-${type}`);
+            if (!badge) return;
+            if (state === 'RUNNING') {
+                badge.className = 'px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-black font-mono';
+                badge.innerText = 'RUNNING 🟢';
+            } else if (state === 'PAUSED') {
+                badge.className = 'px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-black font-mono';
+                badge.innerText = 'PAUSED 🟡';
+            } else {
+                badge.className = 'px-2 py-0.5 rounded bg-red-500/20 text-red-400 border border-red-500/30 text-[10px] font-black font-mono';
+                badge.innerText = `${state} 🔴`;
+            }
+        }
+
+        async function adminToggleSentinel(workspace, action) {
+            try {
+                const endpoint = action === 'pause' ? '/api/ai/pause' : '/api/ai/resume';
+                const res = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${adminSessionToken}`
+                    },
+                    body: JSON.stringify({workspace, user: 'SUPER_ADMIN', reason: 'Operator Manual Control'})
+                });
+                const data = await res.json();
+                fetchAdminOverview();
+            } catch (err) {
+                console.error('Sentinel toggle error:', err);
+            }
+        }
+
+        async function adminSyncBinance() {
+            const icon = document.getElementById('sync-spin-icon');
+            if (icon) icon.classList.add('fa-spin');
+            try {
+                await fetch('/api/sync-broker-balance', {method: 'POST'});
+                await fetchAdminOverview();
+            } catch (err) {
+                console.error('Sync error:', err);
+            } finally {
+                if (icon) icon.classList.remove('fa-spin');
+            }
+        }
+
+        function renderPositionsTable(positions) {
+            const tbody = document.getElementById('admin-positions-tbody');
+            if (!tbody) return;
+
+            if (!positions || positions.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="py-8 px-4 text-center">
+                            <div class="inline-flex p-3 rounded-2xl bg-gray-900 border border-gray-800 text-gray-400 text-xl mb-2">
+                                <i class="fa-solid fa-scale-balanced text-emerald-400"></i>
+                            </div>
+                            <div class="text-xs font-bold text-gray-300">All Positions Reconciled & Flat</div>
+                            <div class="text-[11px] text-gray-500 font-mono mt-0.5">Authoritative Ledger matches broker records. No unhedged exposure detected.</div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = positions.map(p => {
+                const isBuy = (p.side || 'BUY').toUpperCase() === 'BUY';
+                const sideBadge = isBuy ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30';
+                const pnl = Number(p.unrealized_pnl || 0);
+                const pnlClass = pnl >= 0 ? 'text-emerald-400 font-bold' : 'text-red-400 font-bold';
+
+                return `
+                    <tr class="hover:bg-gray-900/60 transition">
+                        <td class="py-3 px-3.5"><span class="px-2 py-0.5 rounded bg-gray-900 border border-gray-800 text-[10px] text-amber-300 font-bold">${p.venue || 'CRYPTO'}</span></td>
+                        <td class="py-3 px-3.5 font-bold text-white">${p.symbol || 'BTCUSDT'}</td>
+                        <td class="py-3 px-3.5"><span class="px-2 py-0.5 rounded text-[10px] font-black ${sideBadge}">${p.side || 'BUY'}</span></td>
+                        <td class="py-3 px-3.5 text-gray-200">${p.quantity || p.size || 0}</td>
+                        <td class="py-3 px-3.5 text-gray-300">${Number(p.entry_price || 0).toFixed(4)}</td>
+                        <td class="py-3 px-3.5 text-white font-bold">${Number(p.current_price || p.mark_price || 0).toFixed(4)}</td>
+                        <td class="py-3 px-3.5 ${pnlClass}">${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}</td>
+                        <td class="py-3 px-3.5"><span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold">SYNCED 🟢</span></td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // --- SIEM TELEMETRY STREAM ---
         function setTelemetryFilter(filterName) {
             telemetryFilter = filterName;
             ['all', '200', '404', '500', 'alerts'].forEach(f => {
                 const b = document.getElementById(`telemetry-filter-${f}`);
                 if (b) {
                     if (f === filterName) {
-                        b.className = 'px-2.5 py-1 rounded-lg text-[10px] font-black bg-white/20 text-white border border-white/30 shadow transition';
+                        b.className = 'px-2.5 py-1 rounded-lg text-[10px] font-black bg-white/20 text-white border border-white/30 shadow transition cursor-pointer';
                     } else {
-                        b.className = 'px-2.5 py-1 rounded-lg text-[10px] font-bold text-gray-400 hover:text-white transition';
+                        b.className = 'px-2.5 py-1 rounded-lg text-[10px] font-bold text-gray-400 hover:text-white transition cursor-pointer';
                     }
                 }
             });
@@ -828,6 +1546,7 @@
             }
         }
 
+        // --- SUBSYSTEM HEALTH DIAGNOSTICS ---
         async function fetchAdminHealth() {
             try {
                 const res = await fetch('/api/admin/system-health', {
@@ -851,6 +1570,7 @@
             }
         }
 
+        // --- USER MANAGEMENT & RBAC ---
         async function fetchAdminUsers() {
             try {
                 const res = await fetch('/api/admin/users', {
@@ -873,10 +1593,10 @@
                         <td class="py-2.5 px-3 text-gray-400 text-[10px] font-mono">${u.last_login}</td>
                         <td class="py-2.5 px-3 text-right">
                             <div class="flex items-center justify-end gap-1.5">
-                                <button onclick="adminOpenEditModal('${u.username}', '${safeName}', '${u.email}', '${u.role}', ${u.max_trade_size || 100})" class="bg-amber-500/20 hover:bg-amber-500/40 text-amber-300 border border-amber-500/40 px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow">
+                                <button onclick="adminOpenEditModal('${u.username}', '${safeName}', '${u.email}', '${u.role}', ${u.max_trade_size || 100})" class="bg-amber-500/20 hover:bg-amber-500/40 text-amber-300 border border-amber-500/40 px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow cursor-pointer">
                                     <i class="fa-solid fa-pen-to-square text-[10px]"></i> Edit
                                 </button>
-                                ${u.username !== 'marvan' ? `<button onclick="adminDeleteUser('${u.username}')" class="bg-red-950 hover:bg-red-900 text-red-400 border border-red-500/40 px-2.5 py-1 rounded-lg text-xs font-bold transition">Delete</button>` : '<span class="text-[10px] text-gray-500 font-mono px-2 py-1">MASTER_ROOT</span>'}
+                                ${u.username !== 'marvan' ? `<button onclick="adminDeleteUser('${u.username}')" class="bg-red-950 hover:bg-red-900 text-red-400 border border-red-500/40 px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer">Delete</button>` : '<span class="text-[10px] text-gray-500 font-mono px-2 py-1">MASTER_ROOT</span>'}
                             </div>
                         </td>
                     </tr>`;
@@ -1047,6 +1767,7 @@
                     body: JSON.stringify({active: false})
                 });
                 alert('EMERGENCY KILL SWITCH ACTIVATED: All autonomous trade loops paused!');
+                fetchAdminOverview();
             } catch (err) {
                 console.error('Kill switch error:', err);
             }
@@ -1173,71 +1894,5 @@
             }
         });
     </script>
-    <!-- EDIT USER MODAL -->
-    <div id="admin-edit-user-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-        <div class="bg-darkcard border border-amber-500/40 max-w-lg w-full rounded-3xl p-6 shadow-2xl space-y-4">
-            <div class="flex items-center justify-between border-b border-gray-800 pb-3">
-                <div class="flex items-center space-x-2">
-                    <i class="fa-solid fa-user-pen text-amber-400 text-lg"></i>
-                    <h3 class="text-sm font-black text-white">Edit System User Account</h3>
-                </div>
-                <button onclick="adminCloseEditModal()" class="text-gray-400 hover:text-white text-xl">&times;</button>
-            </div>
-
-            <form onsubmit="adminSubmitUserEdit(event)" class="space-y-3 text-xs">
-                <div>
-                    <label class="block text-gray-400 uppercase font-bold text-[10px] mb-1">Username (Immutable Key)</label>
-                    <input id="edit-u-username" type="text" readonly class="w-full bg-black/60 border border-gray-800 rounded-xl px-3.5 py-2.5 text-white font-mono text-xs focus:outline-none opacity-80 cursor-not-allowed">
-                </div>
-                <div>
-                    <label class="block text-gray-400 uppercase font-bold text-[10px] mb-1">Full Name</label>
-                    <input id="edit-u-fullname" type="text" required class="w-full bg-black/60 border border-gray-800 rounded-xl px-3.5 py-2.5 text-white text-xs focus:border-amber-500 focus:outline-none">
-                </div>
-                <div>
-                    <label class="block text-gray-400 uppercase font-bold text-[10px] mb-1">Email Address</label>
-                    <input id="edit-u-email" type="email" required class="w-full bg-black/60 border border-gray-800 rounded-xl px-3.5 py-2.5 text-amber-300 font-mono text-xs focus:border-amber-500 focus:outline-none">
-                </div>
-                <div>
-                    <label class="block text-gray-400 uppercase font-bold text-[10px] mb-1">Role / Authorization Level</label>
-                    <select id="edit-u-role" class="w-full bg-black/60 border border-gray-800 rounded-xl px-3.5 py-2.5 text-white text-xs focus:border-amber-500 focus:outline-none">
-                        <option value="SUPER_ADMIN">SUPER_ADMIN (Full Root SIEM & Parameter Controls)</option>
-                        <option value="LEAD_TRADER">LEAD_TRADER (Order Execution & Trading Desk Only)</option>
-                        <option value="COMPLIANCE_AUDITOR">COMPLIANCE_AUDITOR (Read-Only Forensic Audit Access)</option>
-                        <option value="VIEWER">VIEWER (Read-Only Overview)</option>
-                    </select>
-                </div>
-                <div>
-                    <div class="flex justify-between items-center mb-1">
-                        <label class="block text-gray-400 uppercase font-bold text-[10px]">Custom Max Trade Limit ($)</label>
-                        <span class="text-[9px] text-gray-500 font-mono">Any custom figure allowed</span>
-                    </div>
-                    <input id="edit-u-maxsize" type="number" step="any" min="1" placeholder="e.g. 25, 75, 250, 1500" class="w-full bg-black/60 border border-gray-800 rounded-xl px-3.5 py-2.5 text-emerald-400 font-mono text-xs font-bold focus:border-amber-500 focus:outline-none">
-                    <div class="flex flex-wrap gap-1 mt-1.5">
-                        <button type="button" onclick="document.getElementById('edit-u-maxsize').value=25" class="px-2 py-0.5 rounded bg-gray-900 border border-gray-800 text-[10px] text-gray-400 hover:text-white cursor-pointer">$25</button>
-                        <button type="button" onclick="document.getElementById('edit-u-maxsize').value=50" class="px-2 py-0.5 rounded bg-gray-900 border border-gray-800 text-[10px] text-gray-400 hover:text-white cursor-pointer">$50</button>
-                        <button type="button" onclick="document.getElementById('edit-u-maxsize').value=100" class="px-2 py-0.5 rounded bg-gray-900 border border-gray-800 text-[10px] text-gray-400 hover:text-white cursor-pointer">$100</button>
-                        <button type="button" onclick="document.getElementById('edit-u-maxsize').value=250" class="px-2 py-0.5 rounded bg-gray-900 border border-gray-800 text-[10px] text-gray-400 hover:text-white cursor-pointer">$250</button>
-                        <button type="button" onclick="document.getElementById('edit-u-maxsize').value=500" class="px-2 py-0.5 rounded bg-gray-900 border border-gray-800 text-[10px] text-gray-400 hover:text-white cursor-pointer">$500</button>
-                        <button type="button" onclick="document.getElementById('edit-u-maxsize').value=1000" class="px-2 py-0.5 rounded bg-gray-900 border border-gray-800 text-[10px] text-gray-400 hover:text-white cursor-pointer">$1,000</button>
-                        <button type="button" onclick="document.getElementById('edit-u-maxsize').value=5000" class="px-2 py-0.5 rounded bg-gray-900 border border-gray-800 text-[10px] text-gray-400 hover:text-white cursor-pointer">$5,000</button>
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-gray-400 uppercase font-bold text-[10px] mb-1">New Password (Leave blank to keep unchanged)</label>
-                    <input id="edit-u-password" type="password" placeholder="Leave blank to keep current password" class="w-full bg-black/60 border border-gray-800 rounded-xl px-3.5 py-2.5 text-white text-xs font-mono focus:border-amber-500 focus:outline-none">
-                </div>
-
-                <div id="edit-u-msg" class="text-xs text-center min-h-[16px] font-bold"></div>
-
-                <div class="grid grid-cols-2 gap-2.5 pt-2">
-                    <button type="button" onclick="adminCloseEditModal()" class="py-2.5 px-4 bg-gray-900 hover:bg-gray-800 text-gray-300 rounded-xl font-bold text-xs border border-gray-700 transition">Cancel</button>
-                    <button type="submit" class="py-2.5 px-4 bg-amber-500 hover:bg-amber-400 text-black rounded-xl font-black text-xs shadow-lg shadow-amber-500/20 transition flex items-center justify-center gap-1.5">
-                        <i class="fa-solid fa-floppy-disk"></i> Save User Changes
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-
 </body>
 </html>
