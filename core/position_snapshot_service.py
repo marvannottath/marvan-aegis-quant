@@ -82,66 +82,35 @@ class PositionSnapshotService:
         else:
             internal_pos_list = []
 
-        # For BINANCE_LIVE_REAL / BINANCE_LIVE: sync real held crypto positions from Binance Spot Wallet
-        if pool_name in ["BINANCE_LIVE_REAL", "BINANCE_LIVE"]:
+        # For BINANCE_LIVE_REAL / BINANCE_LIVE: sync real held crypto positions from Binance Spot & Futures
+        if pool_name in ["BINANCE_LIVE_REAL", "BINANCE_LIVE"] or target_ws == "CRYPTO":
             try:
                 from execution.binance_broker import binance_broker
-                closed_set = getattr(binance_broker, "_closed_spot_assets", set())
-
-                # Purge any previously dismissed assets from memory
-                if closed_set:
-                    internal_pos_list = [
-                        p for p in internal_pos_list
-                        if (p.get("symbol") or p.get("asset") or "").upper() not in closed_set
-                        and (p.get("symbol") or p.get("asset") or "").replace("USDT", "").replace("BUSD", "").upper() not in closed_set
-                    ]
-                    for cs in list(closed_set):
-                        paper_broker.positions.pop(cs, None)
-                        if not cs.endswith("USDT") and not cs.endswith("BUSD"):
-                            paper_broker.positions.pop(f"{cs}USDT", None)
-                        if pool_name in paper_broker.pools and isinstance(paper_broker.pools[pool_name], dict) and "positions" in paper_broker.pools[pool_name]:
-                            paper_broker.pools[pool_name]["positions"].pop(cs, None)
-                            if not cs.endswith("USDT") and not cs.endswith("BUSD"):
-                                paper_broker.pools[pool_name]["positions"].pop(f"{cs}USDT", None)
-
                 live_positions = binance_broker.get_open_positions("BINANCE_LIVE")
-                existing_symbols = {p.get("symbol") or p.get("asset") for p in internal_pos_list}
-                for lp in live_positions:
-                    sym_name = lp.get("symbol") or lp.get("asset")
-                    if not sym_name:
-                        continue
-                    sym_upper = sym_name.upper()
-                    base_upper = sym_upper.replace("USDT", "").replace("BUSD", "")
-                    if sym_upper in closed_set or base_upper in closed_set:
-                        continue
-
-                    if sym_name not in existing_symbols:
-                        internal_pos_list.append(lp)
-                        if sym_name not in paper_broker.positions:
-                            paper_broker.positions[sym_name] = lp
-                    else:
-                        for p in internal_pos_list:
-                            if (p.get("symbol") or p.get("asset")) == sym_name:
-                                p.update(lp)
-                                break
-                        if sym_name in paper_broker.positions:
-                            paper_broker.positions[sym_name].update(lp)
+                if live_positions:
+                    existing_symbols = {p.get("symbol") or p.get("asset") for p in internal_pos_list}
+                    for lp in live_positions:
+                        sym_name = lp.get("symbol") or lp.get("asset")
+                        if not sym_name:
+                            continue
+                        if sym_name not in existing_symbols:
+                            internal_pos_list.append(lp)
+                            if sym_name not in paper_broker.positions:
+                                paper_broker.positions[sym_name] = lp
+                        else:
+                            for p in internal_pos_list:
+                                if (p.get("symbol") or p.get("asset")) == sym_name:
+                                    p.update(lp)
+                                    break
+                            if sym_name in paper_broker.positions:
+                                paper_broker.positions[sym_name].update(lp)
             except Exception as e:
                 print(f"[POSITION_SNAPSHOT] Live position sync notice: {e}")
-
 
         # 2. Strict workspace isolation filtering
         verified_positions: List[Dict[str, Any]] = []
         for pos in internal_pos_list:
             sym = pos.get("asset") or pos.get("symbol") or ""
-            if target_ws == "CRYPTO":
-                try:
-                    from execution.binance_broker import binance_broker
-                    cs = getattr(binance_broker, "_closed_spot_assets", set())
-                    if cs and (sym.upper() in cs or sym.replace("USDT", "").replace("BUSD", "").upper() in cs):
-                        continue
-                except Exception:
-                    pass
             if workspace_manager.is_symbol_allowed(sym, target_ws):
                 # Enrich position record with canonical fields
                 units = float(pos.get("units", pos.get("quantity", 0.0)))
@@ -283,8 +252,18 @@ class PositionSnapshotService:
         # Vault reserve — only applies to simulated/paper master portfolio (AEGIS_QUANT_MASTER)
         if pool_name in ["BINANCE_LIVE_REAL", "BINANCE_LIVE"] or target_ws == "CRYPTO":
             vault_balance = 0.0
-            # For real live Binance Spot: total equity is strictly liquid cash + holdings market value
-            total_equity = round(free_cash + total_exposure + unrealized_pnl, 2) if open_pos_count > 0 else round(free_cash, 2)
+            try:
+                from execution.binance_broker import binance_broker
+                b_acc = binance_broker.get_account_info("BINANCE_LIVE_REAL")
+                live_tot = float(b_acc.get("total_equity", 0.0))
+                live_avail = float(b_acc.get("available_balance", free_cash))
+                if b_acc.get("authenticated") and live_tot > 0:
+                    total_equity = live_tot
+                    free_cash = live_avail
+                else:
+                    total_equity = round(free_cash + total_exposure + unrealized_pnl, 2)
+            except Exception:
+                total_equity = round(free_cash + total_exposure + unrealized_pnl, 2)
         elif pool_name in ["AEGIS_INDIA_INR", "UPSTOX_DEMO", "UPSTOX_LIVE"] or target_ws == "INDIA":
             vault_balance = 0.0
             total_equity = round(free_cash + used_margin + unrealized_pnl, 2)

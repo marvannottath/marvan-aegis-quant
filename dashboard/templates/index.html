@@ -6910,7 +6910,7 @@
             const bannerLowMargin = document.getElementById('banner-crypto-low-margin');
             const lowMarginVal = document.getElementById('low-margin-val');
             if (bannerLowMargin) {
-                if (isCrypto && cash < 5.0) {
+                if (isCrypto && cash < 5.0 && positions.length === 0) {
                     bannerLowMargin.classList.remove('hidden');
                     if (lowMarginVal) lowMarginVal.innerText = formatMoney(cash);
                 } else {
