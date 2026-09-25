@@ -66,6 +66,7 @@ class TestInstitutionalPlatformSuite(unittest.TestCase):
         from core.threat_mitigation_engine import threat_mitigation_engine
         
         test_ip = "198.51.100.99"
+        threat_mitigation_engine.blacklisted_ips.pop(test_ip, None)
         self.assertFalse(threat_mitigation_engine.is_blacklisted(test_ip))
 
         # Attacker hits honeypot route

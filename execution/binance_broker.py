@@ -41,6 +41,7 @@ from datetime import datetime, timezone, timedelta
 
 IST_TZ = timezone(timedelta(hours=5, minutes=30))
 BINANCE_CONFIG_FILE = Path(__file__).resolve().parent / "binance_config.json"
+CLOSED_SPOT_POSITIONS_FILE = Path(__file__).resolve().parent.parent / "data" / "closed_spot_positions.json"
 
 TESTNET_BASE_URL = "https://testnet.binance.vision"
 LIVE_BASE_URL    = "https://api.binance.com"
@@ -138,6 +139,56 @@ class BinanceBroker:
         else:
             self.status = "NOT_CONFIGURED"
             self.account_balance_usd = 0.0
+
+        self._closed_spot_assets = self._load_closed_spot_assets()
+
+    def _load_closed_spot_assets(self) -> set:
+        """Load set of dismissed or closed spot assets to prevent wallet dust resurrection."""
+        try:
+            if CLOSED_SPOT_POSITIONS_FILE.exists():
+                with open(CLOSED_SPOT_POSITIONS_FILE, "r") as f:
+                    data = json.load(f)
+                    if isinstance(data, list):
+                        return set(data)
+        except Exception as e:
+            print(f"[BINANCE] Closed spot assets load notice: {e}")
+        return set()
+
+    def _save_closed_spot_assets(self):
+        """Persist dismissed spot positions to JSON file."""
+        try:
+            CLOSED_SPOT_POSITIONS_FILE.parent.mkdir(parents=True, exist_ok=True)
+            with open(CLOSED_SPOT_POSITIONS_FILE, "w") as f:
+                json.dump(sorted(list(self._closed_spot_assets)), f, indent=2)
+        except Exception as e:
+            print(f"[BINANCE] Failed to save closed spot positions: {e}")
+
+    def dismiss_spot_position(self, symbol: str):
+        """Mark a spot symbol as closed/dismissed so wallet dust/holdings are not treated as active bot positions."""
+        if not symbol:
+            return
+        sym = symbol.upper().strip()
+        self._closed_spot_assets.add(sym)
+        if not sym.endswith("USDT") and not sym.endswith("BUSD"):
+            self._closed_spot_assets.add(f"{sym}USDT")
+        else:
+            base = sym.replace("USDT", "").replace("BUSD", "")
+            self._closed_spot_assets.add(base)
+        self._save_closed_spot_assets()
+
+    def undismiss_spot_position(self, symbol: str):
+        """Re-enable tracking when a fresh buy order is initiated for this asset."""
+        if not symbol:
+            return
+        sym = symbol.upper().strip()
+        self._closed_spot_assets.discard(sym)
+        if not sym.endswith("USDT") and not sym.endswith("BUSD"):
+            self._closed_spot_assets.discard(f"{sym}USDT")
+        else:
+            base = sym.replace("USDT", "").replace("BUSD", "")
+            self._closed_spot_assets.discard(base)
+        self._save_closed_spot_assets()
+
 
     def _get_credentials_for_env(self, environment: str) -> Tuple[str, str, str, bool]:
         """
@@ -744,6 +795,9 @@ class BinanceBroker:
         Submit a real order to Binance (Testnet or Live) after safety checks.
         """
         # LIVE Safety Lock: reject if LIVE_TRADING_ENABLED is False (SELL/closing always allowed for risk reduction)
+        if side.upper() == "BUY":
+            self.undismiss_spot_position(symbol)
+
         env_upper = (environment or "").upper()
         if ("LIVE" in env_upper or "REAL" in env_upper):
             from core.environment_gate import environment_gate
@@ -1273,13 +1327,18 @@ class BinanceBroker:
             asset = b.get("asset", "")
             if asset in ["USDT", "BUSD", "USDC", "FDUSD"]:
                 continue
+
+            ticker_symbol = f"{asset}USDT"
+            # Skip if explicitly closed or dismissed by user
+            closed_set = getattr(self, "_closed_spot_assets", set())
+            if ticker_symbol.upper() in closed_set or asset.upper() in closed_set:
+                continue
+
             total_qty = float(b.get("free", 0.0)) + float(b.get("locked", 0.0))
             if total_qty <= 0.0000001:
                 self._entry_price_cache.pop(f"{asset}USDT", None)
                 self._fills_checked_cache.discard(f"{asset}USDT")
                 continue
-
-            ticker_symbol = f"{asset}USDT"
             b_info = bulk_data.get(ticker_symbol)
             if b_info and float(b_info.get("last_price", 0)) > 0:
                 cur_price = float(b_info["last_price"])

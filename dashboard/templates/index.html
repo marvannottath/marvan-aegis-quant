@@ -5695,11 +5695,22 @@
 
         async function closePosition(symbol) {
             if (!symbol) return;
+            const cleanSym = String(symbol).trim().toUpperCase();
+            window.closedSymbols = window.closedSymbols || new Set();
+            window.closedSymbols.add(cleanSym);
+            window.closedSymbols.add(cleanSym.replace('USDT', '').replace('BUSD', ''));
+            try {
+                localStorage.setItem('aegis_closed_symbols', JSON.stringify(Array.from(window.closedSymbols)));
+            } catch (e) {}
+
             const btn = (typeof event !== 'undefined' && event && event.target) ? event.target.closest('button') : null;
             if (btn) {
                 btn.disabled = true;
                 btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
             }
+            // Remove matching row(s) from UI immediately for instant responsiveness
+            document.querySelectorAll(`[data-pos-row="${symbol}"], [data-pos-row="${cleanSym}"]`).forEach(r => r.remove());
+
             try {
                 showNotification('Closing Position', `Submitting close order for ${symbol}...`, 'info');
                 const curVenue = window.activeMarketVenue || 'INDIA';
@@ -5710,9 +5721,8 @@
                 });
                 const data = await res.json();
                 if (data.status === 'SUCCESS' || data.status === 'CLOSED') {
-                    // Remove row from UI immediately for crisp responsiveness
-                    const row = document.querySelector(`[data-pos-row="${symbol}"]`);
-                    if (row) row.remove();
+                    // Double check removal
+                    document.querySelectorAll(`[data-pos-row="${symbol}"], [data-pos-row="${cleanSym}"]`).forEach(r => r.remove());
                     
                     const pnl = data.realized_pnl || 0;
                     const isIndia = (curVenue === 'INDIA');
@@ -6999,10 +7009,31 @@
             const curSym = isIndia ? '₹' : (isCrypto ? '$' : '$');
             const curLoc = isIndia ? 'en-IN' : 'en-US';
 
+            // Ensure window.closedSymbols is loaded from localStorage
+            if (!window.closedSymbols) {
+                try {
+                    const savedClosed = JSON.parse(localStorage.getItem('aegis_closed_symbols') || '[]');
+                    window.closedSymbols = new Set(savedClosed);
+                } catch (e) {
+                    window.closedSymbols = new Set();
+                }
+            }
+
             // Strict workspace asset isolation: Ensure symbols match active workspace
             const validPositions = (positions || []).filter(pos => {
                 const sym = String(pos.asset || pos.symbol || pos.ticker || '').toUpperCase();
                 if (!sym) return false;
+
+                // Filter out dismissed or closed spot symbols
+                if (window.closedSymbols) {
+                    const baseSym = sym.replace('USDT', '').replace('BUSD', '');
+                    if (window.closedSymbols.has(sym) || window.closedSymbols.has(baseSym) || 
+                        window.closedSymbols.has(String(pos.asset || '').toUpperCase()) || 
+                        window.closedSymbols.has(String(pos.symbol || '').toUpperCase())) {
+                        return false;
+                    }
+                }
+
                 if (isIndia) {
                     const prohibited = ['USDT', 'BUSD', 'BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'DOGE', 'ADA', 'EUR', 'GBP', 'JPY', 'XAU'];
                     return !prohibited.some(p => sym.includes(p));

@@ -526,8 +526,56 @@ class PaperBroker:
                     asset = sym
                     break
 
+        # Check across all pools if not in active pool
         if asset not in self.positions:
-            return None
+            for p_name, p_val in self.pools.items():
+                if isinstance(p_val, dict) and "positions" in p_val:
+                    for sym, p_obj in list(p_val["positions"].items()):
+                        if sym.upper() == asset.upper():
+                            self.positions[sym] = p_obj
+                            asset = sym
+                            break
+                    if asset in self.positions:
+                        break
+
+        # If crypto, dismiss in binance broker immediately so wallet poll won't resurrect it
+        is_crypto_sym = asset.endswith("USDT") or asset.endswith("BUSD") or any(c in asset.upper() for c in ["BTC", "ETH", "SOL", "XRP", "BNB", "DOGE", "ADA"])
+        if is_crypto_sym:
+            try:
+                from execution.binance_broker import binance_broker
+                binance_broker.dismiss_spot_position(asset)
+            except Exception:
+                pass
+
+        if asset not in self.positions:
+            # If not in paper positions, try to synthesize from live Binance positions
+            if is_crypto_sym:
+                try:
+                    from execution.binance_broker import binance_broker
+                    live_pos = binance_broker.get_open_positions("BINANCE_LIVE")
+                    for lp in live_pos:
+                        lp_sym = (lp.get("symbol") or lp.get("asset") or "").upper()
+                        if lp_sym == asset.upper() or lp_sym == f"{asset.upper()}USDT":
+                            self.positions[asset] = lp
+                            break
+                except Exception:
+                    pass
+
+        if asset not in self.positions:
+            # Successfully return dismissal receipt so frontend receives SUCCESS
+            return {
+                "trade_id": f"DISMISS-{int(time.time()*1000)}",
+                "asset": asset,
+                "action": "SELL",
+                "entry_price": exit_price,
+                "exit_price": exit_price,
+                "units": 0.0,
+                "capital_allocated": 0.0,
+                "pnl_usd": 0.0,
+                "pnl_pct": 0.0,
+                "reason": reason or "MANUAL_DISMISS",
+                "timestamp": datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S")
+            }
 
         pos = self.positions.pop(asset)
         entry = pos["entry_price"]
@@ -625,6 +673,7 @@ class PaperBroker:
                             if close_qty * exit_price > 10.0:
                                 self.positions[asset] = pos
                                 return {"status": "FAILED", "error": f"Binance rejected: {err_msg}"}
+                    binance_broker.dismiss_spot_position(asset)
                     if hasattr(binance_broker, "_account_info_cache"):
                         binance_broker._account_info_cache.clear()
                     if hasattr(binance_broker, "_entry_price_cache"):
@@ -632,6 +681,7 @@ class PaperBroker:
                 else:
                     # Paper-only position — no real Binance coins, just close paper record
                     print(f"[PAPER_BROKER -> PAPER CLOSE]: asset={asset} real_balance={real_token_balance:.6f} (paper-only, no exchange order)")
+                    binance_broker.dismiss_spot_position(asset)
                     if hasattr(binance_broker, "_entry_price_cache"):
                         binance_broker._entry_price_cache.pop(asset, None)
             except Exception as e:

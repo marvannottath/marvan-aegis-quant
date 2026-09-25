@@ -19,6 +19,7 @@ execution/*_state.json
 execution/binance_config.json
 execution/upstox_config.json
 !data/default_*.json
+!data/closed_spot_positions.json
 saved_models/*.pth
 scratch/
 *.tmp

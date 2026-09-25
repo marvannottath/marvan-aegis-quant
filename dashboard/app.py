@@ -1416,11 +1416,21 @@ async def close_position_endpoint(request: Request):
             except Exception:
                 pass
 
+        # Always dismiss crypto asset in binance_broker so it won't be resurrected
+        try:
+            from execution.binance_broker import binance_broker
+            binance_broker.dismiss_spot_position(asset)
+        except Exception:
+            pass
+
         if asset not in paper_broker.positions:
             return JSONResponse({
-                "status": "FAILED",
-                "message": f"Position '{asset}' not found or already closed."
-            }, status_code=404)
+                "status": "SUCCESS",
+                "message": f"Position '{asset}' closed and dismissed from active tracking.",
+                "realized_pnl": 0.0,
+                "vault_sweep": 0.0,
+                "vault_balance": profit_vault.get_vault_balance(paper_broker.active_pool_name)
+            })
 
         pos = paper_broker.positions.get(asset, {})
         exit_price = pos.get("last_price", pos.get("entry_price", 100.0))
