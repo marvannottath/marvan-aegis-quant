@@ -3783,6 +3783,113 @@ async def trigger_disaster_backup():
     res = disaster_recovery.create_snapshot("MANUAL_USER_TRIGGER")
     return JSONResponse(res)
 
+# ── INSTITUTIONAL ADD-ONS: SECURITY, ARCHITECTURE & TRADING INTELLIGENCE ──
+
+@app.get("/api/security/2fa/status")
+async def get_2fa_status():
+    """Return RFC 6238 TOTP 2FA configuration and status."""
+    from core.totp_authenticator import totp_authenticator
+    return JSONResponse(totp_authenticator.get_status())
+
+@app.post("/api/security/2fa/verify")
+async def verify_2fa(request: Request):
+    """Verify a 6-digit TOTP code for critical action authorization."""
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    code = body.get("code", "")
+    from core.totp_authenticator import totp_authenticator
+    ok, reason = totp_authenticator.verify_code(code)
+    return JSONResponse({"success": ok, "reason": reason})
+
+@app.get("/api/security/threats")
+async def get_threat_status():
+    """Return threat mitigation, IP pinning, and canary honeypot telemetry."""
+    from core.threat_mitigation_engine import threat_mitigation_engine
+    return JSONResponse(threat_mitigation_engine.get_security_dashboard())
+
+@app.get("/api/supervisor/status")
+async def get_supervisor_status():
+    """Return self-healing thread supervisor status."""
+    from core.thread_supervisor import thread_supervisor
+    return JSONResponse(thread_supervisor.get_status())
+
+@app.post("/api/supervisor/restart-thread")
+async def restart_supervised_thread(request: Request):
+    """Manually restart a supervised background thread."""
+    body = await request.json()
+    task_name = body.get("task_name", "")
+    from core.thread_supervisor import thread_supervisor
+    success = thread_supervisor.manual_restart(task_name)
+    return JSONResponse({"success": success, "task_name": task_name})
+
+@app.post("/api/webhooks/tradingview")
+async def receive_tradingview_alert(request: Request):
+    """Webhook endpoint for receiving PineScript alerts from TradingView."""
+    try:
+        payload = await request.json()
+    except Exception:
+        return JSONResponse({"status": "ERROR", "message": "Invalid JSON"}, status_code=400)
+    client_ip = request.client.host if request.client else "127.0.0.1"
+    from core.tradingview_gateway import tradingview_gateway
+    success, msg, rec = tradingview_gateway.process_webhook(payload, client_ip)
+    status_code = 200 if success else (401 if "UNAUTHORIZED" in msg else 400)
+    return JSONResponse({"success": success, "message": msg, "record": rec}, status_code=status_code)
+
+@app.get("/api/analytics/correlation")
+async def get_portfolio_correlation():
+    """Return live cross-asset Pearson correlation matrix and concentration risk."""
+    from execution.paper_broker import paper_broker
+    from core.correlation_shield import correlation_shield
+    positions = []
+    for pool in paper_broker.pools.values():
+        positions.extend(pool.get("open_positions", []))
+    res = correlation_shield.evaluate_portfolio_risk(positions)
+    return JSONResponse(res)
+
+@app.get("/api/analytics/tca")
+async def get_tca_report():
+    """Return Transaction Cost Analysis (TCA), slippage (bps), and fee leakage report."""
+    from execution.paper_broker import paper_broker
+    from core.tca_analyzer import tca_analyzer
+    history = []
+    for pool in paper_broker.pools.values():
+        history.extend(pool.get("trade_history", []))
+    res = tca_analyzer.aggregate_tca_report(history)
+    return JSONResponse(res)
+
+@app.get("/api/reports/daily-statement")
+async def get_daily_statement(format: str = "json"):
+    """Return daily institutional performance statement (JSON or HTML document)."""
+    from core.daily_statement_engine import daily_statement_engine
+    stmt = daily_statement_engine.generate_statement()
+    if format.lower() == "html":
+        from fastapi.responses import HTMLResponse
+        return HTMLResponse(content=daily_statement_engine.generate_html_document(stmt))
+    return JSONResponse(stmt)
+
+@app.get("/api/market/regime-sizing")
+async def get_market_regime_sizing():
+    """Return market sentiment (Crypto Fear & Greed, India VIX) dynamic position sizer."""
+    from core.market_regime_sizer import market_regime_sizer
+    return JSONResponse(market_regime_sizer.get_sizing_multiplier())
+
+# Canary Honeypot Trap Routes
+@app.api_route("/wp-admin", methods=["GET", "POST"])
+@app.api_route("/wp-login.php", methods=["GET", "POST"])
+@app.api_route("/.env", methods=["GET", "POST"])
+@app.api_route("/.git", methods=["GET", "POST"])
+@app.api_route("/phpmyadmin", methods=["GET", "POST"])
+@app.api_route("/api/v1/dump", methods=["GET", "POST"])
+async def honeypot_trap(request: Request):
+    client_ip = request.client.host if request.client else "127.0.0.1"
+    user_agent = request.headers.get("User-Agent", "UNKNOWN")
+    from core.threat_mitigation_engine import threat_mitigation_engine
+    incident = threat_mitigation_engine.record_honeypot_hit(client_ip, request.url.path, user_agent)
+    return JSONResponse({"status": "NOT_FOUND"}, status_code=404)
+
+
 @app.get("/api/execution/analytics")
 async def get_execution_analytics():
     """Return Smart Order Execution Quality Analytics (Slippage, Latency, Spread, Fill %)."""

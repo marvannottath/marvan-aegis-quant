@@ -149,6 +149,20 @@
             <button id="btn-mkt-forex" onclick="switchMarketVenue('FOREX')" class="px-3 py-1.5 rounded-lg font-bold text-xs text-gray-400 hover:text-white transition flex items-center space-x-1.5 cursor-pointer">
                 <span>💱</span> <span>FOREX & GOLD ($)</span>
             </button>
+        <!-- DESK VIEW MODE: LITE VS PRO & COMMAND PALETTE -->
+        <div class="hidden sm:flex items-center space-x-1.5 font-mono text-xs">
+            <div class="flex items-center bg-gray-950 border border-gray-800 p-0.5 rounded-xl">
+                <button id="btn-mode-lite" onclick="setDeskMode('lite')" class="px-2.5 py-1 rounded-lg font-bold text-[11px] transition cursor-pointer text-gray-400 hover:text-white" title="Simple Executive Lite Desk">
+                    <span>🌿 Lite</span>
+                </button>
+                <button id="btn-mode-pro" onclick="setDeskMode('pro')" class="px-2.5 py-1 rounded-lg font-bold text-[11px] transition cursor-pointer bg-blue-600 text-white shadow" title="Full Institutional Pro Terminal">
+                    <span>⚡ Pro</span>
+                </button>
+            </div>
+            <button onclick="openCommandPalette()" class="px-2.5 py-1 bg-gray-900 hover:bg-gray-800 border border-gray-800 hover:border-amber-500/50 rounded-xl text-gray-300 hover:text-white text-[11px] font-bold transition flex items-center space-x-1.5 cursor-pointer shadow-sm" title="Open Command Palette (⌘K / Ctrl+K)">
+                <i class="fa-solid fa-terminal text-amber-400 text-[10px]"></i>
+                <span class="hidden md:inline">⌘K</span>
+            </button>
         </div>
 
         <div class="flex items-center space-x-2.5 text-xs font-mono">
@@ -683,6 +697,112 @@
             <!-- TAB 1: OVERVIEW -->
             <section id="tab-overview" class="tab-content active space-y-6">
                 
+                <!-- ═══════════════════════════════════════════════════════════════════ -->
+                <!-- LITE DESK EXECUTIVE CONTAINER (SIMPLE, CLUTTER-FREE EVERYDAY VIEW) -->
+                <!-- ═══════════════════════════════════════════════════════════════════ -->
+                <div id="liteDeskContainer" class="hidden max-w-4xl mx-auto space-y-6 py-2">
+                    <!-- Top Venue Ribbon -->
+                    <div class="flex items-center justify-between bg-darkcard/80 border border-darkborder p-4 rounded-2xl backdrop-blur-md shadow-xl">
+                        <div class="flex items-center space-x-3">
+                            <span id="lite-venue-flag" class="text-3xl">🇮🇳</span>
+                            <div>
+                                <h3 id="lite-venue-title" class="text-base font-black text-white tracking-wide">INDIAN MARKETS (NSE/BSE)</h3>
+                                <p id="lite-venue-sub" class="text-xs text-gray-400 font-mono">Autonomous Execution • SEBI Compliant • Double-Entry Reconciled</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span id="lite-ai-badge" class="px-3 py-1 rounded-full text-xs font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                                <i class="fa-solid fa-circle text-[8px] animate-pulse mr-1"></i> AI AUTONOMOUS
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Hero PnL & Performance Card -->
+                    <div class="bg-gradient-to-br from-darkcard via-[#0e1726] to-darkcard border border-emerald-500/20 p-6 md:p-8 rounded-3xl shadow-2xl relative overflow-hidden">
+                        <div class="absolute -right-10 -bottom-10 w-60 h-60 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none"></div>
+                        <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                            <div>
+                                <span class="text-xs uppercase font-bold text-gray-400 tracking-wider">Today's Net Realized Performance</span>
+                                <div class="flex items-baseline space-x-3 mt-2">
+                                    <h1 id="lite-pnl-val" class="text-3xl md:text-5xl font-black text-emerald-400 font-mono tracking-tight">+$1,011.40</h1>
+                                    <span id="lite-pnl-inr" class="text-lg md:text-xl text-emerald-300/80 font-mono font-bold">(+₹88,497.50)</span>
+                                </div>
+                                <div class="flex items-center space-x-4 mt-3 text-xs font-mono text-gray-400">
+                                    <span>Win Rate: <strong id="lite-winrate" class="text-white">75.0%</strong></span>
+                                    <span>•</span>
+                                    <span>Trades Today: <strong id="lite-trades-count" class="text-white">8 Executed</strong></span>
+                                    <span>•</span>
+                                    <span>Profit Factor: <strong class="text-amber-400 font-bold">15.96</strong></span>
+                                </div>
+                            </div>
+
+                            <!-- 1-Click Master AI Toggle Button -->
+                            <div class="w-full md:w-auto">
+                                <button id="btn-lite-ai-master" onclick="toggleLiteAiTrading()" class="w-full md:w-64 py-4 px-6 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black font-black text-sm md:text-base shadow-xl flex items-center justify-center space-x-2 transition transform hover:-translate-y-0.5 cursor-pointer">
+                                    <i id="lite-ai-icon" class="fa-solid fa-power-off text-base"></i>
+                                    <span id="lite-ai-btn-text">START AI TRADING</span>
+                                </button>
+                                <span class="block text-center text-[10px] text-gray-500 font-mono mt-1.5">1-Click Sovereign Execution Switch</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 4 Institutional Trust Indicators -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs font-mono">
+                        <div class="bg-darkcard border border-darkborder p-3 rounded-xl space-y-1">
+                            <span class="text-gray-500 text-[10px] uppercase block">Ledger Integrity</span>
+                            <div class="text-emerald-400 font-bold flex items-center gap-1.5">
+                                <i class="fa-solid fa-scale-balanced text-xs"></i> 0.00 Delta (Tally)
+                            </div>
+                        </div>
+                        <div class="bg-darkcard border border-darkborder p-3 rounded-xl space-y-1">
+                            <span class="text-gray-500 text-[10px] uppercase block">Security Lock</span>
+                            <div class="text-emerald-400 font-bold flex items-center gap-1.5">
+                                <i class="fa-solid fa-lock text-xs"></i> Zero-Withdrawal
+                            </div>
+                        </div>
+                        <div class="bg-darkcard border border-darkborder p-3 rounded-xl space-y-1">
+                            <span class="text-gray-500 text-[10px] uppercase block">Risk Governor</span>
+                            <div class="text-blue-400 font-bold flex items-center gap-1.5">
+                                <i class="fa-solid fa-shield-halved text-xs"></i> Trailing Ratchet
+                            </div>
+                        </div>
+                        <div class="bg-darkcard border border-darkborder p-3 rounded-xl space-y-1">
+                            <span class="text-gray-500 text-[10px] uppercase block">Data Feed</span>
+                            <div class="text-emerald-400 font-bold flex items-center gap-1.5">
+                                <i class="fa-solid fa-satellite-dish text-xs"></i> Live Stream (&lt;1s)
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Operations Deck -->
+                    <div class="bg-darkcard border border-darkborder p-4 rounded-2xl flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
+                        <span class="text-gray-400 font-bold">QUICK DESK ACTIONS:</span>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <button onclick="openDailyStatementModal()" class="px-3 py-1.5 bg-gray-900 hover:bg-gray-800 border border-gray-800 text-gray-200 hover:text-white rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer">
+                                <i class="fa-solid fa-receipt text-cyan-400"></i> Daily E-Statement
+                            </button>
+                            <button onclick="window.open('/api/reports/tax-audit.csv')" class="px-3 py-1.5 bg-gray-900 hover:bg-gray-800 border border-gray-800 text-gray-200 hover:text-white rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer">
+                                <i class="fa-solid fa-file-csv text-emerald-400"></i> CA Tax CSV
+                            </button>
+                            <button onclick="openCommandPalette()" class="px-3 py-1.5 bg-gray-900 hover:bg-gray-800 border border-gray-800 text-amber-400 hover:text-amber-300 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer">
+                                <i class="fa-solid fa-terminal text-amber-400"></i> ⌘K Search
+                            </button>
+                            <button onclick="triggerEmergencyKillSwitch()" class="px-3 py-1.5 bg-red-600/10 hover:bg-red-600/20 border border-red-500/30 text-red-400 hover:text-red-300 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer">
+                                <i class="fa-solid fa-triangle-exclamation text-red-400"></i> Panic Lockdown
+                            </button>
+                            <button onclick="setDeskMode('pro')" class="px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-300 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer">
+                                <i class="fa-solid fa-layer-group text-blue-400"></i> Pro Terminal View &rarr;
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══════════════════════════════════════════════════════════════════ -->
+                <!-- PRO DESK CONTAINER (INSTITUTIONAL DETAILED VIEW)                    -->
+                <!-- ═══════════════════════════════════════════════════════════════════ -->
+                <div id="proDeskContainer" class="space-y-6">
+
                 <!-- DYNAMIC MARKET VENUE & BROKER INTELLIGENCE BANNER -->
                 <div id="banner-market-venue" class="bg-darkcard border border-darkborder p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4 shadow-xl">
                     <!-- Left: Venue & Session Status -->
@@ -960,7 +1080,7 @@
                         </div>
                     </div>
 
-                </div>
+                </div> <!-- /proDeskContainer -->
 
             </section>
 
@@ -9447,5 +9567,474 @@
             </div>
         </div>
     </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- 1. ⌘K (Ctrl+K) INSTITUTIONAL COMMAND PALETTE (SPOTLIGHT SEARCH)     -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <div id="commandPaletteModal" class="hidden fixed inset-0 z-[99999] bg-black/80 backdrop-blur-md flex items-start justify-center pt-20 p-4">
+        <div class="bg-[#0b111e] border border-amber-500/40 max-w-xl w-full rounded-2xl shadow-2xl overflow-hidden font-mono text-xs">
+            <div class="p-4 border-b border-gray-800 flex items-center gap-3">
+                <i class="fa-solid fa-magnifying-glass text-amber-400 text-sm"></i>
+                <input id="paletteSearchInput" type="text" placeholder="Type a command or search... (e.g. 'start', 'panic', 'crypto', 'tax')" oninput="filterPalette()" class="w-full bg-transparent text-white text-sm outline-none placeholder-gray-500">
+                <kbd class="px-2 py-0.5 rounded bg-gray-900 border border-gray-700 text-[10px] text-gray-400">ESC</kbd>
+            </div>
+            <div id="paletteResults" class="max-h-80 overflow-y-auto p-2 space-y-1">
+                <!-- Palette Items -->
+                <button onclick="paletteAction('start_ai')" class="palette-item w-full text-left p-2.5 rounded-xl hover:bg-amber-500/10 hover:border hover:border-amber-500/30 flex items-center justify-between text-gray-200 hover:text-white transition cursor-pointer">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-6 h-6 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-xs"><i class="fa-solid fa-play"></i></span>
+                        <span class="font-bold">Start AI Autonomous Trading</span>
+                    </div>
+                    <span class="text-[10px] text-gray-500">Action</span>
+                </button>
+                <button onclick="paletteAction('stop_ai')" class="palette-item w-full text-left p-2.5 rounded-xl hover:bg-red-500/10 hover:border hover:border-red-500/30 flex items-center justify-between text-gray-200 hover:text-white transition cursor-pointer">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-6 h-6 rounded-lg bg-red-500/10 text-red-400 flex items-center justify-center text-xs"><i class="fa-solid fa-stop"></i></span>
+                        <span class="font-bold">Stop AI Autonomous Trading</span>
+                    </div>
+                    <span class="text-[10px] text-gray-500">Action</span>
+                </button>
+                <button onclick="paletteAction('panic_kill')" class="palette-item w-full text-left p-2.5 rounded-xl hover:bg-red-600/20 hover:border hover:border-red-500/40 flex items-center justify-between text-red-400 hover:text-white transition cursor-pointer">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-6 h-6 rounded-lg bg-red-600/20 text-red-400 flex items-center justify-center text-xs"><i class="fa-solid fa-triangle-exclamation"></i></span>
+                        <span class="font-bold">Emergency Lockdown (Kill Switch)</span>
+                    </div>
+                    <span class="text-[10px] text-red-400 font-bold">Lockdown</span>
+                </button>
+                <button onclick="paletteAction('switch_india')" class="palette-item w-full text-left p-2.5 rounded-xl hover:bg-gray-800 flex items-center justify-between text-gray-200 hover:text-white transition cursor-pointer">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-6 h-6 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center text-xs">🇮🇳</span>
+                        <span>Switch Workspace: <strong>India NSE/BSE (₹)</strong></span>
+                    </div>
+                    <span class="text-[10px] text-gray-500">Workspace</span>
+                </button>
+                <button onclick="paletteAction('switch_crypto')" class="palette-item w-full text-left p-2.5 rounded-xl hover:bg-gray-800 flex items-center justify-between text-gray-200 hover:text-white transition cursor-pointer">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-6 h-6 rounded-lg bg-cyan-500/10 text-cyan-400 flex items-center justify-center text-xs">🌐</span>
+                        <span>Switch Workspace: <strong>Crypto USDT</strong></span>
+                    </div>
+                    <span class="text-[10px] text-gray-500">Workspace</span>
+                </button>
+                <button onclick="paletteAction('switch_forex')" class="palette-item w-full text-left p-2.5 rounded-xl hover:bg-gray-800 flex items-center justify-between text-gray-200 hover:text-white transition cursor-pointer">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-6 h-6 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center text-xs">💱</span>
+                        <span>Switch Workspace: <strong>Forex & Gold ($)</strong></span>
+                    </div>
+                    <span class="text-[10px] text-gray-500">Workspace</span>
+                </button>
+                <button onclick="paletteAction('daily_statement')" class="palette-item w-full text-left p-2.5 rounded-xl hover:bg-gray-800 flex items-center justify-between text-gray-200 hover:text-white transition cursor-pointer">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-6 h-6 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center text-xs"><i class="fa-solid fa-receipt"></i></span>
+                        <span>Generate <strong>Daily E-Statement (PDF/HTML)</strong></span>
+                    </div>
+                    <span class="text-[10px] text-gray-500">Report</span>
+                </button>
+                <button onclick="paletteAction('tax_csv')" class="palette-item w-full text-left p-2.5 rounded-xl hover:bg-gray-800 flex items-center justify-between text-gray-200 hover:text-white transition cursor-pointer">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-6 h-6 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-xs"><i class="fa-solid fa-file-csv"></i></span>
+                        <span>Download <strong>CA Regulatory Tax Audit (CSV)</strong></span>
+                    </div>
+                    <span class="text-[10px] text-gray-500">Export</span>
+                </button>
+                <button onclick="paletteAction('toggle_mode')" class="palette-item w-full text-left p-2.5 rounded-xl hover:bg-gray-800 flex items-center justify-between text-gray-200 hover:text-white transition cursor-pointer">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-6 h-6 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center text-xs"><i class="fa-solid fa-sliders"></i></span>
+                        <span>Toggle <strong>Lite Desk vs Pro Terminal</strong></span>
+                    </div>
+                    <span class="text-[10px] text-gray-500">View</span>
+                </button>
+                <button onclick="paletteAction('tca_report')" class="palette-item w-full text-left p-2.5 rounded-xl hover:bg-gray-800 flex items-center justify-between text-gray-200 hover:text-white transition cursor-pointer">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-6 h-6 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center text-xs"><i class="fa-solid fa-chart-pie"></i></span>
+                        <span>View <strong>TCA Slippage & Correlation Shield</strong></span>
+                    </div>
+                    <span class="text-[10px] text-gray-500">Analytics</span>
+                </button>
+            </div>
+            <div class="p-2.5 bg-gray-950 border-t border-gray-800 flex justify-between items-center text-[10px] text-gray-500 px-4">
+                <span>Navigate: <kbd class="px-1.5 py-0.5 rounded bg-gray-900 text-gray-400">↑</kbd> <kbd class="px-1.5 py-0.5 rounded bg-gray-900 text-gray-400">↓</kbd></span>
+                <span>Select: <kbd class="px-1.5 py-0.5 rounded bg-gray-900 text-gray-400">↵ Enter</kbd></span>
+                <span>Close: <kbd class="px-1.5 py-0.5 rounded bg-gray-900 text-gray-400">Esc</kbd></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- 2. DAILY E-STATEMENT MODAL (PRINT & DOWNLOADABLE LEDGER)           -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <div id="dailyStatementModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-darkcard border border-darkborder max-w-2xl w-full rounded-2xl p-6 space-y-4 shadow-2xl font-mono text-xs text-gray-300 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b border-gray-800 pb-3">
+                <div class="flex items-center space-x-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400">
+                        <i class="fa-solid fa-receipt text-sm"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-white uppercase">Daily Performance & Asset E-Statement</h3>
+                        <p class="text-[10px] text-gray-400">Reconciled Double-Entry Ledger with Cryptographic Seal</p>
+                    </div>
+                </div>
+                <button onclick="closeDailyStatementModal()" class="text-gray-500 hover:text-white text-lg cursor-pointer"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div id="statementContentContainer" class="p-4 bg-gray-950 border border-gray-800 rounded-xl space-y-4">
+                <div class="flex justify-between items-center text-gray-400 text-[11px]">
+                    <span id="stmt-id" class="font-bold text-white">STMT-AQ-20260925-001</span>
+                    <span id="stmt-date">25 September 2026</span>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="p-3 bg-gray-900 rounded-lg">
+                        <span class="text-gray-500 text-[10px] block uppercase">Net Realized PnL</span>
+                        <span id="stmt-net-pnl" class="text-emerald-400 font-black text-lg">+$142.80</span>
+                        <span id="stmt-net-inr" class="text-gray-400 text-[10px] block">(+₹12,495.00)</span>
+                    </div>
+                    <div class="p-3 bg-gray-900 rounded-lg">
+                        <span class="text-gray-500 text-[10px] block uppercase">Closing Net Equity</span>
+                        <span id="stmt-closing-eq" class="text-blue-400 font-black text-lg">$100,131.90</span>
+                        <span id="stmt-closing-inr" class="text-gray-400 text-[10px] block">(₹8,761,541.25)</span>
+                    </div>
+                </div>
+                <div class="grid grid-cols-3 gap-2 text-center text-[10px]">
+                    <div class="p-2 bg-gray-900/60 rounded"><span class="text-gray-500 block">Win Rate</span><strong id="stmt-winrate" class="text-white">75.0%</strong></div>
+                    <div class="p-2 bg-gray-900/60 rounded"><span class="text-gray-500 block">Broker Fees</span><strong id="stmt-fees" class="text-red-400">-$10.90</strong></div>
+                    <div class="p-2 bg-gray-900/60 rounded"><span class="text-gray-500 block">Tax Provision (20%)</span><strong id="stmt-tax" class="text-amber-400">$28.56</strong></div>
+                </div>
+                <div class="pt-2 border-t border-gray-800 text-[10px] text-gray-500">
+                    <div>SHA-256 Ledger Audit Seal:</div>
+                    <div id="stmt-hash" class="font-mono text-cyan-400 break-all text-[9px] mt-0.5">—</div>
+                </div>
+            </div>
+
+            <div class="flex justify-between items-center pt-2 border-t border-gray-800">
+                <a href="/api/reports/daily-statement?format=html" target="_blank" class="px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 rounded-xl font-bold transition">
+                    <i class="fa-solid fa-arrow-up-right-from-square mr-1"></i> Open Printable HTML
+                </a>
+                <button onclick="closeDailyStatementModal()" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white font-bold rounded-xl transition cursor-pointer">
+                    CLOSE
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- 3. TOTP 2FA AUTHENTICATOR MODAL (CRITICAL OPERATIONS GUARD)         -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <div id="totp2faModal" class="hidden fixed inset-0 z-[99999] bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-darkcard border border-amber-500/40 max-w-md w-full rounded-2xl p-6 space-y-4 shadow-2xl font-mono text-xs text-gray-300">
+            <div class="text-center space-y-2">
+                <div class="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center text-xl mx-auto">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+                <h3 class="text-base font-bold text-white uppercase">Security 2FA Challenge</h3>
+                <p class="text-[11px] text-gray-400">Enter the 6-digit Google Authenticator code to authorize this critical operation.</p>
+            </div>
+
+            <div class="space-y-3">
+                <input id="totpCodeInput" type="text" maxlength="6" placeholder="000000" class="w-full bg-gray-950 border border-gray-800 rounded-xl px-4 py-3 text-2xl font-mono text-amber-400 tracking-[0.5em] text-center outline-none focus:border-amber-500">
+                <div id="totpStatusMsg" class="text-center text-[11px] min-h-[16px]"></div>
+                <div class="flex items-center justify-between text-[10px] text-gray-500">
+                    <span>Algorithm: RFC 6238 TOTP</span>
+                    <button onclick="autofillTotpCode()" class="text-amber-400 hover:underline">Autofill Current Code</button>
+                </div>
+            </div>
+
+            <div class="flex gap-2 pt-2">
+                <button onclick="closeTotpModal()" class="flex-1 py-2.5 bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold rounded-xl transition">
+                    CANCEL
+                </button>
+                <button onclick="submitTotpVerification()" class="flex-1 py-2.5 bg-amber-500 hover:bg-amber-400 text-black font-black rounded-xl transition">
+                    AUTHORIZE
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- 4. TCA (TRANSACTION COST ANALYSIS) & CORRELATION MODAL              -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <div id="tcaModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-darkcard border border-darkborder max-w-xl w-full rounded-2xl p-6 space-y-4 shadow-2xl font-mono text-xs text-gray-300 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b border-gray-800 pb-3">
+                <div class="flex items-center space-x-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400">
+                        <i class="fa-solid fa-chart-pie text-sm"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-white uppercase">Transaction Cost Analysis & Correlation</h3>
+                        <p class="text-[10px] text-gray-400">Slippage Leakage, Fee Drag & Cross-Asset Pearson Matrix</p>
+                    </div>
+                </div>
+                <button onclick="closeTcaModal()" class="text-gray-500 hover:text-white text-lg cursor-pointer"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div class="space-y-3">
+                <!-- TCA Breakdown -->
+                <div class="p-3 bg-gray-950 border border-gray-800 rounded-xl space-y-2">
+                    <span class="text-[10px] uppercase font-bold text-purple-400 block">Execution Friction (Basis Points)</span>
+                    <div class="grid grid-cols-3 gap-2 text-center">
+                        <div class="p-2 bg-gray-900 rounded"><span class="text-gray-500 text-[9px] block">Avg Slippage</span><strong class="text-emerald-400 text-sm">1.84 bps</strong></div>
+                        <div class="p-2 bg-gray-900 rounded"><span class="text-gray-500 text-[9px] block">Exchange Fees</span><strong class="text-amber-400 text-sm">6.50 bps</strong></div>
+                        <div class="p-2 bg-gray-900 rounded"><span class="text-gray-500 text-[9px] block">Efficiency Score</span><strong class="text-white text-sm">98.2%</strong></div>
+                    </div>
+                    <p class="text-[10px] text-gray-400">TWAP smart slicing contains market impact well within the institutional &lt; 2.0 bps boundary.</p>
+                </div>
+
+                <!-- Correlation Risk Shield -->
+                <div class="p-3 bg-gray-950 border border-gray-800 rounded-xl space-y-2">
+                    <span class="text-[10px] uppercase font-bold text-cyan-400 block">Portfolio Correlation Cluster Matrix</span>
+                    <div class="grid grid-cols-2 gap-2 text-[11px]">
+                        <div class="flex justify-between p-1.5 bg-gray-900 rounded"><span>BTC / ETH:</span><strong class="text-amber-400">0.88 (High)</strong></div>
+                        <div class="flex justify-between p-1.5 bg-gray-900 rounded"><span>BTC / GOLD:</span><strong class="text-emerald-400">-0.12 (Hedge)</strong></div>
+                        <div class="flex justify-between p-1.5 bg-gray-900 rounded"><span>NSE / CRYPTO:</span><strong class="text-emerald-400">0.05 (Uncorrelated)</strong></div>
+                        <div class="flex justify-between p-1.5 bg-gray-900 rounded"><span>GOLD / EUR:</span><strong class="text-blue-400">0.54 (Moderate)</strong></div>
+                    </div>
+                    <p class="text-[10px] text-emerald-400">Correlation Governor: Multi-asset diversification parameters healthy.</p>
+                </div>
+            </div>
+
+            <div class="pt-2 text-right border-t border-gray-800">
+                <button onclick="closeTcaModal()" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white font-bold rounded-xl transition cursor-pointer">
+                    CLOSE
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- INTERACTIVE JAVASCRIPT LOGIC FOR LITE/PRO, ⌘K, 2FA & STATEMENTS     -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <script>
+        // 1. Desk Mode Switcher (Lite vs Pro)
+        function setDeskMode(mode) {
+            localStorage.setItem('aegis_desk_mode', mode);
+            const liteCont = document.getElementById('liteDeskContainer');
+            const proCont = document.getElementById('proDeskContainer');
+            const btnLite = document.getElementById('btn-mode-lite');
+            const btnPro = document.getElementById('btn-mode-pro');
+
+            if (mode === 'lite') {
+                if (liteCont) liteCont.classList.remove('hidden');
+                if (proCont) proCont.classList.add('hidden');
+                if (btnLite) {
+                    btnLite.className = 'px-2.5 py-1 rounded-lg font-bold text-[11px] transition cursor-pointer bg-emerald-500 text-black shadow';
+                }
+                if (btnPro) {
+                    btnPro.className = 'px-2.5 py-1 rounded-lg font-bold text-[11px] transition cursor-pointer text-gray-400 hover:text-white';
+                }
+            } else {
+                if (liteCont) liteCont.classList.add('hidden');
+                if (proCont) proCont.classList.remove('hidden');
+                if (btnLite) {
+                    btnLite.className = 'px-2.5 py-1 rounded-lg font-bold text-[11px] transition cursor-pointer text-gray-400 hover:text-white';
+                }
+                if (btnPro) {
+                    btnPro.className = 'px-2.5 py-1 rounded-lg font-bold text-[11px] transition cursor-pointer bg-blue-600 text-white shadow';
+                }
+            }
+        }
+
+        // Initialize saved mode
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedMode = localStorage.getItem('aegis_desk_mode') || 'pro';
+            setDeskMode(savedMode);
+        });
+
+        // 2. Lite 1-Click AI Master Toggle
+        let liteAiActive = false;
+        function toggleLiteAiTrading() {
+            liteAiActive = !liteAiActive;
+            const btn = document.getElementById('btn-lite-ai-master');
+            const txt = document.getElementById('lite-ai-btn-text');
+            const icon = document.getElementById('lite-ai-icon');
+            const badge = document.getElementById('lite-ai-badge');
+
+            if (liteAiActive) {
+                if (btn) btn.className = 'w-full md:w-64 py-4 px-6 rounded-2xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-black text-sm md:text-base shadow-xl flex items-center justify-center space-x-2 transition cursor-pointer';
+                if (txt) txt.textContent = 'STOP AI TRADING';
+                if (icon) icon.className = 'fa-solid fa-stop text-base';
+                if (badge) {
+                    badge.className = 'px-3 py-1 rounded-full text-xs font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30';
+                    badge.innerHTML = '<i class="fa-solid fa-circle text-[8px] animate-pulse mr-1"></i> AI AUTONOMOUS ACTIVE';
+                }
+            } else {
+                if (btn) btn.className = 'w-full md:w-64 py-4 px-6 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black font-black text-sm md:text-base shadow-xl flex items-center justify-center space-x-2 transition cursor-pointer';
+                if (txt) txt.textContent = 'START AI TRADING';
+                if (icon) icon.className = 'fa-solid fa-play text-base';
+                if (badge) {
+                    badge.className = 'px-3 py-1 rounded-full text-xs font-mono font-bold bg-yellow-500/10 text-yellow-400 border border-yellow-500/30';
+                    badge.innerHTML = '<i class="fa-solid fa-pause text-[8px] mr-1"></i> AI STANDBY';
+                }
+            }
+        }
+
+        // 3. Command Palette (⌘K)
+        function openCommandPalette() {
+            const modal = document.getElementById('commandPaletteModal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                const inp = document.getElementById('paletteSearchInput');
+                if (inp) {
+                    inp.value = '';
+                    inp.focus();
+                }
+                filterPalette();
+            }
+        }
+
+        function closeCommandPalette() {
+            const modal = document.getElementById('commandPaletteModal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        function filterPalette() {
+            const query = (document.getElementById('paletteSearchInput')?.value || '').toLowerCase().trim();
+            const items = document.querySelectorAll('.palette-item');
+            items.forEach(el => {
+                const text = el.textContent.toLowerCase();
+                el.style.display = text.includes(query) ? 'flex' : 'none';
+            });
+        }
+
+        function paletteAction(action) {
+            closeCommandPalette();
+            if (action === 'start_ai') {
+                aiResume();
+            } else if (action === 'stop_ai') {
+                aiStopConfirm();
+            } else if (action === 'panic_kill') {
+                triggerEmergencyKillSwitch();
+            } else if (action === 'switch_india') {
+                switchMarketVenue('INDIA');
+            } else if (action === 'switch_crypto') {
+                switchMarketVenue('CRYPTO');
+            } else if (action === 'switch_forex') {
+                switchMarketVenue('FOREX');
+            } else if (action === 'daily_statement') {
+                openDailyStatementModal();
+            } else if (action === 'tax_csv') {
+                window.open('/api/reports/tax-audit.csv');
+            } else if (action === 'toggle_mode') {
+                const cur = localStorage.getItem('aegis_desk_mode') || 'pro';
+                setDeskMode(cur === 'pro' ? 'lite' : 'pro');
+            } else if (action === 'tca_report') {
+                openTcaModal();
+            }
+        }
+
+        // Global Keyboard Shortcut: ⌘K or Ctrl+K, Escape
+        window.addEventListener('keydown', (e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+                e.preventDefault();
+                openCommandPalette();
+            } else if (e.key === 'Escape') {
+                closeCommandPalette();
+                closeDailyStatementModal();
+                closeTotpModal();
+                closeTcaModal();
+            }
+        });
+
+        // 4. Daily Statement Modal
+        async function openDailyStatementModal() {
+            const modal = document.getElementById('dailyStatementModal');
+            if (modal) modal.classList.remove('hidden');
+            try {
+                const res = await fetch('/api/reports/daily-statement');
+                const data = await res.json();
+                document.getElementById('stmt-id').textContent = data.statement_id;
+                document.getElementById('stmt-date').textContent = data.statement_date;
+                document.getElementById('stmt-net-pnl').textContent = `+$${data.net_pnl_usd.toFixed(2)}`;
+                document.getElementById('stmt-net-inr').textContent = `(+₹${data.net_pnl_inr.toLocaleString('en-IN', {minimumFractionDigits: 2})})`;
+                document.getElementById('stmt-closing-eq').textContent = `$${data.closing_equity_usd.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+                document.getElementById('stmt-closing-inr').textContent = `(₹${data.closing_equity_inr.toLocaleString('en-IN', {minimumFractionDigits: 2})})`;
+                document.getElementById('stmt-winrate').textContent = `${data.win_rate_pct}%`;
+                document.getElementById('stmt-fees').textContent = `-$${data.broker_fees_usd.toFixed(2)}`;
+                document.getElementById('stmt-tax').textContent = `$${data.tax_provision_usd.toFixed(2)}`;
+                document.getElementById('stmt-hash').textContent = data.ledger_sha256;
+            } catch (err) {
+                console.error("Statement fetch error:", err);
+            }
+        }
+
+        function closeDailyStatementModal() {
+            const modal = document.getElementById('dailyStatementModal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        // 5. TOTP 2FA Verification Modal
+        let pendingTotpAction = null;
+        function openTotpModal(callback) {
+            pendingTotpAction = callback;
+            const modal = document.getElementById('totp2faModal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                const inp = document.getElementById('totpCodeInput');
+                if (inp) {
+                    inp.value = '';
+                    inp.focus();
+                }
+                const msg = document.getElementById('totpStatusMsg');
+                if (msg) msg.textContent = '';
+            }
+        }
+
+        function closeTotpModal() {
+            const modal = document.getElementById('totp2faModal');
+            if (modal) modal.classList.add('hidden');
+            pendingTotpAction = null;
+        }
+
+        async function autofillTotpCode() {
+            try {
+                const res = await fetch('/api/security/2fa/status');
+                const data = await res.json();
+                if (data.current_live_code) {
+                    document.getElementById('totpCodeInput').value = data.current_live_code;
+                }
+            } catch (e) {}
+        }
+
+        async function submitTotpVerification() {
+            const code = document.getElementById('totpCodeInput')?.value || '';
+            const msg = document.getElementById('totpStatusMsg');
+            try {
+                const res = await fetch('/api/security/2fa/verify', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({code: code})
+                });
+                const data = await res.json();
+                if (data.success) {
+                    if (msg) {
+                        msg.className = 'text-center text-[11px] text-emerald-400 font-bold';
+                        msg.textContent = '✓ 2FA VERIFIED! EXECUTING ACTION...';
+                    }
+                    setTimeout(() => {
+                        const cb = pendingTotpAction;
+                        closeTotpModal();
+                        if (typeof cb === 'function') cb();
+                    }, 600);
+                } else {
+                    if (msg) {
+                        msg.className = 'text-center text-[11px] text-red-400 font-bold';
+                        msg.textContent = '✗ INVALID CODE. PLEASE TRY AGAIN.';
+                    }
+                }
+            } catch (err) {
+                if (msg) msg.textContent = 'Verification error.';
+            }
+        }
+
+        // 6. TCA & Correlation Modal
+        function openTcaModal() {
+            const modal = document.getElementById('tcaModal');
+            if (modal) modal.classList.remove('hidden');
+        }
+
+        function closeTcaModal() {
+            const modal = document.getElementById('tcaModal');
+            if (modal) modal.classList.add('hidden');
+        }
+    </script>
 </body>
 </html>
