@@ -280,14 +280,20 @@ class PositionSnapshotService:
         initial_cap = float(pool.get("initial_capital", meta.get("initial_capital", 100000.0)))
         free_cash = round(float(pool.get("virtual_cash", initial_cap)), 2)
 
-        # Vault reserve — tracks accumulated swept profits from profitable trades
-        vault_balance = round(float(profit_vault.get_vault_balance(pool_name)), 2) if (target_ws != "INDIA") else 0.0
+        # Vault reserve — only applies to simulated/paper master portfolio (AEGIS_QUANT_MASTER)
+        if pool_name in ["BINANCE_LIVE_REAL", "BINANCE_LIVE"] or target_ws == "CRYPTO":
+            vault_balance = 0.0
+            # For real live Binance Spot: total equity is strictly liquid cash + holdings market value
+            total_equity = round(free_cash + total_exposure + unrealized_pnl, 2) if open_pos_count > 0 else round(free_cash, 2)
+        elif pool_name in ["AEGIS_INDIA_INR", "UPSTOX_DEMO", "UPSTOX_LIVE"] or target_ws == "INDIA":
+            vault_balance = 0.0
+            total_equity = round(free_cash + used_margin + unrealized_pnl, 2)
+        else:
+            vault_balance = round(float(profit_vault.get_vault_balance(pool_name)), 2)
+            total_equity = round(free_cash + used_margin + unrealized_pnl + vault_balance, 2)
 
         # Realized PnL from ledger
         realized_pnl = round(double_entry_ledger.get_account_balance("REALIZED_PNL_ACCOUNT", pool_name), 2)
-
-        # Authoritative equity = Cash + Used Margin + Floating PnL + Vault Reserve
-        total_equity = round(free_cash + used_margin + unrealized_pnl + vault_balance, 2)
 
         # Peak equity & Drawdown calculation
         peak_equity = max(initial_cap, total_equity)

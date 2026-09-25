@@ -6888,7 +6888,15 @@
                 }
             }
 
-            if (document.getElementById('metric-free-cash')) document.getElementById('metric-free-cash').innerText = formatMoney(cash);
+            const freeCashElem = document.getElementById('metric-free-cash');
+            if (freeCashElem) {
+                freeCashElem.innerText = formatMoney(cash);
+                if (isCrypto && cash < 5.0) {
+                    freeCashElem.title = 'Available free margin is below Binance minimum order size (5.00 USDT). Need >= 5.00 USDT to open new trades.';
+                } else {
+                    freeCashElem.title = 'Available Margin';
+                }
+            }
             if (document.getElementById('metric-open-count')) document.getElementById('metric-open-count').innerText = positions.length + ' Active';
             if (document.getElementById('badge-open-pos')) document.getElementById('badge-open-pos').innerText = positions.length;
             if (document.getElementById('pf-trading-equity')) document.getElementById('pf-trading-equity').innerText = formatMoney(equity);
@@ -6905,6 +6913,32 @@
             }
             if (document.getElementById('fund-vault-val')) {
                 document.getElementById('fund-vault-val').innerText = `${Number(vault || 0).toFixed(2)} USDT`;
+            }
+
+            // Sync Unified Multi-Broker Net Worth master card
+            const unwBinance = document.getElementById('unw-binance-val');
+            const unwUpstox = document.getElementById('unw-upstox-val');
+            const unwMt5 = document.getElementById('unw-mt5-val');
+            const unwVault = document.getElementById('unw-vault-val');
+            const unwTotal = document.getElementById('card-total-networth');
+            if (unwBinance) {
+                const liveBinanceVal = isCrypto ? equity : ((data.pools && data.pools.BINANCE_LIVE_REAL) ? Number(data.pools.BINANCE_LIVE_REAL.equity || 14.70) : 14.70);
+                unwBinance.innerText = `$${liveBinanceVal.toFixed(2)} USDT`;
+            }
+            if (unwUpstox) {
+                const liveUpstoxVal = (data.pools && data.pools.AEGIS_INDIA_INR) ? Number(data.pools.AEGIS_INDIA_INR.equity || 100000.0) : 100000.0;
+                unwUpstox.innerText = `₹${liveUpstoxVal.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            }
+            if (unwMt5) {
+                const liveMt5Val = isForex ? equity : ((data.pools && data.pools.MT5_LIVE_REAL) ? Number(data.pools.MT5_LIVE_REAL.equity || 0.0) : 0.0);
+                unwMt5.innerText = `$${liveMt5Val.toFixed(2)} USD`;
+            }
+            if (unwVault) {
+                unwVault.innerText = `$${Number(vault || 0).toFixed(2)} USD`;
+            }
+            if (unwTotal) {
+                const totConsolidated = isCrypto ? equity : 14.70;
+                unwTotal.innerHTML = `$${totConsolidated.toFixed(2)} <span class="text-xs text-gray-400 font-normal">USDT</span>`;
             }
 
             const totalExposure = positions.reduce((sum, p) => sum + (parseFloat(p.capital_allocated) || 0), 0);

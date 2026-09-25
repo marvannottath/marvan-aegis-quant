@@ -269,22 +269,31 @@ class AutonomousTrader:
 
                         # Available cash resolution: query live Binance balance if trading live Crypto
                         if pool == "BINANCE_LIVE_REAL" or active_ws == "CRYPTO":
-                            if len(self.broker.positions) == 0:
-                                try:
-                                    from execution.binance_broker import binance_broker
-                                    real_live_cash = binance_broker.get_real_live_spot_balance()
-                                    if real_live_cash > 0:
-                                        self.broker.pools.setdefault("BINANCE_LIVE_REAL", {})["virtual_cash"] = real_live_cash
-                                        self.broker.virtual_cash = real_live_cash
-                                except Exception:
-                                    pass
+                            try:
+                                from execution.binance_broker import binance_broker
+                                real_live_cash = binance_broker.get_live_spot_balance("USDT")
+                                if real_live_cash > 0:
+                                    self.broker.pools.setdefault("BINANCE_LIVE_REAL", {})["virtual_cash"] = real_live_cash
+                                    self.broker.virtual_cash = real_live_cash
+                            except Exception:
+                                pass
                             current_cash = float(self.broker.pools.get("BINANCE_LIVE_REAL", {}).get("virtual_cash", self.broker.virtual_cash))
                         else:
                             current_cash = self.broker.virtual_cash
 
                         # Micro-Account Two-Trade Sizing ($6.00 for Crypto, $100.00 for MT5):
-                        if (pool == "BINANCE_LIVE_REAL" or active_ws == "CRYPTO") and current_cash >= 5.50:
-                            size_usd = min(current_cash, 6.00)
+                        if (pool == "BINANCE_LIVE_REAL" or active_ws == "CRYPTO"):
+                            if current_cash < 5.0:
+                                if step_counter % 8 == 0:
+                                    self._log_action(
+                                        asset=ticker,
+                                        action="MARGIN_GATE",
+                                        price=current_price,
+                                        amount_usd=current_cash,
+                                        reasoning=f"INSUFFICIENT MARGIN: Available free cash is ${current_cash:.2f} USDT (Binance min order is 5.00 USDT). Need >= 5.00 USDT to open new trade."
+                                    )
+                                continue
+                            size_usd = min(current_cash, 6.00) if current_cash >= 5.50 else current_cash
                         elif pool in ["MT5_LIVE_REAL", "MT5_DEMO"] or active_ws == "FOREX_GOLD":
                             size_usd = 100.0  # Micro-lot position ($100 margin on MT5)
                         else:
