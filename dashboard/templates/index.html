@@ -1321,6 +1321,36 @@
                         </tbody>
                     </table>
                 </div>
+
+                <!-- Live Open Orders / Working Limit Orders -->
+                <div class="bg-darkcard border border-darkborder p-4 rounded-2xl overflow-x-auto shadow-xl space-y-3">
+                    <div class="flex items-center justify-between border-b border-gray-800 pb-2">
+                        <div class="flex items-center space-x-2">
+                            <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+                            <h3 class="text-xs font-black text-white font-mono uppercase tracking-wider flex items-center gap-1.5">
+                                <i class="fa-solid fa-clock text-cyan-400"></i> Working Limit Orders &amp; Pending Fills (<span id="open-orders-count-badge">0</span>)
+                            </h3>
+                        </div>
+                        <span class="text-[10px] text-gray-400 font-mono">Live Broker Order Stream</span>
+                    </div>
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead>
+                            <tr class="border-b border-gray-800 text-gray-400 uppercase font-mono font-semibold text-[10px]">
+                                <th class="py-2 px-3">Order ID</th>
+                                <th class="py-2 px-3">Symbol</th>
+                                <th class="py-2 px-3">Type</th>
+                                <th class="py-2 px-3">Side</th>
+                                <th class="py-2 px-3">Price</th>
+                                <th class="py-2 px-3">Quantity</th>
+                                <th class="py-2 px-3">Status</th>
+                                <th class="py-2 px-3 text-right">Time</th>
+                            </tr>
+                        </thead>
+                        <tbody id="open-orders-positions-tbody" class="divide-y divide-gray-800/60 font-mono text-[11px]">
+                            <tr><td colspan="8" class="py-4 text-center text-gray-500 font-mono text-xs">No pending open limit orders</td></tr>
+                        </tbody>
+                    </table>
+                </div>
             </section>
 
 
@@ -7022,7 +7052,7 @@
             // Render Tab Components with Universal Workspace Scoping
             try { renderOrderStream(orders); } catch (e) { console.warn("Order stream notice:", e); }
             try { renderOverviewSignals(opps); } catch (e) { console.warn("Overview signals notice:", e); }
-            try { renderPositionsTable(positions); } catch (e) { console.warn("Positions table notice:", e); }
+            try { renderPositionsTable(positions, orders); } catch (e) { console.warn("Positions table notice:", e); }
             try { renderMarketsScanner(data.markets || []); } catch (e) { console.warn("Markets scanner notice:", e); }
             try { renderFullSignalsTable(opps); } catch (e) { console.warn("Full signals notice:", e); }
             try { renderAuditTrail(auditLog); } catch (e) { console.warn("Audit trail notice:", e); }
@@ -7103,7 +7133,7 @@
         }
 
 
-        function renderPositionsTable(positions) {
+        function renderPositionsTable(positions, orders) {
             const tbody = document.getElementById('positions-full-tbody');
             if (!tbody) return;
             const curWs = window.activeMarketVenue || 'INDIA';
@@ -7128,8 +7158,8 @@
                 const sym = String(pos.asset || pos.symbol || pos.ticker || '').toUpperCase();
                 if (!sym) return false;
 
-                // Filter out dismissed or closed spot symbols
-                if (window.closedSymbols) {
+                // Filter out dismissed or closed spot symbols (never filter out active positions from the authoritative broker)
+                if (window.closedSymbols && !isCrypto && pos.status !== 'ACTIVE') {
                     const baseSym = sym.replace('USDT', '').replace('BUSD', '');
                     if (window.closedSymbols.has(sym) || window.closedSymbols.has(baseSym) || 
                         window.closedSymbols.has(String(pos.asset || '').toUpperCase()) || 
@@ -7142,7 +7172,7 @@
                     const prohibited = ['USDT', 'BUSD', 'BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'DOGE', 'ADA', 'EUR', 'GBP', 'JPY', 'XAU'];
                     return !prohibited.some(p => sym.includes(p));
                 } else if (isCrypto) {
-                    return sym.includes('USDT') || sym.includes('BUSD') || sym.startsWith('BTC') || sym.startsWith('ETH');
+                    return sym.includes('USDT') || sym.includes('BUSD') || sym.includes('USDC') || sym.includes('FDUSD') || sym.startsWith('BTC') || sym.startsWith('ETH') || sym.startsWith('SOL') || sym.startsWith('XRP') || sym.startsWith('BNB');
                 } else {
                     const forexSymbols = ['EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF', 'NZD', 'XAU'];
                     return forexSymbols.some(f => sym.includes(f)) && !sym.includes('USDT');
@@ -7155,6 +7185,46 @@
             }
             if (document.getElementById('metric-open-count')) {
                 document.getElementById('metric-open-count').innerText = validPositions.length + ' Active';
+            }
+
+            // Also render Working Limit Orders & Pending Fills in the positions sub-table
+            const oTbody = document.getElementById('open-orders-positions-tbody');
+            const oBadge = document.getElementById('open-orders-count-badge');
+            if (oTbody) {
+                const prohibitedOrders = ['USDT', 'BUSD', 'BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'DOGE', 'ADA', 'EUR', 'GBP', 'JPY', 'XAU'];
+                const validOrders = (orders || []).filter(ord => {
+                    const sym = String(ord.symbol || ord.asset || '').toUpperCase();
+                    if (!sym) return false;
+                    if (isIndia) return !prohibitedOrders.some(p => sym.includes(p));
+                    if (isCrypto) return sym.includes('USDT') || sym.includes('BUSD') || sym.includes('USDC') || sym.includes('FDUSD') || sym.startsWith('BTC') || sym.startsWith('ETH') || sym.startsWith('SOL') || sym.startsWith('XRP') || sym.startsWith('BNB');
+                    return true;
+                });
+                if (oBadge) oBadge.innerText = validOrders.length;
+                if (!validOrders || validOrders.length === 0) {
+                    oTbody.innerHTML = `<tr><td colspan="8" class="py-4 text-center text-gray-500 font-mono text-xs">No pending open limit orders for ${curWs}</td></tr>`;
+                } else {
+                    oTbody.innerHTML = validOrders.map(o => {
+                        const side = String(o.side || 'BUY').toUpperCase();
+                        const sideColor = side === 'BUY' ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10';
+                        const px = parseFloat(o.price || 0.0);
+                        const qty = parseFloat(o.quantity || o.orig_qty || 0.0);
+                        const filled = parseFloat(o.filled_quantity || o.executed_qty || 0.0);
+                        const status = String(o.status || 'NEW').toUpperCase();
+                        const timeStr = o.timestamp || 'RECENT';
+                        return `
+                            <tr class="border-b border-gray-800/60 hover:bg-gray-900/50">
+                                <td class="py-2.5 px-3 text-gray-400">${o.order_id || 'ORD-LIVE'}</td>
+                                <td class="py-2.5 px-3 font-bold text-white">${o.symbol || o.asset}</td>
+                                <td class="py-2.5 px-3 text-cyan-400">${o.type || 'LIMIT'}</td>
+                                <td class="py-2.5 px-3"><span class="px-1.5 py-0.5 rounded text-[9px] font-bold ${sideColor}">${side}</span></td>
+                                <td class="py-2.5 px-3 text-white font-mono">${curSym}${px.toFixed(px < 10 ? 4 : 2)}</td>
+                                <td class="py-2.5 px-3 text-gray-300 font-mono">${qty.toFixed(4)} <span class="text-[9px] text-gray-500">(${filled > 0 ? ((filled/qty)*100).toFixed(0)+'%' : '0%'})</span></td>
+                                <td class="py-2.5 px-3"><span class="px-1.5 py-0.5 rounded text-[9px] bg-amber-500/10 text-amber-400 font-bold border border-amber-500/20">${status}</span></td>
+                                <td class="py-2.5 px-3 text-right text-gray-400 text-[10px]">${timeStr}</td>
+                            </tr>
+                        `;
+                    }).join('');
+                }
             }
 
             // Prevent flickering: skip re-rendering if positions haven't changed

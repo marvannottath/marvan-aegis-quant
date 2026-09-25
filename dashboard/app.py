@@ -842,7 +842,7 @@ async def get_state(workspace: Optional[str] = None, request_id: Optional[str] =
 
     if active_pool == "BINANCE_LIVE_REAL" or ws == "CRYPTO":
         try:
-            live_binance_orders = binance_broker.get_spot_open_orders("BINANCE_LIVE")
+            live_binance_orders = binance_broker.get_all_open_orders("BINANCE_LIVE")
             raw_orders = live_binance_orders if live_binance_orders else pool_data.get("order_stream", [])
         except Exception:
             raw_orders = pool_data.get("order_stream", [])

@@ -497,6 +497,54 @@ class BinanceBroker:
                             "source": "BINANCE_FUTURES_LIVE",
                             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
                         })
+
+                # Also query COIN-M Futures if available
+                dapi_url = "https://testnet.binancefuture.com" if is_testnet else "https://dapi.binance.com"
+                try:
+                    st_d = self._get_server_time_ms(dapi_url)
+                    params_d = {"timestamp": st_d, "recvWindow": 60000}
+                    sig_d, signed_d = self._sign_query(sec_k, params_d)
+                    resp_d = requests.get(f"{dapi_url}/dapi/v1/positionRisk", params=signed_d, headers=headers, timeout=3.5)
+                    if resp_d.status_code == 200:
+                        for p in resp_d.json():
+                            amt = float(p.get("positionAmt", 0.0))
+                            if abs(amt) > 0.0000001:
+                                sym = p.get("symbol", "")
+                                entry_px = float(p.get("entryPrice", 0.0))
+                                mark_px = float(p.get("markPrice", entry_px))
+                                unrealized = float(p.get("unRealizedProfit", 0.0))
+                                lev = float(p.get("leverage", 1.0))
+                                notional = abs(amt * mark_px)
+                                allocated = round(notional / max(1.0, lev), 2)
+                                side = "BUY" if amt > 0 else "SELL"
+                                active_futs.append({
+                                    "trade_id": f"FUT-COIN-{sym}",
+                                    "asset": sym,
+                                    "symbol": sym,
+                                    "action": side,
+                                    "side": "LONG" if amt > 0 else "SHORT",
+                                    "units": abs(amt),
+                                    "quantity": abs(amt),
+                                    "entry_price": entry_px,
+                                    "mark_price": mark_px,
+                                    "last_price": mark_px,
+                                    "current_price": mark_px,
+                                    "capital_allocated": allocated,
+                                    "allocated_margin": allocated,
+                                    "margin": allocated,
+                                    "market_value": round(notional, 2),
+                                    "leverage": lev,
+                                    "pnl_usd": round(unrealized, 2),
+                                    "pnl_pct": round((unrealized / max(0.01, allocated)) * 100.0, 2),
+                                    "unrealized_pnl": round(unrealized, 2),
+                                    "product": "COIN-M FUTURES",
+                                    "status": "ACTIVE",
+                                    "source": "BINANCE_COIN_FUTURES_LIVE",
+                                    "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
+                                })
+                except Exception:
+                    pass
+
                 return active_futs
         except Exception:
             pass
@@ -534,6 +582,51 @@ class BinanceBroker:
         except Exception:
             pass
         return []
+
+    def get_futures_open_orders(self, environment: str = "BINANCE_LIVE") -> List[Dict[str, Any]]:
+        """Fetch active open orders waiting on Binance Futures exchange."""
+        api_k, sec_k, _, is_testnet = self._get_credentials_for_env(environment)
+        if not api_k or not sec_k:
+            return []
+        fapi_url = "https://testnet.binancefuture.com" if is_testnet else "https://fapi.binance.com"
+        try:
+            st = self._get_server_time_ms(fapi_url)
+            params = {"timestamp": st, "recvWindow": 60000}
+            sig, signed = self._sign_query(sec_k, params)
+            headers = {"X-MBX-APIKEY": api_k}
+            resp = requests.get(f"{fapi_url}/fapi/v1/openOrders", params=signed, headers=headers, timeout=3.5)
+            if resp.status_code == 200:
+                raw_orders = resp.json()
+                formatted = []
+                for o in raw_orders:
+                    formatted.append({
+                        "order_id": str(o.get("orderId")),
+                        "symbol": o.get("symbol"),
+                        "asset": o.get("symbol"),
+                        "side": o.get("side"),
+                        "type": f"FUTURES_{o.get('type')}",
+                        "price": float(o.get("price", 0.0)),
+                        "quantity": float(o.get("origQty", 0.0)),
+                        "filled_quantity": float(o.get("executedQty", 0.0)),
+                        "status": o.get("status"),
+                        "time_in_force": o.get("timeInForce"),
+                        "timestamp": datetime.fromtimestamp(o.get("time", 0) / 1000.0, tz=IST_TZ).strftime("%Y-%m-%d %H:%M:%S IST") if o.get("time") else time.strftime("%Y-%m-%d %H:%M:%S")
+                    })
+                return formatted
+        except Exception:
+            pass
+        return []
+
+    def get_all_open_orders(self, environment: str = "BINANCE_LIVE") -> List[Dict[str, Any]]:
+        """Fetch all active open orders across both Binance Spot and Futures."""
+        orders = list(self.get_spot_open_orders(environment))
+        try:
+            f_orders = self.get_futures_open_orders(environment)
+            if f_orders:
+                orders.extend(f_orders)
+        except Exception:
+            pass
+        return orders
 
     def get_balances(self, environment: str = "BINANCE_TESTNET") -> List[Dict[str, Any]]:
         """Return non-zero asset balances."""
@@ -1493,18 +1586,13 @@ class BinanceBroker:
             cur_price = round(cur_price, precision)
 
             val_usd = round(total_qty * cur_price, 2)
-            # Filter out dust (< $0.50)
-            if val_usd < 0.50:
+            # Filter out true dust (< $0.05)
+            if val_usd < 0.05:
                 self._entry_price_cache.pop(f"{asset}USDT", None)
                 continue
 
-            # Real holdings >= $1.00 are active live positions — never skip or dismiss!
-            if val_usd >= 1.00:
-                self.undismiss_spot_position(asset)
-            else:
-                closed_set = getattr(self, "_closed_spot_assets", set())
-                if ticker_symbol.upper() in closed_set or asset.upper() in closed_set:
-                    continue
+            # Real holdings are active live positions — keep active and never dismiss
+            self.undismiss_spot_position(asset)
 
             # 1. Determine authentic entry price
             KNOWN_ENTRY_PRICES = {

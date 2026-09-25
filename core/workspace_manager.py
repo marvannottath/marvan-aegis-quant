@@ -190,7 +190,7 @@ class WorkspaceManager:
                 return ws
         if sym.endswith('.NS') or sym.endswith('.BO') or 'NIFTY' in sym or 'BEES' in sym:
             return self.WORKSPACE_INDIA
-        if sym.endswith('USDT') or sym.endswith('BUSD') or (sym.startswith('BTC') and 'INR' not in sym) or (sym.startswith('ETH') and 'INR' not in sym):
+        if any(sym.endswith(q) for q in ['USDT', 'BUSD', 'USDC', 'FDUSD', 'TUSD', 'BTC', 'ETH', 'BNB']) or (sym.startswith('BTC') and 'INR' not in sym) or (sym.startswith('ETH') and 'INR' not in sym):
             return self.WORKSPACE_CRYPTO
         if any(c in sym for c in ['EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF', 'NZD', 'XAU']):
             return self.WORKSPACE_FOREX_GOLD
