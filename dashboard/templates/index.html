@@ -5755,12 +5755,7 @@
         async function closePosition(symbol) {
             if (!symbol) return;
             const cleanSym = String(symbol).trim().toUpperCase();
-            window.closedSymbols = window.closedSymbols || new Set();
-            window.closedSymbols.add(cleanSym);
-            window.closedSymbols.add(cleanSym.replace('USDT', '').replace('BUSD', ''));
-            try {
-                localStorage.setItem('aegis_closed_symbols', JSON.stringify(Array.from(window.closedSymbols)));
-            } catch (e) {}
+            try { localStorage.removeItem('aegis_closed_symbols'); } catch (e) {}
 
             const btn = (typeof event !== 'undefined' && event && event.target) ? event.target.closest('button') : null;
             if (btn) {
@@ -7143,30 +7138,13 @@
             const curSym = isIndia ? '₹' : (isCrypto ? '$' : '$');
             const curLoc = isIndia ? 'en-IN' : 'en-US';
 
-            // Ensure window.closedSymbols is loaded from localStorage
-            if (!window.closedSymbols) {
-                try {
-                    const savedClosed = JSON.parse(localStorage.getItem('aegis_closed_symbols') || '[]');
-                    window.closedSymbols = new Set(savedClosed);
-                } catch (e) {
-                    window.closedSymbols = new Set();
-                }
-            }
+            // Clean any legacy closed symbol blocks so active broker positions are never suppressed
+            try { localStorage.removeItem('aegis_closed_symbols'); } catch (e) {}
 
             // Strict workspace asset isolation: Ensure symbols match active workspace
             const validPositions = (positions || []).filter(pos => {
                 const sym = String(pos.asset || pos.symbol || pos.ticker || '').toUpperCase();
                 if (!sym) return false;
-
-                // Filter out dismissed or closed spot symbols (never filter out active positions from the authoritative broker)
-                if (window.closedSymbols && !isCrypto && pos.status !== 'ACTIVE') {
-                    const baseSym = sym.replace('USDT', '').replace('BUSD', '');
-                    if (window.closedSymbols.has(sym) || window.closedSymbols.has(baseSym) || 
-                        window.closedSymbols.has(String(pos.asset || '').toUpperCase()) || 
-                        window.closedSymbols.has(String(pos.symbol || '').toUpperCase())) {
-                        return false;
-                    }
-                }
 
                 if (isIndia) {
                     const prohibited = ['USDT', 'BUSD', 'BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'DOGE', 'ADA', 'EUR', 'GBP', 'JPY', 'XAU'];

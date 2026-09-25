@@ -8,6 +8,17 @@ import time
 import argparse
 import uvicorn
 from pathlib import Path
+
+# Load .env configuration
+try:
+    from dotenv import load_dotenv
+    _base_dir = Path(__file__).resolve().parent
+    for _ep in [_base_dir / ".env", Path("/var/www/quantum_trading_system/.env")]:
+        if _ep.exists():
+            load_dotenv(_ep, override=False)
+            break
+except Exception:
+    pass
 from config.settings import FOREX_PAIRS
 from config.security import vault
 from core.data_loader import DataLoader

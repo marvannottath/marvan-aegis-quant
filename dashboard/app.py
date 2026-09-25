@@ -3008,6 +3008,28 @@ async def get_vault_history(workspace: Optional[str] = None):
             "withdrawals": summary.get("withdrawal_history", [])
         })
 
+@app.get("/api/binance/live-status")
+async def get_binance_live_status():
+    """Diagnostic endpoint to inspect live Binance account authentication, balances, open positions, and orders."""
+    from execution.binance_broker import binance_broker
+    acc = binance_broker.get_account_info("BINANCE_LIVE", force_refresh=True)
+    open_pos = binance_broker.get_open_positions("BINANCE_LIVE")
+    open_orders = binance_broker.get_all_open_orders("BINANCE_LIVE")
+    masked_key = f"{binance_broker.live_api_key[:6]}...{binance_broker.live_api_key[-4:]}" if binance_broker.live_api_key else "NOT_CONFIGURED"
+    return JSONResponse({
+        "status": "SUCCESS",
+        "api_key_configured": bool(binance_broker.live_api_key),
+        "api_key_masked": masked_key,
+        "account_authenticated": acc.get("authenticated", False),
+        "balance_usd": acc.get("balance_usd", 0.0),
+        "total_wallet_equity": acc.get("total_wallet_equity", acc.get("balance_usd", 0.0)),
+        "non_zero_balances": [b for b in acc.get("balances", []) if float(b.get("free", 0)) > 0 or float(b.get("locked", 0)) > 0],
+        "open_positions": open_pos,
+        "open_positions_count": len(open_pos),
+        "open_orders": open_orders,
+        "open_orders_count": len(open_orders)
+    })
+
 @app.post("/api/toggle-live-trading")
 async def toggle_live_trading(request: Request):
     """Toggle Binance Live Trading ON or OFF dynamically."""

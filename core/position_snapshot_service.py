@@ -82,6 +82,15 @@ class PositionSnapshotService:
         else:
             internal_pos_list = []
 
+        # Merge paper_broker.positions so positions in root memory are never dropped
+        if isinstance(paper_broker.positions, dict):
+            existing_syms = {p.get("symbol") or p.get("asset") for p in internal_pos_list}
+            for k, v in paper_broker.positions.items():
+                if isinstance(v, dict):
+                    s_name = v.get("symbol") or v.get("asset") or k
+                    if s_name not in existing_syms:
+                        internal_pos_list.append(v)
+
         # For BINANCE_LIVE_REAL / BINANCE_LIVE: sync real held crypto positions from Binance Spot & Futures
         if pool_name in ["BINANCE_LIVE_REAL", "BINANCE_LIVE"] or target_ws == "CRYPTO":
             try:

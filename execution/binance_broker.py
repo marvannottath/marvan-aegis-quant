@@ -82,16 +82,27 @@ class BinanceBroker:
     def _load_config(self):
         """
         Load credentials with strict priority:
-          1. Environment variables:
+          1. Environment variables (auto-loads .env if present):
+             - BINANCE_LIVE_API_KEY, BINANCE_LIVE_SECRET_KEY (or BINANCE_API_KEY, BINANCE_SECRET_KEY)
              - BINANCE_TEST_API_KEY, BINANCE_TEST_SECRET_KEY
-             - BINANCE_LIVE_API_KEY, BINANCE_LIVE_SECRET_KEY
           2. JSON config file (binance_config.json)
         """
-        # 1. Check environment variables
-        self.demo_api_key = os.getenv("BINANCE_TEST_API_KEY", "").strip()
-        self.demo_secret_key = os.getenv("BINANCE_TEST_SECRET_KEY", "").strip()
-        self.live_api_key = os.getenv("BINANCE_LIVE_API_KEY", "").strip()
-        self.live_secret_key = os.getenv("BINANCE_LIVE_SECRET_KEY", "").strip()
+        # Load .env if present
+        try:
+            from dotenv import load_dotenv
+            base_dir = Path(__file__).resolve().parent.parent
+            for env_path in [base_dir / ".env", base_dir.parent / ".env", Path("/var/www/quantum_trading_system/.env")]:
+                if env_path.exists():
+                    load_dotenv(env_path, override=False)
+                    break
+        except Exception:
+            pass
+
+        # 1. Check environment variables with extensive aliases
+        self.demo_api_key = (os.getenv("BINANCE_TEST_API_KEY") or os.getenv("BINANCE_DEMO_API_KEY") or "").strip()
+        self.demo_secret_key = (os.getenv("BINANCE_TEST_SECRET_KEY") or os.getenv("BINANCE_DEMO_SECRET_KEY") or "").strip()
+        self.live_api_key = (os.getenv("BINANCE_LIVE_API_KEY") or os.getenv("BINANCE_API_KEY") or os.getenv("BINANCE_KEY") or "").strip()
+        self.live_secret_key = (os.getenv("BINANCE_LIVE_SECRET_KEY") or os.getenv("BINANCE_SECRET_KEY") or os.getenv("BINANCE_API_SECRET") or os.getenv("BINANCE_SECRET") or "").strip()
 
         # 2. Fallback to binance_config.json
         if BINANCE_CONFIG_FILE.exists():
