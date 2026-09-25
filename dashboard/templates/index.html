@@ -6970,8 +6970,8 @@
             if (document.getElementById('metric-open-count')) document.getElementById('metric-open-count').innerText = positions.length + ' Active';
             if (document.getElementById('badge-open-pos')) document.getElementById('badge-open-pos').innerText = positions.length;
             if (document.getElementById('pf-trading-equity')) document.getElementById('pf-trading-equity').innerText = formatMoney(equity);
-            if (document.getElementById('pf-vault-reserve')) document.getElementById('pf-vault-reserve').innerText = formatMoney(vault);
-            if (document.getElementById('pf-total-assets')) document.getElementById('pf-total-assets').innerText = formatMoney(equity + (isIndia ? 0 : vault));
+            if (document.getElementById('pf-vault-reserve')) document.getElementById('pf-vault-reserve').innerText = (isIndia || isCrypto) ? (isIndia ? '₹0.00' : '0.00 USDT') : formatMoney(vault);
+            if (document.getElementById('pf-total-assets')) document.getElementById('pf-total-assets').innerText = formatMoney(equity + (isIndia || isCrypto ? 0 : vault));
 
             // Sync Custodial Wallets tab
             if (document.getElementById('fund-binance-spot-val')) {
@@ -6982,7 +6982,7 @@
                 document.getElementById('fund-india-demat-val').innerText = '₹1,00,000.00';
             }
             if (document.getElementById('fund-vault-val')) {
-                document.getElementById('fund-vault-val').innerText = `${Number(vault || 0).toFixed(2)} USDT`;
+                document.getElementById('fund-vault-val').innerText = (isIndia || isCrypto) ? (isIndia ? '₹0.00' : '0.00 USDT') : `${Number(vault || 0).toFixed(2)} USDT`;
             }
 
             // Sync Unified Multi-Broker Net Worth master card
@@ -7004,10 +7004,10 @@
                 unwMt5.innerText = `$${liveMt5Val.toFixed(2)} USD`;
             }
             if (unwVault) {
-                unwVault.innerText = `$${Number(vault || 0).toFixed(2)} USD`;
+                unwVault.innerText = (isIndia || isCrypto) ? '$0.00 USD' : `$${Number(vault || 0).toFixed(2)} USD`;
             }
             if (unwTotal) {
-                const totConsolidated = isCrypto ? (equity + (isIndia ? 0 : vault)) : (isForex ? (equity + vault) : (isIndia ? equity : (equity + vault)));
+                const totConsolidated = (isCrypto || isIndia) ? equity : (equity + vault);
                 unwTotal.innerHTML = `$${totConsolidated.toFixed(2)} <span class="text-xs text-gray-400 font-normal">${isIndia ? 'INR' : 'USDT'}</span>`;
             }
 
@@ -7422,6 +7422,13 @@
 
             const ws = window.activeMarketVenue || 'INDIA';
             const curSym = (ws === 'INDIA') ? '₹' : ((ws === 'CRYPTO') ? 'USDT ' : '$');
+
+            if (ws === 'CRYPTO') {
+                tbody.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-gray-400 font-mono text-xs"><i class="fa-brands fa-bitcoin text-amber-400 mr-2"></i> BINANCE LIVE WALLET: 100% of trading capital &amp; profits reside directly in your authentic Binance Spot &amp; Futures wallet. No synthetic sweeps.</td></tr>`;
+                const pagin = document.getElementById('vault-pagination');
+                if (pagin) pagin.innerHTML = '';
+                return;
+            }
 
             // Workspace-isolated asset filtering
             const history = rawHistory.filter(h => {

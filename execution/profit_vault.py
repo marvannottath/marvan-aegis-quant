@@ -103,28 +103,15 @@ class ProfitVault:
     def _sanitize_live_stores(self):
         """Ensure live broker stores (e.g. BINANCE_LIVE_REAL) have ZERO synthetic base balance or mock sweeps."""
         modified = False
-        for env_key, store in self.vault_stores.items():
+        for env_key in list(self.vault_stores.keys()):
             if "LIVE" in env_key.upper() or "REAL" in env_key.upper():
-                if store.get("base_balance", 0.0) != 0.0:
+                store = self.vault_stores[env_key]
+                if store.get("base_balance", 0.0) != 0.0 or store.get("transactions") or store.get("withdrawals") or store.get("transfers"):
                     store["base_balance"] = 0.0
+                    store["transactions"] = []
+                    store["withdrawals"] = []
+                    store["transfers"] = []
                     modified = True
-                txs = store.get("transactions", [])
-                if txs:
-                    clean_txs = []
-                    running = 0.0
-                    for tx in reversed(txs):
-                        amt = float(tx.get("sweep_amount", tx.get("realized_profit", 0.0)))
-                        # Real Binance micro-account only has small sub-$10 profits; filter out synthetic/paper test sweeps
-                        if amt > 10.0:
-                            modified = True
-                            continue
-                        tx["previous_vault_balance"] = round(running, 2)
-                        tx["previous_balance"] = round(running, 2)
-                        running = round(running + amt, 2)
-                        tx["resulting_vault_balance"] = round(running, 2)
-                        tx["new_balance"] = round(running, 2)
-                        clean_txs.append(tx)
-                    store["transactions"] = list(reversed(clean_txs))
         if modified:
             self._save_state()
 
@@ -152,12 +139,11 @@ class ProfitVault:
             print(f"[PROFIT VAULT] Save notice: {e}")
 
     def get_vault_balance(self, environment: str = "AEGIS_QUANT_MASTER") -> float:
-        store = self.vault_stores.get(environment, {"transactions": [], "withdrawals": [], "transfers": []})
-        # For live trading accounts (Binance Live / MT5 Live / Upstox Live), base_balance is strictly 0.0 (no synthetic base)
+        # For live trading accounts (Binance Live / MT5 Live / Upstox Live), vault balance is strictly 0.0 (all capital in broker wallet)
         if "LIVE" in environment.upper() or "REAL" in environment.upper():
-            base = 0.0
-        else:
-            base = float(store.get("base_balance", 0.0))
+            return 0.0
+        store = self.vault_stores.get(environment, {"transactions": [], "withdrawals": [], "transfers": []})
+        base = float(store.get("base_balance", 0.0))
         sweeps_sum = sum(float(tx.get("sweep_amount", 0.0)) for tx in store.get("transactions", []) if tx.get("status") == "CONFIRMED")
         withdrawals_sum = sum(float(w.get("amount", 0.0)) for w in store.get("withdrawals", []) if w.get("status") == "COMPLETED")
         transfers_sum = sum(float(t.get("amount", 0.0)) for t in store.get("transfers", []) if t.get("status") == "CONFIRMED")
@@ -322,6 +308,27 @@ class ProfitVault:
         bal = self.get_vault_balance(environment)
         today_str = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d")
         today_sweeps = [t for t in txs if t.get("timestamp", "").startswith(today_str)]
+
+        if "LIVE" in environment.upper() or "REAL" in environment.upper():
+            return {
+                "environment": environment,
+                "vault_balance": 0.0,
+                "trading_capital": 0.0,
+                "realized_profit_today": 0.0,
+                "realized_profit_total": 0.0,
+                "available_to_sweep": 0.0,
+                "pending_transfer": 0.0,
+                "successfully_transferred_profit": 0.0,
+                "allowlisted_wallet": self.allowlisted_wallet,
+                "allowlisted_network": self.allowlisted_network,
+                "auto_external_sweep_enabled": False,
+                "external_transfer_status": "LIVE BROKER: VAULT ISOLATION ACTIVE (CAPITAL RESIDES IN EXCHANGE WALLET)",
+                "recent_sweeps": [],
+                "sweep_history": [],
+                "transfer_history": [],
+                "withdrawal_history": [],
+                "ledger_verified": True
+            }
 
         return {
             "environment": environment,

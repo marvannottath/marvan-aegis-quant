@@ -129,8 +129,11 @@ async def on_startup():
     try:
         from core.workspace_manager import workspace_manager
         from core.ai_trading_controller import ai_trading_controller
+        from execution.profit_vault import profit_vault
         workspace_manager.set_active_workspace("FOREX_GOLD")
         ai_trading_controller.set_state("FOREX_GOLD", "RUNNING", user="SYSTEM", reason="Autonomous Cloud Active")
+        profit_vault.reset_vault("BINANCE_LIVE_REAL")
+        profit_vault.reset_vault("BINANCE_LIVE")
     except Exception as e:
         print(f"[STARTUP] Workspace init notice: {e}")
 
@@ -837,8 +840,12 @@ async def get_state(workspace: Optional[str] = None, request_id: Optional[str] =
     IST_TZ = timezone(timedelta(hours=5, minutes=30))
     now_str = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S IST")
 
-    if active_pool == "BINANCE_LIVE_REAL":
-        raw_orders = pool_data.get("order_stream", [])
+    if active_pool == "BINANCE_LIVE_REAL" or ws == "CRYPTO":
+        try:
+            live_binance_orders = binance_broker.get_spot_open_orders("BINANCE_LIVE")
+            raw_orders = live_binance_orders if live_binance_orders else pool_data.get("order_stream", [])
+        except Exception:
+            raw_orders = pool_data.get("order_stream", [])
     else:
         raw_orders = [o for o in (trader.get_live_stream() or []) if workspace_manager.is_symbol_allowed(o.get("symbol", o.get("asset", "")), ws)]
         if not raw_orders:
@@ -2967,11 +2974,21 @@ async def serve_service_worker():
 
 @app.get("/api/vault/history")
 @app.get("/api/vault/sweep-history")
-async def get_vault_history():
+async def get_vault_history(workspace: Optional[str] = None):
     """Fetch complete immutable ledger of all historical vault sweeps for the active pool."""
-    if paper_broker.active_pool_name == "BINANCE_DEMO":
-        b_sweeps = paper_broker.pools["BINANCE_DEMO"].get("sweep_history", [])
-        v_bal = paper_broker.pools["BINANCE_DEMO"].get("vault_reserve", 0.0)
+    ws = (workspace or "").upper()
+    if ws == "CRYPTO" or paper_broker.active_pool_name in ("BINANCE_LIVE", "BINANCE_LIVE_REAL"):
+        return JSONResponse({
+            "vault_balance": 0.0,
+            "total_sweeps_count": 0,
+            "today_swept_usd": 0.0,
+            "today_sweeps_count": 0,
+            "sweeps": [],
+            "withdrawals": []
+        })
+    elif paper_broker.active_pool_name == "BINANCE_DEMO" or ws == "CRYPTO_DEMO":
+        b_sweeps = paper_broker.pools.get("BINANCE_DEMO", {}).get("sweep_history", [])
+        v_bal = paper_broker.pools.get("BINANCE_DEMO", {}).get("vault_reserve", 0.0)
         return JSONResponse({
             "vault_balance": v_bal,
             "total_sweeps_count": len(b_sweeps),
@@ -2983,12 +3000,12 @@ async def get_vault_history():
     else:
         summary = profit_vault.get_vault_summary()
         return JSONResponse({
-            "vault_balance": summary["vault_balance"],
-            "total_sweeps_count": summary["total_sweeps_count"],
+            "vault_balance": summary.get("vault_balance", 0.0),
+            "total_sweeps_count": summary.get("total_sweeps_count", len(summary.get("sweep_history", []))),
             "today_swept_usd": summary.get("today_swept_usd", 0.0),
             "today_sweeps_count": summary.get("today_sweeps_count", 0),
             "sweeps": profit_vault.get_full_sweep_history(),
-            "withdrawals": summary["withdrawal_history"]
+            "withdrawals": summary.get("withdrawal_history", [])
         })
 
 @app.post("/api/toggle-live-trading")
