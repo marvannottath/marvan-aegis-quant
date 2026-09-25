@@ -846,6 +846,20 @@
                     </div>
                 </div>
 
+                <!-- Low Margin Notice for Binance Spot (MIN_NOTIONAL Rule) -->
+                <div id="banner-crypto-low-margin" class="hidden mb-4 p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-center justify-between text-xs font-mono text-amber-300">
+                    <div class="flex items-center space-x-3">
+                        <i class="fa-solid fa-triangle-exclamation text-amber-400 text-lg"></i>
+                        <div>
+                            <span class="font-bold text-white">BINANCE SPOT MINIMUM ORDER SIZE:</span>
+                            <span class="text-amber-200/90 ml-1">Available balance (<span id="low-margin-val">3.84 USDT</span>) is below Binance's minimum order requirement (5.00 USDT MIN_NOTIONAL). Top up &ge; 10 USDT to execute live orders or switch to Testnet Demo Sandbox.</span>
+                        </div>
+                    </div>
+                    <button onclick="switchActiveTradingPool('BINANCE_TESTNET_DEMO')" class="px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold rounded-lg border border-amber-500/40 transition whitespace-nowrap text-[11px] cursor-pointer">
+                        Switch to Demo
+                    </button>
+                </div>
+
                 <!-- TOP 6 CORE FINANCIAL METRICS -->
                 <div class="grid grid-cols-2 lg:grid-cols-6 gap-3 md:gap-4">
                     <div onclick="switchTab('portfolio')" class="bg-darkcard border border-darkborder p-4 rounded-xl space-y-1 cursor-pointer hover:border-amber-500/50 transition" title="Click to view Portfolio & Vault">
@@ -4662,6 +4676,16 @@
                 if (levEl) levEl.innerText = '25x (Binance Cross Margin)';
                 if (brokerInfo) brokerInfo.classList.remove('hidden');
                 if (taxBtn) taxBtn.classList.add('hidden');
+                const cryptoBadge = document.getElementById('badge-upstox-status');
+                if (cryptoBadge) {
+                    const isLiveAuth = (window.lastBinanceData && window.lastBinanceData.live && window.lastBinanceData.live.authenticated) || (window.activeTradingPool && window.activeTradingPool.includes('LIVE'));
+                    cryptoBadge.className = isLiveAuth ? 'font-bold text-emerald-400' : 'font-bold text-amber-400';
+                    cryptoBadge.innerHTML = isLiveAuth ? '<i class="fa-solid fa-circle-check mr-1"></i>BINANCE: LIVE AUTHENTICATED' : '<i class="fa-solid fa-cube mr-1"></i>BINANCE: TESTNET DEMO ACTIVE';
+                }
+                const cryptoMargin = document.getElementById('val-broker-margin');
+                if (cryptoMargin && window.lastBinanceData && window.lastBinanceData.live && window.lastBinanceData.live.available_balance !== undefined) {
+                    cryptoMargin.innerText = `${window.lastBinanceData.live.available_balance.toFixed(2)} USDT`;
+                }
                 fetchBinanceStatus();
             }
 
@@ -4679,6 +4703,11 @@
                     : (isHalt ? 'px-2.5 py-0.5 rounded-full text-[10px] font-black bg-red-500/10 text-red-400 border border-red-500/30 font-mono'
                               : 'px-2.5 py-0.5 rounded-full text-[10px] font-black bg-gray-800 text-gray-400 border border-gray-700 font-mono');
                 badgeSession.innerText = `${venueLabel}: ${sessState}`;
+            }
+
+            const bannerLowMargin = document.getElementById('banner-crypto-low-margin');
+            if (bannerLowMargin && venue !== 'CRYPTO') {
+                bannerLowMargin.classList.add('hidden');
             }
         }
 
@@ -4928,7 +4957,7 @@
                 const balanceLabel = document.getElementById('lbl-upstox-live-balance');
                 const isConnected = data.status === 'CONNECTED';
 
-                if (badge) {
+                if (badge && window.activeMarketVenue === 'INDIA') {
                     if (isConnected) {
                         badge.className = 'font-bold text-emerald-400';
                         badge.innerHTML = '<i class="fa-solid fa-circle-check mr-1"></i>UPSTOX: LIVE CONNECTED';
@@ -4953,7 +4982,7 @@
                     const avail = data.funds.available_margin || 0.0;
                     balanceLabel.innerText = `₹${avail.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
                 }
-                if (marginVal && data.funds) {
+                if (marginVal && data.funds && window.activeMarketVenue === 'INDIA') {
                     const avail = data.funds.available_margin || 100000.0;
                     marginVal.innerText = `₹${avail.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
                 }
@@ -5908,6 +5937,7 @@
             try {
                 const res = await fetch('/api/binance/status');
                 const data = await res.json();
+                window.lastBinanceData = data;
                 const testnet = data.testnet || data.demo || {};
                 const live = data.live || {};
 
@@ -5965,24 +5995,23 @@
                 if (window.activeMarketVenue === 'CRYPTO') {
                     const badge = document.getElementById('badge-upstox-status');
                     const marginVal = document.getElementById('val-broker-margin');
-                    const isLive = data.active_environment === 'LIVE';
+                    const isLive = data.active_environment === 'LIVE' || (live && live.authenticated) || (window.activeTradingPool && window.activeTradingPool.includes('LIVE'));
                     const activeBlock = isLive ? live : testnet;
                     if (badge) {
-                        if (activeBlock.authenticated) {
+                        if (activeBlock.authenticated || isLive) {
                             badge.className = 'font-bold text-emerald-400';
                             badge.innerHTML = `<i class="fa-solid fa-circle-check mr-1"></i>BINANCE: ${isLive ? 'LIVE' : 'TESTNET'} AUTHENTICATED`;
                         } else {
                             badge.className = 'font-bold text-amber-400';
-                            badge.innerHTML = '<i class="fa-solid fa-cube mr-1"></i>BINANCE: SIMULATION / DEMO (NO KEYS)';
+                            badge.innerHTML = '<i class="fa-solid fa-cube mr-1"></i>BINANCE: TESTNET DEMO ACTIVE';
                         }
                     }
                     if (marginVal) {
-                        if (activeBlock.authenticated) {
+                        if (activeBlock.authenticated && activeBlock.available_balance !== undefined) {
                             const bal = activeBlock.available_balance || 0.0;
                             marginVal.innerText = `${bal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} USDT`;
-                        } else {
-                            const poolBal = (window.lastOperationalData && window.lastOperationalData.pool_equity) || 20000.0;
-                            marginVal.innerText = `${Number(poolBal).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} USDT (SIM)`;
+                        } else if (window.lastOperationalData && window.lastOperationalData.virtual_cash !== undefined) {
+                            marginVal.innerText = `${Number(window.lastOperationalData.virtual_cash).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} USDT`;
                         }
                     }
                 }
@@ -6848,6 +6877,47 @@
                 }
             }
 
+            // Keep header broker badge and margin strictly synchronized for active venue
+            const badgeBroker = document.getElementById('badge-upstox-status');
+            const valMargin = document.getElementById('val-broker-margin');
+            if (isCrypto) {
+                if (badgeBroker) {
+                    const bLiveAuth = (window.lastBinanceData && window.lastBinanceData.live && window.lastBinanceData.live.authenticated) || activePool.includes('LIVE');
+                    badgeBroker.className = bLiveAuth ? 'font-bold text-emerald-400' : 'font-bold text-amber-400';
+                    badgeBroker.innerHTML = bLiveAuth
+                        ? '<i class="fa-solid fa-circle-check mr-1"></i>BINANCE: LIVE AUTHENTICATED'
+                        : '<i class="fa-solid fa-cube mr-1"></i>BINANCE: TESTNET DEMO ACTIVE';
+                }
+                if (valMargin) {
+                    valMargin.innerText = formatMoney(cash);
+                }
+            } else if (isForex) {
+                if (badgeBroker) {
+                    badgeBroker.className = 'font-bold text-purple-400';
+                    badgeBroker.innerHTML = '<i class="fa-solid fa-chart-line mr-1"></i>MT5: FOREX & GOLD ACTIVE';
+                }
+                if (valMargin) {
+                    valMargin.innerText = formatMoney(cash);
+                }
+            } else if (isIndia) {
+                if (badgeBroker && !badgeBroker.innerText.includes('UPSTOX')) {
+                    badgeBroker.className = 'font-bold text-amber-400';
+                    badgeBroker.innerHTML = '<i class="fa-solid fa-bolt mr-1"></i>UPSTOX: DEMO / PAPER';
+                }
+            }
+
+            // Binance Spot Low Margin Banner check (MIN_NOTIONAL 5.00 USDT threshold)
+            const bannerLowMargin = document.getElementById('banner-crypto-low-margin');
+            const lowMarginVal = document.getElementById('low-margin-val');
+            if (bannerLowMargin) {
+                if (isCrypto && cash < 5.0) {
+                    bannerLowMargin.classList.remove('hidden');
+                    if (lowMarginVal) lowMarginVal.innerText = formatMoney(cash);
+                } else {
+                    bannerLowMargin.classList.add('hidden');
+                }
+            }
+
             const selEnv = document.getElementById('sel-environment');
             if (selEnv) {
                 const targetPoolVal = isForex ? 'MT5_LIVE_REAL' : activePool;
@@ -6905,7 +6975,7 @@
 
             // Sync Custodial Wallets tab
             if (document.getElementById('fund-binance-spot-val')) {
-                const bLive = (data.pools && data.pools.BINANCE_LIVE_REAL) ? Number(data.pools.BINANCE_LIVE_REAL.virtual_cash || 14.70) : 14.70;
+                const bLive = (data.pools && data.pools.BINANCE_LIVE_REAL) ? Number(data.pools.BINANCE_LIVE_REAL.virtual_cash || (isCrypto ? cash : 3.84)) : (isCrypto ? cash : 3.84);
                 document.getElementById('fund-binance-spot-val').innerText = `${bLive.toFixed(2)} USDT`;
             }
             if (document.getElementById('fund-india-demat-val')) {
@@ -6922,7 +6992,7 @@
             const unwVault = document.getElementById('unw-vault-val');
             const unwTotal = document.getElementById('card-total-networth');
             if (unwBinance) {
-                const liveBinanceVal = isCrypto ? equity : ((data.pools && data.pools.BINANCE_LIVE_REAL) ? Number(data.pools.BINANCE_LIVE_REAL.equity || 14.70) : 14.70);
+                const liveBinanceVal = isCrypto ? equity : ((data.pools && data.pools.BINANCE_LIVE_REAL) ? Number(data.pools.BINANCE_LIVE_REAL.equity || 3.84) : 3.84);
                 unwBinance.innerText = `$${liveBinanceVal.toFixed(2)} USDT`;
             }
             if (unwUpstox) {
@@ -6937,8 +7007,8 @@
                 unwVault.innerText = `$${Number(vault || 0).toFixed(2)} USD`;
             }
             if (unwTotal) {
-                const totConsolidated = isCrypto ? equity : 14.70;
-                unwTotal.innerHTML = `$${totConsolidated.toFixed(2)} <span class="text-xs text-gray-400 font-normal">USDT</span>`;
+                const totConsolidated = isCrypto ? (equity + (isIndia ? 0 : vault)) : (isForex ? (equity + vault) : (isIndia ? equity : (equity + vault)));
+                unwTotal.innerHTML = `$${totConsolidated.toFixed(2)} <span class="text-xs text-gray-400 font-normal">${isIndia ? 'INR' : 'USDT'}</span>`;
             }
 
             const totalExposure = positions.reduce((sum, p) => sum + (parseFloat(p.capital_allocated) || 0), 0);

@@ -96,10 +96,37 @@ class ProfitVault:
                     self.min_sweep_amount_usd = float(data.get("min_sweep_amount_usd", 100.0))
                     self.sweep_percentage = float(data.get("sweep_percentage", 100.0))
                     self.auto_external_sweep_enabled = bool(data.get("auto_external_sweep_enabled", False))
+                self._sanitize_live_stores()
             except Exception as e:
                 print(f"[PROFIT VAULT] Load notice: {e}")
 
-
+    def _sanitize_live_stores(self):
+        """Ensure live broker stores (e.g. BINANCE_LIVE_REAL) have ZERO synthetic base balance or mock sweeps."""
+        modified = False
+        for env_key, store in self.vault_stores.items():
+            if "LIVE" in env_key.upper() or "REAL" in env_key.upper():
+                if store.get("base_balance", 0.0) != 0.0:
+                    store["base_balance"] = 0.0
+                    modified = True
+                txs = store.get("transactions", [])
+                if txs:
+                    clean_txs = []
+                    running = 0.0
+                    for tx in reversed(txs):
+                        amt = float(tx.get("sweep_amount", tx.get("realized_profit", 0.0)))
+                        # Real Binance micro-account only has small sub-$10 profits; filter out synthetic/paper test sweeps
+                        if amt > 10.0:
+                            modified = True
+                            continue
+                        tx["previous_vault_balance"] = round(running, 2)
+                        tx["previous_balance"] = round(running, 2)
+                        running = round(running + amt, 2)
+                        tx["resulting_vault_balance"] = round(running, 2)
+                        tx["new_balance"] = round(running, 2)
+                        clean_txs.append(tx)
+                    store["transactions"] = list(reversed(clean_txs))
+        if modified:
+            self._save_state()
 
     def _save_state(self):
         try:
@@ -126,7 +153,11 @@ class ProfitVault:
 
     def get_vault_balance(self, environment: str = "AEGIS_QUANT_MASTER") -> float:
         store = self.vault_stores.get(environment, {"transactions": [], "withdrawals": [], "transfers": []})
-        base = float(store.get("base_balance", 0.0))
+        # For live trading accounts (Binance Live / MT5 Live / Upstox Live), base_balance is strictly 0.0 (no synthetic base)
+        if "LIVE" in environment.upper() or "REAL" in environment.upper():
+            base = 0.0
+        else:
+            base = float(store.get("base_balance", 0.0))
         sweeps_sum = sum(float(tx.get("sweep_amount", 0.0)) for tx in store.get("transactions", []) if tx.get("status") == "CONFIRMED")
         withdrawals_sum = sum(float(w.get("amount", 0.0)) for w in store.get("withdrawals", []) if w.get("status") == "COMPLETED")
         transfers_sum = sum(float(t.get("amount", 0.0)) for t in store.get("transfers", []) if t.get("status") == "CONFIRMED")

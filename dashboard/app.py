@@ -209,14 +209,21 @@ async def read_dashboard(request: Request):
         cash_str = f"{cash_val:,.2f} USDT"
         vault_str = f"{vault_val:,.2f} USDT"
         total_assets_str = f"{(eq_val + vault_val):,.2f} USDT"
-        margin_str = "10,000.00 USDT"
-        today_pnl_str = "+0.00 USDT"
-        exposure_str = "0.00 USDT"
+        margin_str = f"{cash_val:,.2f} USDT"
+        today_pnl_str = f"{'+' if unrealized_pnl_val >= 0 else ''}{unrealized_pnl_val:,.2f} USDT"
+        exposure_str = f"{exposure_val:,.2f} USDT"
         venue_badge = "BINANCE (CRYPTO ACTIVE)"
         venue_title = "CRYPTO MARKETS (BINANCE)"
         venue_subtitle = "Currency: USDT ($) • 24/7 Continuous Spot & Futures • Multi-Model Risk Engine"
-        broker_badge = '<i class="fa-solid fa-cube mr-1"></i>BINANCE: TESTNET DEMO ACTIVE'
-        hdr_env_label = f"BINANCE TESTNET POOL ({eq_str})"
+        from execution.binance_broker import binance_broker
+        b_stat = binance_broker.get_authoritative_status()
+        is_live_auth = bool(b_stat.get("live", {}).get("authenticated") or active_pool == "BINANCE_LIVE_REAL")
+        if is_live_auth:
+            broker_badge = '<i class="fa-solid fa-circle-check mr-1"></i>BINANCE: LIVE AUTHENTICATED'
+            hdr_env_label = f"BINANCE LIVE POOL ({eq_str})"
+        else:
+            broker_badge = '<i class="fa-solid fa-cube mr-1"></i>BINANCE: TESTNET DEMO ACTIVE'
+            hdr_env_label = f"BINANCE TESTNET POOL ({eq_str})"
         scanner_subtitle = "Real-time market scanning across Binance Spot & Futures (USDT Pairs)"
         order_title = "Fast Order Execution Terminal — Binance Exchange"
         order_subtitle = "Server-side 7-Gate Risk Engine validates all parameters before execution (Binance Spot & Futures)"
