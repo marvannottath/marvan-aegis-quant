@@ -1833,8 +1833,18 @@ class BinanceBroker:
             cur_price = round(cur_price, precision)
 
             val_usd = round(total_qty * cur_price, 2)
-            # Filter out true dust (< $0.05)
-            if val_usd < 0.05:
+            # Check if this position was explicitly opened by the bot/system
+            has_internal_record = False
+            try:
+                from execution.paper_broker import paper_broker
+                has_internal_record = (ticker_symbol in paper_broker.positions or 
+                                       ticker_symbol in paper_broker.pools.get("BINANCE_LIVE_REAL", {}).get("positions", {}))
+            except Exception:
+                pass
+
+            # Binance Spot API hard-rejects market sell orders below $5-$10 (MIN_NOTIONAL).
+            # Filter out pre-existing wallet dust (< $10.00) so unclosable external dust is not shown as an active bot trade.
+            if val_usd < 10.0 and not has_internal_record:
                 self._entry_price_cache.pop(f"{asset}USDT", None)
                 continue
 
