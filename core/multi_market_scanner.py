@@ -98,7 +98,15 @@ class MultiMarketScanner:
         Scan ONLY assets belonging strictly to the requested workspace.
         Computes real-time AI Opportunity Score (0 - 100%) for each workspace asset.
         For CRYPTO: fetches genuine live ticks directly from Binance public bookTicker.
+        Caches for 4.0s to ensure instantaneous page rendering without repeated network calls.
         """
+        now = time.time()
+        if not hasattr(self, "_scan_cache"):
+            self._scan_cache = {}
+            self._scan_cache_ts = {}
+        if (now - self._scan_cache_ts.get(workspace, 0)) < 4.0 and workspace in self._scan_cache:
+            return self._scan_cache[workspace]
+
         self.step_counter += 1
         registry = self._get_registry_for_workspace(workspace)
         results = []
@@ -162,6 +170,8 @@ class MultiMarketScanner:
             })
 
         results.sort(key=lambda x: x["opportunity_score"], reverse=True)
+        self._scan_cache[workspace] = results
+        self._scan_cache_ts[workspace] = now
         return results
 
     scan_markets = scan_workspace

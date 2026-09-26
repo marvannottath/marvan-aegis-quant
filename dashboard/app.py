@@ -176,8 +176,8 @@ async def read_dashboard(request: Request):
 
     # 2. Authoritative Position Snapshot & Single Aggregation Layer (Section 1, 2, 10)
     from core.position_snapshot_service import position_snapshot_service
-    pos_snap = position_snapshot_service.get_snapshot(active_ws)
-    port_agg = position_snapshot_service.get_portfolio_aggregate(active_ws)
+    pos_snap = await asyncio.to_thread(position_snapshot_service.get_snapshot, active_ws)
+    port_agg = await asyncio.to_thread(position_snapshot_service.get_portfolio_aggregate, active_ws)
 
     eq_val = port_agg["total_equity"]
     cash_val = port_agg["free_cash"]
@@ -225,7 +225,7 @@ async def read_dashboard(request: Request):
         venue_title = "CRYPTO MARKETS (BINANCE)"
         venue_subtitle = "Currency: USDT ($) • 24/7 Continuous Spot & Futures • Multi-Model Risk Engine"
         from execution.binance_broker import binance_broker
-        b_stat = binance_broker.get_authoritative_status()
+        b_stat = await asyncio.to_thread(binance_broker.get_authoritative_status)
         is_live_auth = bool(b_stat.get("live", {}).get("authenticated") or active_pool == "BINANCE_LIVE_REAL")
         if is_live_auth:
             broker_badge = '<i class="fa-solid fa-circle-check mr-1"></i>BINANCE: LIVE AUTHENTICATED'
@@ -309,7 +309,7 @@ async def read_dashboard(request: Request):
 
     # 4. Pre-render Market Scanner Rows
     from core.multi_market_scanner import multi_market_scanner
-    scanned_markets = multi_market_scanner.scan_workspace(active_ws)
+    scanned_markets = await asyncio.to_thread(multi_market_scanner.scan_workspace, active_ws)
     scanner_rows_html = ""
     for m in scanned_markets:
         sym = m.get("ticker", m.get("symbol", ""))
@@ -829,8 +829,8 @@ async def get_state(workspace: Optional[str] = None, request_id: Optional[str] =
 
     # Positions: Single Authoritative Position Snapshot (Sections 1, 2, 9, 10)
     from core.position_snapshot_service import position_snapshot_service
-    pos_snapshot = position_snapshot_service.get_snapshot(ws)
-    port_aggregate = position_snapshot_service.get_portfolio_aggregate(ws)
+    pos_snapshot = await asyncio.to_thread(position_snapshot_service.get_snapshot, ws)
+    port_aggregate = await asyncio.to_thread(position_snapshot_service.get_portfolio_aggregate, ws)
     positions = pos_snapshot["positions"]
     equity_val = port_aggregate["total_equity"]
     cash_val = port_aggregate["free_cash"]
@@ -842,7 +842,7 @@ async def get_state(workspace: Optional[str] = None, request_id: Optional[str] =
 
     if active_pool == "BINANCE_LIVE_REAL" or ws == "CRYPTO":
         try:
-            live_binance_orders = binance_broker.get_all_open_orders("BINANCE_LIVE")
+            live_binance_orders = await asyncio.to_thread(binance_broker.get_all_open_orders, "BINANCE_LIVE")
             raw_orders = live_binance_orders if live_binance_orders else pool_data.get("order_stream", [])
         except Exception:
             raw_orders = pool_data.get("order_stream", [])
@@ -1834,7 +1834,8 @@ async def test_telegram_alert_endpoint(request: Request):
 @app.get("/api/binance-status")
 async def get_binance_status_endpoint():
     """Fetch authoritative connection status, credentials, and market data health of Binance broker."""
-    return JSONResponse(binance_broker.get_authoritative_status())
+    res = await asyncio.to_thread(binance_broker.get_authoritative_status)
+    return JSONResponse(res)
 
 @app.post("/api/connect-binance")
 async def connect_binance_endpoint(data: dict):
@@ -4515,8 +4516,8 @@ async def get_api_status():
     from core.position_snapshot_service import position_snapshot_service
     from core.workspace_manager import workspace_manager
     active_ws = workspace_manager.get_active_workspace()
-    pos_snap = position_snapshot_service.get_snapshot(active_ws)
-    port_agg = position_snapshot_service.get_portfolio_aggregate(active_ws)
+    pos_snap = await asyncio.to_thread(position_snapshot_service.get_snapshot, active_ws)
+    port_agg = await asyncio.to_thread(position_snapshot_service.get_portfolio_aggregate, active_ws)
 
     return {
         "status": "HEALTHY",
@@ -5315,7 +5316,7 @@ async def get_position_snapshot(workspace: Optional[str] = None):
         from core.position_snapshot_service import position_snapshot_service
         from core.workspace_manager import workspace_manager
         ws = workspace or workspace_manager.get_active_workspace()
-        snapshot = position_snapshot_service.get_snapshot(ws)
+        snapshot = await asyncio.to_thread(position_snapshot_service.get_snapshot, ws)
         return JSONResponse({"status": "SUCCESS", **snapshot})
     except Exception as e:
         return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
@@ -5329,7 +5330,7 @@ async def get_portfolio_aggregate_endpoint(workspace: Optional[str] = None):
         from core.position_snapshot_service import position_snapshot_service
         from core.workspace_manager import workspace_manager
         ws = workspace or workspace_manager.get_active_workspace()
-        aggregate = position_snapshot_service.get_portfolio_aggregate(ws)
+        aggregate = await asyncio.to_thread(position_snapshot_service.get_portfolio_aggregate, ws)
         return JSONResponse({"status": "SUCCESS", **aggregate})
     except Exception as e:
         return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)

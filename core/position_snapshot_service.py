@@ -231,7 +231,7 @@ class PositionSnapshotService:
         self._snapshot_cache_ts[target_ws] = now
         return snap_dict
 
-    def get_portfolio_aggregate(self, workspace: Optional[str] = None) -> Dict[str, Any]:
+    def get_portfolio_aggregate(self, workspace: Optional[str] = None, force_refresh: bool = False) -> Dict[str, Any]:
         """
         Single authoritative aggregation layer for Top-Level Metrics (Section 10).
         Calculates:
@@ -244,6 +244,7 @@ class PositionSnapshotService:
           - Realized PnL
           - Drawdown
         All UI cards derive strictly from this aggregate response.
+        Caches for 3.0s for high throughput.
         """
         from core.workspace_manager import workspace_manager
         from core.double_entry_ledger import double_entry_ledger
@@ -251,6 +252,16 @@ class PositionSnapshotService:
         from execution.profit_vault import profit_vault
 
         target_ws = workspace_manager._normalize_workspace(workspace)
+        now = time.time()
+        if not hasattr(self, "_agg_cache"):
+            self._agg_cache = {}
+            self._agg_cache_ts = {}
+
+        if not force_refresh and (now - self._agg_cache_ts.get(target_ws, 0)) < 3.0:
+            cached = self._agg_cache.get(target_ws)
+            if cached:
+                return cached
+
         meta = workspace_manager.get_workspace_meta(target_ws)
         default_pool = workspace_manager.get_workspace_pool(target_ws) if hasattr(workspace_manager, "get_workspace_pool") else meta.get("default_pool", "AEGIS_INDIA_INR")
         allowed_pools = meta.get("allowed_pools", [default_pool])
@@ -304,7 +315,7 @@ class PositionSnapshotService:
         else:
             drawdown_pct = max(0.0, round(((peak_equity - total_equity) / peak_equity) * 100.0, 2))
 
-        return {
+        res = {
             "workspace": target_ws,
             "pool_name": pool_name,
             "currency": pos_snap["currency"],
@@ -326,6 +337,9 @@ class PositionSnapshotService:
             "status": pos_snap["status"],
             "snapshot": pos_snap
         }
+        self._agg_cache[target_ws] = res
+        self._agg_cache_ts[target_ws] = now
+        return res
 
 
 # Global Singleton

@@ -361,16 +361,13 @@ class BinanceBroker:
                 holdings_val_usd = 0.0
                 non_stable = [b for b in bals if b.get("asset") not in ["USDT", "BUSD", "USDC", "FDUSD"] and (float(b.get("free", 0)) > 0 or float(b.get("locked", 0)) > 0)]
                 if non_stable:
+                    bulk_prices = self.get_bulk_market_data()
                     for b in non_stable:
                         qty = float(b.get("free", 0)) + float(b.get("locked", 0))
                         sym = f"{b.get('asset')}USDT"
-                        try:
-                            md = self.get_market_data(environment, sym)
-                            px = float(md.get("last_price", 0.0) or md.get("price", 0.0))
-                            if px > 0:
-                                holdings_val_usd += (qty * px)
-                        except Exception:
-                            pass
+                        px = float(bulk_prices.get(sym, {}).get("last_price", 0.0))
+                        if px > 0:
+                            holdings_val_usd += (qty * px)
 
                 # Query Binance Futures summary if available
                 f_summary = self.get_futures_account_summary(environment)
@@ -1533,35 +1530,19 @@ class BinanceBroker:
     def get_account_info_legacy(self) -> Dict[str, Any]:
         return self.get_status()
 
-    def get_authoritative_status(self, environment: Optional[str] = None) -> Dict[str, Any]:
+    def get_authoritative_status(self, environment: Optional[str] = None, force_refresh: bool = False) -> Dict[str, Any]:
         """
-        Produce authoritative, unified status according to Requirement 20 schema:
-        {
-          "testnet": {
-            "configured": bool,
-            "api_key_set": bool,
-            "api_key_masked": str,
-            "secret_key_set": bool,
-            "authenticated": bool,
-            "account_status": str,
-            "available_balance": float,
-            "locked_balance": float,
-            "last_validated": str,
-            "validation_error": str
-          },
-          "live": { ... },
-          "market_data": {
-            "source": "BINANCE_PUBLIC_REST",
-            "status": "HEALTHY",
-            "last_tick_timestamp": str,
-            "symbols_tracked": int,
-            "sample_price_btc": float
-          },
-          "active_environment": "TESTNET" | "LIVE",
-          "live_trading_enabled": bool,
-          "timestamp": str
-        }
+        Produce authoritative, unified status according to Requirement 20 schema.
+        Caches for 5.0s to eliminate redundant broker API overhead.
         """
+        now = time.time()
+        if not hasattr(self, "_auth_status_cache"):
+            self._auth_status_cache = None
+            self._auth_status_cache_ts = 0.0
+
+        if not force_refresh and (now - self._auth_status_cache_ts) < 5.0 and self._auth_status_cache:
+            return self._auth_status_cache
+
         now_str = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S IST")
 
         # 1. Testnet status
@@ -1572,13 +1553,16 @@ class BinanceBroker:
         testnet_avail = 0.0
         testnet_locked = 0.0
         testnet_err = "No API key configured"
-        if testnet_configured:
+        if testnet_configured and (self.testnet or environment in ["TESTNET", "BINANCE_TESTNET", "DEMO"]):
             acc_demo = self.get_account_info("BINANCE_TESTNET_DEMO")
             testnet_auth = acc_demo.get("authenticated", False)
             testnet_status = "AUTHENTICATED" if testnet_auth else "AUTH_FAILED"
             testnet_avail = acc_demo.get("available_balance", 0.0)
             testnet_locked = acc_demo.get("locked_balance", 0.0)
             testnet_err = acc_demo.get("message") or acc_demo.get("error") if not testnet_auth else None
+        elif testnet_configured:
+            testnet_status = "CONFIGURED"
+            testnet_err = None
 
         # 2. Live status
         live_configured = bool(self.live_api_key and self.live_secret_key)
@@ -1589,6 +1573,9 @@ class BinanceBroker:
         live_locked = 0.0
         live_tot_equity = 0.0
         live_holdings = 0.0
+        live_fut_bal = 0.0
+        live_fut_avail = 0.0
+        live_fut_upnl = 0.0
         live_err = "No API key configured"
         if live_configured:
             acc_live = self.get_account_info("BINANCE_LIVE_REAL")
@@ -1667,7 +1654,7 @@ class BinanceBroker:
             "sample_price_btc": sample_btc
         }
 
-        return {
+        res = {
             # Requirement 20 schema
             "testnet": testnet_block,
             "live": live_block,
@@ -1692,6 +1679,9 @@ class BinanceBroker:
             "error": (testnet_err if self.testnet else live_err) if not active_auth else None,
             "server_timestamp": int(time.time() * 1000)
         }
+        self._auth_status_cache = res
+        self._auth_status_cache_ts = now
+        return res
 
     def get_status(self) -> Dict[str, Any]:
         """Return truthful connection state and masked API key."""
@@ -1781,8 +1771,7 @@ class BinanceBroker:
             if b_info and float(b_info.get("last_price", 0)) > 0:
                 cur_price = float(b_info["last_price"])
             else:
-                mdata = self.get_market_data(environment, ticker_symbol)
-                cur_price = float(mdata.get("last_price", 1.0))
+                cur_price = float(self._entry_price_cache.get(ticker_symbol, 1.0))
 
             if cur_price <= 0:
                 continue
@@ -1818,17 +1807,18 @@ class BinanceBroker:
 
             if not entry_price and ticker_symbol not in self._fills_checked_cache:
                 self._fills_checked_cache.add(ticker_symbol)
-                # Query historical trade fills on Binance for the true buy price once
-                try:
-                    fills = self.get_execution_fills(environment, ticker_symbol, limit=10)
-                    for fill in reversed(fills):
-                        if fill.get("isBuyer") or fill.get("buyer"):
-                            f_px = float(fill.get("price", 0.0))
-                            if f_px > 0:
-                                entry_price = f_px
-                                break
-                except Exception:
-                    pass
+                # Only query trade fills for positions with value >= $10.00 to avoid blocking on dust
+                if val_usd >= 10.0:
+                    try:
+                        fills = self.get_execution_fills(environment, ticker_symbol, limit=5)
+                        for fill in reversed(fills):
+                            if fill.get("isBuyer") or fill.get("buyer"):
+                                f_px = float(fill.get("price", 0.0))
+                                if f_px > 0:
+                                    entry_price = f_px
+                                    break
+                    except Exception:
+                        pass
 
             if not entry_price and ticker_symbol in KNOWN_ENTRY_PRICES:
                 entry_price = KNOWN_ENTRY_PRICES[ticker_symbol]
@@ -1910,6 +1900,7 @@ class BinanceBroker:
             resp = requests.get(f"{base_url}/sapi/v1/margin/account", params=signed, headers=headers, timeout=3.5)
             if resp.status_code == 200:
                 data = resp.json()
+                bulk_prices = self.get_bulk_market_data()
                 for a in data.get("userAssets", []):
                     asset = a.get("asset", "")
                     if asset in ["USDT", "BUSD", "USDC", "FDUSD"]:
@@ -1918,8 +1909,7 @@ class BinanceBroker:
                     borrowed = float(a.get("borrowed", 0.0))
                     if abs(net_amt) > 0.000001 or borrowed > 0.000001:
                         sym = f"{asset}USDT"
-                        mdata = self.get_market_data(environment, sym)
-                        px = float(mdata.get("last_price", 1.0) or 1.0)
+                        px = float(bulk_prices.get(sym, {}).get("last_price", 1.0) or 1.0)
                         val_usd = round(abs(net_amt) * px, 2)
                         if val_usd >= 0.05:
                             side = "BUY" if net_amt >= 0 else "SELL"
