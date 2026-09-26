@@ -57,7 +57,7 @@ class PositionSnapshotService:
         """Reset forced reconciliation status."""
         self._forced_recon_status = None
 
-    def get_snapshot(self, workspace: Optional[str] = None) -> Dict[str, Any]:
+    def get_snapshot(self, workspace: Optional[str] = None, force_refresh: bool = False) -> Dict[str, Any]:
         """
         Generate an authoritative, deterministic position snapshot for the specified workspace.
         """
@@ -65,6 +65,16 @@ class PositionSnapshotService:
         from execution.paper_broker import paper_broker
 
         target_ws = workspace_manager._normalize_workspace(workspace)
+        now = time.time()
+        if not hasattr(self, "_snapshot_cache"):
+            self._snapshot_cache = {}
+            self._snapshot_cache_ts = {}
+
+        if not force_refresh and (now - self._snapshot_cache_ts.get(target_ws, 0)) < 3.0:
+            cached = self._snapshot_cache.get(target_ws)
+            if cached:
+                return cached
+
         meta = workspace_manager.get_workspace_meta(target_ws)
         default_pool = workspace_manager.get_workspace_pool(target_ws) if hasattr(workspace_manager, "get_workspace_pool") else meta.get("default_pool", "AEGIS_INDIA_INR")
         allowed_pools = meta.get("allowed_pools", [default_pool])
@@ -197,7 +207,7 @@ class PositionSnapshotService:
         snapshot_ts = _ist_now()
         snapshot_id = f"SNAP-{target_ws[:3]}-{int(time.time()*1000)}"
 
-        return {
+        snap_dict = {
             "snapshot_id": snapshot_id,
             "generated_at": snapshot_ts,
             "source": "AUTHORITATIVE_POSITION_STORE",
@@ -217,6 +227,9 @@ class PositionSnapshotService:
             "unrealized_pnl": total_unrealized_pnl,
             "positions": verified_positions
         }
+        self._snapshot_cache[target_ws] = snap_dict
+        self._snapshot_cache_ts[target_ws] = now
+        return snap_dict
 
     def get_portfolio_aggregate(self, workspace: Optional[str] = None) -> Dict[str, Any]:
         """

@@ -444,10 +444,23 @@ class BinanceBroker:
             }
 
     def get_futures_account_summary(self, environment: str = "BINANCE_LIVE") -> Dict[str, Any]:
-        """Fetch Binance USDT-M Futures account balances and unrealized PnL."""
+        """Fetch Binance USDT-M Futures account balances and unrealized PnL with TTL caching."""
+        now = time.time()
+        if not hasattr(self, "_f_summary_cache"):
+            self._f_summary_cache = {}
+            self._f_summary_ts = {}
+
+        cache_key = environment
+        if (now - self._f_summary_ts.get(cache_key, 0)) < 4.0:
+            return self._f_summary_cache.get(cache_key, {"total_wallet_balance": 0.0, "total_unrealized_pnl": 0.0, "available_balance": 0.0, "positions": []})
+
         api_k, sec_k, _, is_testnet = self._get_credentials_for_env(environment)
         if not api_k or not sec_k:
-            return {"total_wallet_balance": 0.0, "total_unrealized_pnl": 0.0, "available_balance": 0.0, "positions": []}
+            res = {"total_wallet_balance": 0.0, "total_unrealized_pnl": 0.0, "available_balance": 0.0, "positions": []}
+            self._f_summary_cache[cache_key] = res
+            self._f_summary_ts[cache_key] = now
+            return res
+
         fapi_url = "https://testnet.binancefuture.com" if is_testnet else "https://fapi.binance.com"
         headers = {"X-MBX-APIKEY": api_k}
 
@@ -456,18 +469,26 @@ class BinanceBroker:
             st = self._get_server_time_ms(fapi_url)
             params = {"timestamp": st, "recvWindow": 60000}
             sig, signed = self._sign_query(sec_k, params)
-            resp = requests.get(f"{fapi_url}/fapi/v3/account", params=signed, headers=headers, timeout=4.0)
+            resp = requests.get(f"{fapi_url}/fapi/v3/account", params=signed, headers=headers, timeout=2.0)
             self._last_futures_status = resp.status_code
             if resp.status_code == 200:
                 data = resp.json()
-                return {
+                res = {
                     "total_wallet_balance": float(data.get("totalWalletBalance", 0.0)),
                     "total_unrealized_pnl": float(data.get("totalUnrealizedProfit", 0.0)),
                     "available_balance": float(data.get("availableBalance", 0.0)),
                     "positions": data.get("positions", [])
                 }
+                self._f_summary_cache[cache_key] = res
+                self._f_summary_ts[cache_key] = now
+                return res
             else:
                 self._last_futures_error = resp.text
+                if resp.status_code in [400, 401, 403]:
+                    res = {"total_wallet_balance": 0.0, "total_unrealized_pnl": 0.0, "available_balance": 0.0, "positions": []}
+                    self._f_summary_cache[cache_key] = res
+                    self._f_summary_ts[cache_key] = now
+                    return res
         except Exception as e:
             self._last_futures_error = str(e)
 
@@ -476,7 +497,7 @@ class BinanceBroker:
             st = self._get_server_time_ms(fapi_url)
             params = {"timestamp": st, "recvWindow": 60000}
             sig, signed = self._sign_query(sec_k, params)
-            resp = requests.get(f"{fapi_url}/fapi/v3/balance", params=signed, headers=headers, timeout=4.0)
+            resp = requests.get(f"{fapi_url}/fapi/v3/balance", params=signed, headers=headers, timeout=2.0)
             if resp.status_code == 200:
                 balances = resp.json()
                 tot_bal = 0.0
@@ -488,39 +509,40 @@ class BinanceBroker:
                             tot_bal += float(b.get("balance", 0.0))
                             tot_upnl += float(b.get("crossUnPnl", 0.0))
                             tot_avail += float(b.get("availableBalance", 0.0))
-                return {
+                res = {
                     "total_wallet_balance": tot_bal,
                     "total_unrealized_pnl": tot_upnl,
                     "available_balance": tot_avail,
                     "positions": []
                 }
+                self._f_summary_cache[cache_key] = res
+                self._f_summary_ts[cache_key] = now
+                return res
         except Exception:
             pass
 
-        # 3. Fallback to /fapi/v2/account
-        try:
-            st = self._get_server_time_ms(fapi_url)
-            params = {"timestamp": st, "recvWindow": 60000}
-            sig, signed = self._sign_query(sec_k, params)
-            resp = requests.get(f"{fapi_url}/fapi/v2/account", params=signed, headers=headers, timeout=3.5)
-            if resp.status_code == 200:
-                data = resp.json()
-                return {
-                    "total_wallet_balance": float(data.get("totalWalletBalance", 0.0)),
-                    "total_unrealized_pnl": float(data.get("totalUnrealizedProfit", 0.0)),
-                    "available_balance": float(data.get("availableBalance", 0.0)),
-                    "positions": data.get("positions", [])
-                }
-        except Exception:
-            pass
-
-        return {"total_wallet_balance": 0.0, "total_unrealized_pnl": 0.0, "available_balance": 0.0, "positions": []}
+        res = {"total_wallet_balance": 0.0, "total_unrealized_pnl": 0.0, "available_balance": 0.0, "positions": []}
+        self._f_summary_cache[cache_key] = res
+        self._f_summary_ts[cache_key] = now
+        return res
 
     def get_futures_positions(self, environment: str = "BINANCE_LIVE") -> List[Dict[str, Any]]:
-        """Fetch active USDT-M Futures open positions from Binance."""
+        """Fetch active USDT-M Futures open positions from Binance with TTL caching."""
+        now = time.time()
+        if not hasattr(self, "_futs_pos_cache"):
+            self._futs_pos_cache = {}
+            self._futs_pos_ts = {}
+
+        cache_key = environment
+        if (now - self._futs_pos_ts.get(cache_key, 0)) < 4.0:
+            return self._futs_pos_cache.get(cache_key, [])
+
         api_k, sec_k, _, is_testnet = self._get_credentials_for_env(environment)
         if not api_k or not sec_k:
+            self._futs_pos_cache[cache_key] = []
+            self._futs_pos_ts[cache_key] = now
             return []
+
         fapi_url = "https://testnet.binancefuture.com" if is_testnet else "https://fapi.binance.com"
         headers = {"X-MBX-APIKEY": api_k}
         active_futs = []
@@ -529,9 +551,9 @@ class BinanceBroker:
             st = self._get_server_time_ms(fapi_url)
             params = {"timestamp": st, "recvWindow": 60000}
             sig, signed = self._sign_query(sec_k, params)
-            resp = requests.get(f"{fapi_url}/fapi/v3/positionRisk", params=signed, headers=headers, timeout=4.0)
+            resp = requests.get(f"{fapi_url}/fapi/v3/positionRisk", params=signed, headers=headers, timeout=2.0)
             if resp.status_code != 200:
-                resp = requests.get(f"{fapi_url}/fapi/v2/positionRisk", params=signed, headers=headers, timeout=4.0)
+                resp = requests.get(f"{fapi_url}/fapi/v2/positionRisk", params=signed, headers=headers, timeout=2.0)
             self._last_futures_status = resp.status_code
             if resp.status_code != 200:
                 self._last_futures_error = resp.text
@@ -590,11 +612,6 @@ class BinanceBroker:
                         unrealized = float(p.get("unrealizedProfit", 0.0))
                         lev = float(p.get("leverage", 1.0))
                         mark_px = entry_px
-                        try:
-                            md = self.get_market_data(environment, sym)
-                            mark_px = float(md.get("last_price", 0.0) or md.get("price", entry_px))
-                        except Exception:
-                            pass
                         notional = abs(amt * mark_px)
                         allocated = round(notional / max(1.0, lev), 2)
                         side = "BUY" if amt > 0 else "SELL"
@@ -625,6 +642,10 @@ class BinanceBroker:
                         })
             except Exception:
                 pass
+
+        self._futs_pos_cache[cache_key] = active_futs
+        self._futs_pos_ts[cache_key] = now
+        return active_futs
 
         # Also query COIN-M Futures if available
         dapi_url = "https://testnet.binancefuture.com" if is_testnet else "https://dapi.binance.com"
@@ -1723,8 +1744,17 @@ class BinanceBroker:
                 return round(float(b.get("free", 0.0)), 2)
         return self.get_real_live_spot_balance()
 
-    def get_open_positions(self, environment: str = "BINANCE_TESTNET") -> List[Dict[str, Any]]:
+    def get_open_positions(self, environment: str = "BINANCE_TESTNET", force_refresh: bool = False) -> List[Dict[str, Any]]:
         """Fetch active spot balances and holdings from Binance API formatted as dynamic open positions with live PnL."""
+        now = time.time()
+        if not hasattr(self, "_open_pos_cache"):
+            self._open_pos_cache = {}
+            self._open_pos_ts = {}
+
+        cache_key = environment
+        if not force_refresh and (now - self._open_pos_ts.get(cache_key, 0)) < 3.5:
+            return self._open_pos_cache.get(cache_key, [])
+
         is_testnet_env = ("TESTNET" in environment.upper() or "DEMO" in environment.upper())
         bals = self.get_balances(environment)
         positions = []
@@ -1862,6 +1892,8 @@ class BinanceBroker:
         except Exception as e:
             print(f"[BINANCE] Margin positions merge notice: {e}")
 
+        self._open_pos_cache[cache_key] = positions
+        self._open_pos_ts[cache_key] = now
         return positions
 
     def get_margin_positions(self, environment: str = "BINANCE_LIVE") -> List[Dict[str, Any]]:
