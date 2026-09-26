@@ -1464,6 +1464,18 @@ async def close_position_endpoint(request: Request):
             except Exception:
                 pass
 
+        # If it is a live Binance Futures position, execute reduceOnly close on Binance
+        is_futures = ("FUT" in str(pos.get("trade_id", "")) or "FUTURES" in str(pos.get("product", "")).upper() or pos.get("source") == "BINANCE_FUTURES_LIVE")
+        if is_futures:
+            try:
+                from execution.binance_broker import binance_broker
+                f_qty = float(pos.get("units") or pos.get("quantity") or 0.0)
+                f_side = str(pos.get("side") or pos.get("action") or "BUY").upper()
+                close_res = binance_broker.close_futures_position(asset, side=f_side, quantity=f_qty, environment="BINANCE_LIVE")
+                print(f"[CLOSE_FUTURES_BINANCE]: {close_res}")
+            except Exception as e:
+                print(f"[CLOSE_FUTURES_BINANCE_ERR]: {e}")
+
         res = paper_broker.close_position(asset, exit_price=exit_price, reason="MANUAL_TRADER_EXIT")
         if not res or (isinstance(res, dict) and res.get("status") == "FAILED"):
             err_msg = res.get("error", "Position close failed.") if isinstance(res, dict) else "Position close failed."

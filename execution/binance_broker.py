@@ -467,6 +467,7 @@ class BinanceBroker:
             st = self._get_server_time_ms(fapi_url)
             params = {"timestamp": st, "recvWindow": 60000}
             sig, signed = self._sign_query(sec_k, params)
+            headers = {"X-MBX-APIKEY": api_k}
             resp = requests.get(f"{fapi_url}/fapi/v3/positionRisk", params=signed, headers=headers, timeout=4.0)
             if resp.status_code != 200:
                 resp = requests.get(f"{fapi_url}/fapi/v2/positionRisk", params=signed, headers=headers, timeout=4.0)
@@ -563,6 +564,36 @@ class BinanceBroker:
         except Exception:
             pass
         return []
+
+    def close_futures_position(self, symbol: str, side: str = "BUY", quantity: float = 0.0, environment: str = "BINANCE_LIVE") -> Dict[str, Any]:
+        """Close an active USDT-M Futures position on Binance with reduceOnly market order."""
+        api_k, sec_k, _, is_testnet = self._get_credentials_for_env(environment)
+        if not api_k or not sec_k:
+            return {"status": "ERROR", "message": "Binance API keys not configured."}
+        
+        # If position is LONG (BUY), close by SELLING; if SHORT (SELL), close by BUYING
+        close_side = "SELL" if side.upper() in ["BUY", "LONG"] else "BUY"
+        fapi_url = "https://testnet.binancefuture.com" if is_testnet else "https://fapi.binance.com"
+        try:
+            st = self._get_server_time_ms(fapi_url)
+            params = {
+                "symbol": symbol.upper(),
+                "side": close_side,
+                "type": "MARKET",
+                "quantity": abs(quantity),
+                "reduceOnly": "true",
+                "timestamp": st,
+                "recvWindow": 60000
+            }
+            sig, signed = self._sign_query(sec_k, params)
+            headers = {"X-MBX-APIKEY": api_k}
+            resp = requests.post(f"{fapi_url}/fapi/v1/order", params=signed, headers=headers, timeout=5.0)
+            if resp.status_code == 200:
+                return {"status": "SUCCESS", "data": resp.json(), "message": f"Closed {symbol} Futures position on Binance."}
+            else:
+                return {"status": "ERROR", "code": resp.status_code, "message": resp.text}
+        except Exception as e:
+            return {"status": "ERROR", "message": str(e)}
 
     def get_spot_open_orders(self, environment: str = "BINANCE_LIVE") -> List[Dict[str, Any]]:
         """Fetch active open orders waiting on Binance Spot exchange."""
