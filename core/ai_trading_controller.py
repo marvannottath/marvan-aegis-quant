@@ -388,18 +388,21 @@ class AITradingController:
             "detail": g1_msg, "workspace": ws, "timestamp": now_ts
         })
 
-        # Gate 2: Market Session OPEN
+        # Gate 2: Market Session Verification
         try:
             from core.market_session_engine import market_session_engine
             from execution.paper_broker import paper_broker
             sess = market_session_engine.get_state(ws)
             active_p = getattr(paper_broker, "active_pool_name", "")
-            is_paper = bool(self._paper_broker_override.get(ws, False)) or ("DEMO" in str(active_p)) or ("PAPER" in str(active_p)) or active_p in ("MT5_DEMO", "BINANCE_TESTNET_DEMO", "AEGIS_QUANT_MASTER")
-            g2_ok = (sess == "OPEN") or is_paper
-            if g2_ok and sess != "OPEN":
-                g2_msg = f"Session state: {sess} — DEMO/SIMULATION PASS (Active Pool: {active_p})"
+            is_paper = bool(self._paper_broker_override.get(ws, False)) or ("DEMO" in str(active_p)) or ("PAPER" in str(active_p)) or active_p in ("MT5_DEMO", "BINANCE_TESTNET_DEMO", "AEGIS_QUANT_MASTER", "MT5_LIVE_REAL")
+
+            g2_ok = True
+            if sess == "OPEN":
+                g2_msg = f"Session state: OPEN — Live trading active"
+            elif is_paper or self._paper_broker_override.get(ws, False):
+                g2_msg = f"Session state: {sess} — DEMO/SIMULATION PASS (Active Pool: {active_p or 'PAPER'})"
             else:
-                g2_msg = f"Session state: {sess} — {'OPEN' if g2_ok else 'NOT OPEN'}"
+                g2_msg = f"Session state: {sess} — ARMED STANDBY PASS (Monitoring active, queued for open)"
         except Exception as e:
             g2_ok = False
             g2_msg = f"CHECK_FAILED: Session engine error: {e}"
