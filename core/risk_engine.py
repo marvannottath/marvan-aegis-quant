@@ -8,39 +8,39 @@ RISK_STATE_FILE = Path(__file__).resolve().parent.parent / "data" / "risk_profil
 PROFILES = {
     "CONSERVATIVE": {
         "name": "CONSERVATIVE",
-        "description": "Low Risk Capital Preservation (2x Max Leverage, 1% Risk Cap)",
+        "description": "Hyper-Scalping Preservation (2x Max Leverage, 1% Risk Cap)",
         "default_leverage": 2.0,
         "max_leverage": 2.0,
         "max_risk_per_trade_pct": 1.0,
         "max_open_positions": 4,
         "min_open_positions": 2,
         "circuit_breaker_drawdown_pct": 5.0,
-        "take_profit_target_pct": 1.5,
-        "stop_loss_pct": 0.8
+        "take_profit_target_pct": 0.15,
+        "stop_loss_pct": 0.4
     },
     "MODERATE": {
         "name": "MODERATE",
-        "description": "Standard Balanced Institutional Growth (10x Max Leverage, 2.5% Risk Cap)",
+        "description": "Standard Balanced Scalping (10x Max Leverage, 2.5% Risk Cap)",
         "default_leverage": 10.0,
         "max_leverage": 10.0,
         "max_risk_per_trade_pct": 2.5,
         "max_open_positions": 8,
         "min_open_positions": 4,
         "circuit_breaker_drawdown_pct": 10.0,
-        "take_profit_target_pct": 3.5,
-        "stop_loss_pct": 1.5
+        "take_profit_target_pct": 0.3,
+        "stop_loss_pct": 0.8
     },
     "AGGRESSIVE": {
         "name": "AGGRESSIVE",
-        "description": "High Yield Alpha Quant Scalping (25x Max Leverage, 5% Risk Cap)",
+        "description": "High Frequency Alpha Scalping (25x Max Leverage, 5% Risk Cap)",
         "default_leverage": 25.0,
         "max_leverage": 25.0,
         "max_risk_per_trade_pct": 5.0,
         "max_open_positions": 10,
         "min_open_positions": 6,
         "circuit_breaker_drawdown_pct": 20.0,
-        "take_profit_target_pct": 6.0,
-        "stop_loss_pct": 2.5
+        "take_profit_target_pct": 0.5,
+        "stop_loss_pct": 1.2
     }
 }
 
@@ -169,18 +169,17 @@ class RiskEngine:
         conf_scalar = max(0.6, min(1.3, confidence_score / 70.0))
         size = base_size * vol_scalar * conf_scalar
 
-        # Retail / Micro-Account Support ($5.50 - $100):
-        # Binance minimum notional is $5.00 USDT.
-        # For micro-accounts between $5.50 and $30.0 USDT, size each trade at $6.00 USDT so that
-        # 2 concurrent trades can be opened and tested simultaneously (e.g. $6 + $6 = $12 from ~$14.76).
+        # Retail / Micro-Account Support ($11.00 - $100):
+        # Binance minimum notional is $5.00 USDT but with fees and market drops, selling anything <$10 is highly risky.
+        # For micro-accounts, size each trade at $12.00 USDT minimum to guarantee execution of exits.
         if 5.50 <= virtual_cash < 30.0:
-            size = min(virtual_cash, 6.00)
+            size = min(virtual_cash, 12.00)
         elif 30.0 <= virtual_cash < 100.0:
-            size = max(10.0, size)
+            size = max(15.0, size)
 
         # Ensure order size never exceeds available cash or user custom trade cap,
-        # and has a minimum floor of 5.0 (exchange min notional) when cash allows.
-        capped_size = min(self.custom_trade_cap_usd, min(virtual_cash, max(5.0 if virtual_cash >= 5.0 else virtual_cash, round(size, 2))))
+        # and has a safe minimum floor of 12.0 (exchange min notional + safety buffer).
+        capped_size = min(self.custom_trade_cap_usd, min(virtual_cash, max(12.0 if virtual_cash >= 12.0 else virtual_cash, round(size, 2))))
         return round(capped_size, 2)
 
     def validate_order_pipeline(
