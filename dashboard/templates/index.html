@@ -2855,7 +2855,8 @@
                                 <label class="block text-[11px] font-semibold text-gray-300 uppercase tracking-wider">Trading Environment Selector</label>
                                 <div class="relative">
                                     <select id="sel-environment" onchange="switchEnvironment(this.value)" class="w-full bg-gray-950 border border-darkborder hover:border-amber-500/50 rounded-xl px-3.5 py-3 text-xs font-bold text-white transition focus:border-amber-500 focus:outline-none appearance-none cursor-pointer pr-10">
-                                        <option value="MT5_LIVE_REAL" selected>MetaTrader 5 (MT5 Forex, Gold & Crypto)</option>
+                                        <option value="MT5_DEMO" selected>MetaTrader 5 Demo Sandbox ($10,000.00 Demo Forex & Gold)</option>
+                                        <option value="MT5_LIVE_REAL">MetaTrader 5 Direct Live (Production Real MT5 Trading)</option>
                                         <option value="AEGIS_QUANT_MASTER">Marvan's Pool ($100,000.00 Paper - Multi-Asset)</option>
                                         <option value="BINANCE_TESTNET_DEMO">Binance Testnet ($19,950.55 Paper - Crypto)</option>
                                         <option value="BINANCE_LIVE_REAL">Binance Live (Production Real USDT Trading)</option>
@@ -9059,7 +9060,8 @@
         }
 
         async function aiResume() {
-            const ws = _activeAiWorkspace;
+            const ws = getCanonicalWorkspace(window.activeMarketVenue || _activeAiWorkspace);
+            _activeAiWorkspace = ws;
             // First run preflight check
             document.getElementById('modal-resume-workspace').textContent = ws;
             document.getElementById('modal-ai-resume').classList.remove('hidden');
@@ -9093,7 +9095,8 @@
         }
 
         async function aiResumeExecute() {
-            const ws = _activeAiWorkspace;
+            const ws = getCanonicalWorkspace(window.activeMarketVenue || _activeAiWorkspace);
+            _activeAiWorkspace = ws;
             document.getElementById('modal-ai-resume').classList.add('hidden');
             try {
                 const res = await fetch('/api/ai/resume', {
