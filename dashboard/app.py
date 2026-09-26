@@ -1444,6 +1444,23 @@ async def close_position_endpoint(request: Request):
             pass
 
         if asset not in paper_broker.positions:
+            is_crypto_target = (workspace == "CRYPTO" or "USDT" in asset.upper() or "BUSD" in asset.upper())
+            if is_crypto_target:
+                try:
+                    from execution.binance_broker import binance_broker
+                    c_res = binance_broker.close_futures_position(asset, environment="BINANCE_LIVE")
+                    print(f"[DIRECT_BINANCE_FUTURES_CLOSE]: {c_res}")
+                    if c_res.get("status") == "SUCCESS":
+                        return JSONResponse({
+                            "status": "SUCCESS",
+                            "message": f"Binance Futures market close executed for {asset}.",
+                            "realized_pnl": 0.0,
+                            "vault_sweep": 0.0,
+                            "vault_balance": profit_vault.get_vault_balance(paper_broker.active_pool_name)
+                        })
+                except Exception as e:
+                    print(f"[DIRECT_BINANCE_FUTURES_CLOSE_ERR]: {e}")
+
             return JSONResponse({
                 "status": "SUCCESS",
                 "message": f"Position '{asset}' closed and dismissed from active tracking.",
@@ -1465,7 +1482,7 @@ async def close_position_endpoint(request: Request):
                 pass
 
         # If it is a live Binance Futures position, execute reduceOnly close on Binance
-        is_futures = ("FUT" in str(pos.get("trade_id", "")) or "FUTURES" in str(pos.get("product", "")).upper() or pos.get("source") == "BINANCE_FUTURES_LIVE")
+        is_futures = ("FUT" in str(pos.get("trade_id", "")) or "FUTURES" in str(pos.get("product", "")).upper() or pos.get("source") == "BINANCE_FUTURES_LIVE" or "USDT" in asset.upper() or "BUSD" in asset.upper() or workspace == "CRYPTO")
         if is_futures:
             try:
                 from execution.binance_broker import binance_broker
@@ -3025,6 +3042,7 @@ async def get_binance_live_status():
     """Diagnostic endpoint to inspect live Binance account authentication, balances, open positions, and orders."""
     from execution.binance_broker import binance_broker
     acc = binance_broker.get_account_info("BINANCE_LIVE", force_refresh=True)
+    f_summary = binance_broker.get_futures_account_summary("BINANCE_LIVE")
     open_pos = binance_broker.get_open_positions("BINANCE_LIVE")
     open_orders = binance_broker.get_all_open_orders("BINANCE_LIVE")
     masked_key = f"{binance_broker.live_api_key[:6]}...{binance_broker.live_api_key[-4:]}" if binance_broker.live_api_key else "NOT_CONFIGURED"
@@ -3034,7 +3052,11 @@ async def get_binance_live_status():
         "api_key_masked": masked_key,
         "account_authenticated": acc.get("authenticated", False),
         "balance_usd": acc.get("balance_usd", 0.0),
-        "total_wallet_equity": acc.get("total_wallet_equity", acc.get("balance_usd", 0.0)),
+        "available_balance": acc.get("available_balance", 0.0),
+        "futures_wallet_balance": f_summary.get("total_wallet_balance", 0.0),
+        "futures_available_balance": f_summary.get("available_balance", 0.0),
+        "futures_unrealized_pnl": f_summary.get("total_unrealized_pnl", 0.0),
+        "total_wallet_equity": acc.get("total_equity", acc.get("balance_usd", 0.0)),
         "account_error": acc.get("error", ""),
         "futures_status": getattr(binance_broker, "_last_futures_status", 200),
         "futures_error": getattr(binance_broker, "_last_futures_error", ""),

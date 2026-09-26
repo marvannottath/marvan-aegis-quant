@@ -227,7 +227,13 @@ class BinanceBroker:
         """Synchronize with Binance server clock to eliminate clock drift."""
         try:
             t0 = time.time() * 1000
-            resp = requests.get(f"{base_url}/api/v3/time", timeout=2.5)
+            if "fapi" in base_url:
+                time_url = f"{base_url}/fapi/v1/time"
+            elif "dapi" in base_url:
+                time_url = f"{base_url}/dapi/v1/time"
+            else:
+                time_url = f"{base_url}/api/v3/time"
+            resp = requests.get(time_url, timeout=2.5)
             t1 = time.time() * 1000
             if resp.status_code == 200:
                 server_time = resp.json().get("serverTime")
@@ -370,19 +376,22 @@ class BinanceBroker:
                 f_summary = self.get_futures_account_summary(environment)
                 f_wallet_bal = float(f_summary.get("total_wallet_balance", 0.0))
                 f_unrealized = float(f_summary.get("total_unrealized_pnl", 0.0))
+                f_avail = float(f_summary.get("available_balance", 0.0))
 
                 total_equity = round(usdt_free + usdt_locked + holdings_val_usd + f_wallet_bal + f_unrealized, 2)
+                total_available = round(usdt_free + f_avail, 2)
 
                 acc_res = {
                     "authenticated": True,
                     "account_status": "AUTHENTICATED",
                     "status": "AUTHENTICATED",
                     "connected": True,
-                    "available_balance": round(usdt_free, 2),
-                    "liquid_margin": round(usdt_free, 2),
+                    "available_balance": total_available,
+                    "liquid_margin": total_available,
                     "locked_balance": round(usdt_locked, 2),
                     "holdings_value_usd": round(holdings_val_usd, 2),
                     "futures_wallet_balance": round(f_wallet_bal, 2),
+                    "futures_available_balance": round(f_avail, 2),
                     "futures_unrealized_pnl": round(f_unrealized, 2),
                     "total_equity": total_equity,
                     "balance_usd": total_equity,
@@ -438,24 +447,74 @@ class BinanceBroker:
         """Fetch Binance USDT-M Futures account balances and unrealized PnL."""
         api_k, sec_k, _, is_testnet = self._get_credentials_for_env(environment)
         if not api_k or not sec_k:
-            return {"total_wallet_balance": 0.0, "total_unrealized_pnl": 0.0, "available_balance": 0.0}
+            return {"total_wallet_balance": 0.0, "total_unrealized_pnl": 0.0, "available_balance": 0.0, "positions": []}
         fapi_url = "https://testnet.binancefuture.com" if is_testnet else "https://fapi.binance.com"
+        headers = {"X-MBX-APIKEY": api_k}
+
+        # 1. Try /fapi/v3/account (Official modern account info endpoint)
         try:
             st = self._get_server_time_ms(fapi_url)
             params = {"timestamp": st, "recvWindow": 60000}
             sig, signed = self._sign_query(sec_k, params)
-            headers = {"X-MBX-APIKEY": api_k}
-            resp = requests.get(f"{fapi_url}/fapi/v2/account", params=signed, headers=headers, timeout=3.0)
+            resp = requests.get(f"{fapi_url}/fapi/v3/account", params=signed, headers=headers, timeout=4.0)
+            self._last_futures_status = resp.status_code
             if resp.status_code == 200:
                 data = resp.json()
                 return {
                     "total_wallet_balance": float(data.get("totalWalletBalance", 0.0)),
                     "total_unrealized_pnl": float(data.get("totalUnrealizedProfit", 0.0)),
-                    "available_balance": float(data.get("availableBalance", 0.0))
+                    "available_balance": float(data.get("availableBalance", 0.0)),
+                    "positions": data.get("positions", [])
+                }
+            else:
+                self._last_futures_error = resp.text
+        except Exception as e:
+            self._last_futures_error = str(e)
+
+        # 2. Try /fapi/v3/balance (Asset-level breakdown)
+        try:
+            st = self._get_server_time_ms(fapi_url)
+            params = {"timestamp": st, "recvWindow": 60000}
+            sig, signed = self._sign_query(sec_k, params)
+            resp = requests.get(f"{fapi_url}/fapi/v3/balance", params=signed, headers=headers, timeout=4.0)
+            if resp.status_code == 200:
+                balances = resp.json()
+                tot_bal = 0.0
+                tot_upnl = 0.0
+                tot_avail = 0.0
+                if isinstance(balances, list):
+                    for b in balances:
+                        if b.get("asset") in ["USDT", "USDC", "FDUSD", "BUSD"]:
+                            tot_bal += float(b.get("balance", 0.0))
+                            tot_upnl += float(b.get("crossUnPnl", 0.0))
+                            tot_avail += float(b.get("availableBalance", 0.0))
+                return {
+                    "total_wallet_balance": tot_bal,
+                    "total_unrealized_pnl": tot_upnl,
+                    "available_balance": tot_avail,
+                    "positions": []
                 }
         except Exception:
             pass
-        return {"total_wallet_balance": 0.0, "total_unrealized_pnl": 0.0, "available_balance": 0.0}
+
+        # 3. Fallback to /fapi/v2/account
+        try:
+            st = self._get_server_time_ms(fapi_url)
+            params = {"timestamp": st, "recvWindow": 60000}
+            sig, signed = self._sign_query(sec_k, params)
+            resp = requests.get(f"{fapi_url}/fapi/v2/account", params=signed, headers=headers, timeout=3.5)
+            if resp.status_code == 200:
+                data = resp.json()
+                return {
+                    "total_wallet_balance": float(data.get("totalWalletBalance", 0.0)),
+                    "total_unrealized_pnl": float(data.get("totalUnrealizedProfit", 0.0)),
+                    "available_balance": float(data.get("availableBalance", 0.0)),
+                    "positions": data.get("positions", [])
+                }
+        except Exception:
+            pass
+
+        return {"total_wallet_balance": 0.0, "total_unrealized_pnl": 0.0, "available_balance": 0.0, "positions": []}
 
     def get_futures_positions(self, environment: str = "BINANCE_LIVE") -> List[Dict[str, Any]]:
         """Fetch active USDT-M Futures open positions from Binance."""
@@ -463,19 +522,22 @@ class BinanceBroker:
         if not api_k or not sec_k:
             return []
         fapi_url = "https://testnet.binancefuture.com" if is_testnet else "https://fapi.binance.com"
+        headers = {"X-MBX-APIKEY": api_k}
+        active_futs = []
+
         try:
             st = self._get_server_time_ms(fapi_url)
             params = {"timestamp": st, "recvWindow": 60000}
             sig, signed = self._sign_query(sec_k, params)
-            headers = {"X-MBX-APIKEY": api_k}
             resp = requests.get(f"{fapi_url}/fapi/v3/positionRisk", params=signed, headers=headers, timeout=4.0)
             if resp.status_code != 200:
                 resp = requests.get(f"{fapi_url}/fapi/v2/positionRisk", params=signed, headers=headers, timeout=4.0)
             self._last_futures_status = resp.status_code
-            self._last_futures_error = resp.text if resp.status_code != 200 else ""
+            if resp.status_code != 200:
+                self._last_futures_error = resp.text
+
             if resp.status_code == 200:
                 raw_pos = resp.json()
-                active_futs = []
                 for p in raw_pos:
                     amt = float(p.get("positionAmt", 0.0))
                     if abs(amt) > 0.0000001:
@@ -512,58 +574,106 @@ class BinanceBroker:
                             "source": "BINANCE_FUTURES_LIVE",
                             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
                         })
+        except Exception as e:
+            self._last_futures_error = str(e)
 
-                # Also query COIN-M Futures if available
-                dapi_url = "https://testnet.binancefuture.com" if is_testnet else "https://dapi.binance.com"
-                try:
-                    st_d = self._get_server_time_ms(dapi_url)
-                    params_d = {"timestamp": st_d, "recvWindow": 60000}
-                    sig_d, signed_d = self._sign_query(sec_k, params_d)
-                    resp_d = requests.get(f"{dapi_url}/dapi/v1/positionRisk", params=signed_d, headers=headers, timeout=3.5)
-                    if resp_d.status_code == 200:
-                        for p in resp_d.json():
-                            amt = float(p.get("positionAmt", 0.0))
-                            if abs(amt) > 0.0000001:
-                                sym = p.get("symbol", "")
-                                entry_px = float(p.get("entryPrice", 0.0))
-                                mark_px = float(p.get("markPrice", entry_px))
-                                unrealized = float(p.get("unRealizedProfit", 0.0))
-                                lev = float(p.get("leverage", 1.0))
-                                notional = abs(amt * mark_px)
-                                allocated = round(notional / max(1.0, lev), 2)
-                                side = "BUY" if amt > 0 else "SELL"
-                                active_futs.append({
-                                    "trade_id": f"FUT-COIN-{sym}",
-                                    "asset": sym,
-                                    "symbol": sym,
-                                    "action": side,
-                                    "side": "LONG" if amt > 0 else "SHORT",
-                                    "units": abs(amt),
-                                    "quantity": abs(amt),
-                                    "entry_price": entry_px,
-                                    "mark_price": mark_px,
-                                    "last_price": mark_px,
-                                    "current_price": mark_px,
-                                    "capital_allocated": allocated,
-                                    "allocated_margin": allocated,
-                                    "margin": allocated,
-                                    "market_value": round(notional, 2),
-                                    "leverage": lev,
-                                    "pnl_usd": round(unrealized, 2),
-                                    "pnl_pct": round((unrealized / max(0.01, allocated)) * 100.0, 2),
-                                    "unrealized_pnl": round(unrealized, 2),
-                                    "product": "COIN-M FUTURES",
-                                    "status": "ACTIVE",
-                                    "source": "BINANCE_COIN_FUTURES_LIVE",
-                                    "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
-                                })
-                except Exception:
-                    pass
+        # Fallback: If positionRisk returned empty or failed, try extracting positions from account summary
+        if not active_futs:
+            try:
+                acc_summary = self.get_futures_account_summary(environment)
+                raw_acc_pos = acc_summary.get("positions", [])
+                for p in raw_acc_pos:
+                    amt = float(p.get("positionAmt", 0.0))
+                    if abs(amt) > 0.0000001:
+                        sym = p.get("symbol", "")
+                        entry_px = float(p.get("entryPrice", 0.0))
+                        unrealized = float(p.get("unrealizedProfit", 0.0))
+                        lev = float(p.get("leverage", 1.0))
+                        mark_px = entry_px
+                        try:
+                            md = self.get_market_data(environment, sym)
+                            mark_px = float(md.get("last_price", 0.0) or md.get("price", entry_px))
+                        except Exception:
+                            pass
+                        notional = abs(amt * mark_px)
+                        allocated = round(notional / max(1.0, lev), 2)
+                        side = "BUY" if amt > 0 else "SELL"
+                        active_futs.append({
+                            "trade_id": f"FUT-{sym}",
+                            "asset": sym,
+                            "symbol": sym,
+                            "action": side,
+                            "side": "LONG" if amt > 0 else "SHORT",
+                            "units": abs(amt),
+                            "quantity": abs(amt),
+                            "entry_price": entry_px,
+                            "mark_price": mark_px,
+                            "last_price": mark_px,
+                            "current_price": mark_px,
+                            "capital_allocated": allocated,
+                            "allocated_margin": allocated,
+                            "margin": allocated,
+                            "market_value": round(notional, 2),
+                            "leverage": lev,
+                            "pnl_usd": round(unrealized, 2),
+                            "pnl_pct": round((unrealized / max(0.01, allocated)) * 100.0, 2),
+                            "unrealized_pnl": round(unrealized, 2),
+                            "product": f"FUTURES ({p.get('marginType', 'CROSS').upper() if hasattr(p, 'get') else 'CROSS'})",
+                            "status": "ACTIVE",
+                            "source": "BINANCE_FUTURES_LIVE",
+                            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
+                        })
+            except Exception:
+                pass
 
-                return active_futs
+        # Also query COIN-M Futures if available
+        dapi_url = "https://testnet.binancefuture.com" if is_testnet else "https://dapi.binance.com"
+        try:
+            st_d = self._get_server_time_ms(dapi_url)
+            params_d = {"timestamp": st_d, "recvWindow": 60000}
+            sig_d, signed_d = self._sign_query(sec_k, params_d)
+            resp_d = requests.get(f"{dapi_url}/dapi/v1/positionRisk", params=signed_d, headers=headers, timeout=3.5)
+            if resp_d.status_code == 200:
+                for p in resp_d.json():
+                    amt = float(p.get("positionAmt", 0.0))
+                    if abs(amt) > 0.0000001:
+                        sym = p.get("symbol", "")
+                        entry_px = float(p.get("entryPrice", 0.0))
+                        mark_px = float(p.get("markPrice", entry_px))
+                        unrealized = float(p.get("unRealizedProfit", 0.0))
+                        lev = float(p.get("leverage", 1.0))
+                        notional = abs(amt * mark_px)
+                        allocated = round(notional / max(1.0, lev), 2)
+                        side = "BUY" if amt > 0 else "SELL"
+                        active_futs.append({
+                            "trade_id": f"FUT-COIN-{sym}",
+                            "asset": sym,
+                            "symbol": sym,
+                            "action": side,
+                            "side": "LONG" if amt > 0 else "SHORT",
+                            "units": abs(amt),
+                            "quantity": abs(amt),
+                            "entry_price": entry_px,
+                            "mark_price": mark_px,
+                            "last_price": mark_px,
+                            "current_price": mark_px,
+                            "capital_allocated": allocated,
+                            "allocated_margin": allocated,
+                            "margin": allocated,
+                            "market_value": round(notional, 2),
+                            "leverage": lev,
+                            "pnl_usd": round(unrealized, 2),
+                            "pnl_pct": round((unrealized / max(0.01, allocated)) * 100.0, 2),
+                            "unrealized_pnl": round(unrealized, 2),
+                            "product": "COIN-M FUTURES",
+                            "status": "ACTIVE",
+                            "source": "BINANCE_COIN_FUTURES_LIVE",
+                            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
+                        })
         except Exception:
             pass
-        return []
+
+        return active_futs
 
     def close_futures_position(self, symbol: str, side: str = "BUY", quantity: float = 0.0, environment: str = "BINANCE_LIVE") -> Dict[str, Any]:
         """Close an active USDT-M Futures position on Binance with reduceOnly market order."""
@@ -571,13 +681,26 @@ class BinanceBroker:
         if not api_k or not sec_k:
             return {"status": "ERROR", "message": "Binance API keys not configured."}
         
+        sym_clean = symbol.upper().replace("FUT-", "").replace("COIN-", "")
+        # If quantity <= 0, discover active quantity from live positions
+        if quantity <= 0.0:
+            positions = self.get_futures_positions(environment)
+            for p in positions:
+                if p.get("symbol") == sym_clean or p.get("asset") == sym_clean:
+                    quantity = float(p.get("units") or p.get("quantity") or 0.0)
+                    side = p.get("side") or p.get("action") or side
+                    break
+
+        if quantity <= 0.0:
+            return {"status": "ERROR", "message": f"Could not determine active position quantity for {sym_clean}"}
+
         # If position is LONG (BUY), close by SELLING; if SHORT (SELL), close by BUYING
         close_side = "SELL" if side.upper() in ["BUY", "LONG"] else "BUY"
         fapi_url = "https://testnet.binancefuture.com" if is_testnet else "https://fapi.binance.com"
         try:
             st = self._get_server_time_ms(fapi_url)
             params = {
-                "symbol": symbol.upper(),
+                "symbol": sym_clean,
                 "side": close_side,
                 "type": "MARKET",
                 "quantity": abs(quantity),
@@ -589,7 +712,7 @@ class BinanceBroker:
             headers = {"X-MBX-APIKEY": api_k}
             resp = requests.post(f"{fapi_url}/fapi/v1/order", params=signed, headers=headers, timeout=5.0)
             if resp.status_code == 200:
-                return {"status": "SUCCESS", "data": resp.json(), "message": f"Closed {symbol} Futures position on Binance."}
+                return {"status": "SUCCESS", "data": resp.json(), "message": f"Closed {sym_clean} Futures position on Binance."}
             else:
                 return {"status": "ERROR", "code": resp.status_code, "message": resp.text}
         except Exception as e:
@@ -1454,6 +1577,9 @@ class BinanceBroker:
             live_locked = acc_live.get("locked_balance", 0.0)
             live_tot_equity = acc_live.get("total_equity", live_avail)
             live_holdings = acc_live.get("holdings_value_usd", 0.0)
+            live_fut_bal = acc_live.get("futures_wallet_balance", 0.0)
+            live_fut_upnl = acc_live.get("futures_unrealized_pnl", 0.0)
+            live_fut_avail = acc_live.get("futures_available_balance", 0.0)
             live_err = acc_live.get("message") or acc_live.get("error") if not live_auth else None
 
         # 3. Market data health
@@ -1500,6 +1626,9 @@ class BinanceBroker:
             "locked_balance": live_locked,
             "total_equity": live_tot_equity,
             "holdings_value_usd": live_holdings,
+            "futures_wallet_balance": live_fut_bal if live_configured else 0.0,
+            "futures_available_balance": live_fut_avail if live_configured else 0.0,
+            "futures_unrealized_pnl": live_fut_upnl if live_configured else 0.0,
             "last_validated": now_str if live_auth else None,
             "validation_error": live_err,
             # UI backwards-compat aliases
