@@ -467,8 +467,11 @@ class BinanceBroker:
             st = self._get_server_time_ms(fapi_url)
             params = {"timestamp": st, "recvWindow": 60000}
             sig, signed = self._sign_query(sec_k, params)
-            headers = {"X-MBX-APIKEY": api_k}
-            resp = requests.get(f"{fapi_url}/fapi/v2/positionRisk", params=signed, headers=headers, timeout=3.5)
+            resp = requests.get(f"{fapi_url}/fapi/v3/positionRisk", params=signed, headers=headers, timeout=4.0)
+            if resp.status_code != 200:
+                resp = requests.get(f"{fapi_url}/fapi/v2/positionRisk", params=signed, headers=headers, timeout=4.0)
+            self._last_futures_status = resp.status_code
+            self._last_futures_error = resp.text if resp.status_code != 200 else ""
             if resp.status_code == 200:
                 raw_pos = resp.json()
                 active_futs = []
@@ -1691,6 +1694,70 @@ class BinanceBroker:
         except Exception as e:
             print(f"[BINANCE] Futures positions merge notice: {e}")
 
+        # Merge active Binance Margin positions (Cross & Isolated)
+        try:
+            margins = self.get_margin_positions(environment)
+            if margins:
+                positions.extend(margins)
+        except Exception as e:
+            print(f"[BINANCE] Margin positions merge notice: {e}")
+
+        return positions
+
+    def get_margin_positions(self, environment: str = "BINANCE_LIVE") -> List[Dict[str, Any]]:
+        """Fetch active Cross and Isolated Margin positions from Binance."""
+        api_k, sec_k, base_url, is_testnet = self._get_credentials_for_env(environment)
+        if not api_k or not sec_k or is_testnet:
+            return []
+        positions = []
+        try:
+            st = self._get_server_time_ms(base_url)
+            params = {"timestamp": st, "recvWindow": 60000}
+            sig, signed = self._sign_query(sec_k, params)
+            headers = {"X-MBX-APIKEY": api_k}
+            resp = requests.get(f"{base_url}/sapi/v1/margin/account", params=signed, headers=headers, timeout=3.5)
+            if resp.status_code == 200:
+                data = resp.json()
+                for a in data.get("userAssets", []):
+                    asset = a.get("asset", "")
+                    if asset in ["USDT", "BUSD", "USDC", "FDUSD"]:
+                        continue
+                    net_amt = float(a.get("netAsset", 0.0))
+                    borrowed = float(a.get("borrowed", 0.0))
+                    if abs(net_amt) > 0.000001 or borrowed > 0.000001:
+                        sym = f"{asset}USDT"
+                        mdata = self.get_market_data(environment, sym)
+                        px = float(mdata.get("last_price", 1.0) or 1.0)
+                        val_usd = round(abs(net_amt) * px, 2)
+                        if val_usd >= 0.05:
+                            side = "BUY" if net_amt >= 0 else "SELL"
+                            positions.append({
+                                "trade_id": f"MARGIN-CROSS-{asset}",
+                                "asset": sym,
+                                "symbol": sym,
+                                "action": side,
+                                "side": "LONG" if net_amt >= 0 else "SHORT",
+                                "units": abs(net_amt),
+                                "quantity": abs(net_amt),
+                                "entry_price": px,
+                                "mark_price": px,
+                                "last_price": px,
+                                "current_price": px,
+                                "capital_allocated": val_usd,
+                                "allocated_margin": val_usd,
+                                "margin": val_usd,
+                                "market_value": val_usd,
+                                "leverage": 3.0,
+                                "pnl_usd": 0.0,
+                                "pnl_pct": 0.0,
+                                "unrealized_pnl": 0.0,
+                                "product": "CROSS MARGIN",
+                                "status": "ACTIVE",
+                                "source": "BINANCE_MARGIN_CROSS_LIVE",
+                                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
+                            })
+        except Exception:
+            pass
         return positions
 
     def place_spot_market_order(self, symbol: str, side: str, quote_order_qty: float = 25.0, environment: Optional[str] = None) -> Dict[str, Any]:
