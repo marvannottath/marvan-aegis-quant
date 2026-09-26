@@ -513,8 +513,10 @@ class PaperBroker:
                         return pool_name
         return None
 
-    def close_position(self, asset: str, exit_price: float, current_indicators: Optional[dict] = None, sentiment_score: float = 0.5, reason: str = "MANUAL_CLOSE") -> Optional[dict]:
+    def close_position(self, asset: str, exit_price: float = 0.0, current_indicators: Optional[dict] = None, sentiment_score: float = 0.5, reason: str = "MANUAL_CLOSE") -> Optional[dict]:
         """Close position and sweep profit if positive into active environment vault."""
+        if exit_price <= 0.0 and asset in self.positions:
+            exit_price = float(self.positions[asset].get("last_price") or self.positions[asset].get("entry_price") or 1.0)
         # Check if position is in another pool and switch automatically
         target_pool = self.find_position_pool(asset)
         if target_pool and target_pool != self.active_pool_name:

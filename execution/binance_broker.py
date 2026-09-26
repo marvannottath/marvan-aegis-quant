@@ -155,15 +155,61 @@ class BinanceBroker:
 
     def _load_closed_spot_assets(self) -> set:
         """Load set of dismissed or closed spot assets to prevent wallet dust resurrection."""
+        defaults = {"XRP", "XRPUSDT"}
         try:
             if CLOSED_SPOT_POSITIONS_FILE.exists():
                 with open(CLOSED_SPOT_POSITIONS_FILE, "r") as f:
                     data = json.load(f)
                     if isinstance(data, list):
-                        return set(data)
+                        return defaults.union(set(data))
         except Exception as e:
             print(f"[BINANCE] Closed spot assets load notice: {e}")
-        return set()
+        return defaults
+
+    def close_spot_position(self, symbol: str, environment: str = "BINANCE_LIVE") -> Dict[str, Any]:
+        """Liquidate or close a spot position on Binance and dismiss from active display."""
+        sym_clean = symbol.upper().replace("USDT", "").replace("BUSD", "").strip()
+        pair = f"{sym_clean}USDT"
+        self.dismiss_spot_position(sym_clean)
+        self.dismiss_spot_position(pair)
+
+        # Clear in-memory open positions cache
+        if hasattr(self, "_open_pos_ts"):
+            self._open_pos_ts.clear()
+            self._open_pos_cache.clear()
+
+        # Check if user has free spot balance to sell on Binance Spot
+        try:
+            bals = self.get_balances(environment)
+            for b in bals:
+                if b.get("asset", "").upper() == sym_clean:
+                    free_qty = float(b.get("free", 0.0))
+                    if free_qty > 0:
+                        bulk_p = self.get_bulk_market_data()
+                        px = float(bulk_p.get(pair, {}).get("last_price", 0.0))
+                        if (free_qty * px) >= 5.0:
+                            step_info = self.get_symbol_info(pair, environment)
+                            lot_step = float(step_info.get("step_size", 0.0001))
+                            import math
+                            decimals = int(round(-math.log10(lot_step))) if lot_step < 1.0 else 0
+                            sell_qty = math.floor(free_qty * (10 ** decimals)) / (10 ** decimals)
+                            if sell_qty > 0:
+                                order_res = self.create_order(
+                                    environment=environment,
+                                    symbol=pair,
+                                    side="SELL",
+                                    quantity=sell_qty,
+                                    order_type="MARKET"
+                                )
+                                return {
+                                    "status": "SUCCESS",
+                                    "message": f"Sold {sell_qty} {sym_clean} on Binance Spot and dismissed from tracking.",
+                                    "order": order_res
+                                }
+        except Exception as e:
+            print(f"[BINANCE] Spot close execution notice for {symbol}: {e}")
+
+        return {"status": "SUCCESS", "message": f"{symbol} closed and permanently dismissed from active tracking."}
 
     def _save_closed_spot_assets(self):
         """Persist dismissed spot positions to JSON file."""
@@ -1762,6 +1808,14 @@ class BinanceBroker:
                 continue
 
             ticker_symbol = f"{asset}USDT"
+            sym_clean = asset.upper().strip()
+
+            # Skip dismissed or manually closed assets (e.g. user dismissed or closed XRP)
+            if (sym_clean in self._closed_spot_assets or 
+                ticker_symbol in self._closed_spot_assets or 
+                f"{sym_clean}USDT" in self._closed_spot_assets):
+                continue
+
             total_qty = float(b.get("free", 0.0)) + float(b.get("locked", 0.0))
             if total_qty <= 0.0000001:
                 self._entry_price_cache.pop(f"{asset}USDT", None)
@@ -1784,16 +1838,8 @@ class BinanceBroker:
                 self._entry_price_cache.pop(f"{asset}USDT", None)
                 continue
 
-            # Real holdings are active live positions — keep active and never dismiss
-            self.undismiss_spot_position(asset)
-
             # 1. Determine authentic entry price
-            KNOWN_ENTRY_PRICES = {
-                "XRPUSDT": 1.5045,
-            }
             entry_price = self._entry_price_cache.get(ticker_symbol)
-            if entry_price and ticker_symbol in KNOWN_ENTRY_PRICES and abs(entry_price - cur_price) < 0.0001:
-                entry_price = None
 
             if not entry_price:
                 # Check paper_broker recorded positions
@@ -1819,9 +1865,6 @@ class BinanceBroker:
                                     break
                     except Exception:
                         pass
-
-            if not entry_price and ticker_symbol in KNOWN_ENTRY_PRICES:
-                entry_price = KNOWN_ENTRY_PRICES[ticker_symbol]
 
             is_fallback_cur = False
             if not entry_price or entry_price <= 0:

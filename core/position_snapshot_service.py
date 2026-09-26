@@ -101,6 +101,20 @@ class PositionSnapshotService:
                     if s_name not in existing_syms:
                         internal_pos_list.append(v)
 
+        # Remove any dismissed spot assets from paper_broker memory
+        try:
+            from execution.binance_broker import binance_broker
+            if hasattr(binance_broker, "_closed_spot_assets") and binance_broker._closed_spot_assets:
+                for d_sym in list(binance_broker._closed_spot_assets):
+                    paper_broker.positions.pop(d_sym, None)
+                    paper_broker.positions.pop(f"{d_sym}USDT", None)
+                    for p_val in paper_broker.pools.values():
+                        if isinstance(p_val, dict) and "positions" in p_val:
+                            p_val["positions"].pop(d_sym, None)
+                            p_val["positions"].pop(f"{d_sym}USDT", None)
+        except Exception:
+            pass
+
         # For BINANCE_LIVE_REAL / BINANCE_LIVE: sync real held crypto positions from Binance Spot & Futures
         if pool_name in ["BINANCE_LIVE_REAL", "BINANCE_LIVE"] or target_ws == "CRYPTO":
             try:
@@ -112,6 +126,12 @@ class PositionSnapshotService:
                         sym_name = lp.get("symbol") or lp.get("asset")
                         if not sym_name:
                             continue
+                        clean_s = sym_name.upper().replace("USDT", "").replace("BUSD", "")
+                        if hasattr(binance_broker, "_closed_spot_assets"):
+                            if (sym_name.upper() in binance_broker._closed_spot_assets or 
+                                clean_s in binance_broker._closed_spot_assets or 
+                                f"{clean_s}USDT" in binance_broker._closed_spot_assets):
+                                continue
                         if sym_name not in existing_symbols:
                             internal_pos_list.append(lp)
                             if sym_name not in paper_broker.positions:
@@ -130,6 +150,16 @@ class PositionSnapshotService:
         verified_positions: List[Dict[str, Any]] = []
         for pos in internal_pos_list:
             sym = pos.get("asset") or pos.get("symbol") or ""
+            clean_s = sym.upper().replace("USDT", "").replace("BUSD", "")
+            try:
+                from execution.binance_broker import binance_broker
+                if hasattr(binance_broker, "_closed_spot_assets"):
+                    if (sym.upper() in binance_broker._closed_spot_assets or 
+                        clean_s in binance_broker._closed_spot_assets or 
+                        f"{clean_s}USDT" in binance_broker._closed_spot_assets):
+                        continue
+            except Exception:
+                pass
             if workspace_manager.is_symbol_allowed(sym, target_ws):
                 # Enrich position record with canonical fields
                 units = float(pos.get("units", pos.get("quantity", 0.0)))

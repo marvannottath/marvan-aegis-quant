@@ -1436,67 +1436,48 @@ async def close_position_endpoint(request: Request):
             except Exception:
                 pass
 
-        # Always dismiss crypto asset in binance_broker so it won't be resurrected
+        # 1. Liquidate/dismiss spot crypto asset in binance_broker so it won't be resurrected
         try:
             from execution.binance_broker import binance_broker
             binance_broker.dismiss_spot_position(asset)
+            binance_broker.close_spot_position(asset, environment="BINANCE_LIVE")
+        except Exception as e:
+            print(f"[CLOSE_SPOT_NOTICE]: {e}")
+
+        # 2. If it is a Binance Futures position, execute reduceOnly close on Binance
+        is_crypto_target = (workspace == "CRYPTO" or "USDT" in asset.upper() or "BUSD" in asset.upper())
+        if is_crypto_target:
+            try:
+                from execution.binance_broker import binance_broker
+                binance_broker.close_futures_position(asset, environment="BINANCE_LIVE")
+            except Exception as e:
+                print(f"[CLOSE_FUTURES_NOTICE]: {e}")
+
+        # 3. Close in paper_broker and purge from all pools
+        pos = paper_broker.positions.get(asset, {})
+        exit_price = float(pos.get("last_price") or pos.get("entry_price") or 0.0)
+        res = paper_broker.close_position(asset, exit_price=exit_price, reason="MANUAL_TRADER_EXIT")
+        clean_name = asset.upper().replace("USDT", "").replace("BUSD", "")
+        for p_name, p_data in paper_broker.pools.items():
+            if isinstance(p_data, dict) and "positions" in p_data:
+                for k in list(p_data["positions"].keys()):
+                    if k.upper() in [asset.upper(), clean_name, f"{clean_name}USDT"]:
+                        del p_data["positions"][k]
+        for k in list(paper_broker.positions.keys()):
+            if k.upper() in [asset.upper(), clean_name, f"{clean_name}USDT"]:
+                del paper_broker.positions[k]
+
+        # 4. Clear snapshot service in-memory caches immediately
+        try:
+            from core.position_snapshot_service import position_snapshot_service
+            if hasattr(position_snapshot_service, "_snapshot_cache"):
+                position_snapshot_service._snapshot_cache.clear()
+                position_snapshot_service._snapshot_cache_ts.clear()
+            if hasattr(position_snapshot_service, "_agg_cache"):
+                position_snapshot_service._agg_cache.clear()
+                position_snapshot_service._agg_cache_ts.clear()
         except Exception:
             pass
-
-        if asset not in paper_broker.positions:
-            is_crypto_target = (workspace == "CRYPTO" or "USDT" in asset.upper() or "BUSD" in asset.upper())
-            if is_crypto_target:
-                try:
-                    from execution.binance_broker import binance_broker
-                    c_res = binance_broker.close_futures_position(asset, environment="BINANCE_LIVE")
-                    print(f"[DIRECT_BINANCE_FUTURES_CLOSE]: {c_res}")
-                    if c_res.get("status") == "SUCCESS":
-                        return JSONResponse({
-                            "status": "SUCCESS",
-                            "message": f"Binance Futures market close executed for {asset}.",
-                            "realized_pnl": 0.0,
-                            "vault_sweep": 0.0,
-                            "vault_balance": profit_vault.get_vault_balance(paper_broker.active_pool_name)
-                        })
-                except Exception as e:
-                    print(f"[DIRECT_BINANCE_FUTURES_CLOSE_ERR]: {e}")
-
-            return JSONResponse({
-                "status": "SUCCESS",
-                "message": f"Position '{asset}' closed and dismissed from active tracking.",
-                "realized_pnl": 0.0,
-                "vault_sweep": 0.0,
-                "vault_balance": profit_vault.get_vault_balance(paper_broker.active_pool_name)
-            })
-
-        pos = paper_broker.positions.get(asset, {})
-        exit_price = pos.get("last_price", pos.get("entry_price", 100.0))
-        if "USDT" in asset or "BUSD" in asset:
-            try:
-                from execution.binance_broker import binance_broker
-                tickers = binance_broker.get_bulk_market_data([asset], environment="BINANCE_LIVE")
-                live_tick = tickers.get(asset.upper())
-                if live_tick and live_tick.get("last", 0) > 0:
-                    exit_price = float(live_tick["last"])
-            except Exception:
-                pass
-
-        # If it is a live Binance Futures position, execute reduceOnly close on Binance
-        is_futures = ("FUT" in str(pos.get("trade_id", "")) or "FUTURES" in str(pos.get("product", "")).upper() or pos.get("source") == "BINANCE_FUTURES_LIVE" or "USDT" in asset.upper() or "BUSD" in asset.upper() or workspace == "CRYPTO")
-        if is_futures:
-            try:
-                from execution.binance_broker import binance_broker
-                f_qty = float(pos.get("units") or pos.get("quantity") or 0.0)
-                f_side = str(pos.get("side") or pos.get("action") or "BUY").upper()
-                close_res = binance_broker.close_futures_position(asset, side=f_side, quantity=f_qty, environment="BINANCE_LIVE")
-                print(f"[CLOSE_FUTURES_BINANCE]: {close_res}")
-            except Exception as e:
-                print(f"[CLOSE_FUTURES_BINANCE_ERR]: {e}")
-
-        res = paper_broker.close_position(asset, exit_price=exit_price, reason="MANUAL_TRADER_EXIT")
-        if not res or (isinstance(res, dict) and res.get("status") == "FAILED"):
-            err_msg = res.get("error", "Position close failed.") if isinstance(res, dict) else "Position close failed."
-            return JSONResponse({"status": "FAILED", "message": err_msg}, status_code=400)
 
         try:
             from core.audit_logger import audit_logger
@@ -1507,7 +1488,7 @@ async def close_position_endpoint(request: Request):
                 workspace=ws,
                 venue="NSE/BSE" if ws == "INDIA" else ("BINANCE" if ws == "CRYPTO" else "GLOBAL_FX"),
                 symbol=asset,
-                amount=abs(float(res.get("pnl_usd", 0.0))) if res else 0.0,
+                amount=abs(float(res.get("pnl_usd", 0.0))) if isinstance(res, dict) else 0.0,
                 result="SUCCESS",
                 reference_id=f"CLS-{int(time.time()*1000)}"
             )
