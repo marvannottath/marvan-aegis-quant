@@ -309,24 +309,30 @@ class PositionSnapshotService:
         paper_broker.switch_pool(pool_name)
         paper_broker._update_equity()
         pool = paper_broker.pools.get(pool_name, {})
-        initial_cap = float(pool.get("initial_capital", meta.get("initial_capital", 100000.0)))
-        free_cash = round(float(pool.get("virtual_cash", initial_cap)), 2)
+        # For CRYPTO / BINANCE_LIVE_REAL workspace, never fall back to initial_capital.
+        # If Binance auth fails, free_cash must default to 0.0, not 100 000 USDT.
+        is_live_crypto = pool_name in ["BINANCE_LIVE_REAL", "BINANCE_LIVE"] or target_ws == "CRYPTO"
+        if is_live_crypto:
+            free_cash = round(float(pool.get("virtual_cash", 0.0)), 2)
+        else:
+            free_cash = round(float(pool.get("virtual_cash", initial_cap)), 2)
 
         # Vault reserve — only applies to simulated/paper master portfolio (AEGIS_QUANT_MASTER)
-        if pool_name in ["BINANCE_LIVE_REAL", "BINANCE_LIVE"] or target_ws == "CRYPTO":
+        if is_live_crypto:
             vault_balance = 0.0
             try:
                 from execution.binance_broker import binance_broker
                 b_acc = binance_broker.get_account_info("BINANCE_LIVE_REAL")
                 live_tot = float(b_acc.get("total_equity", 0.0))
-                live_avail = float(b_acc.get("available_balance", free_cash))
+                live_avail = float(b_acc.get("available_balance", 0.0))
                 if b_acc.get("authenticated") and live_tot > 0:
-                    total_equity = live_tot
-                    free_cash = live_avail
+                    total_equity = round(live_tot, 2)
+                    free_cash = round(live_avail, 2)
                 else:
-                    total_equity = round(free_cash + total_exposure + unrealized_pnl, 2)
+                    # Binance auth failed – show only actual open positions value, not fake cash
+                    total_equity = round(total_exposure + unrealized_pnl, 2)
             except Exception:
-                total_equity = round(free_cash + total_exposure + unrealized_pnl, 2)
+                total_equity = round(total_exposure + unrealized_pnl, 2)
         elif pool_name in ["AEGIS_INDIA_INR", "UPSTOX_DEMO", "UPSTOX_LIVE"] or target_ws == "INDIA":
             vault_balance = 0.0
             total_equity = round(free_cash + used_margin + unrealized_pnl, 2)
