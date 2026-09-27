@@ -169,17 +169,18 @@ class RiskEngine:
         conf_scalar = max(0.6, min(1.3, confidence_score / 70.0))
         size = base_size * vol_scalar * conf_scalar
 
-        # Retail / Micro-Account Support ($11.00 - $100):
-        # Binance minimum notional is $5.00 USDT but with fees and market drops, selling anything <$10 is highly risky.
-        # For micro-accounts, size each trade at $12.00 USDT minimum to guarantee execution of exits.
+        # Retail / Micro-Account Support ($6.00 - $100):
+        # Binance minimum notional is $5.00 USDT.
+        # For micro-accounts, size each trade at $6.00 USDT minimum so it passes exchange limits 
+        # but allows the AI to take multiple trades without risking the entire account balance.
         if 5.50 <= virtual_cash < 30.0:
-            size = min(virtual_cash, 12.00)
+            size = min(virtual_cash, 6.00)
         elif 30.0 <= virtual_cash < 100.0:
-            size = max(15.0, size)
+            size = max(10.0, size)
 
         # Ensure order size never exceeds available cash or user custom trade cap,
-        # and has a safe minimum floor of 12.0 (exchange min notional + safety buffer).
-        capped_size = min(self.custom_trade_cap_usd, min(virtual_cash, max(12.0 if virtual_cash >= 12.0 else virtual_cash, round(size, 2))))
+        # and has a safe minimum floor of 6.0 (exchange min notional + 20% safety buffer).
+        capped_size = min(self.custom_trade_cap_usd, min(virtual_cash, max(6.0 if virtual_cash >= 6.0 else virtual_cash, round(size, 2))))
         return round(capped_size, 2)
 
     def validate_order_pipeline(
