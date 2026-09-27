@@ -197,7 +197,7 @@ class PositionSnapshotService:
                     "pnl_usd": unrealized,
                     "pnl_pct": pnl_pct,
                     "product": pos.get("product", "CNC" if target_ws == "INDIA" else "MARGIN"),
-                    "leverage": float(pos.get("leverage", 1.0)),
+                    "leverage": 1.0 if target_ws == "CRYPTO" else float(pos.get("leverage", 1.0)),
                     "timestamp": pos.get("timestamp", _ist_now()),
                     "status": "ACTIVE",
                     "source": "AUTHORITATIVE_STORE",
