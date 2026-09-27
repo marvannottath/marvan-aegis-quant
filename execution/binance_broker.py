@@ -415,14 +415,16 @@ class BinanceBroker:
                         if px > 0:
                             holdings_val_usd += (qty * px)
 
-                # Query Binance Futures summary if available
+                # Query Binance Futures summary if available — for UI breakdown only.
+                # IMPORTANT: Do NOT add futures wallet balance to spot total_equity.
+                # A user trading Spot only should see ONLY their Spot balance here.
+                # Futures data is exposed separately (get_futures_account_summary).
                 f_summary = self.get_futures_account_summary(environment)
-                f_wallet_bal = float(f_summary.get("total_wallet_balance", 0.0))
-                f_unrealized = float(f_summary.get("total_unrealized_pnl", 0.0))
                 f_avail = float(f_summary.get("available_balance", 0.0))
 
-                total_equity = round(usdt_free + usdt_locked + holdings_val_usd + f_wallet_bal + f_unrealized, 2)
-                total_available = round(usdt_free + f_avail, 2)
+                # Spot-only Total Equity: USDT (free + locked) + held crypto value
+                total_equity = round(usdt_free + usdt_locked + holdings_val_usd, 2)
+                total_available = round(usdt_free, 2)
 
                 acc_res = {
                     "authenticated": True,
