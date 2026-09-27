@@ -336,8 +336,29 @@ async def read_dashboard(request: Request):
                 </td>
             </tr>"""
 
-    # 5. Pre-render Positions Rows
-    if open_positions:
+    # ---------------------------------------------------------------------
+    # Trade History endpoint
+    # ---------------------------------------------------------------------
+    from core.historical_log_service import HistoricalLogService
+    trade_history_service = HistoricalLogService()
+
+    @app.get("/api/trade-history")
+    async def get_trade_history(
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        symbol: Optional[str] = None,
+        side: Optional[str] = None,
+    ) -> JSONResponse:
+        """Return filtered trade history.
+        Dates must be ISO‑8601 (YYYY‑MM‑DD). Example:
+            /api/trade-history?start_date=2026-09-20&end_date=2026-09-27&symbol=BTCUSDT&side=BUY
+        """
+        try:
+            trades = trade_history_service.query(start_date=start_date, end_date=end_date, symbol=symbol, side=side)
+            return JSONResponse({"status": "SUCCESS", "trades": trades})
+        except Exception as e:
+            return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
         pos_rows_html = ""
         for p in open_positions:
             asset = p.get('asset', p.get('symbol', ''))
