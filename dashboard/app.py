@@ -975,7 +975,7 @@ async def get_state(workspace: Optional[str] = None, request_id: Optional[str] =
     vault_summary = profit_vault.get_vault_summary(active_pool)
     news_intel = macro_engine.get_workspace_news(ws)
 
-    peak_eq = max(init_cap, equity_val)
+    peak_eq = max(port_aggregate.get("initial_capital", init_cap), equity_val)
     drawdown_pct = max(0.0, round(((peak_eq - equity_val) / peak_eq) * 100.0, 2)) if peak_eq > 0 else 0.0
 
     if drawdown_pct >= risk_engine.max_drawdown_pct:

@@ -328,11 +328,15 @@ class PositionSnapshotService:
                 if b_acc.get("authenticated") and live_tot > 0:
                     total_equity = round(live_tot, 2)
                     free_cash = round(live_avail, 2)
+                    # CRITICAL FIX: For live Binance, initial_cap MUST equal real Binance balance.
+                    # If we keep initial_cap=100000 and equity=14.70, drawdown=99.98% → circuit break!
+                    initial_cap = total_equity
                 else:
-                    # Binance auth failed – show only actual open positions value, not fake cash
                     total_equity = round(total_exposure + unrealized_pnl, 2)
+                    initial_cap = max(total_equity, 1.0)
             except Exception:
                 total_equity = round(total_exposure + unrealized_pnl, 2)
+                initial_cap = max(total_equity, 1.0)
         elif pool_name in ["AEGIS_INDIA_INR", "UPSTOX_DEMO", "UPSTOX_LIVE"] or target_ws == "INDIA":
             vault_balance = 0.0
             total_equity = round(free_cash + used_margin + unrealized_pnl, 2)
@@ -344,6 +348,7 @@ class PositionSnapshotService:
         realized_pnl = round(double_entry_ledger.get_account_balance("REALIZED_PNL_ACCOUNT", pool_name), 2)
 
         # Peak equity & Drawdown calculation
+        # Use initial_cap that reflects REAL starting balance (not a hardcoded 100k for live Binance)
         peak_equity = max(initial_cap, total_equity)
         # If pool is newly created/unfunded with zero capital, drawdown is 0.0% (not breached)
         if peak_equity <= 0.0:
