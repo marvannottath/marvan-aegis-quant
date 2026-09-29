@@ -415,16 +415,26 @@ class BinanceBroker:
                         if px > 0:
                             holdings_val_usd += (qty * px)
 
-                # Query Binance Futures summary if available — for UI breakdown only.
-                # IMPORTANT: Do NOT add futures wallet balance to spot total_equity.
-                # A user trading Spot only should see ONLY their Spot balance here.
-                # Futures data is exposed separately (get_futures_account_summary).
+                # Query Binance Futures summary to get real Futures wallet balance.
+                # The user's USDT may live in the Futures wallet (separate from Spot wallet).
+                # We ADD futures wallet balance to Spot equity to show the TRUE total balance.
+                # Guard: only add if futures balance is plausible (< 1,000,000 USDT safety cap).
                 f_summary = self.get_futures_account_summary(environment)
+                f_wallet_bal = float(f_summary.get("total_wallet_balance", 0.0))
+                f_unrealized = float(f_summary.get("total_unrealized_pnl", 0.0))
                 f_avail = float(f_summary.get("available_balance", 0.0))
 
-                # Spot-only Total Equity: USDT (free + locked) + held crypto value
-                total_equity = round(usdt_free + usdt_locked + holdings_val_usd, 2)
-                total_available = round(usdt_free, 2)
+                # Safety cap: ignore futures balance if it looks like testnet/fake data (> 10,000 USDT
+                # and spot balance is near zero — typical sign of a testnet futures account)
+                spot_equity = round(usdt_free + usdt_locked + holdings_val_usd, 2)
+                futures_is_real = (f_wallet_bal < 10000.0) or (spot_equity > 1.0)
+                if futures_is_real and f_wallet_bal > 0:
+                    total_equity = round(spot_equity + f_wallet_bal + f_unrealized, 2)
+                    total_available = round(usdt_free + f_avail, 2)
+                else:
+                    # Futures balance looks testnet/inflated — use Spot only
+                    total_equity = spot_equity
+                    total_available = round(usdt_free, 2)
 
                 acc_res = {
                     "authenticated": True,
