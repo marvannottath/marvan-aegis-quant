@@ -359,6 +359,7 @@ async def read_dashboard(request: Request):
         except Exception as e:
             return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
 
+    if open_positions:
         pos_rows_html = ""
         for p in open_positions:
             asset = p.get('asset', p.get('symbol', ''))
