@@ -452,7 +452,10 @@ class RiskEngine:
             from core.position_snapshot_service import position_snapshot_service
             agg = position_snapshot_service.get_portfolio_aggregate(norm_ws)
             equity = float(agg.get("total_equity", init_cap))
-            peak = float(agg.get("peak_equity") or max(init_cap, equity))
+            # CRITICAL: For CRYPTO/live workspace, initial_cap is set to real Binance balance.
+            # Use agg["initial_capital"] which reflects the real balance, not a hardcoded 100k.
+            real_init_cap = float(agg.get("initial_capital", init_cap))
+            peak = float(agg.get("peak_equity") or max(real_init_cap, equity))
             dd_pct = float(agg.get("drawdown_pct", 0.0))
         except Exception:
             equity = init_cap
@@ -466,6 +469,7 @@ class RiskEngine:
         if not breached and self.circuit_tripped and "MAX_DRAWDOWN_BREACHED" in self.trip_reason:
             self.circuit_tripped = False
             self.trip_reason = "NORMAL_OPERATIONS"
+
 
         return {
             "workspace": norm_ws,
