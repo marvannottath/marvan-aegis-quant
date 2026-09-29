@@ -36,8 +36,8 @@ class ProfitVault:
         }
         self.allowlisted_wallet: str = "SANDBOX-TESTNET-TRC20-UNASSIGNED-ADDRESS"
         self.allowlisted_network: str = "TRC20"
-        self.min_sweep_amount_usd: float = 100.0
-        self.sweep_percentage: float = 100.0  # 100% swept into vault
+        self.min_sweep_amount_usd: float = 0.01   # Lowered from 100.0 → works for small accounts (14 USDT balance)
+        self.sweep_percentage: float = 30.0  # 30% of profit swept into vault (remainder stays as trading capital)
         self.auto_external_sweep_enabled: bool = False  # Disabled by default for safety
         self._load_state()
 
