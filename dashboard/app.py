@@ -130,7 +130,8 @@ async def on_startup():
         from core.workspace_manager import workspace_manager
         from core.ai_trading_controller import ai_trading_controller
         from execution.profit_vault import profit_vault
-        workspace_manager.set_active_workspace("FOREX_GOLD")
+        workspace_manager.set_active_workspace("CRYPTO")   # Start in CRYPTO (Binance Live) workspace
+        ai_trading_controller.set_state("CRYPTO", "RUNNING", user="SYSTEM", reason="Autonomous Cloud Active — Binance Live")
         ai_trading_controller.set_state("FOREX_GOLD", "RUNNING", user="SYSTEM", reason="Autonomous Cloud Active")
         profit_vault.reset_vault("BINANCE_LIVE_REAL")
         profit_vault.reset_vault("BINANCE_LIVE")

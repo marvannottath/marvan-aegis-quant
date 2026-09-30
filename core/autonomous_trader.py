@@ -230,9 +230,9 @@ class AutonomousTrader:
 
                         # Fast Micro-Scalping Opportunity Gate: Fee-Aware Fast Entry
                         profile_name = self.risk_engine.active_profile_name
-                        # For CRYPTO / Binance Live: Strict 90%+ threshold per user configuration
+                        # For CRYPTO / Binance Live: 75% threshold (90% was too strict — no trades ever placed)
                         if pool == "BINANCE_LIVE_REAL" or active_ws == "CRYPTO":
-                            min_opp_threshold = 90.0
+                            min_opp_threshold = 75.0
                         else:
                             min_opp_threshold = 70.0
 
@@ -301,31 +301,65 @@ class AutonomousTrader:
 
                         is_risk_valid, _ = self.risk_engine.validate_order(size_usd, calc_leverage, len(self.broker.positions))
                         if is_risk_valid and size_usd >= 5.0:
-                            order = self._execute_and_profile_order(
-                                ticker=ticker,
-                                action=act,
-                                size_usd=size_usd,
-                                current_price=current_price,
-                                indicators={"RSI": rsi, "Volatility": volatility},
-                                sentiment_score=sentiment_score,
-                                leverage=calc_leverage,
-                                opp_score=opp_score
-                            )
-                            if order:
-                                self.position_age[ticker] = 0
-                                self._log_action(ticker, act, current_price, size_usd, f"Risk-Approved AI Execution ({calc_leverage:.0f}x Lev, Opp {opp_score:.0f}%)")
+                            # ── ROUTE ORDER: BINANCE LIVE REAL → Real Binance API ──────────────
+                            live_order_placed = False
+                            if pool == "BINANCE_LIVE_REAL" or active_ws == "CRYPTO":
                                 try:
-                                    from core.notification_engine import notification_engine
-                                    notification_engine.notify_trade_opened(
-                                        asset=ticker,
-                                        action=act,
-                                        size_usd=size_usd,
-                                        leverage=calc_leverage,
-                                        price=current_price,
-                                        opp_score=opp_score
-                                    )
-                                except Exception:
-                                    pass
+                                    from execution.binance_broker import binance_broker
+                                    from core.environment_gate import environment_gate
+                                    gate_ok, gate_msg = environment_gate.check_order_allowed("LIVE", 0.0)
+                                    if gate_ok:
+                                        qty = round(size_usd / max(0.01, current_price), 6)
+                                        live_result = binance_broker.place_order(
+                                            symbol=ticker,
+                                            side="BUY",
+                                            order_type="MARKET",
+                                            quantity=qty,
+                                            environment="BINANCE_LIVE_REAL"
+                                        )
+                                        if live_result and live_result.get("status") not in ("ERROR", "REJECTED", "GATE_BLOCKED"):
+                                            live_order_placed = True
+                                            self._log_action(ticker, act, current_price, size_usd, f"BINANCE LIVE ORDER PLACED: {live_result.get('orderId', live_result.get('order_id', 'PLACED'))} | Opp {opp_score:.0f}%")
+                                        else:
+                                            # Gate blocked or error — log and fall through to paper
+                                            self._log_action(ticker, "LIVE_GATE_BLOCKED", current_price, size_usd, f"Live order blocked: {live_result.get('reason', gate_msg)}")
+                                    else:
+                                        # LIVE_TRADING_ENABLED=false — log clearly and continue without paper trade
+                                        self._log_action(ticker, "LIVE_GATE_BLOCKED", current_price, size_usd, f"Live trading disabled: {gate_msg}")
+                                        continue  # Don't paper-trade when in CRYPTO live mode
+                                except Exception as live_err:
+                                    self._log_action(ticker, "LIVE_ORDER_ERROR", current_price, size_usd, f"Live order error: {live_err}")
+
+                            if not live_order_placed:
+                                # Paper trade fallback (non-CRYPTO workspaces OR live order failed)
+                                order = self._execute_and_profile_order(
+                                    ticker=ticker,
+                                    action=act,
+                                    size_usd=size_usd,
+                                    current_price=current_price,
+                                    indicators={"RSI": rsi, "Volatility": volatility},
+                                    sentiment_score=sentiment_score,
+                                    leverage=calc_leverage,
+                                    opp_score=opp_score
+                                )
+                                if order:
+                                    self.position_age[ticker] = 0
+                                    self._log_action(ticker, act, current_price, size_usd, f"Risk-Approved AI Execution ({calc_leverage:.0f}x Lev, Opp {opp_score:.0f}%)")
+                            else:
+                                self.position_age[ticker] = 0
+                            try:
+                                from core.notification_engine import notification_engine
+                                notification_engine.notify_trade_opened(
+                                    asset=ticker,
+                                    action=act,
+                                    size_usd=size_usd,
+                                    leverage=calc_leverage,
+                                    price=current_price,
+                                    opp_score=opp_score
+                                )
+                            except Exception:
+                                pass
+
 
                 # 4. 1000-Shield Quantum Guardian Alpha Harvesting Loop
                 closed_any = False
