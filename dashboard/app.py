@@ -3846,6 +3846,18 @@ async def update_ai_regime(request: Request):
     new_regime = body.get("regime", "BALANCED")
     saved = set_current_ai_regime(new_regime)
     try:
+        from core.risk_engine import risk_engine
+        profile_map = {
+            "DEFENSIVE": "CONSERVATIVE",
+            "BALANCED": "MODERATE",
+            "BULL_RUN": "AGGRESSIVE"
+        }
+        target_profile = profile_map.get(new_regime.upper(), "MODERATE")
+        risk_engine.set_risk_profile(target_profile)
+    except Exception as e:
+        print(f"[AI REGIME] Risk profile sync notice: {e}")
+
+    try:
         from core.notification_engine import notification_engine
         notification_engine.send_telegram(f"🧠 *AI REGIME SWITCHED*\n\nNew Regime: *{saved['regime']}*\n{saved['description']}\nDrawdown Limit: {saved['drawdown_limit_pct']}%\nTimestamp: {get_ist_time()}")
     except Exception:
