@@ -168,7 +168,7 @@ class BinanceBroker:
 
     def close_spot_position(self, symbol: str, environment: str = "BINANCE_LIVE") -> Dict[str, Any]:
         """Liquidate or close a spot position on Binance and dismiss from active display."""
-        sym_clean = symbol.upper().replace("USDT", "").replace("BUSD", "").strip()
+        sym_clean = symbol.upper().replace("/", "").replace("USDT", "").replace("BUSD", "").strip()
         pair = f"{sym_clean}USDT"
 
         # Clear in-memory open positions cache
