@@ -213,8 +213,28 @@ class BinanceBroker:
                                     entry_px = fill_px
 
                                 gross_pnl = round((fill_px - entry_px) * fill_qty, 4)
-                                fee_est = round(((entry_px * fill_qty) + (fill_px * fill_qty)) * 0.001, 4)
-                                net_pnl = round(gross_pnl - fee_est, 2)
+                                
+                                # Extract exact Binance commission from fill receipt if available
+                                exact_exit_fee = 0.0
+                                fills = order_res.get("fills", [])
+                                if fills:
+                                    for f in fills:
+                                        c_amt = float(f.get("commission", 0.0))
+                                        c_asset = str(f.get("commissionAsset", "")).upper()
+                                        if c_asset in ["USDT", "BUSD", "USD"]:
+                                            exact_exit_fee += c_amt
+                                        elif c_asset == "BNB":
+                                            bulk_px = self.get_bulk_market_data(environment=environment)
+                                            bnb_px = float(bulk_px.get("BNBUSDT", {}).get("last_price", 600.0) or 600.0)
+                                            exact_exit_fee += (c_amt * bnb_px)
+                                        else:
+                                            exact_exit_fee += (c_amt * fill_px)
+                                    # Total round-trip fee: exact exit fill commission + entry commission
+                                    fee_usd = round(exact_exit_fee + (entry_px * fill_qty * (0.00075 if exact_exit_fee < (fill_px * fill_qty * 0.0009) else 0.001)), 4)
+                                else:
+                                    fee_usd = round(((entry_px * fill_qty) + (fill_px * fill_qty)) * 0.001, 4)
+
+                                net_pnl = round(gross_pnl - fee_usd, 2)
                                 now_str = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S")
 
                                 trade_record = {

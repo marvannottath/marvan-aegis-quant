@@ -84,8 +84,14 @@ class HistoricalLogService:
                             qty = float(f.get("qty", 0.0))
                             price = float(f.get("price", 0.0))
                             comm = float(f.get("commission", 0.0))
-                            comm_asset = f.get("commissionAsset", "USDT")
-                            fee_usd = comm if comm_asset in ["USDT", "BUSD", "USD"] else round(comm * price, 4)
+                            comm_asset = str(f.get("commissionAsset", "USDT")).upper()
+                            if comm_asset in ["USDT", "BUSD", "USD"]:
+                                fee_usd = comm
+                            elif comm_asset == "BNB":
+                                bnb_px = float(binance_broker.get_market_data("BINANCE_LIVE", "BNBUSDT").get("last_price", 600.0) or 600.0)
+                                fee_usd = round(comm * bnb_px, 4)
+                            else:
+                                fee_usd = round(comm * price, 4)
                             is_buyer = bool(f.get("isBuyer"))
                             ts_ms = int(f.get("time", time.time() * 1000))
                             
