@@ -203,10 +203,69 @@ class BinanceBroker:
                             if order_res.get("status") in ["SUCCESS", "FILLED"]:
                                 self.dismiss_spot_position(sym_clean)
                                 self.dismiss_spot_position(pair)
+
+                                fill_px = float(order_res.get("average_fill_price") or px)
+                                fill_qty = float(order_res.get("executed_quantity") or formatted_qty or free_qty)
+                                entry_px = float(self._entry_price_cache.get(pair, 0.0) or self._entry_price_cache.get(sym_clean, 0.0))
+                                if entry_px <= 0:
+                                    entry_px = self.get_entry_price(environment, pair)
+                                if entry_px <= 0:
+                                    entry_px = fill_px
+
+                                gross_pnl = round((fill_px - entry_px) * fill_qty, 4)
+                                fee_est = round(((entry_px * fill_qty) + (fill_px * fill_qty)) * 0.001, 4)
+                                net_pnl = round(gross_pnl - fee_est, 2)
+                                now_str = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S")
+
+                                trade_record = {
+                                    "trade_id": f"TRD-BINA-{sym_clean}-{int(time.time()*1000)}",
+                                    "asset": pair,
+                                    "symbol": pair,
+                                    "action": "BUY",
+                                    "side": "BUY",
+                                    "entry_price": entry_px,
+                                    "exit_price": fill_px,
+                                    "units": fill_qty,
+                                    "quantity": fill_qty,
+                                    "capital_allocated": round(entry_px * fill_qty, 2),
+                                    "leverage": 1.0,
+                                    "gross_pnl": gross_pnl,
+                                    "fee_usd": fee_est,
+                                    "net_pnl": net_pnl,
+                                    "pnl_usd": net_pnl,
+                                    "pnl_pct": round((gross_pnl / (entry_px * fill_qty)) * 100.0, 2) if (entry_px * fill_qty) > 0 else 0.0,
+                                    "result": "WIN" if net_pnl > 0 else "LOSS",
+                                    "reason": "BINANCE_SPOT_CLOSE",
+                                    "timestamp": now_str,
+                                    "date": now_str[:10],
+                                    "workspace": "CRYPTO",
+                                    "source": "BINANCE_LIVE"
+                                }
+
+                                try:
+                                    from execution.paper_broker import paper_broker
+                                    pool = paper_broker.pools.setdefault("BINANCE_LIVE_REAL", {})
+                                    hist = pool.setdefault("trade_history", [])
+                                    hist.insert(0, trade_record)
+                                    if len(hist) > 500:
+                                        pool["trade_history"] = hist[:500]
+                                    paper_broker._save_state()
+                                except Exception as pb_err:
+                                    print(f"[BINANCE CLOSE] paper_broker save notice: {pb_err}")
+
+                                if net_pnl > 0:
+                                    try:
+                                        from execution.profit_vault import profit_vault
+                                        profit_vault.record_trade_profit("BINANCE_LIVE_REAL", net_pnl)
+                                    except Exception as v_err:
+                                        print(f"[BINANCE CLOSE] vault sweep notice: {v_err}")
+
                                 return {
                                     "status": "SUCCESS",
-                                    "message": f"Sold {formatted_qty} {sym_clean} on Binance Spot and dismissed from tracking.",
-                                    "order": order_res
+                                    "message": f"Sold {fill_qty} {sym_clean} on Binance Spot. Net PnL: ${net_pnl:+.2f}",
+                                    "order": order_res,
+                                    "trade_record": trade_record,
+                                    "realized_pnl": net_pnl
                                 }
                             else:
                                 print(f"[BINANCE CLOSE REJECTED]: {order_res}")
@@ -2036,9 +2095,8 @@ class BinanceBroker:
             return {"status": "SUCCESS", "order_id": res.get("provider_order_id"), "data": res.get("raw_data")}
         return res
 
-    def get_live_my_trades(self, symbol: str = "BTCUSDT", limit: int = 10) -> List[Dict[str, Any]]:
-        env = "BINANCE_TESTNET" if self.testnet else "BINANCE_LIVE"
-        return self.get_execution_fills(env, symbol, limit)
+    def get_live_my_trades(self, symbol: str = "BTCUSDT", limit: int = 50, environment: str = "BINANCE_LIVE") -> List[Dict[str, Any]]:
+        return self.get_execution_fills(environment, symbol, limit)
 
     def save_credentials(self, api_key: str, secret_key: str, testnet: bool = True) -> Dict[str, Any]:
         """Save and cryptographically bind Binance API credentials for target environment."""

@@ -71,44 +71,81 @@ class HistoricalLogService:
             from execution.binance_broker import binance_broker
             if binance_broker.is_live_configured:
                 # Query recent trades for active symbols
-                for sym in ["BTCUSDT", "BNBUSDT", "SOLUSDT", "ETHUSDT"]:
+                for sym in ["BTCUSDT", "BNBUSDT", "SOLUSDT", "ETHUSDT", "XRPUSDT", "DOGEUSDT", "ADAUSDT"]:
                     try:
-                        fills = binance_broker.get_live_my_trades(symbol=sym, limit=20)
+                        fills = binance_broker.get_execution_fills("BINANCE_LIVE", symbol=sym, limit=50)
+                        if not fills:
+                            continue
+                        fills = sorted(fills, key=lambda x: int(x.get("time", 0)))
+                        
+                        # Reconstruct round-trip trades via FIFO matching
+                        buy_queue = []
                         for f in fills:
-                            tid = f"BIN-{f.get('id', int(time.time()*1000))}"
-                            ts_ms = int(f.get("time", time.time() * 1000))
-                            dt_str = datetime.fromtimestamp(ts_ms / 1000.0, tz=timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S")
                             qty = float(f.get("qty", 0.0))
                             price = float(f.get("price", 0.0))
                             comm = float(f.get("commission", 0.0))
                             comm_asset = f.get("commissionAsset", "USDT")
                             fee_usd = comm if comm_asset in ["USDT", "BUSD", "USD"] else round(comm * price, 4)
-                            side = "BUY" if f.get("isBuyer") else "SELL"
+                            is_buyer = bool(f.get("isBuyer"))
+                            ts_ms = int(f.get("time", time.time() * 1000))
                             
-                            if tid not in trades_map:
-                                trades_map[tid] = {
-                                    "trade_id": tid,
-                                    "timestamp": dt_str,
-                                    "date": dt_str[:10],
-                                    "symbol": sym,
-                                    "asset": sym,
-                                    "side": side,
-                                    "action": side,
-                                    "entry_price": price,
-                                    "exit_price": price,
-                                    "quantity": qty,
-                                    "units": qty,
-                                    "gross_pnl": 0.0,
-                                    "fee_usd": fee_usd,
-                                    "net_pnl": -fee_usd if side == "BUY" else 0.0,
-                                    "pnl_usd": -fee_usd if side == "BUY" else 0.0,
-                                    "result": "WIN" if fee_usd == 0 else "FILLED",
-                                    "close_reason": "BINANCE_LIVE_EXECUTION",
-                                    "workspace": "CRYPTO",
-                                    "source": "BINANCE_LIVE"
-                                }
-                    except Exception:
-                        pass
+                            if is_buyer:
+                                buy_queue.append({
+                                    "id": f.get("id"),
+                                    "qty": qty,
+                                    "price": price,
+                                    "fee": fee_usd,
+                                    "time": ts_ms
+                                })
+                            else:
+                                rem_sell_qty = qty
+                                while rem_sell_qty > 0.000001 and buy_queue:
+                                    b = buy_queue[0]
+                                    matched_qty = min(rem_sell_qty, b["qty"])
+                                    entry_px = b["price"]
+                                    exit_px = price
+                                    
+                                    b_fee = (matched_qty / b["qty"]) * b["fee"] if b["qty"] > 0 else 0.0
+                                    s_fee = (matched_qty / qty) * fee_usd if qty > 0 else 0.0
+                                    tot_fee = round(b_fee + s_fee, 4)
+                                    
+                                    gross_pnl = round((exit_px - entry_px) * matched_qty, 4)
+                                    net_pnl = round(gross_pnl - tot_fee, 2)
+                                    dt_str = datetime.fromtimestamp(ts_ms / 1000.0, tz=timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S")
+                                    sym_clean = sym.replace("USDT", "")
+                                    tid = f"TRD-BINA-{sym_clean}-{f.get('id')}"
+                                    
+                                    trades_map[tid] = {
+                                        "trade_id": tid,
+                                        "timestamp": dt_str,
+                                        "date": dt_str[:10],
+                                        "symbol": sym,
+                                        "asset": sym,
+                                        "side": "BUY",
+                                        "action": "BUY",
+                                        "entry_price": entry_px,
+                                        "exit_price": exit_px,
+                                        "quantity": round(matched_qty, 6),
+                                        "units": round(matched_qty, 6),
+                                        "capital_allocated": round(entry_px * matched_qty, 2),
+                                        "leverage": 1.0,
+                                        "gross_pnl": gross_pnl,
+                                        "fee_usd": tot_fee,
+                                        "net_pnl": net_pnl,
+                                        "pnl_usd": net_pnl,
+                                        "pnl_pct": round((gross_pnl / (entry_px * matched_qty)) * 100.0, 2) if (entry_px * matched_qty) > 0 else 0.0,
+                                        "result": "WIN" if net_pnl > 0 else ("LOSS" if net_pnl < 0 else "BREAKEVEN"),
+                                        "close_reason": "BINANCE_LIVE_FILL",
+                                        "workspace": "CRYPTO",
+                                        "source": "BINANCE_LIVE"
+                                    }
+                                    
+                                    b["qty"] -= matched_qty
+                                    rem_sell_qty -= matched_qty
+                                    if b["qty"] <= 0.000001:
+                                        buy_queue.pop(0)
+                    except Exception as fill_err:
+                        print(f"[HistoricalLogService] Fill parse notice for {sym}: {fill_err}")
         except Exception as e:
             print(f"[HistoricalLogService] Binance live fills notice: {e}")
 

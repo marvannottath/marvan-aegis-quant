@@ -1438,10 +1438,12 @@ async def close_position_endpoint(request: Request):
                 pass
 
         # 1. Liquidate/dismiss spot crypto asset in binance_broker so it won't be resurrected
+        binance_close_record = None
         try:
             from execution.binance_broker import binance_broker
-            binance_broker.dismiss_spot_position(asset)
-            binance_broker.close_spot_position(asset, environment="BINANCE_LIVE")
+            b_res = binance_broker.close_spot_position(asset, environment="BINANCE_LIVE")
+            if b_res and b_res.get("status") == "SUCCESS" and b_res.get("trade_record"):
+                binance_close_record = b_res["trade_record"]
         except Exception as e:
             print(f"[CLOSE_SPOT_NOTICE]: {e}")
 
@@ -1458,6 +1460,9 @@ async def close_position_endpoint(request: Request):
         pos = paper_broker.positions.get(asset, {})
         exit_price = float(pos.get("last_price") or pos.get("entry_price") or 0.0)
         res = paper_broker.close_position(asset, exit_price=exit_price, reason="MANUAL_TRADER_EXIT")
+        if binance_close_record and (not res or str(res.get("trade_id", "")).startswith("DISMISS-")):
+            res = binance_close_record
+
         clean_name = asset.upper().replace("USDT", "").replace("BUSD", "")
         for p_name, p_data in paper_broker.pools.items():
             if isinstance(p_data, dict) and "positions" in p_data:
@@ -1468,7 +1473,7 @@ async def close_position_endpoint(request: Request):
             if k.upper() in [asset.upper(), clean_name, f"{clean_name}USDT"]:
                 del paper_broker.positions[k]
 
-        # 4. Clear snapshot service in-memory caches immediately
+        # 4. Clear snapshot service and historical log caches immediately
         try:
             from core.position_snapshot_service import position_snapshot_service
             if hasattr(position_snapshot_service, "_snapshot_cache"):
@@ -1477,6 +1482,9 @@ async def close_position_endpoint(request: Request):
             if hasattr(position_snapshot_service, "_agg_cache"):
                 position_snapshot_service._agg_cache.clear()
                 position_snapshot_service._agg_cache_ts.clear()
+            from core.historical_log_service import historical_log_service
+            historical_log_service._cached_trades = []
+            historical_log_service._last_load_ts = 0.0
         except Exception:
             pass
 
