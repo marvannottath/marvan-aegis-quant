@@ -1,162 +1,197 @@
 import json
 import os
-from datetime import datetime, timezone
+import time
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 
+IST_TZ = timezone(timedelta(hours=5, minutes=30))
+
 class HistoricalLogService:
-    """Service that aggregates trade history from both Binance live closes and
-    paper‑broker closes, normalises them to a common schema, and provides simple
-    filtering.
+    """
+    Unified trade history service for Aegis Quant.
+    Aggregates closed trades from:
+    1. Real Binance live executions via Binance API
+    2. Paper broker pools (BINANCE_LIVE_REAL, AEGIS_QUANT_MASTER, etc.)
+    3. Persisted broker states
+    Provides structured filtering by date, symbol, side, workspace.
     """
 
-    CLOSED_SPOT_PATH = Path(__file__).resolve().parent.parent / "data" / "closed_spot_positions.json"
     PAPER_BROKER_STATE = Path(__file__).resolve().parent.parent / "data" / "paper_broker_state.json"
 
     def __init__(self):
-        self._trades: List[Dict[str, Any]] = []
-        self._load_all()
+        self._cached_trades: List[Dict[str, Any]] = []
+        self._last_load_ts = 0.0
 
-    # ---------------------------------------------------------------------
-    # Internal loaders
-    # ---------------------------------------------------------------------
+    def _ensure_loaded(self) -> None:
+        now = time.time()
+        if (now - self._last_load_ts) < 2.0 and self._cached_trades:
+            return
+        self._load_all()
+        self._last_load_ts = now
+
     def _load_all(self) -> None:
-        """Load and normalise data from both sources.
-        The resulting list is sorted by entry timestamp (ascending).
-        """
-        self._trades.clear()
-        # 1. Binance live closed positions
-        if self.CLOSED_SPOT_PATH.is_file():
-            try:
-                with open(self.CLOSED_SPOT_PATH, "r") as f:
-                    data = json.load(f)
-                for rec in data.get("positions", []):
-                    self._trades.append(self._normalise_binance(rec))
-            except Exception as e:
-                # If the file is corrupted we simply skip – the service will still work.
-                print(f"[HistoricalLogService] Failed to read Binance closed positions: {e}")
-        # 2. Paper broker closed positions (stored inside paper_broker_state.json)
+        trades_map: Dict[str, Dict[str, Any]] = {}
+
+        # 1. Load from paper_broker in-memory pools
+        try:
+            from execution.paper_broker import paper_broker
+            for pool_name, pool in paper_broker.pools.items():
+                if isinstance(pool, dict):
+                    ws = "CRYPTO" if "BINANCE" in pool_name or "CRYPTO" in pool_name else ("INDIA" if "INDIA" in pool_name or "UPSTOX" in pool_name else "FOREX_GOLD")
+                    for t in pool.get("trade_history", []):
+                        norm = self._normalise_trade_record(t, pool_name=pool_name, workspace=ws)
+                        if norm and norm.get("trade_id"):
+                            trades_map[norm["trade_id"]] = norm
+        except Exception as e:
+            print(f"[HistoricalLogService] In-memory paper broker load notice: {e}")
+
+        # 2. Load from paper_broker_state.json file
         if self.PAPER_BROKER_STATE.is_file():
             try:
                 with open(self.PAPER_BROKER_STATE, "r") as f:
                     state = json.load(f)
-                # The paper broker stores a dict "positions" with current open positions
-                # and a list "closed_positions" for historical closes (if present).
-                closed = state.get("closed_positions", [])
-                for rec in closed:
-                    self._trades.append(self._normalise_paper(rec))
+                pools = state.get("pools", {})
+                for pool_name, pool_data in pools.items():
+                    ws = "CRYPTO" if "BINANCE" in pool_name or "CRYPTO" in pool_name else ("INDIA" if "INDIA" in pool_name or "UPSTOX" in pool_name else "FOREX_GOLD")
+                    for t in pool_data.get("trade_history", []):
+                        norm = self._normalise_trade_record(t, pool_name=pool_name, workspace=ws)
+                        if norm and norm.get("trade_id"):
+                            trades_map[norm["trade_id"]] = norm
+                # Also check root trade_history
+                for t in state.get("trade_history", []):
+                    norm = self._normalise_trade_record(t, pool_name="AEGIS_QUANT_MASTER", workspace="FOREX_GOLD")
+                    if norm and norm.get("trade_id"):
+                        trades_map[norm["trade_id"]] = norm
             except Exception as e:
-                print(f"[HistoricalLogService] Failed to read paper broker state: {e}")
-        # Sort by entry timestamp for deterministic output
-        self._trades.sort(key=lambda t: t["entry_ts"])
+                print(f"[HistoricalLogService] File paper broker load notice: {e}")
 
-    # ---------------------------------------------------------------------
-    # Normalisation helpers – both sources end up with the same field names.
-    # ---------------------------------------------------------------------
-    @staticmethod
-    def _parse_ts(ts: Any) -> int:
-        """Return epoch milliseconds. Accepts ISO string, epoch int, or None.
-        """
-        if isinstance(ts, int):
-            return ts
-        if isinstance(ts, str):
-            try:
-                dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
-                return int(dt.timestamp() * 1000)
-            except Exception:
-                pass
-        # fallback: now
-        return int(datetime.now(timezone.utc).timestamp() * 1000)
+        # 3. Load live Binance execution fills if configured
+        try:
+            from execution.binance_broker import binance_broker
+            if binance_broker.is_live_configured:
+                # Query recent trades for active symbols
+                for sym in ["BTCUSDT", "BNBUSDT", "SOLUSDT", "ETHUSDT"]:
+                    try:
+                        fills = binance_broker.get_live_my_trades(symbol=sym, limit=20)
+                        for f in fills:
+                            tid = f"BIN-{f.get('id', int(time.time()*1000))}"
+                            ts_ms = int(f.get("time", time.time() * 1000))
+                            dt_str = datetime.fromtimestamp(ts_ms / 1000.0, tz=timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S")
+                            qty = float(f.get("qty", 0.0))
+                            price = float(f.get("price", 0.0))
+                            comm = float(f.get("commission", 0.0))
+                            comm_asset = f.get("commissionAsset", "USDT")
+                            fee_usd = comm if comm_asset in ["USDT", "BUSD", "USD"] else round(comm * price, 4)
+                            side = "BUY" if f.get("isBuyer") else "SELL"
+                            
+                            if tid not in trades_map:
+                                trades_map[tid] = {
+                                    "trade_id": tid,
+                                    "timestamp": dt_str,
+                                    "date": dt_str[:10],
+                                    "symbol": sym,
+                                    "asset": sym,
+                                    "side": side,
+                                    "action": side,
+                                    "entry_price": price,
+                                    "exit_price": price,
+                                    "quantity": qty,
+                                    "units": qty,
+                                    "gross_pnl": 0.0,
+                                    "fee_usd": fee_usd,
+                                    "net_pnl": -fee_usd if side == "BUY" else 0.0,
+                                    "pnl_usd": -fee_usd if side == "BUY" else 0.0,
+                                    "result": "WIN" if fee_usd == 0 else "FILLED",
+                                    "close_reason": "BINANCE_LIVE_EXECUTION",
+                                    "workspace": "CRYPTO",
+                                    "source": "BINANCE_LIVE"
+                                }
+                    except Exception:
+                        pass
+        except Exception as e:
+            print(f"[HistoricalLogService] Binance live fills notice: {e}")
 
-    def _normalise_binance(self, rec: Dict[str, Any]) -> Dict[str, Any]:
-        """Convert a Binance closed spot position record to the common schema.
-        Expected keys in *rec* (based on how the broker writes the file):
-            - symbol
-            - side ("BUY" / "SELL")
-            - entry_price, exit_price
-            - entry_timestamp, exit_timestamp
-            - realized_pnl_usd
-            - fee_usd
-            - close_reason (optional)
-        """
+        # Convert to list and sort descending by timestamp
+        all_trades = list(trades_map.values())
+        all_trades.sort(key=lambda t: str(t.get("timestamp", "")), reverse=True)
+        self._cached_trades = all_trades
+
+    def _normalise_trade_record(self, t: Dict[str, Any], pool_name: str = "", workspace: str = "CRYPTO") -> Dict[str, Any]:
+        raw_ts = str(t.get("timestamp", ""))
+        if not raw_ts:
+            raw_ts = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S")
+        date_str = raw_ts[:10]
+
+        sym = t.get("symbol") or t.get("asset") or "BTCUSDT"
+        side = t.get("side") or t.get("action") or "BUY"
+        entry_px = float(t.get("entry_price") or t.get("price") or 0.0)
+        exit_px = float(t.get("exit_price") or entry_px)
+        units = float(t.get("units") or t.get("quantity") or 0.0)
+
+        # Gross & Net PnL and Fees
+        pnl = float(t.get("net_pnl") if "net_pnl" in t else (t.get("pnl_usd") or t.get("realized_pnl") or 0.0))
+        fee = float(t.get("fee_usd", 0.0))
+        if fee == 0.0 and entry_px > 0 and units > 0:
+            fee = round(((entry_px * units) + (exit_px * units)) * 0.001, 4)
+        gross = float(t.get("gross_pnl") if "gross_pnl" in t else (pnl + fee))
+        net = round(gross - fee, 2)
+
+        res = t.get("result") or ("WIN" if net > 0 else ("LOSS" if net < 0 else "BREAKEVEN"))
+
         return {
-            "trade_id": rec.get("broker_position_id") or rec.get("trade_id") or f"BIN-{rec.get('symbol')}-{self._parse_ts(rec.get('entry_timestamp'))}",
-            "symbol": rec.get("symbol"),
-            "side": rec.get("side"),
-            "entry_price": float(rec.get("entry_price", 0.0)),
-            "exit_price": float(rec.get("exit_price", 0.0)),
-            "entry_ts": self._parse_ts(rec.get("entry_timestamp")),
-            "exit_ts": self._parse_ts(rec.get("exit_timestamp")),
-            "realized_pnl_usd": float(rec.get("realized_pnl_usd", 0.0)),
-            "fee_usd": float(rec.get("fee_usd", 0.0)),
-            "close_reason": rec.get("close_reason", "UNKNOWN"),
-            "source": "BINANCE"
+            "trade_id": t.get("trade_id") or f"TRD-{int(time.time()*1000)}",
+            "timestamp": raw_ts,
+            "date": date_str,
+            "symbol": sym,
+            "asset": sym,
+            "side": side,
+            "action": side,
+            "entry_price": entry_px,
+            "exit_price": exit_px,
+            "quantity": units,
+            "units": units,
+            "gross_pnl": gross,
+            "fee_usd": fee,
+            "net_pnl": net,
+            "pnl_usd": net,
+            "result": res,
+            "close_reason": t.get("reason") or t.get("close_reason", "EXECUTION_COMPLETE"),
+            "workspace": workspace,
+            "pool_name": pool_name,
+            "source": t.get("source", "AEGIS_LEDGER")
         }
 
-    def _normalise_paper(self, rec: Dict[str, Any]) -> Dict[str, Any]:
-        """Convert a paper‑broker closed record to the same schema.
-        Paper records usually contain:
-            - symbol, side, entry_price, exit_price, entry_ts, exit_ts
-            - realized_pnl_usd, fee_usd (may be 0), close_reason
-        """
-        return {
-            "trade_id": rec.get("trade_id") or f"PAPER-{rec.get('symbol')}-{self._parse_ts(rec.get('entry_ts'))}",
-            "symbol": rec.get("symbol"),
-            "side": rec.get("side"),
-            "entry_price": float(rec.get("entry_price", 0.0)),
-            "exit_price": float(rec.get("exit_price", 0.0)),
-            "entry_ts": self._parse_ts(rec.get("entry_ts")),
-            "exit_ts": self._parse_ts(rec.get("exit_ts")),
-            "realized_pnl_usd": float(rec.get("realized_pnl_usd", 0.0)),
-            "fee_usd": float(rec.get("fee_usd", 0.0)),
-            "close_reason": rec.get("close_reason", "MANUAL"),
-            "source": "PAPER"
-        }
-
-    # ---------------------------------------------------------------------
-    # Public query API
-    # ---------------------------------------------------------------------
     def query(
         self,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
         symbol: Optional[str] = None,
         side: Optional[str] = None,
+        workspace: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
-        """Return a filtered list of trades.
-        * start_date / end_date – ISO‑8601 date strings (e.g. "2026-09-20").
-        * symbol – exact symbol filter (e.g. "BTCUSDT").
-        * side – "BUY" or "SELL".
-        """
-        # Convert date strings to epoch ms boundaries (start = 00:00:00, end = 23:59:59)
-        start_ts = None
-        end_ts = None
-        if start_date:
-            dt = datetime.fromisoformat(start_date)
-            start_ts = int(dt.replace(tzinfo=timezone.utc).timestamp() * 1000)
-        if end_date:
-            dt = datetime.fromisoformat(end_date)
-            # end of day
-            end_ts = int((dt.replace(hour=23, minute=59, second=59, tzinfo=timezone.utc)).timestamp() * 1000)
-        filtered = []
-        for t in self._trades:
-            if start_ts is not None and t["entry_ts"] < start_ts:
-                continue
-            if end_ts is not None and t["entry_ts"] > end_ts:
-                continue
-            if symbol and t["symbol"] != symbol:
-                continue
-            if side and t["side"].upper() != side.upper():
-                continue
-            filtered.append(t)
-        return filtered
+        self._ensure_loaded()
+        res = self._cached_trades
 
-    # ---------------------------------------------------------------------
-    # Optional retention (if configured) – Not used right now, but kept for future.
-    # ---------------------------------------------------------------------
-    def purge_older_than(self, days: int) -> None:
-        """Remove trades older than *days* from the internal list. Does **not**
-        modify the source JSON files (they are append‑only by the broker).
-        """
-        cutoff = int((datetime.now(timezone.utc) - timedelta(days=days)).timestamp() * 1000)
-        self._trades = [t for t in self._trades if t["entry_ts"] >= cutoff]
+        if workspace and workspace.upper() != "ALL":
+            res = [t for t in res if t.get("workspace") == workspace.upper()]
+
+        if start_date:
+            res = [t for t in res if t.get("date", "") >= start_date]
+
+        if end_date:
+            res = [t for t in res if t.get("date", "") <= end_date]
+
+        if symbol:
+            sym_clean = symbol.upper().strip()
+            res = [t for t in res if t.get("symbol") == sym_clean or t.get("asset") == sym_clean]
+
+        if side:
+            side_clean = side.upper().strip()
+            res = [t for t in res if t.get("side", "").upper() == side_clean or t.get("action", "").upper() == side_clean]
+
+        return res
+
+
+# Global singleton
+historical_log_service = HistoricalLogService()

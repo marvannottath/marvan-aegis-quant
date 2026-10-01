@@ -170,8 +170,6 @@ class BinanceBroker:
         """Liquidate or close a spot position on Binance and dismiss from active display."""
         sym_clean = symbol.upper().replace("USDT", "").replace("BUSD", "").strip()
         pair = f"{sym_clean}USDT"
-        self.dismiss_spot_position(sym_clean)
-        self.dismiss_spot_position(pair)
 
         # Clear in-memory open positions cache
         if hasattr(self, "_open_pos_ts"):
@@ -185,30 +183,52 @@ class BinanceBroker:
                 if b.get("asset", "").upper() == sym_clean:
                     free_qty = float(b.get("free", 0.0))
                     if free_qty > 0:
-                        bulk_p = self.get_bulk_market_data()
-                        px = float(bulk_p.get(pair, {}).get("last_price", 0.0))
-                        if (free_qty * px) >= 5.0:
-                            step_info = self.get_symbol_info(pair, environment)
-                            lot_step = float(step_info.get("step_size", 0.0001))
-                            import math
-                            decimals = int(round(-math.log10(lot_step))) if lot_step < 1.0 else 0
-                            sell_qty = math.floor(free_qty * (10 ** decimals)) / (10 ** decimals)
-                            if sell_qty > 0:
-                                order_res = self.create_order(
-                                    environment=environment,
-                                    symbol=pair,
-                                    side="SELL",
-                                    quantity=sell_qty,
-                                    order_type="MARKET"
-                                )
+                        mdata = self.get_market_data(environment, pair)
+                        px = float(mdata.get("last_price", 0.0))
+                        if px <= 0:
+                            bulk_p = self.get_bulk_market_data(environment=environment)
+                            px = float(bulk_p.get(pair, {}).get("last_price", 0.0))
+
+                        formatted_qty = self.format_quantity(environment, pair, free_qty)
+                        notional = (formatted_qty * px) if px > 0 else (free_qty * px)
+
+                        if notional >= 5.0 or px <= 0:
+                            order_res = self.create_order(
+                                environment=environment,
+                                symbol=pair,
+                                side="SELL",
+                                quantity=formatted_qty if formatted_qty > 0 else free_qty,
+                                order_type="MARKET"
+                            )
+                            if order_res.get("status") in ["SUCCESS", "FILLED"]:
+                                self.dismiss_spot_position(sym_clean)
+                                self.dismiss_spot_position(pair)
                                 return {
                                     "status": "SUCCESS",
-                                    "message": f"Sold {sell_qty} {sym_clean} on Binance Spot and dismissed from tracking.",
+                                    "message": f"Sold {formatted_qty} {sym_clean} on Binance Spot and dismissed from tracking.",
                                     "order": order_res
                                 }
+                            else:
+                                print(f"[BINANCE CLOSE REJECTED]: {order_res}")
+                                return {
+                                    "status": "ERROR",
+                                    "message": order_res.get("message", "Binance rejected market sell order"),
+                                    "order": order_res
+                                }
+                        else:
+                            # Balance value is below Binance 5.00 USDT MIN_NOTIONAL (dust) -> dismiss from active tracking
+                            self.dismiss_spot_position(sym_clean)
+                            self.dismiss_spot_position(pair)
+                            return {
+                                "status": "DUST_DISMISSED",
+                                "message": f"{sym_clean} balance value (${notional:.2f}) is below Binance 5.00 USDT MIN_NOTIONAL. Dismissed."
+                            }
         except Exception as e:
-            print(f"[BINANCE] Spot close execution notice for {symbol}: {e}")
+            print(f"[BINANCE] Spot close execution error for {symbol}: {e}")
+            return {"status": "ERROR", "message": str(e)}
 
+        self.dismiss_spot_position(sym_clean)
+        self.dismiss_spot_position(pair)
         return {"status": "SUCCESS", "message": f"{symbol} closed and permanently dismissed from active tracking."}
 
     def _save_closed_spot_assets(self):
@@ -1822,12 +1842,6 @@ class BinanceBroker:
             ticker_symbol = f"{asset}USDT"
             sym_clean = asset.upper().strip()
 
-            # Skip dismissed or manually closed assets (e.g. user dismissed or closed XRP)
-            if (sym_clean in self._closed_spot_assets or 
-                ticker_symbol in self._closed_spot_assets or 
-                f"{sym_clean}USDT" in self._closed_spot_assets):
-                continue
-
             total_qty = float(b.get("free", 0.0)) + float(b.get("locked", 0.0))
             if total_qty <= 0.0000001:
                 self._entry_price_cache.pop(f"{asset}USDT", None)
@@ -1854,9 +1868,16 @@ class BinanceBroker:
             except Exception:
                 pass
 
-            # Binance Spot API hard-rejects market sell orders below $5-$10 (MIN_NOTIONAL).
-            # Filter out pre-existing wallet dust (< $10.00) so unclosable external dust is not shown as an active bot trade.
-            if val_usd < 10.0 and not has_internal_record:
+            # If dismissed/closed asset has residual value >= $5.00 (e.g. unsold BTC), do NOT hide it — allow user to close/liquidate
+            is_dismissed = (sym_clean in self._closed_spot_assets or 
+                            ticker_symbol in self._closed_spot_assets or 
+                            f"{sym_clean}USDT" in self._closed_spot_assets)
+            if is_dismissed and val_usd < 5.0:
+                continue
+
+            # Binance Spot API hard-rejects market sell orders below $5.00 (MIN_NOTIONAL).
+            # Filter out wallet dust (< $5.00) so unclosable external micro-dust (e.g. ADA 0.0037 = $0.0009) is not shown.
+            if val_usd < 5.0 and not has_internal_record:
                 self._entry_price_cache.pop(f"{asset}USDT", None)
                 continue
 

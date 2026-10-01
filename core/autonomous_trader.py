@@ -453,6 +453,15 @@ class AutonomousTrader:
                         else:
                             close_reason = "STOP_LOSS_EXIT"
                         
+                        # CRITICAL: For live Binance Spot trading, execute real MARKET SELL on Binance!
+                        if pool == "BINANCE_LIVE_REAL" or active_ws == "CRYPTO":
+                            try:
+                                from execution.binance_broker import binance_broker
+                                live_sell_res = binance_broker.close_spot_position(pos_asset, environment="BINANCE_LIVE")
+                                print(f"[AUTONOMOUS TRADER] Binance Live Spot Close for {pos_asset}: {live_sell_res}")
+                            except Exception as live_close_err:
+                                print(f"[AUTONOMOUS TRADER] Live close error for {pos_asset}: {live_close_err}")
+
                         self.broker.close_position(
                             asset=pos_asset,
                             exit_price=new_live_price,
@@ -479,7 +488,7 @@ class AutonomousTrader:
                         if pool == "BINANCE_LIVE_REAL" or active_ws == "CRYPTO":
                             try:
                                 from execution.binance_broker import binance_broker
-                                real_live_cash = binance_broker.get_real_live_spot_balance()
+                                real_live_cash = binance_broker.get_live_spot_balance("USDT")
                                 if real_live_cash > 0:
                                     self.broker.pools.setdefault("BINANCE_LIVE_REAL", {})["virtual_cash"] = real_live_cash
                                     self.broker.virtual_cash = real_live_cash

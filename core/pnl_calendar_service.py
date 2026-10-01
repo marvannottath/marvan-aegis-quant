@@ -32,21 +32,28 @@ class PnLCalendarService:
             year, month = now.year, now.month
             year_month = f"{year:04d}-{month:02d}"
 
-        # Fetch real trades from paper_broker
+        _, num_days = calendar.monthrange(year, month)
+        first_day_date = datetime(year, month, 1)
+        first_day_weekday = first_day_date.weekday()  # 0=Monday .. 6=Sunday
+
+        # Fetch real trades from unified historical_log_service
         real_trades_by_date: Dict[str, List[dict]] = {}
         try:
-            from execution.paper_broker import paper_broker
-            for pool_name, pool in paper_broker.pools.items():
-                if isinstance(pool, dict):
-                    for t in pool.get("trade_history", []):
-                        ts = str(t.get("timestamp", ""))
-                        if ts.startswith(year_month):
-                            date_str = ts[:10]
-                            real_trades_by_date.setdefault(date_str, []).append(t)
+            from core.historical_log_service import historical_log_service
+            start_str = f"{year_month}-01"
+            end_str = f"{year_month}-{num_days:02d}"
+            all_month_trades = historical_log_service.query(
+                start_date=start_str,
+                end_date=end_str,
+                workspace=workspace if workspace != "ALL" else None
+            )
+            for t in all_month_trades:
+                d_str = t.get("date") or str(t.get("timestamp", ""))[:10]
+                if d_str:
+                    real_trades_by_date.setdefault(d_str, []).append(t)
         except Exception as e:
-            print(f"[PNL CALENDAR] Broker trades load notice: {e}")
+            print(f"[PNL CALENDAR] Historical log service load notice: {e}")
 
-        _, num_days = calendar.monthrange(year, month)
         days_list: List[Dict[str, Any]] = []
 
         total_net_pnl_usd = 0.0
@@ -60,15 +67,7 @@ class PnLCalendarService:
         best_day = {"date": "-", "pnl_usd": 0.0}
         worst_day = {"date": "-", "pnl_usd": 0.0}
 
-        # Deterministic benchmarks for past days in month if trading was idle
-        benchmark_pnl_map = {
-            1: 42.50, 2: 78.20, 3: 31.40, 4: -14.60, 5: 18.90, 6: 0.0, 7: 64.10,
-            8: 92.40, 9: 115.80, 10: 45.20, 11: -22.10, 12: 24.30, 13: 0.0, 14: 83.50,
-            15: 104.20, 16: 62.70, 17: -18.40, 18: 91.30, 19: 35.80, 20: 0.0, 21: 112.40,
-            22: 76.90, 23: -12.50, 24: 88.60, 25: 0.0
-        }
-
-        current_day_num = now.day if (year == now.year and month == now.month) else num_days
+        current_day_num = now.day if (year == now.year and month == now.month) else (num_days if (year < now.year or (year == now.year and month < now.month)) else 0)
 
         for day in range(1, num_days + 1):
             date_obj = datetime(year, month, day)
@@ -76,7 +75,7 @@ class PnLCalendarService:
             day_name = date_obj.strftime("%a")
             is_weekend = (date_obj.weekday() >= 5)
 
-            is_future = (year == now.year and month == now.month and day > current_day_num)
+            is_future = (year == now.year and month == now.month and day > now.day) or (year > now.year) or (year == now.year and month > now.month)
 
             if is_future:
                 days_list.append({
@@ -90,7 +89,8 @@ class PnLCalendarService:
                     "net_pnl_usd": 0.0,
                     "net_pnl_inr": 0.0,
                     "status": "FUTURE",
-                    "top_asset": "-"
+                    "top_asset": "-",
+                    "trades": []
                 })
                 continue
 
@@ -98,33 +98,12 @@ class PnLCalendarService:
 
             if day_real_trades:
                 d_trades_cnt = len(day_real_trades)
-                d_wins = [t for t in day_real_trades if float(t.get("realized_pnl", 0.0) or t.get("pnl", 0.0) or t.get("pnl_usd", 0.0)) > 0]
-                d_losses = [t for t in day_real_trades if float(t.get("realized_pnl", 0.0) or t.get("pnl", 0.0) or t.get("pnl_usd", 0.0)) < 0]
+                d_wins = [t for t in day_real_trades if float(t.get("net_pnl", 0.0) or t.get("pnl_usd", 0.0)) > 0]
+                d_losses = [t for t in day_real_trades if float(t.get("net_pnl", 0.0) or t.get("pnl_usd", 0.0)) < 0]
                 d_win_cnt = len(d_wins)
                 d_loss_cnt = len(d_losses)
-                raw_pnl = sum(float(t.get("realized_pnl", 0.0) or t.get("pnl", 0.0) or t.get("pnl_usd", 0.0)) for t in day_real_trades)
-                # Sanitize extreme load-test batch run artifacts (e.g. 500 automated stress-test fills)
-                if abs(raw_pnl) > 300.0:
-                    d_pnl = 115.80 if raw_pnl > 0 else 68.40
-                    d_trades_cnt = min(12, d_trades_cnt)
-                    d_win_cnt = 10
-                    d_loss_cnt = 2
-                else:
-                    d_pnl = raw_pnl
-                d_top_asset = day_real_trades[0].get("symbol", "BTCUSDT")
-            elif day in benchmark_pnl_map and not is_weekend:
-                d_pnl = benchmark_pnl_map[day]
-                d_trades_cnt = 6 if d_pnl > 0 else 4
-                d_win_cnt = 5 if d_pnl > 0 else 1
-                d_loss_cnt = d_trades_cnt - d_win_cnt
-                d_top_asset = "BTCUSDT" if (day % 2 == 0) else "XAUUSD"
-            elif is_weekend:
-                # Weekend crypto scalping or quiet reserve
-                d_pnl = 12.40 if (day % 2 == 0) else 0.0
-                d_trades_cnt = 2 if d_pnl > 0 else 0
-                d_win_cnt = 2 if d_pnl > 0 else 0
-                d_loss_cnt = 0
-                d_top_asset = "SOLUSDT" if d_pnl > 0 else "-"
+                d_pnl = round(sum(float(t.get("net_pnl", 0.0) or t.get("pnl_usd", 0.0)) for t in day_real_trades), 2)
+                d_top_asset = day_real_trades[0].get("symbol") or day_real_trades[0].get("asset") or "BTCUSDT"
             else:
                 d_pnl = 0.0
                 d_trades_cnt = 0
@@ -169,38 +148,43 @@ class PnLCalendarService:
                 "net_pnl_usd": d_pnl,
                 "net_pnl_inr": d_pnl_inr,
                 "status": d_status,
-                "top_asset": d_top_asset
+                "top_asset": d_top_asset,
+                "trades": day_real_trades
             })
 
         active_days = green_days_count + red_days_count
-        win_day_rate = round((green_days_count / active_days) * 100.0, 1) if active_days > 0 else 100.0
-        overall_win_rate = round((total_win_trades / total_trades) * 100.0, 1) if total_trades > 0 else 100.0
-        profit_factor = round(total_gross_wins / max(1.0, total_gross_losses), 2) if total_gross_losses > 0 else 4.25
+        win_day_rate = round((green_days_count / active_days) * 100.0, 1) if active_days > 0 else 0.0
+        overall_win_rate = round((total_win_trades / total_trades) * 100.0, 1) if total_trades > 0 else 0.0
+        profit_factor = round(total_gross_wins / max(0.01, total_gross_losses), 2) if total_gross_losses > 0 else (round(total_gross_wins, 2) if total_gross_wins > 0 else 1.0)
+
+        month_dt = datetime(year, month, 1)
+        month_name = month_dt.strftime("%B %Y").upper()
 
         return {
             "status": "SUCCESS",
             "year_month": year_month,
-            "month_name": datetime(year, month, 1).strftime("%B %Y"),
+            "month_name": month_name,
+            "calendar_metadata": {
+                "year": year,
+                "month": month,
+                "num_days": num_days,
+                "first_day_weekday": first_day_weekday
+            },
             "kpis": {
                 "total_net_pnl_usd": round(total_net_pnl_usd, 2),
                 "total_net_pnl_inr": round(total_net_pnl_usd * USD_TO_INR_RATE, 2),
-                "total_trades": total_trades,
-                "overall_win_rate": overall_win_rate,
                 "green_days": green_days_count,
                 "red_days": red_days_count,
-                "neutral_days": (current_day_num - active_days),
                 "win_day_rate": win_day_rate,
+                "overall_win_rate": overall_win_rate,
+                "total_trades": total_trades,
                 "profit_factor": profit_factor,
                 "best_day": best_day,
-                "worst_day": worst_day,
+                "worst_day": worst_day
             },
-            "days": days_list,
-            "calendar_metadata": {
-                "first_day_weekday": datetime(year, month, 1).weekday(),  # 0=Mon, 6=Sun
-                "days_in_month": num_days
-            }
+            "days": days_list
         }
 
 
-# Global Singleton Instance
+# Global singleton
 pnl_calendar_service = PnLCalendarService()

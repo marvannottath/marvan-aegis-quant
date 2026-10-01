@@ -2031,7 +2031,15 @@
                             <div>
                                 <div class="flex items-center gap-2">
                                     <h3 class="text-sm font-bold text-white uppercase tracking-wide">Monthly PnL Calendar Heatmap</h3>
-                                    <span id="pnl-cal-month-badge" class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">SEPTEMBER 2026</span>
+                                    <div class="flex items-center gap-1 bg-gray-950 border border-gray-800 rounded-lg p-0.5">
+                                        <button onclick="changePnLMonth(-1)" title="Previous Month" class="px-2 py-0.5 bg-gray-900 hover:bg-gray-800 text-gray-300 hover:text-white rounded text-[10px] font-mono transition cursor-pointer">
+                                            <i class="fa-solid fa-chevron-left"></i>
+                                        </button>
+                                        <span id="pnl-cal-month-badge" class="px-2.5 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">OCTOBER 2026</span>
+                                        <button onclick="changePnLMonth(1)" title="Next Month" class="px-2 py-0.5 bg-gray-900 hover:bg-gray-800 text-gray-300 hover:text-white rounded text-[10px] font-mono transition cursor-pointer">
+                                            <i class="fa-solid fa-chevron-right"></i>
+                                        </button>
+                                    </div>
                                 </div>
                                 <p class="text-[11px] text-gray-400 font-mono mt-0.5">Day-by-day realized PnL, win-rate attribution &amp; trade density across all desks</p>
                             </div>
@@ -2106,7 +2114,18 @@
                 <!-- HISTORICAL TRADE LOGS -->
                 <div class="bg-darkcard border border-darkborder p-5 rounded-2xl space-y-4 shadow-xl">
                     <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-gray-800 pb-3">
-                        <h3 class="text-sm font-bold text-white uppercase"><i class="fa-solid fa-clock-rotate-left text-indigo-400 mr-2"></i> Complete Historical Trade Logs</h3>
+                        <div class="flex items-center gap-2.5">
+                            <h3 class="text-sm font-bold text-white uppercase"><i class="fa-solid fa-clock-rotate-left text-indigo-400 mr-2"></i> Complete Historical Trade Logs</h3>
+                            <!-- Source Switcher -->
+                            <div class="flex bg-gray-950 border border-gray-800 rounded-lg p-0.5 text-[11px] font-mono">
+                                <button onclick="setTradeLogSource('LIVE')" id="btn-tl-source-live" class="px-2.5 py-1 rounded bg-emerald-500 text-white font-bold cursor-pointer">
+                                    <span class="inline-block w-1.5 h-1.5 rounded-full bg-white mr-1 animate-pulse"></span>LIVE TRADES
+                                </button>
+                                <button onclick="setTradeLogSource('BACKTEST')" id="btn-tl-source-bt" class="px-2.5 py-1 rounded text-gray-400 hover:text-white cursor-pointer">
+                                    BACKTEST RUNS
+                                </button>
+                            </div>
+                        </div>
                         
                         <div class="flex flex-wrap items-center gap-2">
                             <button onclick="downloadTaxAuditCSV()" title="Download CA-Ready Regulatory Tax Statement (CSV)" class="px-2.5 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs rounded-lg transition flex items-center gap-1.5 cursor-pointer font-mono">
@@ -2128,6 +2147,23 @@
                                 <button onclick="filterBacktestTrades('LOSS')" id="btn-btt-loss" class="px-2.5 py-1 rounded text-gray-400 hover:text-white">LOSSES</button>
                             </div>
                         </div>
+                    </div>
+
+                    <!-- Selected Calendar Day Filter Status Banner -->
+                    <div id="pnl-selected-day-banner" class="hidden p-3 bg-gradient-to-r from-indigo-950/40 via-darkcard to-gray-950 border border-indigo-500/30 rounded-xl flex items-center justify-between text-xs font-mono">
+                        <div class="flex items-center gap-2">
+                            <div class="w-6 h-6 rounded bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+                                <i class="fa-solid fa-calendar-day text-[11px]"></i>
+                            </div>
+                            <div>
+                                <span class="text-white font-bold mr-2" id="pnl-sel-day-title">Filtered by Day: 2026-09-30</span>
+                                <span class="text-gray-400" id="pnl-sel-day-summary">(Net PnL: +$0.00 · 0 Trades)</span>
+                            </div>
+                        </div>
+                        <button onclick="clearPnLDayFilter()" class="px-2.5 py-1 bg-gray-900 hover:bg-gray-800 border border-gray-800 text-indigo-300 hover:text-white rounded text-[11px] font-bold transition flex items-center gap-1 cursor-pointer">
+                            <i class="fa-solid fa-xmark text-xs"></i>
+                            <span>Show All Trades</span>
+                        </button>
                     </div>
 
                     <div class="overflow-x-auto">
@@ -7472,12 +7508,6 @@
             const ws = window.activeMarketVenue || 'INDIA';
             const curSym = (ws === 'INDIA') ? '₹' : ((ws === 'CRYPTO') ? 'USDT ' : '$');
 
-            if (ws === 'CRYPTO') {
-                tbody.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-gray-400 font-mono text-xs"><i class="fa-brands fa-bitcoin text-amber-400 mr-2"></i> BINANCE LIVE WALLET: 100% of trading capital &amp; profits reside directly in your authentic Binance Spot &amp; Futures wallet. No synthetic sweeps.</td></tr>`;
-                const pagin = document.getElementById('vault-pagination');
-                if (pagin) pagin.innerHTML = '';
-                return;
-            }
 
             // Workspace-isolated asset filtering
             const history = rawHistory.filter(h => {
@@ -8570,6 +8600,87 @@
             }
         }
 
+        let tradeLogSource = 'LIVE';
+        let liveTradesCache = [];
+        let selectedCalendarDate = null;
+        let currentPnLMonth = '2026-10';
+
+        async function fetchLiveTrades() {
+            try {
+                const ws = window.activeMarketVenue || 'CRYPTO';
+                const res = await fetch(`/api/trade-history?workspace=${encodeURIComponent(ws)}`);
+                const data = await res.json();
+                if (data && data.status === 'SUCCESS') {
+                    liveTradesCache = data.trades || [];
+                }
+            } catch (e) {
+                console.warn('Failed to fetch live trades:', e);
+            }
+        }
+
+        function setTradeLogSource(src) {
+            tradeLogSource = src;
+            backtestTradePage = 1;
+            const btnLive = document.getElementById('btn-tl-source-live');
+            const btnBt = document.getElementById('btn-tl-source-bt');
+            if (btnLive && btnBt) {
+                if (src === 'LIVE') {
+                    btnLive.className = 'px-2.5 py-1 rounded bg-emerald-500 text-white font-bold cursor-pointer';
+                    btnBt.className = 'px-2.5 py-1 rounded text-gray-400 hover:text-white cursor-pointer';
+                } else {
+                    btnBt.className = 'px-2.5 py-1 rounded bg-indigo-500 text-white font-bold cursor-pointer';
+                    btnLive.className = 'px-2.5 py-1 rounded text-gray-400 hover:text-white cursor-pointer';
+                }
+            }
+            if (src === 'LIVE' && liveTradesCache.length === 0) {
+                fetchLiveTrades().then(() => renderBacktestTradeLogs());
+            } else {
+                renderBacktestTradeLogs();
+            }
+        }
+
+        function selectPnLDay(day) {
+            if (!day || !day.date) return;
+            selectedCalendarDate = day.date;
+            
+            const banner = document.getElementById('pnl-selected-day-banner');
+            const titleEl = document.getElementById('pnl-sel-day-title');
+            const sumEl = document.getElementById('pnl-sel-day-summary');
+            if (banner && titleEl && sumEl) {
+                banner.classList.remove('hidden');
+                titleEl.textContent = `Filtered by Day: ${day.date}`;
+                const sign = day.net_pnl_usd >= 0 ? '+' : '';
+                sumEl.textContent = `(Net PnL: ${sign}$${day.net_pnl_usd.toFixed(2)} · ${day.trades_count || (day.trades ? day.trades.length : 0)} Trades)`;
+            }
+
+            // Scroll smoothly down to the trade logs table so user sees the filtered day's trades immediately
+            const tradeLogTable = document.getElementById('backtest-trades-tbody');
+            if (tradeLogTable) {
+                tradeLogTable.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+
+            backtestTradePage = 1;
+            renderBacktestTradeLogs();
+        }
+
+        function clearPnLDayFilter() {
+            selectedCalendarDate = null;
+            const banner = document.getElementById('pnl-selected-day-banner');
+            if (banner) banner.classList.add('hidden');
+            backtestTradePage = 1;
+            renderBacktestTradeLogs();
+        }
+
+        function changePnLMonth(delta) {
+            const parts = (currentPnLMonth || '2026-10').split('-');
+            let y = parseInt(parts[0], 10);
+            let m = parseInt(parts[1], 10) + delta;
+            if (m < 1) { m = 12; y -= 1; }
+            else if (m > 12) { m = 1; y += 1; }
+            currentPnLMonth = `${y}-${String(m).padStart(2, '0')}`;
+            fetchPnLCalendar(currentPnLMonth);
+        }
+
         function filterBacktestTrades(filter) {
             backtestTradeFilter = filter;
             backtestTradePage = 1;
@@ -8586,19 +8697,47 @@
             const tbody = document.getElementById('backtest-trades-tbody');
             if (!tbody) return;
 
-            if (!currentBacktestDetail || !currentBacktestDetail.trades || currentBacktestDetail.trades.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="11" class="py-6 text-center text-gray-500 font-mono text-xs">NO TRADE HISTORY AVAILABLE</td></tr>`;
+            let sourceTrades = [];
+            if (tradeLogSource === 'LIVE') {
+                sourceTrades = liveTradesCache || [];
+            } else {
+                sourceTrades = (currentBacktestDetail && currentBacktestDetail.trades) ? currentBacktestDetail.trades : [];
+            }
+
+            // If empty and in LIVE mode, trigger fetch
+            if (tradeLogSource === 'LIVE' && sourceTrades.length === 0) {
+                fetchLiveTrades().then(() => {
+                    if (liveTradesCache.length > 0) renderBacktestTradeLogs();
+                });
+            }
+
+            let trades = [...sourceTrades];
+
+            // 1. Calendar Day Filter
+            if (selectedCalendarDate) {
+                trades = trades.filter(t => {
+                    const tDate = t.date || (t.timestamp || t.entry_timestamp || '').split(' ')[0];
+                    return tDate === selectedCalendarDate;
+                });
+            }
+
+            // 2. Win/Loss Filter
+            if (backtestTradeFilter === 'WIN') {
+                trades = trades.filter(t => (t.result === 'WIN' || (t.net_pnl !== undefined && t.net_pnl > 0) || (t.pnl_usd !== undefined && t.pnl_usd > 0)));
+            } else if (backtestTradeFilter === 'LOSS') {
+                trades = trades.filter(t => (t.result === 'LOSS' || (t.net_pnl !== undefined && t.net_pnl < 0) || (t.pnl_usd !== undefined && t.pnl_usd < 0)));
+            }
+
+            if (trades.length === 0) {
+                const filterDesc = selectedCalendarDate ? `ON ${selectedCalendarDate}` : 'AVAILABLE';
+                tbody.innerHTML = `<tr><td colspan="12" class="py-8 text-center text-gray-500 font-mono text-xs"><i class="fa-solid fa-receipt text-2xl mb-2 text-gray-700 block"></i>NO ${tradeLogSource} TRADES ${filterDesc}</td></tr>`;
                 if (document.getElementById('bt-trades-count-label')) {
-                    document.getElementById('bt-trades-count-label').innerText = 'NO TRADE HISTORY AVAILABLE';
+                    document.getElementById('bt-trades-count-label').innerText = `NO TRADES ${filterDesc}`;
                 }
                 const pagContainer = document.getElementById('bt-trades-pagination');
                 if (pagContainer) pagContainer.innerHTML = '';
                 return;
             }
-
-            let trades = currentBacktestDetail.trades || [];
-            if (backtestTradeFilter === 'WIN') trades = trades.filter(t => t.result === 'WIN');
-            if (backtestTradeFilter === 'LOSS') trades = trades.filter(t => t.result === 'LOSS');
 
             const pageSize = 15;
             const total = trades.length;
@@ -8608,36 +8747,47 @@
             const start = (backtestTradePage - 1) * pageSize;
             const paged = trades.slice(start, start + pageSize);
 
-            const tradeCur = (currentBacktestDetail && currentBacktestDetail.summary && currentBacktestDetail.summary.currency === 'INR') ? '₹' : '$';
-            if (paged.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="11" class="py-6 text-center text-gray-500 font-mono text-xs">NO TRADES MATCHING FILTER</td></tr>`;
-            } else {
-                tbody.innerHTML = paged.map(t => {
-                    const netPnl = Number(t.net_pnl !== undefined ? t.net_pnl : 0);
-                    const grossPnl = Number(t.gross_pnl !== undefined ? t.gross_pnl : 0);
-                    const entryPx = Number(t.entry_price !== undefined ? t.entry_price : 0);
-                    const exitPx = Number(t.exit_price !== undefined ? t.exit_price : 0);
-                    const feeVal = Number(t.fees !== undefined ? t.fees : 0);
-                    const slipVal = Number(t.slippage !== undefined ? t.slippage : 0);
-                    const feesSlip = feeVal + slipVal;
-                    const pnlSign = netPnl > 0.001 ? '+' : (netPnl < -0.001 ? '-' : '');
-                    const pnlColor = netPnl > 0.001 ? 'text-emerald-400' : (netPnl < -0.001 ? 'text-red-400' : 'text-gray-400');
-                    return `
-                        <tr class="border-b border-gray-800/60 hover:bg-gray-900/50 text-xs font-mono">
-                            <td class="py-2.5 px-3 text-gray-500">${t.trade_number || '-'}</td>
-                            <td class="py-2.5 px-3 text-gray-400">${t.entry_timestamp || '-'}</td>
-                            <td class="py-2.5 px-3 text-amber-400 font-bold">${t.trade_id || '-'}</td>
-                            <td class="py-2.5 px-3 text-white font-bold">${t.symbol || '-'}</td>
-                            <td class="py-2.5 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded ${t.side === 'BUY' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}">${t.side || 'BUY'}</span></td>
-                            <td class="py-2.5 px-3 text-gray-300">${tradeCur}${entryPx.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                            <td class="py-2.5 px-3 text-white font-bold">${tradeCur}${exitPx.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                            <td class="py-2.5 px-3 text-gray-400">${t.quantity || 0}</td>
-                            <td class="py-2.5 px-3 ${grossPnl >= 0 ? 'text-emerald-400' : 'text-red-400'} font-bold">${grossPnl >= 0 ? '+' : '-'}${tradeCur}${Math.abs(grossPnl).toFixed(2)}</td>
-                            <td class="py-2.5 px-3 text-gray-400">${tradeCur}${feesSlip.toFixed(2)}</td>
-                            <td class="py-2.5 px-3 ${pnlColor} font-bold">${pnlSign}${tradeCur}${Math.abs(netPnl).toFixed(2)}</td>
-                            <td class="py-2.5 px-3 text-right">
-                                <button onclick="showBacktestTradeDetail('${t.trade_id}')" class="px-2 py-0.5 bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500 hover:text-white font-bold rounded transition text-[10px]">
-                                    INSPECT
+            const ws = window.activeMarketVenue || 'CRYPTO';
+            const tradeCur = (ws === 'INDIA') ? '₹' : ((ws === 'CRYPTO') ? '$' : '$');
+
+            tbody.innerHTML = paged.map((t, idx) => {
+                const netPnl = Number(t.net_pnl !== undefined ? t.net_pnl : (t.pnl_usd !== undefined ? t.pnl_usd : 0));
+                const grossPnl = Number(t.gross_pnl !== undefined ? t.gross_pnl : netPnl);
+                const entryPx = Number(t.entry_price !== undefined ? t.entry_price : (t.price || 0));
+                const exitPx = Number(t.exit_price !== undefined ? t.exit_price : entryPx);
+                const feeVal = Number(t.fee_usd !== undefined ? t.fee_usd : (t.fees || 0));
+                const slipVal = Number(t.slippage || 0);
+                const feesSlip = feeVal + slipVal;
+                const pnlSign = netPnl > 0.001 ? '+' : (netPnl < -0.001 ? '-' : '');
+                const pnlColor = netPnl > 0.001 ? 'text-emerald-400' : (netPnl < -0.001 ? 'text-rose-400' : 'text-gray-400');
+                const rowNum = start + idx + 1;
+                const timeStr = t.timestamp || t.entry_timestamp || t.date || '-';
+                const tradeId = t.trade_id || `TRD-${rowNum}`;
+                const sym = t.symbol || t.asset || 'BTCUSDT';
+                const side = (t.side || t.action || 'BUY').toUpperCase();
+                const qty = t.quantity || t.units || 0;
+
+                return `
+                    <tr class="border-b border-gray-800/60 hover:bg-gray-900/50 text-xs font-mono">
+                        <td class="py-2.5 px-3 text-gray-500">${rowNum}</td>
+                        <td class="py-2.5 px-3 text-gray-400 whitespace-nowrap">${timeStr}</td>
+                        <td class="py-2.5 px-3 text-amber-400 font-bold">${tradeId}</td>
+                        <td class="py-2.5 px-3 text-white font-bold">${sym}</td>
+                        <td class="py-2.5 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded ${side === 'BUY' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'}">${side}</span></td>
+                        <td class="py-2.5 px-3 text-gray-300">${tradeCur}${entryPx.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 4})}</td>
+                        <td class="py-2.5 px-3 text-white font-bold">${tradeCur}${exitPx.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 4})}</td>
+                        <td class="py-2.5 px-3 text-gray-400">${typeof qty === 'number' ? qty.toFixed(4) : qty}</td>
+                        <td class="py-2.5 px-3 ${grossPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'} font-bold">${grossPnl >= 0 ? '+' : '-'}${tradeCur}${Math.abs(grossPnl).toFixed(2)}</td>
+                        <td class="py-2.5 px-3 text-gray-400">${tradeCur}${feesSlip.toFixed(4)}</td>
+                        <td class="py-2.5 px-3 ${pnlColor} font-bold">${pnlSign}${tradeCur}${Math.abs(netPnl).toFixed(2)}</td>
+                        <td class="py-2.5 px-3 text-right">
+                            <button onclick="showBacktestTradeDetail('${tradeId}')" class="px-2 py-0.5 bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500 hover:text-white font-bold rounded transition text-[10px] cursor-pointer">
+                                INSPECT
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
                                 </button>
                             </td>
                         </tr>
@@ -9387,7 +9537,10 @@
         // ── INSTITUTIONAL PnL CALENDAR HEATMAP ──────────────────────
         async function fetchPnLCalendar(month) {
             try {
-                const url = month ? `/api/analytics/pnl-calendar?month=${encodeURIComponent(month)}` : '/api/analytics/pnl-calendar';
+                const targetMonth = month || currentPnLMonth;
+                if (targetMonth) currentPnLMonth = targetMonth;
+                const ws = window.activeMarketVenue || 'CRYPTO';
+                const url = targetMonth ? `/api/analytics/pnl-calendar?month=${encodeURIComponent(targetMonth)}&workspace=${encodeURIComponent(ws)}` : `/api/analytics/pnl-calendar?workspace=${encodeURIComponent(ws)}`;
                 const res = await fetch(url);
                 const data = await res.json();
                 if (data && data.status === 'SUCCESS') {
@@ -9476,7 +9629,13 @@
                     pnlClasses = 'text-rose-400 font-bold';
                 }
 
+                const isSelected = (selectedCalendarDate === day.date);
+                if (isSelected) {
+                    bgClasses += ' ring-2 ring-indigo-400 border-indigo-400 bg-indigo-950/40 shadow-lg shadow-indigo-950/40';
+                }
+
                 cell.className = `p-2.5 rounded-xl border flex flex-col justify-between h-20 transition-all cursor-pointer ${bgClasses}`;
+                cell.onclick = () => selectPnLDay(day);
 
                 const pnlSign = day.net_pnl_usd > 0 ? '+' : '';
                 const pnlText = isFuture ? '—' : `${pnlSign}$${Math.abs(day.net_pnl_usd).toFixed(2)}`;
@@ -9484,7 +9643,7 @@
 
                 cell.innerHTML = `
                     <div class="flex items-center justify-between">
-                        <span class="text-[11px] font-bold ${isFuture ? 'text-gray-600' : 'text-gray-300'}">${day.day_of_month}</span>
+                        <span class="text-[11px] font-bold ${isFuture ? 'text-gray-600' : (isSelected ? 'text-indigo-300' : 'text-gray-300')}">${day.day_of_month}</span>
                         ${day.top_asset && day.top_asset !== '-' ? `<span class="text-[8px] font-mono px-1 py-0.2 rounded bg-gray-900 border border-gray-800 text-gray-400">${day.top_asset}</span>` : ''}
                     </div>
                     <div class="text-xs font-black font-mono tracking-tight ${pnlClasses}">${pnlText}</div>

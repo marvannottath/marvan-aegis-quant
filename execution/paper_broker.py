@@ -604,18 +604,28 @@ class PaperBroker:
 
         pnl_u = max(-cap, round(pnl_u, 2))
         pnl_p = round((pnl_u / cap) * 100.0, 2) if cap > 0 else 0.0
+        # Binance standard spot fee is 0.1% per leg (0.2% round-trip)
+        fee_est = round(((entry * units) + (exit_price * units)) * 0.001, 4)
+        net_pnl_val = round(pnl_u - fee_est, 2)
 
         trade_record = {
-            "trade_id": pos["trade_id"],
+            "trade_id": pos.get("trade_id", f"TRD-{int(time.time()*1000)}"),
             "asset": asset,
+            "symbol": asset,
             "action": act,
+            "side": act,
             "entry_price": entry,
             "exit_price": exit_price,
             "units": units,
+            "quantity": units,
             "capital_allocated": cap,
-            "leverage": pos.get("leverage", 10.0),
-            "pnl_usd": pnl_u,
+            "leverage": pos.get("leverage", 1.0),
+            "gross_pnl": pnl_u,
+            "fee_usd": fee_est,
+            "net_pnl": net_pnl_val,
+            "pnl_usd": net_pnl_val,
             "pnl_pct": pnl_p,
+            "result": "WIN" if net_pnl_val > 0 else "LOSS",
             "reason": reason,
             "timestamp": datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S")
         }
