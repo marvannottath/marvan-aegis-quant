@@ -7219,7 +7219,7 @@
 
             const isIndiaWs = (window.activeMarketVenue === 'INDIA') || activePool.includes('INDIA') || activePool.includes('INR') || activePool.includes('UPSTOX');
             const isCryptoWs = (window.activeMarketVenue === 'CRYPTO') || activePool.includes('BINANCE') || activePool.includes('CRYPTO');
-            const baseCap = isIndiaWs ? 100000.0 : (isCryptoWs ? 19950.55 : 100000.0);
+            const baseCap = isIndiaWs ? 100000.0 : 0.0;
 
             window.workspaceCache = window.workspaceCache || {};
             const curWs = window.activeMarketVenue || 'INDIA';
@@ -9761,9 +9761,11 @@
                                         pnlUsd = (side === 'BUY') ? (curPrice - entry) * units : (entry - curPrice) * units;
                                     }
                                     const pnlPct = alloc > 0 ? (pnlUsd / alloc) * 100 : 0;
-                                    const pnlSign = pnlUsd > 0.001 ? '+' : (pnlUsd < -0.001 ? '-' : '');
-                                    const pctSign = pnlPct > 0.001 ? '+' : (pnlPct < -0.001 ? '-' : '');
-                                    const colorClass = pnlUsd > 0.001 ? 'text-emerald-400' : (pnlUsd < -0.001 ? 'text-red-400' : 'text-gray-400');
+                                    const pnlRounded = Math.round(pnlUsd * 100) / 100;
+                                    const pctRounded = Math.round(pnlPct * 100) / 100;
+                                    const pnlSign = pnlRounded > 0 ? '+' : (pnlRounded < 0 ? '-' : '');
+                                    const pctSign = pctRounded > 0 ? '+' : (pctRounded < 0 ? '-' : '');
+                                    const colorClass = pnlRounded > 0 ? 'text-emerald-400' : (pnlRounded < 0 ? 'text-red-400' : 'text-gray-400');
 
                                     const pnlEl = document.querySelector(`[data-pos-pnl="${sym}"]`);
                                     if (pnlEl) {

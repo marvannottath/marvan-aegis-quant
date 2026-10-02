@@ -373,7 +373,7 @@ class PositionSnapshotService:
                         total_equity = round(free_cash + total_exposure + unrealized_pnl, 2)
                     else:
                         p_cash = float(pool.get("virtual_cash", 0.0))
-                        free_cash = round(p_cash if p_cash > 0 else 13.84, 2)
+                        free_cash = round(p_cash if p_cash > 0 else 0.0, 2)
                         p_eq = float(pool.get("equity", 0.0))
                         total_equity = round(p_eq if p_eq > 0 else (free_cash + total_exposure + unrealized_pnl), 2)
                 pool["virtual_cash"] = free_cash
@@ -381,7 +381,7 @@ class PositionSnapshotService:
                 initial_cap = self.get_and_update_peak_equity(pool_name, max(total_equity, 1.0))
             except Exception:
                 p_cash = float(pool.get("virtual_cash", 0.0))
-                free_cash = round(p_cash if p_cash > 0 else 13.84, 2)
+                free_cash = round(p_cash if p_cash > 0 else 0.0, 2)
                 p_eq = float(pool.get("equity", 0.0))
                 total_equity = round(p_eq if p_eq > 0 else (free_cash + total_exposure + unrealized_pnl), 2)
                 initial_cap = self.get_and_update_peak_equity(pool_name, max(total_equity, 1.0))
