@@ -2932,11 +2932,21 @@
                                 <label class="block text-[11px] font-semibold text-gray-300 uppercase tracking-wider">Trading Environment Selector</label>
                                 <div class="relative">
                                     <select id="sel-environment" onchange="switchEnvironment(this.value)" class="w-full bg-gray-950 border border-darkborder hover:border-amber-500/50 rounded-xl px-3.5 py-3 text-xs font-bold text-white transition focus:border-amber-500 focus:outline-none appearance-none cursor-pointer pr-10">
-                                        <option value="MT5_DEMO" selected>MetaTrader 5 Demo Sandbox ($10,000.00 Demo Forex & Gold)</option>
-                                        <option value="MT5_LIVE_REAL">MetaTrader 5 Direct Live (Production Real MT5 Trading)</option>
-                                        <option value="AEGIS_QUANT_MASTER">Marvan's Pool ($100,000.00 Paper - Multi-Asset)</option>
-                                        <option value="BINANCE_TESTNET_DEMO">Binance Testnet ($19,950.55 Paper - Crypto)</option>
-                                        <option value="BINANCE_LIVE_REAL">Binance Live (Production Real USDT Trading)</option>
+                                        <optgroup label="Crypto Markets (Binance)">
+                                            <option value="BINANCE_LIVE_REAL">Binance Live (Production Real USDT Trading)</option>
+                                            <option value="BINANCE_TESTNET_DEMO">Binance Testnet ($19,950.55 Paper - Crypto)</option>
+                                        </optgroup>
+                                        <optgroup label="Forex & Gold (MetaTrader 5)">
+                                            <option value="MT5_LIVE_REAL">MetaTrader 5 Direct Live (Production Real MT5 Trading)</option>
+                                            <option value="MT5_DEMO">MetaTrader 5 Demo Sandbox ($10,000.00 Demo Forex & Gold)</option>
+                                        </optgroup>
+                                        <optgroup label="Indian Equities (NSE / BSE)">
+                                            <option value="AEGIS_INDIA_INR">NSE / BSE Equity Sandbox (₹1,00,000.00 Paper - INR)</option>
+                                            <option value="UPSTOX_LIVE">Upstox Direct Live (Production Real NSE/BSE Trading)</option>
+                                        </optgroup>
+                                        <optgroup label="Global Master Portfolio">
+                                            <option value="AEGIS_QUANT_MASTER">Marvan's Pool ($100,000.00 Paper - Multi-Asset)</option>
+                                        </optgroup>
                                     </select>
                                     <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-gray-400">
                                         <i class="fa-solid fa-chevron-down text-xs"></i>
@@ -4587,13 +4597,16 @@
             }
         }
 
+        window.INITIAL_WORKSPACE = '{{ INITIAL_WORKSPACE }}';
+        window.INITIAL_TRADING_POOL = '{{ INITIAL_TRADING_POOL }}';
         let currentTab = 'overview';
         let currentLeverage = 10;
         let activeRiskProfileMaxLev = 10;
         let chartInstance = null;
-        let activeMarketVenue = localStorage.getItem('aegis_active_workspace') || 'INDIA';
+        let activeMarketVenue = localStorage.getItem('aegis_active_workspace') || (window.INITIAL_WORKSPACE && !window.INITIAL_WORKSPACE.startsWith('{{') ? window.INITIAL_WORKSPACE : 'CRYPTO');
         window.activeMarketVenue = activeMarketVenue;
         window.ACTIVE_WORKSPACE = activeMarketVenue;
+        window.activeTradingPool = localStorage.getItem('aegis_active_pool') || (window.INITIAL_TRADING_POOL && !window.INITIAL_TRADING_POOL.startsWith('{{') ? window.INITIAL_TRADING_POOL : 'BINANCE_LIVE_REAL');
         let workspaceSwitchSequence = 0;
 
         function updateInstantMetrics(venue) {
@@ -4652,9 +4665,21 @@
         function switchMarketVenue(venue) {
             const normVenue = (venue === 'FOREX' || venue === 'FOREX_GOLD') ? 'FOREX_GOLD' : venue;
             window.activeMarketVenue = normVenue;
-            activeMarketVenue = normVenue;
-            window.ACTIVE_WORKSPACE = normVenue;
             localStorage.setItem('aegis_active_workspace', normVenue);
+            document.cookie = 'aegis_active_workspace=' + normVenue + '; path=/; max-age=31536000';
+
+            const selEnv = document.getElementById('sel-environment');
+            if (selEnv) {
+                let poolCandidate = (normVenue === 'CRYPTO') ? (localStorage.getItem('aegis_active_pool_CRYPTO') || 'BINANCE_LIVE_REAL') :
+                                    ((normVenue === 'FOREX_GOLD' || normVenue === 'FOREX') ? (localStorage.getItem('aegis_active_pool_FOREX') || 'MT5_LIVE_REAL') :
+                                    (localStorage.getItem('aegis_active_pool_INDIA') || 'AEGIS_INDIA_INR'));
+                if (selEnv.querySelector(`option[value="${poolCandidate}"]`)) {
+                    selEnv.value = poolCandidate;
+                    window.activeTradingPool = poolCandidate;
+                    localStorage.setItem('aegis_active_pool', poolCandidate);
+                    document.cookie = 'aegis_active_pool=' + poolCandidate + '; path=/; max-age=31536000';
+                }
+            }
 
             const currentSeq = ++workspaceSwitchSequence;
 
@@ -6009,16 +6034,37 @@
         async function switchEnvironment(env) {
             try {
                 window.activeTradingPool = env;
+                localStorage.setItem('aegis_active_pool', env);
+                document.cookie = 'aegis_active_pool=' + env + '; path=/; max-age=31536000';
+
                 const sel = document.getElementById('sel-environment');
                 if (sel) sel.value = env;
-                const targetWs = (env.includes('MT5') || env === 'AEGIS_QUANT_MASTER') ? 'FOREX_GOLD' : (env.includes('BINANCE') ? 'CRYPTO' : (window.activeMarketVenue || 'INDIA'));
+
+                const targetWs = (env.includes('MT5') || env === 'AEGIS_QUANT_MASTER') 
+                    ? 'FOREX_GOLD' 
+                    : (env.includes('BINANCE') ? 'CRYPTO' : 'INDIA');
+
+                if (targetWs === 'CRYPTO') localStorage.setItem('aegis_active_pool_CRYPTO', env);
+                else if (targetWs === 'FOREX_GOLD') localStorage.setItem('aegis_active_pool_FOREX', env);
+                else if (targetWs === 'INDIA') localStorage.setItem('aegis_active_pool_INDIA', env);
+
+                localStorage.setItem('aegis_active_workspace', targetWs);
+                document.cookie = 'aegis_active_workspace=' + targetWs + '; path=/; max-age=31536000';
+
+                if (window.activeMarketVenue !== targetWs && typeof switchMarketVenue === 'function') {
+                    switchMarketVenue(targetWs);
+                } else {
+                    window.activeMarketVenue = targetWs;
+                    window.ACTIVE_WORKSPACE = targetWs;
+                }
+
                 const res = await fetch('/api/switch-trading-pool', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
                         pool: env,
                         workspace: targetWs,
-                        confirm_live_authorization: (env === 'BINANCE_LIVE_REAL' || env === 'MT5_LIVE_REAL')
+                        confirm_live_authorization: (env === 'BINANCE_LIVE_REAL' || env === 'MT5_LIVE_REAL' || env === 'UPSTOX_LIVE')
                     })
                 });
                 const data = await res.json();
@@ -6027,7 +6073,9 @@
                     fetchState(targetWs);
                     fetchPerformanceCurve();
                     fetchExecutionLatency();
-                    fetchBinanceStatus();
+                    if (env.includes('BINANCE')) fetchBinanceStatus();
+                    if (env.includes('MT5')) fetchMT5Status();
+                    if (env.includes('INDIA') || env.includes('UPSTOX')) fetchUpstoxStatus();
                 } else {
                     showNotification('Environment Switch Notice', `Environment Switch Notice: ${data.message || data.status}`, 'warning');
                 }
@@ -7023,12 +7071,20 @@
 
             const selEnv = document.getElementById('sel-environment');
             if (selEnv) {
-                const targetPoolVal = isForex ? 'MT5_LIVE_REAL' : activePool;
-                if (selEnv.value !== targetPoolVal && (document.activeElement !== selEnv)) {
-                    selEnv.value = targetPoolVal;
+                let targetPool = data.active_capital_pool || window.activeTradingPool || localStorage.getItem('aegis_active_pool');
+                let matchedOpt = targetPool ? selEnv.querySelector(`option[value="${targetPool}"]`) : null;
+                if (!matchedOpt) {
+                    if (isCrypto) targetPool = 'BINANCE_LIVE_REAL';
+                    else if (isForex) targetPool = 'MT5_LIVE_REAL';
+                    else targetPool = 'AEGIS_INDIA_INR';
+                    matchedOpt = selEnv.querySelector(`option[value="${targetPool}"]`);
+                }
+                if (matchedOpt && selEnv.value !== targetPool && (document.activeElement !== selEnv)) {
+                    selEnv.value = targetPool;
+                    window.activeTradingPool = targetPool;
                 }
                 const optMaster = selEnv.querySelector('option[value="AEGIS_QUANT_MASTER"]');
-                if (optMaster && activePool === 'AEGIS_QUANT_MASTER') {
+                if (optMaster && targetPool === 'AEGIS_QUANT_MASTER') {
                     optMaster.innerText = `Marvan's Pool ($${equity.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})})`;
                 }
             }
@@ -9761,10 +9817,18 @@
             updateLiveHeaderClock();
             setInterval(updateLiveHeaderClock, 1000);
             initChart();
-            const urlParams = new URLSearchParams(window.location.search);
             const wsParam = urlParams.get('workspace');
-            const initWs = (wsParam ? ((wsParam === 'FOREX' || wsParam === 'FOREX_GOLD') ? 'FOREX_GOLD' : wsParam.toUpperCase()) : null) || localStorage.getItem('aegis_active_workspace') || 'INDIA';
+            const initWs = (wsParam ? ((wsParam === 'FOREX' || wsParam === 'FOREX_GOLD') ? 'FOREX_GOLD' : wsParam.toUpperCase()) : null) 
+                           || localStorage.getItem('aegis_active_workspace') 
+                           || (window.INITIAL_WORKSPACE && !window.INITIAL_WORKSPACE.startsWith('{{') ? window.INITIAL_WORKSPACE : null) 
+                           || 'CRYPTO';
             switchMarketVenue(initWs);
+            const selEnv = document.getElementById('sel-environment');
+            if (selEnv && window.activeTradingPool) {
+                if (selEnv.querySelector(`option[value="${window.activeTradingPool}"]`)) {
+                    selEnv.value = window.activeTradingPool;
+                }
+            }
             renderSystemHealth();
             fetchPaymentHistory();
             fetchExecutionLatency();

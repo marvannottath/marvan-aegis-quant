@@ -170,7 +170,12 @@ async def read_dashboard(request: Request):
             active_ws = workspace_manager.get_active_workspace()
 
     meta = workspace_manager.get_metadata(active_ws)
-    active_pool = workspace_manager.get_workspace_pool(active_ws) if hasattr(workspace_manager, "get_workspace_pool") else meta.get("default_pool", "AEGIS_INDIA_INR")
+    cookie_pool = request.cookies.get("aegis_active_pool")
+    if cookie_pool and cookie_pool in meta.get("allowed_pools", []):
+        workspace_manager.set_workspace_pool(active_ws, cookie_pool)
+        active_pool = cookie_pool
+    else:
+        active_pool = workspace_manager.get_workspace_pool(active_ws) if hasattr(workspace_manager, "get_workspace_pool") else meta.get("default_pool", "AEGIS_INDIA_INR")
     paper_broker.switch_pool(active_pool)
 
     # 2. Authoritative Position Snapshot & Single Aggregation Layer (Section 1, 2, 10)
@@ -668,6 +673,11 @@ async def read_dashboard(request: Request):
 
     content = content.replace("{{ INITIAL_WORKSPACE }}", active_ws)
     content = content.replace("{{ ACTIVE_WORKSPACE }}", active_ws)
+    content = content.replace("{{ INITIAL_TRADING_POOL }}", active_pool)
+    content = content.replace("{{ ACTIVE_TRADING_POOL }}", active_pool)
+
+    # Dynamic pre-selection for #sel-environment
+    content = content.replace(f'value="{active_pool}"', f'value="{active_pool}" selected')
 
     # Pre-render blocks
     content = content.replace("<!-- PRERENDER_SCANNER_ROWS -->", scanner_rows_html)
@@ -732,6 +742,7 @@ async def read_dashboard(request: Request):
 
     resp = HTMLResponse(content=content)
     resp.set_cookie(key="aegis_active_workspace", value=active_ws, max_age=86400 * 30, path="/")
+    resp.set_cookie(key="aegis_active_pool", value=active_pool, max_age=86400 * 30, path="/")
     return resp
 
 @app.get("/admin", response_class=HTMLResponse)
@@ -771,7 +782,12 @@ async def switch_workspace_endpoint(request: Request):
         # Attach authoritative target workspace state for zero-latency instant client sync
         state = await get_state(workspace=target_ws)
         res["state"] = state
-        return JSONResponse(res, status_code=200)
+        resp = JSONResponse(res, status_code=200)
+        norm_ws = workspace_manager._normalize_workspace(target_ws)
+        resp.set_cookie(key="aegis_active_workspace", value=norm_ws, max_age=86400 * 30, path="/")
+        active_pool = workspace_manager.get_workspace_pool(norm_ws)
+        resp.set_cookie(key="aegis_active_pool", value=active_pool, max_age=86400 * 30, path="/")
+        return resp
     except Exception as e:
         return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=400)
 
@@ -2041,6 +2057,10 @@ async def switch_trading_pool_endpoint(request: Request):
         ws = body.get("workspace") or workspace_manager.get_active_workspace()
         if pool == "MT5_LIVE_REAL" or "MT5" in pool:
             ws = "FOREX_GOLD"
+        elif "BINANCE" in pool:
+            ws = "CRYPTO"
+        elif "INDIA" in pool or "UPSTOX" in pool:
+            ws = "INDIA"
         ws = workspace_manager._normalize_workspace(ws)
         workspace_manager.set_active_workspace(ws)
         workspace_manager.set_workspace_pool(ws, pool)
@@ -2054,14 +2074,18 @@ async def switch_trading_pool_endpoint(request: Request):
             binance_broker.api_key = binance_broker.live_api_key
             binance_broker.secret_key = binance_broker.live_secret_key
 
-        return JSONResponse({
+        resp = JSONResponse({
             "status": "SUCCESS",
             "active_pool": paper_broker.active_pool_name,
+            "active_workspace": ws,
             "portfolio_equity": paper_broker.equity,
             "virtual_cash": paper_broker.virtual_cash,
             "positions": paper_broker.positions,
             "pool_details": res
         })
+        resp.set_cookie(key="aegis_active_workspace", value=ws, max_age=86400 * 30, path="/")
+        resp.set_cookie(key="aegis_active_pool", value=pool, max_age=86400 * 30, path="/")
+        return resp
     except Exception as e:
         return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
 
