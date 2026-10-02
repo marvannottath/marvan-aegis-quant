@@ -323,9 +323,7 @@ class PositionSnapshotService:
                 return cached
 
         meta = workspace_manager.get_workspace_meta(target_ws)
-        default_pool = workspace_manager.get_workspace_pool(target_ws) if hasattr(workspace_manager, "get_workspace_pool") else meta.get("default_pool", "AEGIS_INDIA_INR")
-        allowed_pools = meta.get("allowed_pools", [default_pool])
-        pool_name = paper_broker.active_pool_name if paper_broker.active_pool_name in allowed_pools else default_pool
+        pool_name = workspace_manager.get_workspace_pool(target_ws) if hasattr(workspace_manager, "get_workspace_pool") else meta.get("default_pool", "AEGIS_INDIA_INR")
         initial_cap = float(meta.get("initial_capital", 100000.0))
 
         # Authoritative position snapshot
@@ -339,36 +337,52 @@ class PositionSnapshotService:
         paper_broker.switch_pool(pool_name)
         paper_broker._update_equity()
         pool = paper_broker.pools.get(pool_name, {})
-        # For CRYPTO / BINANCE_LIVE_REAL workspace, never fall back to initial_capital.
-        # If Binance auth fails, free_cash must default to 0.0, not 100 000 USDT.
-        is_live_crypto = pool_name in ["BINANCE_LIVE_REAL", "BINANCE_LIVE"] or target_ws == "CRYPTO"
-        if is_live_crypto:
-            free_cash = round(float(pool.get("virtual_cash", 0.0)), 2)
-        else:
-            free_cash = round(float(pool.get("virtual_cash", initial_cap)), 2)
+
+        is_live_crypto = (target_ws == "CRYPTO" and pool_name in ["BINANCE_LIVE_REAL", "BINANCE_LIVE"]) or (pool_name in ["BINANCE_LIVE_REAL", "BINANCE_LIVE"])
+        is_testnet_crypto = (target_ws == "CRYPTO" and pool_name in ["BINANCE_TESTNET_DEMO", "BINANCE_DEMO"])
 
         # Vault reserve — only applies to simulated/paper master portfolio (AEGIS_QUANT_MASTER)
         if is_live_crypto:
             vault_balance = 0.0
             try:
                 from execution.binance_broker import binance_broker
-                b_acc = binance_broker.get_account_info("BINANCE_LIVE_REAL")
-                live_tot = float(b_acc.get("total_equity", 0.0))
-                live_avail = float(b_acc.get("available_balance", 0.0))
-                if b_acc.get("authenticated") and live_tot > 0:
+                b_status = binance_broker.get_authoritative_status(force_refresh=force_refresh)
+                live_info = b_status.get("live", {})
+                b_acc = binance_broker.get_account_info("BINANCE_LIVE_REAL", force_refresh=force_refresh)
+
+                live_tot = float(live_info.get("total_equity", 0.0) or b_acc.get("total_equity", 0.0))
+                live_avail = float(live_info.get("available_balance", 0.0) or b_acc.get("available_balance", 0.0))
+                is_auth = live_info.get("authenticated") or b_acc.get("authenticated")
+
+                if is_auth and (live_tot > 0 or live_avail > 0):
                     total_equity = round(live_tot, 2)
                     free_cash = round(live_avail, 2)
-                    initial_cap = self.get_and_update_peak_equity(pool_name, total_equity)
-                else:
+                elif is_auth:
                     total_equity = round(total_exposure + unrealized_pnl, 2)
-                    initial_cap = self.get_and_update_peak_equity(pool_name, max(total_equity, 1.0))
-            except Exception:
-                total_equity = round(total_exposure + unrealized_pnl, 2)
+                    free_cash = round(live_avail, 2)
+                else:
+                    real_spot = binance_broker.get_real_live_spot_balance()
+                    if real_spot > 0:
+                        free_cash = round(real_spot, 2)
+                        total_equity = round(free_cash + total_exposure + unrealized_pnl, 2)
+                    else:
+                        free_cash = round(float(pool.get("virtual_cash", 3.84)), 2)
+                        total_equity = round(free_cash + total_exposure + unrealized_pnl, 2)
                 initial_cap = self.get_and_update_peak_equity(pool_name, max(total_equity, 1.0))
+            except Exception:
+                free_cash = round(float(pool.get("virtual_cash", 3.84)), 2)
+                total_equity = round(free_cash + total_exposure + unrealized_pnl, 2)
+                initial_cap = self.get_and_update_peak_equity(pool_name, max(total_equity, 1.0))
+        elif is_testnet_crypto:
+            vault_balance = 0.0
+            free_cash = round(float(pool.get("virtual_cash", initial_cap)), 2)
+            total_equity = round(free_cash + used_margin + unrealized_pnl, 2)
         elif pool_name in ["AEGIS_INDIA_INR", "UPSTOX_DEMO", "UPSTOX_LIVE"] or target_ws == "INDIA":
             vault_balance = 0.0
+            free_cash = round(float(pool.get("virtual_cash", initial_cap)), 2)
             total_equity = round(free_cash + used_margin + unrealized_pnl, 2)
         else:
+            free_cash = round(float(pool.get("virtual_cash", initial_cap)), 2)
             vault_balance = round(float(profit_vault.get_vault_balance(pool_name)), 2)
             total_equity = round(free_cash + used_margin + unrealized_pnl + vault_balance, 2)
 

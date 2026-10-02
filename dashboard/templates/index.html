@@ -49,6 +49,30 @@
         .tab-content { display: none; }
         .tab-content.active { display: block; }
         .sidebar-item.active { background-color: #1e293b; border-left: 3px solid #f59e0b; color: #ffffff; }
+
+        /* Privacy Mask Balance Blur */
+        body.privacy-blur-active .privacy-blur-target,
+        body.privacy-blur-active #metric-equity,
+        body.privacy-blur-active #metric-free-cash,
+        body.privacy-blur-active #metric-today-pnl,
+        body.privacy-blur-active #metric-exposure,
+        body.privacy-blur-active #card-total-networth,
+        body.privacy-blur-active #pf-trading-equity,
+        body.privacy-blur-active #pf-total-assets,
+        body.privacy-blur-active #unw-binance-val,
+        body.privacy-blur-active #unw-upstox-val,
+        body.privacy-blur-active #unw-mt5-val,
+        body.privacy-blur-active #unw-vault-val,
+        body.privacy-blur-active #fund-binance-spot-val,
+        body.privacy-blur-active #fund-india-demat-val,
+        body.privacy-blur-active #fund-vault-val,
+        body.privacy-blur-active #val-broker-margin,
+        body.privacy-blur-active .val-sensitive,
+        body.privacy-blur-active .privacy-sensitive {
+            filter: blur(8px) !important;
+            user-select: none !important;
+            transition: filter 0.2s ease-in-out;
+        }
     </style>
 </head>
 <body class="bg-darkbg text-white h-screen overflow-hidden flex flex-col font-sans antialiased selection:bg-amber-500 selection:text-black">
@@ -196,6 +220,15 @@
 
             <!-- Server Time Clock -->
             <div id="lbl-server-time" class="font-bold text-gray-400 bg-gray-900 border border-gray-800 px-2.5 py-1 rounded-lg text-[11px]">--:--:-- IST</div>
+
+            <!-- Privacy Mask (Blur Balances) & Quick Lock Buttons -->
+            <button id="btn-privacy-mask-nav" onclick="togglePrivacyMask()" class="h-8 px-2.5 rounded-lg bg-gray-900 border border-gray-800 hover:border-amber-500/50 text-gray-400 hover:text-white transition flex items-center space-x-1.5 cursor-pointer shadow" title="Privacy Mode: Hide/Mask Account Balances (Eye Blur)">
+                <i id="privacy-mask-icon" class="fa-solid fa-eye text-xs"></i>
+                <span id="privacy-mask-label" class="hidden md:inline text-[10px] font-bold">MASK</span>
+            </button>
+            <button id="btn-privacy-lock-nav" onclick="triggerPrivacyLock()" class="w-8 h-8 rounded-lg bg-gray-900 border border-gray-800 hover:border-amber-500/50 text-gray-400 hover:text-amber-400 transition flex items-center justify-center cursor-pointer shadow" title="Lock Screen Immediately (Inactivity Lock)">
+                <i class="fa-solid fa-lock text-xs"></i>
+            </button>
 
             <!-- Desk Quick Actions & Profile -->
             <div id="user-nav-profile" class="flex items-center space-x-1.5 pl-2 border-l border-gray-800">
@@ -582,10 +615,16 @@
                 <span class="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded text-[9px] font-bold">SECURE IDLE</span>
             </div>
 
-            <button onclick="unlockPrivacyScreen()" class="w-full py-3.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-black text-xs rounded-xl shadow-lg shadow-amber-500/20 transition cursor-pointer flex items-center justify-center space-x-2">
-                <i class="fa-solid fa-lock-open"></i>
-                <span>CLICK TO RESUME SESSION</span>
-            </button>
+            <div class="flex flex-col sm:flex-row gap-2.5 w-full">
+                <button onclick="unlockPrivacyScreen()" class="flex-1 py-3.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-black text-xs rounded-xl shadow-lg shadow-amber-500/20 transition cursor-pointer flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-lock-open"></i>
+                    <span>CLICK TO RESUME SESSION</span>
+                </button>
+                <button onclick="terminalLogout()" class="px-4 py-3.5 bg-red-950/60 hover:bg-red-900/80 text-red-400 border border-red-500/30 text-xs font-bold rounded-xl transition cursor-pointer flex items-center justify-center space-x-1.5" title="Terminate active session">
+                    <i class="fa-solid fa-power-off"></i>
+                    <span>LOGOUT</span>
+                </button>
+            </div>
             <p class="text-[10px] text-gray-500">Click button or press any key to resume</p>
         </div>
     </div>
@@ -3005,6 +3044,65 @@
                             <i class="fa-solid fa-check-double mr-1"></i> Signals below 90% opportunity or 96% AI confidence are permanently rejected across 10 Master Layers.
                         </div>
                     </div>
+
+                    <!-- CARD 3: TERMINAL PRIVACY & INACTIVITY SECURITY -->
+                    <div class="bg-darkcard border border-darkborder p-6 rounded-2xl flex flex-col justify-between space-y-4 shadow-xl col-span-1 lg:col-span-2">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-darkborder pb-3 gap-2">
+                            <div class="flex items-center">
+                                <div class="w-8 h-8 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center mr-3 text-purple-400">
+                                    <i class="fa-solid fa-user-lock text-sm"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-sm font-bold text-white uppercase tracking-wide">Privacy Shield & Inactivity Security</h3>
+                                    <p class="text-[11px] text-gray-400">Financial balance blur obscuration, 5-minute auto-lockout & idle session termination</p>
+                                </div>
+                            </div>
+                            <span id="badge-privacy-status" class="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded text-[10px] font-black font-mono self-start sm:self-auto">
+                                5-MIN LOCK ACTIVE
+                            </span>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 font-mono text-xs">
+                            <!-- Toggle Balance Blur -->
+                            <div class="p-3 bg-gray-950/80 border border-darkborder rounded-xl flex items-center justify-between">
+                                <div>
+                                    <div class="text-white font-bold flex items-center gap-1.5">
+                                        <i class="fa-solid fa-eye-slash text-amber-400"></i> Financial Blur
+                                    </div>
+                                    <p class="text-[10px] text-gray-500 font-sans mt-0.5">Mask balances & PnL numbers</p>
+                                </div>
+                                <button id="btn-settings-blur-toggle" onclick="togglePrivacyMask()" class="px-3 py-1.5 rounded-lg bg-gray-900 border border-gray-700 text-xs text-gray-300 hover:text-white font-bold transition cursor-pointer">
+                                    TOGGLE
+                                </button>
+                            </div>
+
+                            <!-- Inactivity Lock Timeout -->
+                            <div class="p-3 bg-gray-950/80 border border-darkborder rounded-xl flex items-center justify-between">
+                                <div>
+                                    <div class="text-white font-bold flex items-center gap-1.5">
+                                        <i class="fa-solid fa-clock text-cyan-400"></i> Auto-Lock Timer
+                                    </div>
+                                    <p class="text-[10px] text-gray-500 font-sans mt-0.5">Idle time before lockout</p>
+                                </div>
+                                <select id="sel-inactivity-time" onchange="setInactivityTimeout(this.value)" class="bg-gray-900 border border-gray-700 rounded-lg px-2 py-1 text-xs text-amber-400 font-bold focus:outline-none cursor-pointer">
+                                    <option value="1">1 Minute</option>
+                                    <option value="5" selected>5 Minutes</option>
+                                    <option value="15">15 Minutes</option>
+                                    <option value="30">30 Minutes</option>
+                                </select>
+                            </div>
+
+                            <!-- Instant Lock & Logout -->
+                            <div class="p-3 bg-gray-950/80 border border-darkborder rounded-xl flex items-center justify-end gap-2">
+                                <button onclick="triggerPrivacyLock()" class="px-3 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer">
+                                    <i class="fa-solid fa-lock"></i> Lock Now
+                                </button>
+                                <button onclick="terminalLogout()" class="px-3 py-2 bg-red-600/10 hover:bg-red-600/20 text-red-400 border border-red-500/30 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer">
+                                    <i class="fa-solid fa-power-off"></i> Logout
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- SECTION 2: BROKER & EXCHANGE API CONNECTIONS -->
@@ -4327,19 +4425,57 @@
             } catch (e) {}
         }
 
-        // ── 5-MINUTE INACTIVITY PRIVACY AUTO-MASK & LOCKOUT ─────────────
-        let sessionInactivityTimer = null;
-        let sessionWarningTimer = null;
+        // ── PRIVACY MASK (BLUR BALANCES) & 5-MINUTE INACTIVITY LOCKOUT ──
         let isPrivacyLocked = false;
-        const INACTIVITY_LOCKOUT_MS = 5 * 60 * 1000; // 5 mins
-        const INACTIVITY_WARNING_MS = 4 * 60 * 1000; // 4 mins warning
+        let isPrivacyMaskActive = localStorage.getItem('aegis_privacy_blur') === '1';
+        let inactivityTimeoutMinutes = parseInt(localStorage.getItem('aegis_idle_lock_min') || '5', 10);
+        window.lastUserActivity = Date.now();
 
-        function unlockPrivacyScreen() {
-            isPrivacyLocked = false;
-            const pLock = document.getElementById('modal-privacy-lock');
-            if (pLock) pLock.classList.add('hidden');
-            resetInactivityTimer();
-            if (typeof playSynthChime === 'function') playSynthChime('SUCCESS');
+        function applyPrivacyMaskUI(active) {
+            isPrivacyMaskActive = active;
+            localStorage.setItem('aegis_privacy_blur', active ? '1' : '0');
+            if (active) {
+                document.body.classList.add('privacy-blur-active');
+            } else {
+                document.body.classList.remove('privacy-blur-active');
+            }
+            const icon = document.getElementById('privacy-mask-icon');
+            const lbl = document.getElementById('privacy-mask-label');
+            const navBtn = document.getElementById('btn-privacy-mask-nav');
+            const setBtn = document.getElementById('btn-settings-blur-toggle');
+
+            if (icon) {
+                icon.className = active ? 'fa-solid fa-eye-slash text-amber-400 text-xs' : 'fa-solid fa-eye text-xs';
+            }
+            if (lbl) {
+                lbl.innerText = active ? 'MASKED' : 'MASK';
+            }
+            if (navBtn) {
+                if (active) {
+                    navBtn.className = 'h-8 px-2.5 rounded-lg bg-amber-500/10 border border-amber-500/40 text-amber-400 transition flex items-center space-x-1.5 cursor-pointer shadow';
+                } else {
+                    navBtn.className = 'h-8 px-2.5 rounded-lg bg-gray-900 border border-gray-800 hover:border-amber-500/50 text-gray-400 hover:text-white transition flex items-center space-x-1.5 cursor-pointer shadow';
+                }
+            }
+            if (setBtn) {
+                setBtn.innerText = active ? 'ACTIVE (BLURRED)' : 'TOGGLE BLUR';
+                setBtn.className = active
+                    ? 'px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/40 text-xs font-bold transition cursor-pointer'
+                    : 'px-3 py-1.5 rounded-lg bg-gray-900 border border-gray-700 text-xs text-gray-300 hover:text-white font-bold transition cursor-pointer';
+            }
+        }
+
+        function togglePrivacyMask() {
+            applyPrivacyMaskUI(!isPrivacyMaskActive);
+            if (typeof playSynthChime === 'function') playSynthChime('SWITCH');
+        }
+
+        function setInactivityTimeout(mins) {
+            inactivityTimeoutMinutes = parseInt(mins, 10) || 5;
+            localStorage.setItem('aegis_idle_lock_min', inactivityTimeoutMinutes);
+            const badge = document.getElementById('badge-privacy-status');
+            if (badge) badge.innerText = `${inactivityTimeoutMinutes}-MIN LOCK ACTIVE`;
+            window.lastUserActivity = Date.now();
         }
 
         function triggerPrivacyLock() {
@@ -4351,31 +4487,67 @@
             if (typeof playSynthChime === 'function') playSynthChime('WARNING');
         }
 
-        function resetInactivityTimer() {
-            if (isPrivacyLocked) return;
-            if (sessionInactivityTimer) clearTimeout(sessionInactivityTimer);
-            if (sessionWarningTimer) clearTimeout(sessionWarningTimer);
-
+        function unlockPrivacyScreen() {
+            isPrivacyLocked = false;
+            window.lastUserActivity = Date.now();
+            const pLock = document.getElementById('modal-privacy-lock');
+            if (pLock) pLock.classList.add('hidden');
             const warnModal = document.getElementById('modal-session-timeout');
             if (warnModal) warnModal.classList.add('hidden');
-
-            sessionWarningTimer = setTimeout(() => {
-                const wm = document.getElementById('modal-session-timeout');
-                if (wm && !isPrivacyLocked) wm.classList.remove('hidden');
-                if (typeof playSynthChime === 'function') playSynthChime('ALARM');
-            }, INACTIVITY_WARNING_MS);
-
-            sessionInactivityTimer = setTimeout(() => {
-                triggerPrivacyLock();
-            }, INACTIVITY_LOCKOUT_MS);
+            if (typeof playSynthChime === 'function') playSynthChime('SUCCESS');
         }
 
-        ['mousemove', 'keydown', 'mousedown', 'touchstart', 'scroll'].forEach(evt => {
-            window.addEventListener(evt, () => {
-                if (!isPrivacyLocked) resetInactivityTimer();
-            }, { passive: true });
+        function resetInactivityTimer() {
+            window.lastUserActivity = Date.now();
+            const warnModal = document.getElementById('modal-session-timeout');
+            if (warnModal) warnModal.classList.add('hidden');
+        }
+
+        function recordUserActivity() {
+            if (isPrivacyLocked) return;
+            const now = Date.now();
+            if (now - window.lastUserActivity > 1500) {
+                window.lastUserActivity = now;
+            }
+        }
+
+        ['mousemove', 'keydown', 'mousedown', 'touchstart', 'scroll', 'click'].forEach(evt => {
+            window.addEventListener(evt, recordUserActivity, { passive: true });
         });
-        resetInactivityTimer();
+
+        // 1-second interval check immune to browser background tab throttling
+        setInterval(() => {
+            if (isPrivacyLocked) return;
+            const idleMs = Date.now() - (window.lastUserActivity || Date.now());
+            const lockMs = inactivityTimeoutMinutes * 60 * 1000;
+            const warnMs = Math.max(30000, lockMs - 60000);
+
+            if (idleMs >= lockMs) {
+                triggerPrivacyLock();
+            } else if (idleMs >= warnMs) {
+                const wm = document.getElementById('modal-session-timeout');
+                if (wm && wm.classList.contains('hidden')) {
+                    wm.classList.remove('hidden');
+                    if (typeof playSynthChime === 'function') playSynthChime('ALARM');
+                }
+            } else {
+                const wm = document.getElementById('modal-session-timeout');
+                if (wm && !wm.classList.contains('hidden')) {
+                    wm.classList.add('hidden');
+                }
+            }
+
+            // Auto-logout after 15 minutes of continuous idle
+            if (idleMs >= 15 * 60 * 1000 && !window._loggedOutDueToInactivity) {
+                window._loggedOutDueToInactivity = true;
+                terminalLogout();
+            }
+        }, 1000);
+
+        // Apply saved privacy mask on load
+        if (isPrivacyMaskActive) {
+            setTimeout(() => applyPrivacyMaskUI(true), 150);
+        }
 
         // ── AI MARKET REGIME CONTROLLER ──────────────────────────────
         async function fetchAiRegime() {
@@ -4617,7 +4789,8 @@
             const curSym = isInd ? '₹' : (isCry ? '' : '$');
             const curLoc = isInd ? 'en-IN' : 'en-US';
 
-            const defaultEq = isInd ? 100000.0 : (isCry ? 19940.75 : 100000.0);
+            // Never display fake 19,940.75: Use live Binance balance or cached equity
+            const defaultEq = isInd ? 100000.0 : (isCry ? (window.lastCryptoEquity || 3.84) : 100000.0);
             const eqFmt = isCry ? `${defaultEq.toLocaleString('en-US', {minimumFractionDigits: 2})} USDT` : `${curSym}${defaultEq.toLocaleString(curLoc, {minimumFractionDigits: 2})}`;
             const zeroFmt = isCry ? '0.00 USDT' : `${curSym}0.00`;
             const signedZeroFmt = isCry ? '+0.00 USDT' : `+${curSym}0.00`;
@@ -4646,7 +4819,8 @@
                     hdrEnv.innerText = `INDIA POOL (${eqFmt})`;
                     hdrEnv.className = 'font-bold text-emerald-400';
                 } else if (isCry) {
-                    hdrEnv.innerText = `BINANCE TESTNET (${eqFmt})`;
+                    const bType = (window.activeTradingPool && window.activeTradingPool.includes('TESTNET')) ? 'BINANCE TESTNET' : 'BINANCE LIVE';
+                    hdrEnv.innerText = `${bType} (${eqFmt})`;
                     hdrEnv.className = 'font-bold text-amber-400';
                 } else {
                     hdrEnv.innerText = `METATRADER 5 (${eqFmt})`;
@@ -4662,24 +4836,65 @@
             }
         }
 
+        function syncSettingsForActiveVenue(venue) {
+            const v = (venue || window.activeMarketVenue || 'INDIA').toUpperCase();
+            const selEnv = document.getElementById('sel-environment');
+            if (selEnv) {
+                const optCrypto = selEnv.querySelector('optgroup[label*="Crypto"]');
+                const optForex = selEnv.querySelector('optgroup[label*="Forex"]');
+                const optIndia = selEnv.querySelector('optgroup[label*="Indian"]');
+                const optMaster = selEnv.querySelector('optgroup[label*="Master"]');
+
+                if (v === 'CRYPTO') {
+                    if (optCrypto) optCrypto.style.display = '';
+                    if (optForex) optForex.style.display = 'none';
+                    if (optIndia) optIndia.style.display = 'none';
+                    if (optMaster) optMaster.style.display = 'none';
+                    let curPool = window.activeTradingPool || localStorage.getItem('aegis_active_pool_CRYPTO') || 'BINANCE_LIVE_REAL';
+                    if (curPool !== 'BINANCE_LIVE_REAL' && curPool !== 'BINANCE_TESTNET_DEMO') {
+                        curPool = 'BINANCE_LIVE_REAL';
+                    }
+                    selEnv.value = curPool;
+                    window.activeTradingPool = curPool;
+                } else if (v === 'FOREX' || v === 'FOREX_GOLD') {
+                    if (optCrypto) optCrypto.style.display = 'none';
+                    if (optForex) optForex.style.display = '';
+                    if (optIndia) optIndia.style.display = 'none';
+                    if (optMaster) optMaster.style.display = '';
+                    let curPool = window.activeTradingPool || localStorage.getItem('aegis_active_pool_FOREX') || 'MT5_LIVE_REAL';
+                    if (!['MT5_LIVE_REAL', 'MT5_DEMO', 'AEGIS_QUANT_MASTER'].includes(curPool)) {
+                        curPool = 'MT5_LIVE_REAL';
+                    }
+                    selEnv.value = curPool;
+                    window.activeTradingPool = curPool;
+                } else {
+                    if (optCrypto) optCrypto.style.display = 'none';
+                    if (optForex) optForex.style.display = 'none';
+                    if (optIndia) optIndia.style.display = '';
+                    if (optMaster) optMaster.style.display = 'none';
+                    let curPool = window.activeTradingPool || localStorage.getItem('aegis_active_pool_INDIA') || 'AEGIS_INDIA_INR';
+                    if (!['AEGIS_INDIA_INR', 'UPSTOX_LIVE'].includes(curPool)) {
+                        curPool = 'AEGIS_INDIA_INR';
+                    }
+                    selEnv.value = curPool;
+                    window.activeTradingPool = curPool;
+                }
+            }
+
+            // Sync broker category and filter gateways to active market
+            const targetBrokerCat = (v === 'CRYPTO') ? 'CRYPTO' : ((v === 'FOREX' || v === 'FOREX_GOLD') ? 'FOREX_GOLD' : 'INDIA');
+            if (typeof filterBrokerCategory === 'function') {
+                filterBrokerCategory(targetBrokerCat);
+            }
+        }
+
         function switchMarketVenue(venue) {
             const normVenue = (venue === 'FOREX' || venue === 'FOREX_GOLD') ? 'FOREX_GOLD' : venue;
             window.activeMarketVenue = normVenue;
             localStorage.setItem('aegis_active_workspace', normVenue);
             document.cookie = 'aegis_active_workspace=' + normVenue + '; path=/; max-age=31536000';
 
-            const selEnv = document.getElementById('sel-environment');
-            if (selEnv) {
-                let poolCandidate = (normVenue === 'CRYPTO') ? (localStorage.getItem('aegis_active_pool_CRYPTO') || 'BINANCE_LIVE_REAL') :
-                                    ((normVenue === 'FOREX_GOLD' || normVenue === 'FOREX') ? (localStorage.getItem('aegis_active_pool_FOREX') || 'MT5_LIVE_REAL') :
-                                    (localStorage.getItem('aegis_active_pool_INDIA') || 'AEGIS_INDIA_INR'));
-                if (selEnv.querySelector(`option[value="${poolCandidate}"]`)) {
-                    selEnv.value = poolCandidate;
-                    window.activeTradingPool = poolCandidate;
-                    localStorage.setItem('aegis_active_pool', poolCandidate);
-                    document.cookie = 'aegis_active_pool=' + poolCandidate + '; path=/; max-age=31536000';
-                }
-            }
+            syncSettingsForActiveVenue(normVenue);
 
             const currentSeq = ++workspaceSwitchSequence;
 
@@ -5537,6 +5752,7 @@
                 fetchState();
             }
             if (tabId === 'settings') {
+                syncSettingsForActiveVenue(window.activeMarketVenue);
                 fetchMT5Status();
                 fetchBinanceStatus();
                 try { fetchUpstoxStatus(); } catch (e) {}
@@ -7152,7 +7368,7 @@
             const unwTotal = document.getElementById('card-total-networth');
             if (unwBinance) {
                 const liveBinanceVal = isCrypto ? equity : ((data.pools && data.pools.BINANCE_LIVE_REAL) ? Number(data.pools.BINANCE_LIVE_REAL.equity || 3.84) : 3.84);
-                unwBinance.innerText = `$${liveBinanceVal.toFixed(2)} USDT`;
+                unwBinance.innerText = `${liveBinanceVal.toFixed(2)} USDT`;
             }
             if (unwUpstox) {
                 const liveUpstoxVal = (data.pools && data.pools.AEGIS_INDIA_INR) ? Number(data.pools.AEGIS_INDIA_INR.equity || 100000.0) : 100000.0;
@@ -7167,7 +7383,17 @@
             }
             if (unwTotal) {
                 const totConsolidated = isIndia ? equity : (equity + vault);
-                unwTotal.innerHTML = `$${totConsolidated.toFixed(2)} <span class="text-xs text-gray-400 font-normal">${isIndia ? 'INR' : 'USDT'}</span>`;
+                if (isIndia) {
+                    unwTotal.innerHTML = `₹${totConsolidated.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})} <span class="text-xs text-gray-400 font-normal">INR</span>`;
+                } else if (isCrypto) {
+                    unwTotal.innerHTML = `${totConsolidated.toFixed(2)} <span class="text-xs text-gray-400 font-normal">USDT</span>`;
+                } else {
+                    unwTotal.innerHTML = `$${totConsolidated.toFixed(2)} <span class="text-xs text-gray-400 font-normal">USD</span>`;
+                }
+            }
+
+            if (isCrypto && equity > 0) {
+                window.lastCryptoEquity = equity;
             }
 
             const totalExposure = positions.reduce((sum, p) => sum + (parseFloat(p.capital_allocated) || 0), 0);

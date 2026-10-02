@@ -75,8 +75,8 @@ class WorkspaceManager:
             'workspace': WORKSPACE_CRYPTO,
             'currency': 'USDT',
             'currency_symbol': '$',
-            'default_pool': 'BINANCE_TESTNET_DEMO',
-            'allowed_pools': ['BINANCE_TESTNET_DEMO', 'BINANCE_LIVE_REAL', 'BINANCE_DEMO', 'BINANCE_LIVE', 'MT5_LIVE_REAL'],
+            'default_pool': 'BINANCE_LIVE_REAL',
+            'allowed_pools': ['BINANCE_LIVE_REAL', 'BINANCE_TESTNET_DEMO', 'BINANCE_DEMO', 'BINANCE_LIVE'],
             'venue_name': 'Binance Spot & Futures',
             'settlement': 'Instant On-Chain / Off-Chain',
             'regulation': 'Binance Institutional VASP',
@@ -130,6 +130,8 @@ class WorkspaceManager:
                         self._active_pool_per_workspace.update(saved_pools)
                     if self._active_pool_per_workspace.get(self.WORKSPACE_FOREX_GOLD) not in ['MT5_LIVE_REAL', 'MT5_DEMO']:
                         self._active_pool_per_workspace[self.WORKSPACE_FOREX_GOLD] = 'MT5_LIVE_REAL'
+                    if self._active_pool_per_workspace.get(self.WORKSPACE_CRYPTO) not in ['BINANCE_LIVE_REAL', 'BINANCE_TESTNET_DEMO']:
+                        self._active_pool_per_workspace[self.WORKSPACE_CRYPTO] = 'BINANCE_LIVE_REAL'
                     self._save_state()
                     return
             except Exception as e:
@@ -165,6 +167,11 @@ class WorkspaceManager:
             if saved and saved in ['MT5_LIVE_REAL', 'MT5_DEMO']:
                 return saved
             return 'MT5_LIVE_REAL'
+        if ws == self.WORKSPACE_CRYPTO:
+            saved = self._active_pool_per_workspace.get(ws)
+            if saved and saved in ['BINANCE_LIVE_REAL', 'BINANCE_TESTNET_DEMO', 'BINANCE_DEMO', 'BINANCE_LIVE']:
+                return saved
+            return 'BINANCE_LIVE_REAL'
         meta = self.get_workspace_meta(ws)
         saved = self._active_pool_per_workspace.get(ws)
         if saved and saved in meta.get('allowed_pools', []):
