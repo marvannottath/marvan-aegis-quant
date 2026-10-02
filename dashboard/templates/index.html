@@ -7662,17 +7662,23 @@
                 const units = parseFloat(pos.units || pos.quantity) || (allocated * lev / (entry || 1));
                 const side = (pos.action || pos.side || 'BUY').toUpperCase();
 
-                let pnlUsd = (pos.unrealized_pnl !== undefined) ? parseFloat(pos.unrealized_pnl) : (pos.pnl_usd !== undefined ? parseFloat(pos.pnl_usd) : 0);
-                if (pnlUsd === 0 && entry > 0 && mark !== entry) {
-                    pnlUsd = (side === 'BUY') ? (mark - entry) * units : (entry - mark) * units;
+                let pnlUsd = 0;
+                let pnlPct = 0;
+                if (entry > 0 && mark > 0) {
+                    const rawDiff = (side === 'BUY') ? (mark - entry) : (entry - mark);
+                    pnlPct = (rawDiff / entry) * 100;
+                    pnlUsd = rawDiff * units;
+                } else if (pos.unrealized_pnl !== undefined) {
+                    pnlUsd = parseFloat(pos.unrealized_pnl) || 0;
+                    pnlPct = parseFloat(pos.pnl_pct) || 0;
                 }
-                const pnlPct = (pos.pnl_pct !== undefined) ? parseFloat(pos.pnl_pct) : (allocated > 0 ? (pnlUsd / allocated) * 100 : 0);
 
-                const pnlRounded = Math.round(pnlUsd * 100) / 100;
-                const pctRounded = Math.round(pnlPct * 100) / 100;
-                const pnlSign = pnlRounded > 0 ? '+' : (pnlRounded < 0 ? '-' : '');
-                const pctSign = pctRounded > 0 ? '+' : (pctRounded < 0 ? '-' : '');
-                const colorClass = pnlRounded > 0 ? 'text-emerald-400' : (pnlRounded < 0 ? 'text-red-400' : 'text-gray-400');
+                const absPnl = Math.abs(pnlUsd);
+                const absPct = Math.abs(pnlPct);
+                const pnlDecimals = (absPnl > 0 && absPnl < 0.05) ? 4 : 2;
+                const pnlSign = pnlUsd > 0.00005 ? '+' : (pnlUsd < -0.00005 ? '-' : '');
+                const pctSign = pnlPct > 0.005 ? '+' : (pnlPct < -0.005 ? '-' : '');
+                const colorClass = pnlUsd > 0.00005 ? 'text-emerald-400' : (pnlUsd < -0.00005 ? 'text-red-400' : 'text-gray-400');
                 const priceDecimals = (entry < 10 || mark < 10) ? 4 : 2;
 
                 const symKey = pos.asset || pos.symbol || pos.ticker;
@@ -7684,8 +7690,8 @@
                         <td class="py-3 px-3 text-amber-400 font-bold">${lev}x</td>
                         <td class="py-3 px-3 font-mono">${curSym}${entry.toLocaleString(curLoc, {minimumFractionDigits: 2, maximumFractionDigits: priceDecimals})}</td>
                         <td class="py-3 px-3 font-mono font-bold text-white transition-colors duration-200" data-pos-mark="${symKey}">${curSym}${mark.toLocaleString(curLoc, {minimumFractionDigits: 2, maximumFractionDigits: priceDecimals})}</td>
-                        <td class="py-3 px-3 ${colorClass} font-bold font-mono" data-pos-pnl="${symKey}">${pnlSign}${curSym}${Math.abs(pnlUsd).toFixed(2)}</td>
-                        <td class="py-3 px-3 ${colorClass} font-bold font-mono" data-pos-pct="${symKey}">${pctSign}${Math.abs(pnlPct).toFixed(2)}%</td>
+                        <td class="py-3 px-3 ${colorClass} font-bold font-mono" data-pos-pnl="${symKey}">${pnlSign}${curSym}${absPnl.toFixed(pnlDecimals)}</td>
+                        <td class="py-3 px-3 ${colorClass} font-bold font-mono" data-pos-pct="${symKey}">${pctSign}${absPct.toFixed(2)}%</td>
                         <td class="py-3 px-3 text-right">
                             <button onclick="closePosition('${symKey}')" class="px-2.5 py-1 bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white font-bold rounded transition text-[10px]">
                                 CLOSE
@@ -9769,26 +9775,30 @@
 
                                     // Recalculate floating PnL
                                     let pnlUsd = 0;
+                                    let pnlPct = 0;
                                     if (entry > 0) {
-                                        pnlUsd = (side === 'BUY') ? (curPrice - entry) * units : (entry - curPrice) * units;
+                                        const rawDiff = (side === 'BUY') ? (curPrice - entry) : (entry - curPrice);
+                                        pnlPct = (rawDiff / entry) * 100;
+                                        pnlUsd = rawDiff * units;
                                     }
-                                    const pnlPct = alloc > 0 ? (pnlUsd / alloc) * 100 : 0;
-                                    const pnlRounded = Math.round(pnlUsd * 100) / 100;
-                                    const pctRounded = Math.round(pnlPct * 100) / 100;
-                                    const pnlSign = pnlRounded > 0 ? '+' : (pnlRounded < 0 ? '-' : '');
-                                    const pctSign = pctRounded > 0 ? '+' : (pctRounded < 0 ? '-' : '');
-                                    const colorClass = pnlRounded > 0 ? 'text-emerald-400' : (pnlRounded < 0 ? 'text-red-400' : 'text-gray-400');
+
+                                    const absPnl = Math.abs(pnlUsd);
+                                    const absPct = Math.abs(pnlPct);
+                                    const pnlDecimals = (absPnl > 0 && absPnl < 0.05) ? 4 : 2;
+                                    const pnlSign = pnlUsd > 0.00005 ? '+' : (pnlUsd < -0.00005 ? '-' : '');
+                                    const pctSign = pnlPct > 0.005 ? '+' : (pnlPct < -0.005 ? '-' : '');
+                                    const colorClass = pnlUsd > 0.00005 ? 'text-emerald-400' : (pnlUsd < -0.00005 ? 'text-red-400' : 'text-gray-400');
 
                                     const pnlEl = document.querySelector(`[data-pos-pnl="${sym}"]`);
                                     if (pnlEl) {
                                         pnlEl.className = `py-3 px-3 ${colorClass} font-bold font-mono`;
-                                        pnlEl.innerText = `${pnlSign}${curSym}${Math.abs(pnlUsd).toFixed(2)}`;
+                                        pnlEl.innerText = `${pnlSign}${curSym}${absPnl.toFixed(pnlDecimals)}`;
                                     }
 
                                     const pctEl = document.querySelector(`[data-pos-pct="${sym}"]`);
                                     if (pctEl) {
                                         pctEl.className = `py-3 px-3 ${colorClass} font-bold font-mono`;
-                                        pctEl.innerText = `${pctSign}${Math.abs(pnlPct).toFixed(2)}%`;
+                                        pctEl.innerText = `${pctSign}${absPct.toFixed(2)}%`;
                                     }
                                 }
                             }

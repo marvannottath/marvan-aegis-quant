@@ -2010,7 +2010,8 @@ class BinanceBroker:
 
             capital_allocated = round(total_qty * entry_price, 2)
 
-            unrealized_pnl = round((cur_price - entry_price) * total_qty, 2)
+            raw_pnl = (cur_price - entry_price) * total_qty
+            unrealized_pnl = round(raw_pnl, 4 if abs(raw_pnl) < 1.0 else 2)
             pnl_pct = round(((cur_price - entry_price) / entry_price * 100.0), 2) if entry_price > 0 else 0.0
 
             qty_decimals = 6 if cur_price > 1000.0 else 4

@@ -204,14 +204,17 @@ class PositionSnapshotService:
                     allocated = round(entry_px * units, 2)
 
                 side = str(pos.get("side", pos.get("action", "BUY"))).upper()
-                if pos.get("unrealized_pnl") is not None and abs(float(pos.get("unrealized_pnl", 0.0))) > 0.0001:
+                if entry_px > 0 and last_px > 0:
+                    raw_diff = (last_px - entry_px) if side == "BUY" else (entry_px - last_px)
+                    raw_pnl = raw_diff * units
+                    unrealized = round(raw_pnl, 4 if abs(raw_pnl) < 1.0 else 2)
+                    pnl_pct = round((raw_diff / entry_px) * 100.0, 2)
+                elif pos.get("unrealized_pnl") is not None:
                     unrealized = float(pos.get("unrealized_pnl"))
-                elif side == "BUY":
-                    unrealized = round((last_px - entry_px) * units, 2)
+                    pnl_pct = round((unrealized / max(0.01, allocated)) * 100.0, 2)
                 else:
-                    unrealized = round((entry_px - last_px) * units, 2)
-
-                pnl_pct = round((unrealized / allocated * 100.0), 2) if allocated > 0 else 0.0
+                    unrealized = 0.0
+                    pnl_pct = 0.0
 
                 verified_positions.append({
                     "workspace": target_ws,
