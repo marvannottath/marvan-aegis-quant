@@ -21,6 +21,9 @@ from pathlib import Path
 IST_TZ = timezone(timedelta(hours=5, minutes=30))
 
 
+PEAK_EQUITY_FILE = Path(__file__).resolve().parent.parent / "data" / "peak_equity_state.json"
+
+
 def _ist_now() -> str:
     return datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S IST")
 
@@ -36,6 +39,33 @@ class PositionSnapshotService:
         # Optional synthetic test injection hooks for verifying fail-closed delta detection
         self._injected_delta: Dict[str, Any] = {}
         self._forced_recon_status: Optional[str] = None
+
+    def _load_peak_equity(self) -> Dict[str, float]:
+        if PEAK_EQUITY_FILE.exists():
+            try:
+                with open(PEAK_EQUITY_FILE, "r") as f:
+                    return json.load(f)
+            except Exception:
+                pass
+        return {}
+
+    def _save_peak_equity(self, data: Dict[str, float]):
+        try:
+            PEAK_EQUITY_FILE.parent.mkdir(parents=True, exist_ok=True)
+            with open(PEAK_EQUITY_FILE, "w") as f:
+                json.dump(data, f, indent=2)
+        except Exception:
+            pass
+
+    def get_and_update_peak_equity(self, pool_name: str, current_equity: float) -> float:
+        peaks = self._load_peak_equity()
+        stored_peak = float(peaks.get(pool_name, 0.0))
+        # Initial calibration: if never seen, initialize to current equity
+        if stored_peak <= 0.0 or current_equity > stored_peak:
+            peaks[pool_name] = round(current_equity, 2)
+            self._save_peak_equity(peaks)
+            return round(current_equity, 2)
+        return round(stored_peak, 2)
 
     def set_forced_reconciliation_status(self, status: Optional[str]):
         """Test hook to test fail-closed behavior."""
@@ -328,15 +358,13 @@ class PositionSnapshotService:
                 if b_acc.get("authenticated") and live_tot > 0:
                     total_equity = round(live_tot, 2)
                     free_cash = round(live_avail, 2)
-                    # CRITICAL FIX: For live Binance, initial_cap MUST equal real Binance balance.
-                    # If we keep initial_cap=100000 and equity=14.70, drawdown=99.98% → circuit break!
-                    initial_cap = total_equity
+                    initial_cap = self.get_and_update_peak_equity(pool_name, total_equity)
                 else:
                     total_equity = round(total_exposure + unrealized_pnl, 2)
-                    initial_cap = max(total_equity, 1.0)
+                    initial_cap = self.get_and_update_peak_equity(pool_name, max(total_equity, 1.0))
             except Exception:
                 total_equity = round(total_exposure + unrealized_pnl, 2)
-                initial_cap = max(total_equity, 1.0)
+                initial_cap = self.get_and_update_peak_equity(pool_name, max(total_equity, 1.0))
         elif pool_name in ["AEGIS_INDIA_INR", "UPSTOX_DEMO", "UPSTOX_LIVE"] or target_ws == "INDIA":
             vault_balance = 0.0
             total_equity = round(free_cash + used_margin + unrealized_pnl, 2)
@@ -348,9 +376,7 @@ class PositionSnapshotService:
         realized_pnl = round(double_entry_ledger.get_account_balance("REALIZED_PNL_ACCOUNT", pool_name), 2)
 
         # Peak equity & Drawdown calculation
-        # Use initial_cap that reflects REAL starting balance (not a hardcoded 100k for live Binance)
-        peak_equity = max(initial_cap, total_equity)
-        # If pool is newly created/unfunded with zero capital, drawdown is 0.0% (not breached)
+        peak_equity = self.get_and_update_peak_equity(pool_name, total_equity)
         if peak_equity <= 0.0:
             drawdown_pct = 0.0
         else:

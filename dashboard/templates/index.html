@@ -7032,8 +7032,8 @@
             if (document.getElementById('metric-open-count')) document.getElementById('metric-open-count').innerText = positions.length + ' Active';
             if (document.getElementById('badge-open-pos')) document.getElementById('badge-open-pos').innerText = positions.length;
             if (document.getElementById('pf-trading-equity')) document.getElementById('pf-trading-equity').innerText = formatMoney(equity);
-            if (document.getElementById('pf-vault-reserve')) document.getElementById('pf-vault-reserve').innerText = (isIndia || isCrypto) ? (isIndia ? '₹0.00' : '0.00 USDT') : formatMoney(vault);
-            if (document.getElementById('pf-total-assets')) document.getElementById('pf-total-assets').innerText = formatMoney(equity + (isIndia || isCrypto ? 0 : vault));
+            if (document.getElementById('pf-vault-reserve')) document.getElementById('pf-vault-reserve').innerText = isIndia ? '₹0.00' : `${Number(vault || 0).toFixed(2)} USDT`;
+            if (document.getElementById('pf-total-assets')) document.getElementById('pf-total-assets').innerText = formatMoney(equity + (isIndia ? 0 : vault));
 
             // Sync Custodial Wallets tab
             if (document.getElementById('fund-binance-spot-val')) {
@@ -7044,7 +7044,7 @@
                 document.getElementById('fund-india-demat-val').innerText = '₹1,00,000.00';
             }
             if (document.getElementById('fund-vault-val')) {
-                document.getElementById('fund-vault-val').innerText = (isIndia || isCrypto) ? (isIndia ? '₹0.00' : '0.00 USDT') : `${Number(vault || 0).toFixed(2)} USDT`;
+                document.getElementById('fund-vault-val').innerText = isIndia ? '₹0.00' : `${Number(vault || 0).toFixed(2)} USDT`;
             }
 
             // Sync Unified Multi-Broker Net Worth master card
@@ -7066,10 +7066,10 @@
                 unwMt5.innerText = `$${liveMt5Val.toFixed(2)} USD`;
             }
             if (unwVault) {
-                unwVault.innerText = (isIndia || isCrypto) ? '$0.00 USD' : `$${Number(vault || 0).toFixed(2)} USD`;
+                unwVault.innerText = isIndia ? '₹0.00' : `$${Number(vault || 0).toFixed(2)} ${isCrypto ? 'USDT' : 'USD'}`;
             }
             if (unwTotal) {
-                const totConsolidated = (isCrypto || isIndia) ? equity : (equity + vault);
+                const totConsolidated = isIndia ? equity : (equity + vault);
                 unwTotal.innerHTML = `$${totConsolidated.toFixed(2)} <span class="text-xs text-gray-400 font-normal">${isIndia ? 'INR' : 'USDT'}</span>`;
             }
 
@@ -8643,6 +8643,25 @@
             if (!day || !day.date) return;
             selectedCalendarDate = day.date;
             
+            // Switch view source to LIVE trades
+            tradeLogSource = 'LIVE';
+            const btnLive = document.getElementById('btn-tl-source-live');
+            const btnBt = document.getElementById('btn-tl-source-bt');
+            if (btnLive && btnBt) {
+                btnLive.className = 'px-2.5 py-1 rounded bg-emerald-500 text-white font-bold cursor-pointer';
+                btnBt.className = 'px-2.5 py-1 rounded text-gray-400 hover:text-white cursor-pointer';
+            }
+
+            // Immediately merge trades from the day object into liveTradesCache if present
+            if (day.trades && Array.isArray(day.trades) && day.trades.length > 0) {
+                day.trades.forEach(dt => {
+                    const exists = liveTradesCache.some(lt => (lt.trade_id && lt.trade_id === dt.trade_id) || (lt.timestamp === dt.timestamp && lt.symbol === dt.symbol));
+                    if (!exists) {
+                        liveTradesCache.unshift(dt);
+                    }
+                });
+            }
+            
             const banner = document.getElementById('pnl-selected-day-banner');
             const titleEl = document.getElementById('pnl-sel-day-title');
             const sumEl = document.getElementById('pnl-sel-day-summary');
@@ -8661,6 +8680,7 @@
 
             backtestTradePage = 1;
             renderBacktestTradeLogs();
+            fetchLiveTrades().then(() => renderBacktestTradeLogs());
         }
 
         function clearPnLDayFilter() {
@@ -8716,7 +8736,8 @@
             // 1. Calendar Day Filter
             if (selectedCalendarDate) {
                 trades = trades.filter(t => {
-                    const tDate = t.date || (t.timestamp || t.entry_timestamp || '').split(' ')[0];
+                    const rawTs = String(t.date || t.timestamp || t.entry_timestamp || t.exit_timestamp || '');
+                    const tDate = rawTs.includes('T') ? rawTs.split('T')[0] : (rawTs.includes(' ') ? rawTs.split(' ')[0] : rawTs.substring(0, 10));
                     return tDate === selectedCalendarDate;
                 });
             }

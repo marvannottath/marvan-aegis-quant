@@ -133,8 +133,6 @@ async def on_startup():
         workspace_manager.set_active_workspace("CRYPTO")   # Start in CRYPTO (Binance Live) workspace
         ai_trading_controller.set_state("CRYPTO", "RUNNING", user="SYSTEM", reason="Autonomous Cloud Active — Binance Live")
         ai_trading_controller.set_state("FOREX_GOLD", "RUNNING", user="SYSTEM", reason="Autonomous Cloud Active")
-        profit_vault.reset_vault("BINANCE_LIVE_REAL")
-        profit_vault.reset_vault("BINANCE_LIVE")
     except Exception as e:
         print(f"[STARTUP] Workspace init notice: {e}")
 
@@ -195,13 +193,25 @@ async def read_dashboard(request: Request):
     is_crypto = (active_ws == "CRYPTO")
     is_forex = (active_ws == "FOREX_GOLD")
 
+    today_str = now_dt.strftime("%Y-%m-%d")
+    today_pnl_val = 0.0
+    try:
+        from core.historical_log_service import historical_log_service
+        today_hist_trades = historical_log_service.query(start_date=today_str, end_date=today_str, workspace=active_ws if active_ws != "ALL" else None)
+        if today_hist_trades:
+            today_pnl_val = round(sum(float(t.get("realized_pnl", t.get("net_pnl", t.get("pnl_usd", 0.0))) or 0.0) for t in today_hist_trades), 2)
+        else:
+            today_pnl_val = round(float(port_agg.get("realized_pnl", 0.0)), 2)
+    except Exception:
+        today_pnl_val = round(float(port_agg.get("realized_pnl", 0.0)), 2)
+
     if is_india:
         eq_str = f"₹{eq_val:,.2f}"
         cash_str = f"₹{cash_val:,.2f}"
         vault_str = f"₹{vault_val:,.2f}"
         total_assets_str = f"₹{(eq_val + vault_val):,.2f}"
         margin_str = f"₹{margin_val:,.2f}" if margin_val > 0 else "₹0.00"
-        today_pnl_str = f"{'+' if unrealized_pnl_val >= 0 else ''}₹{unrealized_pnl_val:,.2f}"
+        today_pnl_str = f"{'+' if today_pnl_val >= 0 else ''}₹{today_pnl_val:,.2f}"
         exposure_str = f"₹{exposure_val:,.2f}"
         venue_badge = "NSE/BSE (INDIA ACTIVE)"
         venue_title = "INDIAN MARKETS (NSE/BSE)"
@@ -220,7 +230,7 @@ async def read_dashboard(request: Request):
         vault_str = f"{vault_val:,.2f} USDT"
         total_assets_str = f"{(eq_val + vault_val):,.2f} USDT"
         margin_str = f"{cash_val:,.2f} USDT"
-        today_pnl_str = f"{'+' if unrealized_pnl_val >= 0 else ''}{unrealized_pnl_val:,.2f} USDT"
+        today_pnl_str = f"{'+' if today_pnl_val >= 0 else ''}{today_pnl_val:,.2f} USDT"
         exposure_str = f"{exposure_val:,.2f} USDT"
         venue_badge = "BINANCE (CRYPTO ACTIVE)"
         venue_title = "CRYPTO MARKETS (BINANCE)"
@@ -246,7 +256,7 @@ async def read_dashboard(request: Request):
         vault_str = f"${vault_val:,.2f}"
         total_assets_str = f"${(eq_val + vault_val):,.2f}"
         margin_str = "$10,000.00"
-        today_pnl_str = "+$0.00"
+        today_pnl_str = f"{'+' if today_pnl_val >= 0 else ''}${today_pnl_val:,.2f}"
         exposure_str = "$0.00"
         venue_badge = "METATRADER 5 (FOREX & GOLD ACTIVE)"
         venue_title = "FOREX & COMMODITIES (METATRADER 5)"
@@ -591,7 +601,7 @@ async def read_dashboard(request: Request):
     content = content.replace("{{ VIRTUAL_CASH }}", cash_str)
     content = content.replace("{{ OPEN_POSITIONS_COUNT }}", str(open_pos_count))
     content = content.replace("{{ TOTAL_EXPOSURE }}", exposure_str)
-    content = content.replace("{{ DRAWDOWN_PCT }}", "0.00%")
+    content = content.replace("{{ DRAWDOWN_PCT }}", f"{port_agg.get('drawdown_pct', 0.0):.2f}%")
 
     content = content.replace("{{ VAULT_BALANCE }}", vault_str)
     content = content.replace("{{ TOTAL_ASSETS }}", total_assets_str)
@@ -954,8 +964,7 @@ async def get_state(workspace: Optional[str] = None, request_id: Optional[str] =
     vault_summary = profit_vault.get_vault_summary(active_pool)
     news_intel = macro_engine.get_workspace_news(ws)
 
-    peak_eq = max(port_aggregate.get("initial_capital", init_cap), equity_val)
-    drawdown_pct = max(0.0, round(((peak_eq - equity_val) / peak_eq) * 100.0, 2)) if peak_eq > 0 else 0.0
+    drawdown_pct = float(port_aggregate.get("drawdown_pct", 0.0))
 
     if drawdown_pct >= risk_engine.max_drawdown_pct:
         risk_engine.circuit_tripped = True
@@ -965,10 +974,19 @@ async def get_state(workspace: Optional[str] = None, request_id: Optional[str] =
             ai_trading_controller.auto_block_for_drawdown(ws, drawdown_pct, risk_engine.max_drawdown_pct)
 
     today_str = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d")
-    active_trades = pool_data.get("trade_history", [])
-    today_trades = [t for t in active_trades if str(t.get("timestamp", "")).startswith(today_str)]
-    pool_realized_pnl = round(sum(t.get("realized_pnl", 0.0) or t.get("pnl_usd", 0.0) for t in today_trades), 2)
-    today_pnl = pool_realized_pnl if active_pool == "BINANCE_LIVE_REAL" else (pool_realized_pnl if pool_realized_pnl != 0.0 else vault_summary.get("realized_profit_today", 0.0))
+    today_pnl = 0.0
+    try:
+        from core.historical_log_service import historical_log_service
+        today_hist_trades = historical_log_service.query(start_date=today_str, end_date=today_str, workspace=ws if ws != "ALL" else None)
+        if today_hist_trades:
+            today_pnl = round(sum(float(t.get("realized_pnl", t.get("net_pnl", t.get("pnl_usd", 0.0))) or 0.0) for t in today_hist_trades), 2)
+        else:
+            active_trades = pool_data.get("trade_history", [])
+            today_trades = [t for t in active_trades if str(t.get("timestamp", "")).startswith(today_str)]
+            pool_realized_pnl = round(sum(t.get("realized_pnl", 0.0) or t.get("pnl_usd", 0.0) for t in today_trades), 2)
+            today_pnl = pool_realized_pnl if active_pool == "BINANCE_LIVE_REAL" else (pool_realized_pnl if pool_realized_pnl != 0.0 else vault_summary.get("realized_profit_today", 0.0))
+    except Exception:
+        today_pnl = 0.0
 
     # Complete 13-Component Infrastructure Health Matrix with Workspace Venue Awareness
     now_ist = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S IST")

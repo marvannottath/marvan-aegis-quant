@@ -101,16 +101,13 @@ class ProfitVault:
                 print(f"[PROFIT VAULT] Load notice: {e}")
 
     def _sanitize_live_stores(self):
-        """Ensure live broker stores (e.g. BINANCE_LIVE_REAL) have ZERO synthetic base balance or mock sweeps."""
+        """Ensure live broker stores (e.g. BINANCE_LIVE_REAL) have ZERO synthetic seed base balance."""
         modified = False
         for env_key in list(self.vault_stores.keys()):
             if "LIVE" in env_key.upper() or "REAL" in env_key.upper():
                 store = self.vault_stores[env_key]
-                if store.get("base_balance", 0.0) != 0.0 or store.get("transactions") or store.get("withdrawals") or store.get("transfers"):
+                if store.get("base_balance", 0.0) != 0.0:
                     store["base_balance"] = 0.0
-                    store["transactions"] = []
-                    store["withdrawals"] = []
-                    store["transfers"] = []
                     modified = True
         if modified:
             self._save_state()
