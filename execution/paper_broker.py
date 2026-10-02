@@ -788,24 +788,24 @@ class PaperBroker:
         from core.risk_engine import risk_engine as re
         engine = risk_engine_ref or re
         closed = []
-
-        # 1000-Shield: Stop-loss is reserved for true catastrophic black swan events (20%), never minor intraday noise
-        sl_pct = 0.20
-        tp_pct = engine.active_profile.get("take_profit_target_pct", 3.5) / 100.0
+        default_sl = engine.active_profile.get("stop_loss_pct", 1.5) / 100.0
+        default_tp = engine.active_profile.get("take_profit_target_pct", 3.5) / 100.0
 
         for asset_key, pos in list(self.positions.items()):
+            pos_sl = (pos.get("stop_loss_pct") / 100.0) if pos.get("stop_loss_pct") else default_sl
+            pos_tp = (pos.get("take_profit_pct") / 100.0) if pos.get("take_profit_pct") else default_tp
             entry = pos["entry_price"]
             act = pos["action"]
             price = pos.get("last_price", entry)
 
             pnl_pct = (price - entry) / entry if act == "BUY" else (entry - price) / entry
 
-            if pnl_pct <= -sl_pct:
-                rec = self.close_position(asset_key, price, reason=f"CATASTROPHIC_STOP_ENFORCED (SL={sl_pct*100:.1f}%)")
+            if pnl_pct <= -pos_sl:
+                rec = self.close_position(asset_key, price, reason=f"STOP_LOSS_ENFORCED (SL={pos_sl*100:.1f}%)")
                 if rec:
                     closed.append(rec)
-            elif pnl_pct >= tp_pct:
-                rec = self.close_position(asset_key, price, reason=f"TAKE_PROFIT_ENFORCED (TP={tp_pct*100:.1f}%)")
+            elif pnl_pct >= pos_tp:
+                rec = self.close_position(asset_key, price, reason=f"TAKE_PROFIT_ENFORCED (TP={pos_tp*100:.1f}%)")
                 if rec:
                     closed.append(rec)
 

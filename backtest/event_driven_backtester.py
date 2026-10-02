@@ -28,7 +28,12 @@ class EventDrivenBacktester:
             try:
                 with open(BACKTEST_RUNS_FILE, "r") as f:
                     data = json.load(f)
-                    self.runs = data.get("runs", [])
+                    if isinstance(data, list):
+                        self.runs = data
+                    elif isinstance(data, dict):
+                        self.runs = data.get("runs", [])
+                    else:
+                        self.runs = []
             except Exception as e:
                 print(f"[BACKTESTER] Runs load notice: {e}")
 

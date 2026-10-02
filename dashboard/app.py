@@ -967,6 +967,7 @@ async def get_state(workspace: Optional[str] = None, request_id: Optional[str] =
     from core.signal_ensemble import signal_ensemble_engine
     from execution.binance_broker import binance_broker
     from core.workspace_manager import workspace_manager
+    from core.ai_trading_controller import ai_trading_controller
 
     # Determine authoritative workspace and metadata
     ws = workspace_manager._normalize_workspace(workspace) if workspace else workspace_manager.get_active_workspace()
@@ -1115,7 +1116,6 @@ async def get_state(workspace: Optional[str] = None, request_id: Optional[str] =
     if drawdown_pct >= risk_engine.max_drawdown_pct:
         risk_engine.circuit_tripped = True
         risk_engine.trip_reason = f"MAX_DRAWDOWN_BREACHED: Drawdown {drawdown_pct:.2f}% >= {risk_engine.max_drawdown_pct:.1f}% limit."
-        from core.ai_trading_controller import ai_trading_controller
         if ai_trading_controller.get_state(ws) == "RUNNING":
             ai_trading_controller.auto_block_for_drawdown(ws, drawdown_pct, risk_engine.max_drawdown_pct)
 

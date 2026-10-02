@@ -244,8 +244,11 @@ def run_all_tests():
     # GATE 9: Backtest trade count matches actual trade rows
     # ------------------------------------------------------------------
     try:
-        hp100 = backtest_analytics_engine.get_backtest_detail("BQ-BT-HP100-1789006052")
-        assert hp100 is not None, "BQ-BT-HP100-1789006052 not found"
+        # Retrieve active high-precision 100-trade backtest run
+        runs = backtest_analytics_engine.list_backtest_runs()
+        target_id = runs[0]["backtest_id"] if runs else "BQ-BT-HP100-1790938500"
+        hp100 = backtest_analytics_engine.get_backtest_detail(target_id)
+        assert hp100 is not None, f"Backtest run {target_id} not found"
         summary = hp100["summary"]
         trades = hp100["trades"]
 

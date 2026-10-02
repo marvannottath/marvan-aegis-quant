@@ -500,7 +500,7 @@
                     <div class="text-[10px] text-gray-400">Scan this QR in Google Authenticator or Microsoft Authenticator</div>
                     <div class="flex items-center space-x-2 bg-gray-900 border border-gray-800 px-3 py-1 rounded-lg">
                         <span class="text-[10px] text-gray-500">Secret:</span>
-                        <span id="prof-totp-secret-txt" class="font-mono text-amber-400 font-bold text-xs select-all">JBSWY3DPEHPK3PXP</span>
+                        <span id="prof-totp-secret-txt" class="font-mono text-amber-400 font-bold text-xs select-all">••••••••••••••••</span>
                         <button onclick="copyTotpSecret()" class="text-gray-400 hover:text-white" title="Copy Secret"><i class="fa-solid fa-copy"></i></button>
                     </div>
                 </div>
@@ -10570,8 +10570,8 @@
                 <input id="totpCodeInput" type="text" maxlength="6" placeholder="000000" class="w-full bg-gray-950 border border-gray-800 rounded-xl px-4 py-3 text-2xl font-mono text-amber-400 tracking-[0.5em] text-center outline-none focus:border-amber-500">
                 <div id="totpStatusMsg" class="text-center text-[11px] min-h-[16px]"></div>
                 <div class="flex items-center justify-between text-[10px] text-gray-500">
-                    <span>Algorithm: RFC 6238 TOTP</span>
-                    <button onclick="autofillTotpCode()" class="text-amber-400 hover:underline">Autofill Current Code</button>
+                    <span>Algorithm: RFC 6238 TOTP (Google / Microsoft Authenticator)</span>
+                    <span class="text-emerald-400 font-bold">2FA ENFORCED</span>
                 </div>
             </div>
 
@@ -10942,16 +10942,6 @@
             const modal = document.getElementById('totp2faModal');
             if (modal) modal.classList.add('hidden');
             pendingTotpAction = null;
-        }
-
-        async function autofillTotpCode() {
-            try {
-                const res = await fetch('/api/security/2fa/status');
-                const data = await res.json();
-                if (data.current_live_code) {
-                    document.getElementById('totpCodeInput').value = data.current_live_code;
-                }
-            } catch (e) {}
         }
 
         async function submitTotpVerification() {

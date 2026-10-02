@@ -70,10 +70,16 @@ class PositionSnapshotService:
     def set_forced_reconciliation_status(self, status: Optional[str]):
         """Test hook to test fail-closed behavior."""
         self._forced_recon_status = status
+        if hasattr(self, "_snapshot_cache"):
+            self._snapshot_cache.clear()
+            self._snapshot_cache_ts.clear()
 
     def inject_position_delta(self, workspace: str, delta_positions: List[Dict[str, Any]]):
         """Test hook to simulate broker divergence / orphaned positions."""
         self._injected_delta[workspace] = delta_positions
+        if hasattr(self, "_snapshot_cache"):
+            self._snapshot_cache.pop(workspace, None)
+            self._snapshot_cache_ts.pop(workspace, None)
 
     def clear_injected_delta(self, workspace: Optional[str] = None):
         """Clear test hooks."""
@@ -82,10 +88,16 @@ class PositionSnapshotService:
         else:
             self._injected_delta.clear()
         self._forced_recon_status = None
+        if hasattr(self, "_snapshot_cache"):
+            self._snapshot_cache.clear()
+            self._snapshot_cache_ts.clear()
 
     def reset_forced_reconciliation_status(self):
         """Reset forced reconciliation status."""
         self._forced_recon_status = None
+        if hasattr(self, "_snapshot_cache"):
+            self._snapshot_cache.clear()
+            self._snapshot_cache_ts.clear()
 
     def get_snapshot(self, workspace: Optional[str] = None, force_refresh: bool = False) -> Dict[str, Any]:
         """

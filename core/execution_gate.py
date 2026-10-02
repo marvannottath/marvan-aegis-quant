@@ -159,14 +159,10 @@ class ExecutionGate:
 
         # Fail closed on stale ticks (> 5.0 seconds threshold)
         if age > 5.0 and age != 9999.0:
-            if px > 0 and age < 120.0:
-                market_data_watchdog.record_tick(sym, px)
-                age = 0.0
-            else:
-                code = "STALE_MARKET_DATA"
-                reason = f"Execution rejected: Market data tick is STALE ({age:.1f}s > 5.0s threshold)"
-                self._log_rejection(audit_logger, code, reason, sym, target_ws, environment, user_id)
-                return False, code, reason, {"data_age_seconds": age, "threshold_seconds": 5.0}
+            code = "STALE_MARKET_DATA"
+            reason = f"Execution rejected: Market data tick is STALE ({age:.1f}s > 5.0s threshold)"
+            self._log_rejection(audit_logger, code, reason, sym, target_ws, environment, user_id)
+            return False, code, reason, {"data_age_seconds": age, "threshold_seconds": 5.0}
 
         # 10. Emergency Kill Switch Gate
         if environment_gate._is_kill_switch_active():
@@ -184,10 +180,34 @@ class ExecutionGate:
             self._log_rejection(audit_logger, code, reason, sym, target_ws, environment, user_id)
             return False, code, reason, {"live_trading_enabled": False}
 
-        # 12. Risk Engine Evaluation (SEBI 5x Cap, Exposure, Leverage)
+        # 12. Reconciliation Health Gate (Sentinel check)
+        recon_status = environment_gate._get_reconciliation_status()
+        if recon_status in ("CRITICAL", "LIVE RECONCILIATION FAILED", "FAILED", "FAIL"):
+            code = "RECONCILIATION_CRITICAL"
+            reason = f"Execution rejected: Reconciliation sentinel status is {recon_status}"
+            self._log_rejection(audit_logger, code, reason, sym, target_ws, environment, user_id)
+            return False, code, reason, {"reconciliation_status": recon_status}
+
+        # 13. Authoritative Position Snapshot & Delta Reconciliation Gate
+        from core.position_snapshot_service import position_snapshot_service
+        pos_snap = position_snapshot_service.get_snapshot(target_ws)
+        if pos_snap.get("reconciliation_status") in ("RECONCILIATION_FAIL", "FAIL", "UNKNOWN") or pos_snap.get("status") in ("FAIL", "UNKNOWN") or pos_snap.get("delta_detected", False):
+            code = "RECONCILIATION_GATE_BLOCKED"
+            reason = f"Execution rejected: Position reconciliation is {pos_snap.get('reconciliation_status')} ({pos_snap.get('delta_description', 'Discrepancy detected')})"
+            self._log_rejection(audit_logger, code, reason, sym, target_ws, environment, user_id)
+            return False, code, reason, {
+                "reconciliation_status": pos_snap.get("reconciliation_status"),
+                "status": pos_snap.get("status"),
+                "delta_detected": pos_snap.get("delta_detected", False)
+            }
+
+        # 14. Risk Engine Evaluation (SEBI 5x Cap, Exposure, Leverage)
         amount = round(px * qty, 2)
-        open_pos_count = len(paper_broker.positions)
-        avail_cash = float(getattr(paper_broker, "virtual_cash", 100000.0))
+        # Authoritative cash and positions for target workspace pool
+        target_pool = "AEGIS_INDIA_INR" if target_ws == "INDIA" else ("MT5_DEMO" if target_ws == "FOREX_GOLD" else "BINANCE_TESTNET_DEMO")
+        pool_data = getattr(paper_broker, "pools", {}).get(target_pool, {})
+        open_pos_count = len(pool_data.get("positions", paper_broker.positions))
+        avail_cash = float(pool_data.get("virtual_cash", getattr(paper_broker, "virtual_cash", 100000.0)))
 
         approved, rej_code, risk_msg = risk_engine.validate_workspace_order(
             symbol=sym,
@@ -209,33 +229,12 @@ class ExecutionGate:
                 "risk_message": risk_msg
             }
 
-        # 13. News Policy Gate (Fail-safe policy)
+        # 15. News Policy Gate (Fail-safe policy)
         if macro_engine.high_impact_news_active:
             code = "HIGH_IMPACT_NEWS_LOCKOUT"
             reason = f"Execution rejected: High impact news lockout active ({macro_engine.lockout_reason})"
             self._log_rejection(audit_logger, code, reason, sym, target_ws, environment, user_id)
             return False, code, reason, {"lockout_reason": macro_engine.lockout_reason}
-
-        # 14. Reconciliation Health Gate (Sentinel check)
-        recon_status = environment_gate._get_reconciliation_status()
-        if recon_status in ("CRITICAL", "LIVE RECONCILIATION FAILED", "FAILED", "FAIL"):
-            code = "RECONCILIATION_CRITICAL"
-            reason = f"Execution rejected: Reconciliation sentinel status is {recon_status}"
-            self._log_rejection(audit_logger, code, reason, sym, target_ws, environment, user_id)
-            return False, code, reason, {"reconciliation_status": recon_status}
-
-        # 15. Authoritative Position Snapshot & Delta Reconciliation Gate
-        from core.position_snapshot_service import position_snapshot_service
-        pos_snap = position_snapshot_service.get_snapshot(target_ws)
-        if pos_snap.get("reconciliation_status") in ("RECONCILIATION_FAIL", "FAIL", "UNKNOWN") or pos_snap.get("status") in ("FAIL", "UNKNOWN") or pos_snap.get("delta_detected", False):
-            code = "RECONCILIATION_GATE_BLOCKED"
-            reason = f"Execution rejected: Position reconciliation is {pos_snap.get('reconciliation_status')} ({pos_snap.get('delta_description', 'Discrepancy detected')})"
-            self._log_rejection(audit_logger, code, reason, sym, target_ws, environment, user_id)
-            return False, code, reason, {
-                "reconciliation_status": pos_snap.get("reconciliation_status"),
-                "status": pos_snap.get("status"),
-                "delta_detected": pos_snap.get("delta_detected", False)
-            }
 
         # 21. AI Trading Controller Gate (for AI-sourced orders)
         order_source = (metadata or {}).get("order_source", "MANUAL")

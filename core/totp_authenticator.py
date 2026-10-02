@@ -111,8 +111,7 @@ class TOTPAuthenticator:
             "account_name": self.account_name,
             "provisioning_uri": self.get_provisioning_uri(),
             "secret_masked": f"{self.secret[:4]}••••••••{self.secret[-4:]}" if len(self.secret) >= 8 else "••••",
-            "backup_codes_remaining": len(self.backup_codes),
-            "current_live_code": self.generate_current_code()  # Provided for seamless UI dev/testing verification
+            "backup_codes_remaining": len(self.backup_codes)
         }
 
 totp_authenticator = TOTPAuthenticator()
