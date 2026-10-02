@@ -224,6 +224,11 @@ async def read_dashboard(request: Request):
         order_alloc_label = "Trade Capital Allocation (₹)"
         pos_alloc_label = "Allocated Margin (₹)"
         pos_pnl_label = "Unrealized PnL (₹)"
+        lite_flag = "🇮🇳"
+        lite_title = "INDIAN MARKETS (NSE/BSE)"
+        lite_sub = "Currency: INR (₹) • Settlement: T+1 Rolling • SEBI Compliant • Upstox Active"
+        lite_broker_badge = "UPSTOX: NSE/BSE ACTIVE"
+        lite_broker_badge_class = "bg-amber-500/10 text-amber-400 border border-amber-500/30"
     elif is_crypto:
         eq_str = f"{eq_val:,.2f} USDT"
         cash_str = f"{cash_val:,.2f} USDT"
@@ -241,15 +246,22 @@ async def read_dashboard(request: Request):
         if is_live_auth:
             broker_badge = '<i class="fa-solid fa-circle-check mr-1"></i>BINANCE: LIVE AUTHENTICATED'
             hdr_env_label = f"BINANCE LIVE POOL ({eq_str})"
+            lite_broker_badge = "BINANCE: LIVE AUTHENTICATED"
+            lite_broker_badge_class = "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
         else:
             broker_badge = '<i class="fa-solid fa-cube mr-1"></i>BINANCE: TESTNET DEMO ACTIVE'
             hdr_env_label = f"BINANCE TESTNET POOL ({eq_str})"
+            lite_broker_badge = "BINANCE: TESTNET DEMO"
+            lite_broker_badge_class = "bg-amber-500/10 text-amber-400 border border-amber-500/30"
         scanner_subtitle = "Real-time market scanning across Binance Spot & Futures (USDT Pairs)"
         order_title = "Fast Order Execution Terminal — Binance Exchange"
         order_subtitle = "Server-side 7-Gate Risk Engine validates all parameters before execution (Binance Spot & Futures)"
         order_alloc_label = "Trade Capital Allocation (USDT)"
         pos_alloc_label = "Allocated Margin (USDT)"
         pos_pnl_label = "Unrealized PnL (USDT)"
+        lite_flag = "🪙"
+        lite_title = "CRYPTO MARKETS (BINANCE)"
+        lite_sub = "Currency: USDT ($) • 24/7 Continuous Spot & Futures • Binance Live Engine"
     else:  # FOREX_GOLD
         eq_str = f"${eq_val:,.2f}"
         cash_str = f"${cash_val:,.2f}"
@@ -269,6 +281,11 @@ async def read_dashboard(request: Request):
         order_alloc_label = "Trade Capital Allocation ($)"
         pos_alloc_label = "Allocated Margin ($)"
         pos_pnl_label = "Unrealized PnL ($)"
+        lite_flag = "💱"
+        lite_title = "FOREX & COMMODITIES (METATRADER 5)"
+        lite_sub = "Currency: USD ($) • MetaTrader 5 Bridge • 24/5 Interbank FX & Gold Spot"
+        lite_broker_badge = "MT5: FOREX & GOLD LIVE ACTIVE"
+        lite_broker_badge_class = "bg-purple-500/10 text-purple-400 border border-purple-500/30"
 
     btn_active_class = "px-3 py-1.5 rounded-lg font-bold text-xs transition flex items-center space-x-1.5 bg-amber-500 text-black shadow"
     btn_inactive_class = "px-3 py-1.5 rounded-lg font-bold text-xs text-gray-400 hover:text-white transition flex items-center space-x-1.5"
@@ -350,6 +367,7 @@ async def read_dashboard(request: Request):
 
     if open_positions:
         pos_rows_html = ""
+        lite_pos_html = ""
         for p in open_positions:
             asset = p.get('asset', p.get('symbol', ''))
             action = p.get('side', p.get('action', 'BUY'))
@@ -376,8 +394,36 @@ async def read_dashboard(request: Request):
                         <button onclick="closePosition('{asset}')" class="px-2.5 py-1 bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white font-bold rounded transition text-[10px]">CLOSE</button>
                     </td>
                 </tr>"""
+
+            qty_val = float(p.get('quantity', p.get('units', 0.0)))
+            side_badge = "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" if action == "BUY" else "bg-red-500/20 text-red-400 border border-red-500/30"
+            unit_str = " USDT" if is_crypto else ""
+            lite_pos_html += f"""
+                <div class="p-3 bg-gray-950 border border-gray-800 rounded-2xl flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
+                    <div class="flex items-center space-x-3">
+                        <span class="px-2 py-0.5 rounded text-[10px] font-black {side_badge}">{action}</span>
+                        <div>
+                            <div class="font-bold text-white text-sm">{asset}</div>
+                            <div class="text-[10px] text-gray-400">Qty: {qty_val:.4f} • Entry: {entry}{unit_str}</div>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <div class="text-right">
+                            <div class="text-gray-400 text-[10px]">Current Price</div>
+                            <div class="text-white font-bold">{live_p}{unit_str}</div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-gray-400 text-[10px]">Unrealized PnL</div>
+                            <div class="font-black {pnl_class}">{'+' if is_pos else ''}{cur_sym}{pnl_u:,.2f}{unit_str}</div>
+                        </div>
+                        <button onclick="closePosition('{asset}')" class="px-3 py-1.5 bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white rounded-xl border border-red-500/30 font-bold transition text-[10px] cursor-pointer">
+                            CLOSE
+                        </button>
+                    </div>
+                </div>"""
     else:
         pos_rows_html = f'<tr><td colspan="9" class="py-8 text-center text-gray-500 font-mono text-xs"><i class="fa-solid fa-layer-group text-2xl mb-2 text-gray-700 block"></i>NO ACTIVE POSITIONS — Risk Engine Ready</td></tr>'
+        lite_pos_html = '<div class="py-6 text-center text-gray-500 font-mono text-xs"><i class="fa-solid fa-layer-group text-2xl mb-2 text-gray-700 block"></i>NO ACTIVE POSITIONS — Risk Engine Ready</div>'
 
     # 6. Pre-render 7-Agent Signals Hub
     opps = scanned_markets[:6]
@@ -633,6 +679,14 @@ async def read_dashboard(request: Request):
     content = content.replace("<!-- PRERENDER_LATENCY_STAGES -->", stages_html)
     content = content.replace("<!-- PRERENDER_EXECUTION_LOGS -->", exec_logs_html)
     content = content.replace("<!-- PRERENDER_AUDIT_LOGS -->", audit_rows_html)
+    content = content.replace("<!-- PRERENDER_LITE_POSITIONS -->", lite_pos_html)
+
+    # Lite Desk Venue & Broker replacements
+    content = content.replace("{{ LITE_VENUE_FLAG }}", lite_flag)
+    content = content.replace("{{ LITE_VENUE_TITLE }}", lite_title)
+    content = content.replace("{{ LITE_VENUE_SUB }}", lite_sub)
+    content = content.replace("{{ LITE_BROKER_BADGE }}", lite_broker_badge)
+    content = content.replace("{{ LITE_BROKER_BADGE_CLASS }}", lite_broker_badge_class)
 
     # Defensive replacements for any remaining placeholders
     content = content.replace("{{ TOTAL_SWEEPS_COUNT }}", "0")

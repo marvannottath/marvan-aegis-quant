@@ -704,16 +704,43 @@
                     <!-- Top Venue Ribbon -->
                     <div class="flex items-center justify-between bg-darkcard/80 border border-darkborder p-4 rounded-2xl backdrop-blur-md shadow-xl">
                         <div class="flex items-center space-x-3">
-                            <span id="lite-venue-flag" class="text-3xl">🇮🇳</span>
+                            <span id="lite-venue-flag" class="text-3xl">{{ LITE_VENUE_FLAG }}</span>
                             <div>
-                                <h3 id="lite-venue-title" class="text-base font-black text-white tracking-wide">INDIAN MARKETS (NSE/BSE)</h3>
-                                <p id="lite-venue-sub" class="text-xs text-gray-400 font-mono">Autonomous Execution • SEBI Compliant • Double-Entry Reconciled</p>
+                                <div class="flex items-center space-x-2">
+                                    <h3 id="lite-venue-title" class="text-base font-black text-white tracking-wide">{{ LITE_VENUE_TITLE }}</h3>
+                                    <span id="lite-broker-badge" class="px-2.5 py-0.5 rounded-full text-[10px] font-black font-mono {{ LITE_BROKER_BADGE_CLASS }}">{{ LITE_BROKER_BADGE }}</span>
+                                </div>
+                                <p id="lite-venue-sub" class="text-xs text-gray-400 font-mono">{{ LITE_VENUE_SUB }}</p>
                             </div>
                         </div>
                         <div class="flex items-center space-x-2">
                             <span id="lite-ai-badge" class="px-3 py-1 rounded-full text-xs font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
                                 <i class="fa-solid fa-circle text-[8px] animate-pulse mr-1"></i> AI AUTONOMOUS
                             </span>
+                        </div>
+                    </div>
+
+                    <!-- 4 Core Financial Summary Cards (Equity, Cash, Open Positions, Drawdown) -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 font-mono text-xs">
+                        <div class="bg-darkcard border border-darkborder p-4 rounded-2xl space-y-1 shadow">
+                            <span class="text-gray-400 text-[10px] uppercase font-bold tracking-wider block">Account Equity</span>
+                            <div id="lite-equity-val" class="text-xl font-black text-white font-mono">{{ PORTFOLIO_EQUITY }}</div>
+                            <span id="lite-equity-sub" class="text-[10px] text-emerald-400 font-mono">Live Custodial Balance</span>
+                        </div>
+                        <div class="bg-darkcard border border-darkborder p-4 rounded-2xl space-y-1 shadow">
+                            <span class="text-gray-400 text-[10px] uppercase font-bold tracking-wider block">Free Available Cash</span>
+                            <div id="lite-cash-val" class="text-xl font-black text-white font-mono">{{ VIRTUAL_CASH }}</div>
+                            <span class="text-[10px] text-gray-400 font-mono">Available to Trade</span>
+                        </div>
+                        <div class="bg-darkcard border border-darkborder p-4 rounded-2xl space-y-1 shadow">
+                            <span class="text-gray-400 text-[10px] uppercase font-bold tracking-wider block">Active Positions</span>
+                            <div id="lite-open-count" class="text-xl font-black text-cyan-400 font-mono">{{ OPEN_POSITIONS_COUNT }} Active</div>
+                            <span id="lite-exposure-val" class="text-[10px] text-gray-400 font-mono">Exposure: {{ TOTAL_EXPOSURE }}</span>
+                        </div>
+                        <div class="bg-darkcard border border-darkborder p-4 rounded-2xl space-y-1 shadow">
+                            <span class="text-gray-400 text-[10px] uppercase font-bold tracking-wider block">Current Drawdown</span>
+                            <div id="lite-drawdown-val" class="text-xl font-black text-emerald-400 font-mono">{{ DRAWDOWN_PCT }}</div>
+                            <span class="text-[10px] text-gray-400 font-mono">Risk Engine Safe</span>
                         </div>
                     </div>
 
@@ -724,15 +751,15 @@
                             <div>
                                 <span class="text-xs uppercase font-bold text-gray-400 tracking-wider">Today's Net Realized Performance</span>
                                 <div class="flex items-baseline space-x-3 mt-2">
-                                    <h1 id="lite-pnl-val" class="text-3xl md:text-5xl font-black text-emerald-400 font-mono tracking-tight">+$1,011.40</h1>
-                                    <span id="lite-pnl-inr" class="text-lg md:text-xl text-emerald-300/80 font-mono font-bold">(+₹88,497.50)</span>
+                                    <h1 id="lite-pnl-val" class="text-3xl md:text-5xl font-black text-emerald-400 font-mono tracking-tight">{{ TODAY_PNL }}</h1>
+                                    <span id="lite-pnl-sub" class="text-lg md:text-xl text-emerald-300/80 font-mono font-bold">(Realized Today)</span>
                                 </div>
                                 <div class="flex items-center space-x-4 mt-3 text-xs font-mono text-gray-400">
-                                    <span>Win Rate: <strong id="lite-winrate" class="text-white">75.0%</strong></span>
+                                    <span>Win Rate: <strong id="lite-winrate" class="text-white">{{ WIN_RATE }}</strong></span>
                                     <span>•</span>
-                                    <span>Trades Today: <strong id="lite-trades-count" class="text-white">8 Executed</strong></span>
+                                    <span>Trades Today: <strong id="lite-trades-count" class="text-white">Live Sync</strong></span>
                                     <span>•</span>
-                                    <span>Profit Factor: <strong class="text-amber-400 font-bold">15.96</strong></span>
+                                    <span>Profit Vault: <strong id="lite-vault-val" class="text-amber-400 font-bold">{{ VAULT_BALANCE }}</strong></span>
                                 </div>
                             </div>
 
@@ -740,10 +767,24 @@
                             <div class="w-full md:w-auto">
                                 <button id="btn-lite-ai-master" onclick="toggleLiteAiTrading()" class="w-full md:w-64 py-4 px-6 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black font-black text-sm md:text-base shadow-xl flex items-center justify-center space-x-2 transition transform hover:-translate-y-0.5 cursor-pointer">
                                     <i id="lite-ai-icon" class="fa-solid fa-power-off text-base"></i>
-                                    <span id="lite-ai-btn-text">START AI TRADING</span>
+                                    <span id="lite-ai-btn-text">PAUSE AI TRADING</span>
                                 </button>
                                 <span class="block text-center text-[10px] text-gray-500 font-mono mt-1.5">1-Click Sovereign Execution Switch</span>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- Active Holdings & Live Positions Card in Lite Mode -->
+                    <div class="bg-darkcard border border-darkborder p-5 rounded-3xl shadow-xl space-y-3 font-mono">
+                        <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+                            <div class="flex items-center space-x-2">
+                                <i class="fa-solid fa-coins text-amber-400 text-sm"></i>
+                                <h4 class="text-xs font-bold text-white uppercase tracking-wider">Active Portfolio & Live Open Positions</h4>
+                            </div>
+                            <span id="lite-pos-badge" class="px-2 py-0.5 rounded text-[10px] font-black bg-cyan-500/10 text-cyan-400">{{ OPEN_POSITIONS_COUNT }} Active</span>
+                        </div>
+                        <div id="lite-positions-container" class="space-y-2">
+                            <!-- PRERENDER_LITE_POSITIONS -->
                         </div>
                     </div>
 
@@ -7092,6 +7133,7 @@
             try { renderVaultTransactions(data.profit_vault); } catch (e) { console.warn("Vault transactions notice:", e); }
             try { renderNewsIntelligence(data.news_intelligence); } catch (e) { console.warn("News intelligence notice:", e); }
             try { renderSystemHealth(health); } catch (e) { console.warn("System health notice:", e); }
+            try { updateLiteDesk(data, equity, cash, vault, todayPnl, positions, isCrypto, isIndia, isForex); } catch (e) { console.warn("Lite desk update notice:", e); }
         }
 
         function renderOrderStream(orders) {
@@ -9098,6 +9140,35 @@
             const mktLbl = document.getElementById('mkt-session-label');
             if (mktDot) { mktDot.className = `w-2 h-2 rounded-full ${mStyles.dot}`; }
             if (mktLbl) { mktLbl.className = `font-bold text-[10px] ${mStyles.label}`; mktLbl.textContent = `${ws.replace('_GOLD','')}: ${sessState}`; }
+
+            // Sync Lite Desk AI Master Button & Badge
+            const liteBtn = document.getElementById('btn-lite-ai-master');
+            const liteTxt = document.getElementById('lite-ai-btn-text');
+            const liteIcon = document.getElementById('lite-ai-icon');
+            const liteBadge = document.getElementById('lite-ai-badge');
+            if (liteBadge) {
+                if (aiState === 'RUNNING') {
+                    liteBadge.className = 'px-3 py-1 rounded-full text-xs font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30';
+                    liteBadge.innerHTML = '<i class="fa-solid fa-circle text-[8px] animate-pulse mr-1"></i> AI AUTONOMOUS ACTIVE';
+                } else if (aiState === 'PAUSED') {
+                    liteBadge.className = 'px-3 py-1 rounded-full text-xs font-mono font-bold bg-amber-500/10 text-amber-400 border border-amber-500/30';
+                    liteBadge.innerHTML = '<i class="fa-solid fa-pause text-[8px] mr-1"></i> AI PAUSED / STANDBY';
+                } else {
+                    liteBadge.className = 'px-3 py-1 rounded-full text-xs font-mono font-bold bg-red-500/10 text-red-400 border border-red-500/30';
+                    liteBadge.innerHTML = '<i class="fa-solid fa-stop text-[8px] mr-1"></i> AI STOPPED';
+                }
+            }
+            if (liteBtn && liteTxt && liteIcon) {
+                if (aiState === 'RUNNING') {
+                    liteBtn.className = 'w-full md:w-64 py-4 px-6 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black font-black text-sm md:text-base shadow-xl flex items-center justify-center space-x-2 transition transform hover:-translate-y-0.5 cursor-pointer';
+                    liteTxt.textContent = 'PAUSE AI TRADING';
+                    liteIcon.className = 'fa-solid fa-pause text-base';
+                } else {
+                    liteBtn.className = 'w-full md:w-64 py-4 px-6 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black font-black text-sm md:text-base shadow-xl flex items-center justify-center space-x-2 transition transform hover:-translate-y-0.5 cursor-pointer';
+                    liteTxt.textContent = 'START AI TRADING';
+                    liteIcon.className = 'fa-solid fa-play text-base';
+                }
+            }
         }
 
         function updateOperationalStrip(data) {
@@ -10209,29 +10280,152 @@
         });
 
         // 2. Lite 1-Click AI Master Toggle
-        let liteAiActive = false;
         function toggleLiteAiTrading() {
-            liteAiActive = !liteAiActive;
-            const btn = document.getElementById('btn-lite-ai-master');
-            const txt = document.getElementById('lite-ai-btn-text');
-            const icon = document.getElementById('lite-ai-icon');
-            const badge = document.getElementById('lite-ai-badge');
+            const ws = getCanonicalWorkspace(window.activeMarketVenue || _activeAiWorkspace);
+            const aiData = window.lastOperationalData && (window.lastOperationalData.ai_detail || window.lastOperationalData.ai);
+            const currentState = (aiData && aiData[ws]) ? (aiData[ws].state || aiData[ws]) : 'RUNNING';
+            if (currentState === 'RUNNING') {
+                aiPause();
+            } else {
+                aiResume();
+            }
+        }
 
-            if (liteAiActive) {
-                if (btn) btn.className = 'w-full md:w-64 py-4 px-6 rounded-2xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-black text-sm md:text-base shadow-xl flex items-center justify-center space-x-2 transition cursor-pointer';
-                if (txt) txt.textContent = 'STOP AI TRADING';
-                if (icon) icon.className = 'fa-solid fa-stop text-base';
-                if (badge) {
-                    badge.className = 'px-3 py-1 rounded-full text-xs font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30';
-                    badge.innerHTML = '<i class="fa-solid fa-circle text-[8px] animate-pulse mr-1"></i> AI AUTONOMOUS ACTIVE';
+        // 3. Lite Desk Dynamic State & Asset Holdings Updater
+        function updateLiteDesk(data, equity, cash, vault, todayPnl, positions, isCrypto, isIndia, isForex) {
+            // Venue Ribbon Sync
+            const flagEl = document.getElementById('lite-venue-flag');
+            const titleEl = document.getElementById('lite-venue-title');
+            const subEl = document.getElementById('lite-venue-sub');
+            const badgeBroker = document.getElementById('lite-broker-badge');
+
+            if (isCrypto) {
+                if (flagEl) flagEl.innerText = '🪙';
+                if (titleEl) titleEl.innerText = 'CRYPTO MARKETS (BINANCE)';
+                if (subEl) subEl.innerText = 'Currency: USDT ($) • 24/7 Continuous Spot & Futures • Binance Live Engine';
+                if (badgeBroker) {
+                    const isLive = (data.active_pool === 'BINANCE_LIVE_REAL' || (data.binance && data.binance.is_live_configured));
+                    badgeBroker.className = isLive ? 'px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-mono' : 'px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-500/10 text-amber-400 border border-amber-500/30 font-mono';
+                    badgeBroker.innerHTML = isLive ? '<i class="fa-solid fa-circle-check mr-1"></i>BINANCE: LIVE AUTHENTICATED' : '<i class="fa-solid fa-cube mr-1"></i>BINANCE: TESTNET DEMO';
+                }
+            } else if (isIndia) {
+                if (flagEl) flagEl.innerText = '🇮🇳';
+                if (titleEl) titleEl.innerText = 'INDIAN MARKETS (NSE/BSE)';
+                if (subEl) subEl.innerText = 'Currency: INR (₹) • Settlement: T+1 Rolling • SEBI Compliant • Upstox Active';
+                if (badgeBroker) {
+                    badgeBroker.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-500/10 text-amber-400 border border-amber-500/30 font-mono';
+                    badgeBroker.innerHTML = '<i class="fa-solid fa-bolt mr-1"></i>UPSTOX: NSE/BSE ACTIVE';
                 }
             } else {
-                if (btn) btn.className = 'w-full md:w-64 py-4 px-6 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black font-black text-sm md:text-base shadow-xl flex items-center justify-center space-x-2 transition cursor-pointer';
-                if (txt) txt.textContent = 'START AI TRADING';
-                if (icon) icon.className = 'fa-solid fa-play text-base';
-                if (badge) {
-                    badge.className = 'px-3 py-1 rounded-full text-xs font-mono font-bold bg-yellow-500/10 text-yellow-400 border border-yellow-500/30';
-                    badge.innerHTML = '<i class="fa-solid fa-pause text-[8px] mr-1"></i> AI STANDBY';
+                if (flagEl) flagEl.innerText = '💱';
+                if (titleEl) titleEl.innerText = 'FOREX & COMMODITIES (METATRADER 5)';
+                if (subEl) subEl.innerText = 'Currency: USD ($) • MetaTrader 5 Bridge • 24/5 Interbank FX & Gold Spot';
+                if (badgeBroker) {
+                    badgeBroker.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-black bg-purple-500/10 text-purple-400 border border-purple-500/30 font-mono';
+                    badgeBroker.innerHTML = '<i class="fa-solid fa-chart-line mr-1"></i>MT5: FOREX & GOLD ACTIVE';
+                }
+            }
+
+            // Balances
+            const eqVal = document.getElementById('lite-equity-val');
+            const cashVal = document.getElementById('lite-cash-val');
+            const openCnt = document.getElementById('lite-open-count');
+            const expVal = document.getElementById('lite-exposure-val');
+            const ddVal = document.getElementById('lite-drawdown-val');
+
+            if (eqVal) eqVal.innerText = formatMoney(equity);
+            if (cashVal) cashVal.innerText = formatMoney(cash);
+            if (openCnt) openCnt.innerText = `${positions.length} Active`;
+
+            const totalExposure = positions.reduce((sum, p) => sum + (parseFloat(p.capital_allocated) || 0), 0);
+            if (expVal) expVal.innerText = `Exposure: ${formatMoney(totalExposure)}`;
+
+            const ddPct = data.current_drawdown_pct || 0.0;
+            if (ddVal) {
+                ddVal.innerText = `${ddPct.toFixed(2)}%`;
+                ddVal.className = `text-xl font-black font-mono ${ddPct > 10 ? 'text-red-400' : (ddPct > 5 ? 'text-amber-400' : 'text-emerald-400')}`;
+            }
+
+            // Hero PnL
+            const pnlVal = document.getElementById('lite-pnl-val');
+            const pnlSub = document.getElementById('lite-pnl-sub');
+            if (pnlVal) {
+                pnlVal.innerText = formatSignedMoney(todayPnl);
+                pnlVal.className = `text-3xl md:text-5xl font-black font-mono tracking-tight ${todayPnl > 0 ? 'text-emerald-400' : (todayPnl < 0 ? 'text-red-400' : 'text-gray-300')}`;
+            }
+            if (pnlSub) {
+                const initCap = (data.initial_capital && data.initial_capital > 0) ? data.initial_capital : (equity > 0 ? equity : 100);
+                const retPct = ((todayPnl / initCap) * 100).toFixed(2);
+                pnlSub.innerText = `(${retPct >= 0 ? '+' : ''}${retPct}% Daily Return)`;
+                pnlSub.className = `text-lg md:text-xl font-mono font-bold ${todayPnl >= 0 ? 'text-emerald-300/80' : 'text-red-300/80'}`;
+            }
+
+            // Win Rate & Trades Today
+            const tradesToday = (data.today_trades_count !== undefined) ? data.today_trades_count : (liveTradesCache.filter(t => {
+                const raw = String(t.date || t.timestamp || '');
+                return raw.startsWith(new Date().toISOString().substring(0, 10));
+            }).length);
+            const tradesEl = document.getElementById('lite-trades-count');
+            if (tradesEl) tradesEl.innerText = `${tradesToday} Executed`;
+
+            const winRateEl = document.getElementById('lite-winrate');
+            if (winRateEl) {
+                const wr = data.win_rate !== undefined ? data.win_rate : (data.performance ? data.performance.win_rate : 100.0);
+                winRateEl.innerText = `${Number(wr || 0).toFixed(1)}%`;
+            }
+
+            const vaultEl = document.getElementById('lite-vault-val');
+            if (vaultEl) {
+                vaultEl.innerText = isIndia ? '₹0.00' : `${Number(vault || 0).toFixed(2)} USDT`;
+            }
+
+            // Dynamic Holdings / Active Positions List in Lite Desk
+            const posCont = document.getElementById('lite-positions-container');
+            const posBadge = document.getElementById('lite-pos-badge');
+            if (posBadge) posBadge.innerText = `${positions.length} Active`;
+
+            if (posCont) {
+                if (positions.length === 0) {
+                    posCont.innerHTML = `<div class="py-6 text-center text-gray-500 font-mono text-xs"><i class="fa-solid fa-layer-group text-2xl mb-2 text-gray-700 block"></i>NO ACTIVE POSITIONS — Risk Engine Ready</div>`;
+                } else {
+                    posCont.innerHTML = positions.map(p => {
+                        const sym = p.asset || p.symbol || 'ASSET';
+                        const side = p.side || p.action || 'BUY';
+                        const isBuy = side === 'BUY';
+                        const sideBadge = isBuy ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30';
+                        const entryPx = parseFloat(p.entry_price) || 0;
+                        const currPx = parseFloat(p.last_price || p.current_price || p.live_price || p.entry_price) || entryPx;
+                        const unPnl = parseFloat(p.unrealized_pnl || p.unrealized_pnl_usd || p.pnl_usd) || 0;
+                        const pnlColor = unPnl >= 0 ? 'text-emerald-400' : 'text-red-400';
+                        const qty = parseFloat(p.quantity || p.units) || 0;
+                        const curSym = isIndia ? '₹' : (isCrypto ? '' : '$');
+                        const curUnit = isCrypto ? ' USDT' : '';
+                        
+                        return `
+                            <div class="p-3 bg-gray-950 border border-gray-800 rounded-2xl flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
+                                <div class="flex items-center space-x-3">
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-black ${sideBadge}">${side}</span>
+                                    <div>
+                                        <div class="font-bold text-white text-sm">${sym}</div>
+                                        <div class="text-[10px] text-gray-400">Qty: ${qty.toFixed(4)} • Entry: ${curSym}${entryPx.toFixed(2)}${curUnit}</div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center space-x-4">
+                                    <div class="text-right">
+                                        <div class="text-gray-400 text-[10px]">Current Price</div>
+                                        <div class="text-white font-bold">${curSym}${currPx.toFixed(2)}${curUnit}</div>
+                                    </div>
+                                    <div class="text-right">
+                                        <div class="text-gray-400 text-[10px]">Unrealized PnL</div>
+                                        <div class="font-black ${pnlColor}">${unPnl >= 0 ? '+' : ''}${formatSignedMoney(unPnl)}</div>
+                                    </div>
+                                    <button onclick="closePosition('${sym}')" class="px-3 py-1.5 bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white rounded-xl border border-red-500/30 font-bold transition text-[10px] cursor-pointer">
+                                        CLOSE
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
                 }
             }
         }
