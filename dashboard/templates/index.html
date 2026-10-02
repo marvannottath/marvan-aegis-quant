@@ -9750,11 +9750,30 @@
                             if (markEl) {
                                 const row = markEl.closest('tr');
                                 if (row) {
-                                    const entry = parseFloat(row.getAttribute('data-entry')) || 0;
-                                    const units = parseFloat(row.getAttribute('data-units')) || 0;
+                                    let entry = parseFloat(row.getAttribute('data-entry')) || 0;
+                                    let units = parseFloat(row.getAttribute('data-units')) || 0;
                                     const side = (row.getAttribute('data-side') || 'BUY').toUpperCase();
-                                    const alloc = parseFloat(row.getAttribute('data-alloc')) || 1000;
+                                    let alloc = parseFloat(row.getAttribute('data-alloc')) || 1000;
                                     const curSym = row.getAttribute('data-cursym') || '$';
+
+                                    // Defensive fallback: if data-entry or data-units not present, extract from table cells
+                                    if (!entry || entry <= 0) {
+                                        const cells = row.querySelectorAll('td');
+                                        if (cells && cells.length >= 5) {
+                                            const entryText = cells[4].innerText.replace(/[^0-9.]/g, '');
+                                            entry = parseFloat(entryText) || 0;
+                                            if (entry > 0) row.setAttribute('data-entry', entry);
+                                        }
+                                    }
+                                    if (!units || units <= 0) {
+                                        const cells = row.querySelectorAll('td');
+                                        if (cells && cells.length >= 3 && entry > 0) {
+                                            const allocText = cells[2].innerText.replace(/[^0-9.]/g, '');
+                                            alloc = parseFloat(allocText) || alloc;
+                                            units = alloc / entry;
+                                            if (units > 0) row.setAttribute('data-units', units);
+                                        }
+                                    }
 
                                     const priceDecimals = curPrice < 10 ? 4 : 2;
                                     markEl.innerText = `${curSym}${curPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: priceDecimals})}`;

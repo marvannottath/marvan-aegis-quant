@@ -392,37 +392,56 @@ async def read_dashboard(request: Request):
         lite_pos_html = ""
         for p in open_positions:
             asset = p.get('asset', p.get('symbol', ''))
-            action = p.get('side', p.get('action', 'BUY'))
-            cap = f"{cur_sym}{p.get('capital_allocated', 1000):,.2f}"
-            lev = f"{p.get('leverage', 10):.0f}x"
-            entry = f"{cur_sym}{p.get('entry_price', 0.0):,.2f}"
-            live_p = f"{cur_sym}{p.get('last_price', p.get('current_price', p.get('live_price', p.get('entry_price', 0.0)))):,.2f}"
-            pnl_u = float(p.get('unrealized_pnl', p.get('unrealized_pnl_usd', p.get('pnl_usd', 0.0))))
-            pnl_p = float(p.get('pnl_pct', p.get('unrealized_pnl_pct', 0.0)))
-            pnl_round = round(pnl_u, 2)
-            pct_round = round(pnl_p, 2)
-            is_pos = pnl_round > 0
-            is_neg = pnl_round < 0
-            pnl_sign = '+' if is_pos else ('-' if is_neg else '')
-            pct_sign = '+' if pct_round > 0 else ('-' if pct_round < 0 else '')
-            pnl_class = "text-emerald-400 font-bold" if is_pos else ("text-red-400 font-bold" if is_neg else "text-gray-400 font-bold")
+            action = str(p.get('side', p.get('action', 'BUY'))).upper()
+            raw_alloc = float(p.get('capital_allocated', p.get('margin', 1000.0)) or 1000.0)
+            raw_entry = float(p.get('entry_price', 0.0) or 0.0)
+            raw_mark = float(p.get('last_price', p.get('mark_price', p.get('current_price', raw_entry))) or raw_entry)
+            raw_units = float(p.get('units', p.get('quantity', 0.0)) or 0.0)
+            if raw_units <= 0.0 and raw_entry > 0:
+                raw_units = raw_alloc / raw_entry
+            if raw_alloc <= 0.0 and raw_entry > 0 and raw_units > 0:
+                raw_alloc = round(raw_entry * raw_units, 2)
+
+            lev_val = float(p.get('leverage', 1.0) or 1.0)
+            lev_str = f"{lev_val:.0f}x" if lev_val == int(lev_val) else f"{lev_val}x"
+
+            if raw_entry > 0 and raw_mark > 0:
+                raw_diff = (raw_mark - raw_entry) if action == "BUY" else (raw_entry - raw_mark)
+                pnl_p = (raw_diff / raw_entry) * 100.0
+                pnl_u = raw_diff * raw_units
+            else:
+                pnl_u = float(p.get('unrealized_pnl', p.get('unrealized_pnl_usd', p.get('pnl_usd', 0.0))) or 0.0)
+                pnl_p = float(p.get('pnl_pct', p.get('unrealized_pnl_pct', 0.0)) or 0.0)
+
+            abs_pnl = abs(pnl_u)
+            abs_pct = abs(pnl_p)
+            pnl_decimals = 4 if (abs_pnl > 0 and abs_pnl < 0.05) else 2
+            pnl_sign = '+' if pnl_u > 0.00005 else ('-' if pnl_u < -0.00005 else '')
+            pct_sign = '+' if pnl_p > 0.005 else ('-' if pnl_p < -0.005 else '')
+            pnl_class = "text-emerald-400 font-bold" if pnl_u > 0.00005 else ("text-red-400 font-bold" if pnl_u < -0.00005 else "text-gray-400 font-bold")
             act_class = "bg-emerald-500/10 text-emerald-400" if action == "BUY" else "bg-red-500/10 text-red-400"
+            price_decimals = 4 if (raw_entry < 10.0 or raw_mark < 10.0) else 2
+
+            cap = f"{cur_sym}{raw_alloc:,.2f}"
+            entry = f"{cur_sym}{raw_entry:,.{price_decimals}f}"
+            live_p = f"{cur_sym}{raw_mark:,.{price_decimals}f}"
+
             pos_rows_html += f"""
-                <tr class="border-b border-gray-800/60 hover:bg-gray-900/50 text-xs font-mono" data-pos-row="{asset}">
+                <tr class="border-b border-gray-800/60 hover:bg-gray-900/50 text-xs font-mono" data-pos-row="{asset}" data-entry="{raw_entry}" data-units="{raw_units}" data-side="{action}" data-alloc="{raw_alloc}" data-cursym="{cur_sym}">
                     <td class="py-3 px-3 font-bold text-white">{asset}</td>
                     <td class="py-3 px-3"><span class="px-2 py-0.5 text-[9px] font-black rounded {act_class}">{action}</span></td>
                     <td class="py-3 px-3">{cap}</td>
-                    <td class="py-3 px-3 text-amber-400 font-bold">{lev}</td>
-                    <td class="py-3 px-3">{entry}</td>
-                    <td class="py-3 px-3 font-bold text-white transition-colors duration-200" data-pos-mark="{asset}">{live_p}</td>
-                    <td class="py-3 px-3 {pnl_class}" data-pos-pnl="{asset}">{pnl_sign}{cur_sym}{abs(pnl_round):,.2f}</td>
-                    <td class="py-3 px-3 {pnl_class}" data-pos-pct="{asset}">{pct_sign}{abs(pct_round):.2f}%</td>
+                    <td class="py-3 px-3 text-amber-400 font-bold">{lev_str}</td>
+                    <td class="py-3 px-3 font-mono">{entry}</td>
+                    <td class="py-3 px-3 font-mono font-bold text-white transition-colors duration-200" data-pos-mark="{asset}">{live_p}</td>
+                    <td class="py-3 px-3 font-mono {pnl_class}" data-pos-pnl="{asset}">{pnl_sign}{cur_sym}{abs_pnl:.{pnl_decimals}f}</td>
+                    <td class="py-3 px-3 font-mono {pnl_class}" data-pos-pct="{asset}">{pct_sign}{abs_pct:.2f}%</td>
                     <td class="py-3 px-3 text-right">
                         <button onclick="closePosition('{asset}')" class="px-2.5 py-1 bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white font-bold rounded transition text-[10px]">CLOSE</button>
                     </td>
                 </tr>"""
 
-            qty_val = float(p.get('quantity', p.get('units', 0.0)))
+            qty_val = float(p.get('quantity', p.get('units', raw_units)))
             side_badge = "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" if action == "BUY" else "bg-red-500/20 text-red-400 border border-red-500/30"
             unit_str = " USDT" if is_crypto else ""
             lite_pos_html += f"""
@@ -441,7 +460,7 @@ async def read_dashboard(request: Request):
                         </div>
                         <div class="text-right">
                             <div class="text-gray-400 text-[10px]">Unrealized PnL</div>
-                            <div class="font-black {pnl_class}">{'+' if is_pos else ''}{cur_sym}{pnl_u:,.2f}{unit_str}</div>
+                            <div class="font-black {pnl_class}">{pnl_sign}{cur_sym}{abs_pnl:.{pnl_decimals}f}{unit_str}</div>
                         </div>
                         <button onclick="closePosition('{asset}')" class="px-3 py-1.5 bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white rounded-xl border border-red-500/30 font-bold transition text-[10px] cursor-pointer">
                             CLOSE
