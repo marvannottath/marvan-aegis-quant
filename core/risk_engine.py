@@ -138,6 +138,39 @@ class RiskEngine:
         print(f'[RISK ENGINE] Profile set: {name} (Max Lev: {max_lev_val}x)')
         return self.active_profile
 
+    def reset_circuit_breaker(self, workspace: str = "CRYPTO") -> Dict[str, Any]:
+        """Reset circuit breaker, clear daily realized loss, and recalibrate peak equity to current equity."""
+        self.circuit_tripped = False
+        self.trip_reason = "NORMAL_OPERATIONS"
+        self.daily_realized_loss = 0.0
+        self._save_state()
+
+        try:
+            from core.position_snapshot_service import position_snapshot_service
+            from core.workspace_manager import workspace_manager
+            ws = workspace_manager._normalize_workspace(workspace)
+            meta = workspace_manager.get_workspace_meta(ws)
+            pool_name = meta.get("default_pool", "BINANCE_LIVE_REAL")
+
+            agg = position_snapshot_service.get_portfolio_aggregate(ws, force_refresh=True)
+            cur_eq = float(agg.get("total_equity", 0.0))
+            if cur_eq > 0:
+                peaks = position_snapshot_service._load_peak_equity()
+                peaks[pool_name] = round(cur_eq, 2)
+                position_snapshot_service._save_peak_equity(peaks)
+                if hasattr(position_snapshot_service, "_agg_cache"):
+                    position_snapshot_service._agg_cache.clear()
+                    position_snapshot_service._agg_cache_ts.clear()
+        except Exception as e:
+            print(f"[RISK ENGINE] Peak recalibration notice: {e}")
+
+        return {
+            "status": "SUCCESS",
+            "circuit_tripped": False,
+            "trip_reason": "NORMAL_OPERATIONS",
+            "message": "Circuit breaker reset and peak equity recalibrated to current balance."
+        }
+
     def set_max_trade_cap(self, cap_usd: float) -> float:
         self.custom_trade_cap_usd = max(1.0, float(cap_usd))
         self._save_state()

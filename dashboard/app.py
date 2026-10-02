@@ -1218,6 +1218,17 @@ async def set_risk_profile_endpoint(data: dict):
     res = risk_engine.set_risk_profile(prof)
     return JSONResponse({"status": "SUCCESS", "active_profile": res})
 
+@app.post("/api/risk/reset-circuit-breaker")
+async def reset_circuit_breaker_endpoint(request: Request):
+    """Reset circuit breaker and recalibrate peak equity to current balance."""
+    try:
+        body = await request.json()
+        ws = body.get("workspace", "CRYPTO")
+    except Exception:
+        ws = "CRYPTO"
+    res = risk_engine.reset_circuit_breaker(ws)
+    return JSONResponse(res)
+
 @app.post("/api/set-precision-mode")
 async def set_precision_mode_endpoint(data: dict):
     """Dynamically set Signal Ensemble Precision Mode (ULTRA_9999_PRECISION, HIGH_CONVICTION, STANDARD)."""

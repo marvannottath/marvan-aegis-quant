@@ -19,6 +19,7 @@ echo "Git HEAD is now: $(git rev-parse --short HEAD)"
 
 echo "[2/4] Clearing cache and state files..."
 rm -f execution/profit_vault_state.json
+rm -f data/peak_equity_state.json
 
 echo "[3/4] Restarting Aegis-Quant background service..."
 pkill -9 -f "python.*main.py" 2>/dev/null || true
