@@ -399,8 +399,13 @@ async def read_dashboard(request: Request):
             live_p = f"{cur_sym}{p.get('last_price', p.get('current_price', p.get('live_price', p.get('entry_price', 0.0)))):,.2f}"
             pnl_u = float(p.get('unrealized_pnl', p.get('unrealized_pnl_usd', p.get('pnl_usd', 0.0))))
             pnl_p = float(p.get('pnl_pct', p.get('unrealized_pnl_pct', 0.0)))
-            is_pos = pnl_u >= 0
-            pnl_class = "text-emerald-400 font-bold" if is_pos else "text-red-400 font-bold"
+            pnl_round = round(pnl_u, 2)
+            pct_round = round(pnl_p, 2)
+            is_pos = pnl_round > 0
+            is_neg = pnl_round < 0
+            pnl_sign = '+' if is_pos else ('-' if is_neg else '')
+            pct_sign = '+' if pct_round > 0 else ('-' if pct_round < 0 else '')
+            pnl_class = "text-emerald-400 font-bold" if is_pos else ("text-red-400 font-bold" if is_neg else "text-gray-400 font-bold")
             act_class = "bg-emerald-500/10 text-emerald-400" if action == "BUY" else "bg-red-500/10 text-red-400"
             pos_rows_html += f"""
                 <tr class="border-b border-gray-800/60 hover:bg-gray-900/50 text-xs font-mono" data-pos-row="{asset}">
@@ -409,9 +414,9 @@ async def read_dashboard(request: Request):
                     <td class="py-3 px-3">{cap}</td>
                     <td class="py-3 px-3 text-amber-400 font-bold">{lev}</td>
                     <td class="py-3 px-3">{entry}</td>
-                    <td class="py-3 px-3 font-bold text-white">{live_p}</td>
-                    <td class="py-3 px-3 {pnl_class}">{'+' if is_pos else ''}{cur_sym}{pnl_u:,.2f}</td>
-                    <td class="py-3 px-3 {pnl_class}">{'+' if is_pos else ''}{pnl_p:.2f}%</td>
+                    <td class="py-3 px-3 font-bold text-white transition-colors duration-200" data-pos-mark="{asset}">{live_p}</td>
+                    <td class="py-3 px-3 {pnl_class}" data-pos-pnl="{asset}">{pnl_sign}{cur_sym}{abs(pnl_round):,.2f}</td>
+                    <td class="py-3 px-3 {pnl_class}" data-pos-pct="{asset}">{pct_sign}{abs(pct_round):.2f}%</td>
                     <td class="py-3 px-3 text-right">
                         <button onclick="closePosition('{asset}')" class="px-2.5 py-1 bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white font-bold rounded transition text-[10px]">CLOSE</button>
                     </td>

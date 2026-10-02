@@ -7663,9 +7663,11 @@
                 }
                 const pnlPct = (pos.pnl_pct !== undefined) ? parseFloat(pos.pnl_pct) : (allocated > 0 ? (pnlUsd / allocated) * 100 : 0);
 
-                const colorClass = pnlUsd > 0.001 ? 'text-emerald-400' : (pnlUsd < -0.001 ? 'text-red-400' : 'text-gray-400');
-                const pnlSign = pnlUsd > 0.001 ? '+' : (pnlUsd < -0.001 ? '-' : '');
-                const pctSign = pnlPct > 0.001 ? '+' : (pnlPct < -0.001 ? '-' : '');
+                const pnlRounded = Math.round(pnlUsd * 100) / 100;
+                const pctRounded = Math.round(pnlPct * 100) / 100;
+                const pnlSign = pnlRounded > 0 ? '+' : (pnlRounded < 0 ? '-' : '');
+                const pctSign = pctRounded > 0 ? '+' : (pctRounded < 0 ? '-' : '');
+                const colorClass = pnlRounded > 0 ? 'text-emerald-400' : (pnlRounded < 0 ? 'text-red-400' : 'text-gray-400');
                 const priceDecimals = (entry < 10 || mark < 10) ? 4 : 2;
 
                 const symKey = pos.asset || pos.symbol || pos.ticker;

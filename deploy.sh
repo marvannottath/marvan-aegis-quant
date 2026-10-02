@@ -25,14 +25,22 @@ pkill -9 -f "python.*main.py" 2>/dev/null || true
 sleep 1
 
 RESTARTED=0
-if systemctl is-active --quiet marvan-pool || [ -f /etc/systemd/system/marvan-pool.service ]; then
+if [ -f /etc/systemd/system/marvan-pool.service ]; then
+    # Disable duplicate marvan_quant if present to avoid port 8888 collision
+    systemctl stop marvan_quant 2>/dev/null || true
+    systemctl disable marvan_quant 2>/dev/null || true
+    systemctl daemon-reload
     systemctl restart marvan-pool
     echo "✓ Systemd service 'marvan-pool' restarted successfully!"
     RESTARTED=1
-fi
-if systemctl is-active --quiet marvan_quant || [ -f /etc/systemd/system/marvan_quant.service ]; then
+elif [ -f /etc/systemd/system/marvan_quant.service ]; then
+    systemctl daemon-reload
     systemctl restart marvan_quant
     echo "✓ Systemd service 'marvan_quant' restarted successfully!"
+    RESTARTED=1
+elif systemctl is-active --quiet aegis-quant || [ -f /etc/systemd/system/aegis-quant.service ]; then
+    systemctl restart aegis-quant
+    echo "✓ Systemd service 'aegis-quant' restarted successfully!"
     RESTARTED=1
 fi
 if [ $RESTARTED -eq 0 ]; then
