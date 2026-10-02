@@ -157,11 +157,13 @@ class PositionSnapshotService:
                         if not sym_name:
                             continue
                         clean_s = sym_name.upper().replace("USDT", "").replace("BUSD", "")
+                        val_mkt = float(lp.get("market_value", lp.get("capital_allocated", 0.0)))
                         if hasattr(binance_broker, "_closed_spot_assets"):
                             if (sym_name.upper() in binance_broker._closed_spot_assets or 
                                 clean_s in binance_broker._closed_spot_assets or 
                                 f"{clean_s}USDT" in binance_broker._closed_spot_assets):
-                                continue
+                                if val_mkt < 0.05:
+                                    continue
                         if sym_name not in existing_symbols:
                             internal_pos_list.append(lp)
                             if sym_name not in paper_broker.positions:
@@ -187,7 +189,9 @@ class PositionSnapshotService:
                     if (sym.upper() in binance_broker._closed_spot_assets or 
                         clean_s in binance_broker._closed_spot_assets or 
                         f"{clean_s}USDT" in binance_broker._closed_spot_assets):
-                        continue
+                        val_mkt = float(pos.get("market_value", pos.get("capital_allocated", 0.0)))
+                        if val_mkt < 0.05:
+                            continue
             except Exception:
                 pass
             if workspace_manager.is_symbol_allowed(sym, target_ws):

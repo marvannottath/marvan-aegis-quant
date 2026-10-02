@@ -153,9 +153,14 @@ class BinanceBroker:
 
         self._closed_spot_assets = self._load_closed_spot_assets()
 
+    @property
+    def is_live_configured(self) -> bool:
+        """Return True if live Binance API and Secret keys are present."""
+        return bool(self.live_api_key and self.live_secret_key)
+
     def _load_closed_spot_assets(self) -> set:
         """Load set of dismissed or closed spot assets to prevent wallet dust resurrection."""
-        defaults = {"XRP", "XRPUSDT"}
+        defaults = set()
         try:
             if CLOSED_SPOT_POSITIONS_FILE.exists():
                 with open(CLOSED_SPOT_POSITIONS_FILE, "r") as f:
@@ -1947,16 +1952,16 @@ class BinanceBroker:
             except Exception:
                 pass
 
-            # If dismissed/closed asset has residual value >= $5.00 (e.g. unsold BTC), do NOT hide it — allow user to close/liquidate
+            # If dismissed/closed asset has residual value >= $0.05 (e.g. unsold coins), do NOT hide it — allow user to close/liquidate
             is_dismissed = (sym_clean in self._closed_spot_assets or 
                             ticker_symbol in self._closed_spot_assets or 
                             f"{sym_clean}USDT" in self._closed_spot_assets)
-            if is_dismissed and val_usd < 5.0:
+            if is_dismissed and val_usd < 0.05:
                 continue
 
-            # Binance Spot API hard-rejects market sell orders below $5.00 (MIN_NOTIONAL).
-            # Filter out wallet dust (< $5.00) so unclosable external micro-dust (e.g. ADA 0.0037 = $0.0009) is not shown.
-            if val_usd < 5.0 and not has_internal_record:
+            # Filter out wallet sub-cent micro-dust (< $0.05) so unclosable external microscopic dust (e.g. ADA 0.00001 = $0.0009) is not shown.
+            # Real holdings with market value >= 0.05 USDT are dynamically presented as active open positions.
+            if val_usd < 0.05 and not has_internal_record:
                 self._entry_price_cache.pop(f"{asset}USDT", None)
                 continue
 

@@ -573,7 +573,7 @@
             </div>
             <div>
                 <h3 class="text-base font-black text-white uppercase">Inactivity Security Warning</h3>
-                <p class="text-xs text-gray-400 mt-1">Your trading session will automatically enter Privacy Lock in <span class="text-amber-400 font-bold">1 minute</span> due to inactivity to protect capital.</p>
+                <p class="text-xs text-gray-400 mt-1">Your trading session will automatically enter Privacy Lock in <span id="session-lock-countdown-secs" class="text-amber-400 font-bold">60</span> seconds due to inactivity to protect capital.</p>
             </div>
             <div class="flex space-x-3 pt-2">
                 <button onclick="resetInactivityTimer()" class="flex-1 py-2.5 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-xl transition shadow cursor-pointer">
@@ -2183,9 +2183,8 @@
                                 <div class="py-1">Fri</div>
                                 <div class="py-1">Sat</div>
                             </div>
-                            <!-- Dynamic Days Grid Container -->
                             <div id="pnl-calendar-grid" class="grid grid-cols-7 gap-2 font-mono">
-                                <!-- Rendered dynamically via renderPnLCalendar() -->
+                                <!-- PRERENDER_PNL_CALENDAR_GRID -->
                             </div>
                         </div>
                     </div>
@@ -4478,8 +4477,12 @@
             window.lastUserActivity = Date.now();
         }
 
+        let isWarningModalOpen = false;
+
         function triggerPrivacyLock() {
             isPrivacyLocked = true;
+            isWarningModalOpen = false;
+            document.body.classList.add('privacy-blur-active');
             const pLock = document.getElementById('modal-privacy-lock');
             if (pLock) pLock.classList.remove('hidden');
             const warnModal = document.getElementById('modal-session-timeout');
@@ -4489,7 +4492,11 @@
 
         function unlockPrivacyScreen() {
             isPrivacyLocked = false;
+            isWarningModalOpen = false;
             window.lastUserActivity = Date.now();
+            if (!isPrivacyMaskActive) {
+                document.body.classList.remove('privacy-blur-active');
+            }
             const pLock = document.getElementById('modal-privacy-lock');
             if (pLock) pLock.classList.add('hidden');
             const warnModal = document.getElementById('modal-session-timeout');
@@ -4499,12 +4506,13 @@
 
         function resetInactivityTimer() {
             window.lastUserActivity = Date.now();
+            isWarningModalOpen = false;
             const warnModal = document.getElementById('modal-session-timeout');
             if (warnModal) warnModal.classList.add('hidden');
         }
 
         function recordUserActivity() {
-            if (isPrivacyLocked) return;
+            if (isPrivacyLocked || isWarningModalOpen) return;
             const now = Date.now();
             if (now - window.lastUserActivity > 1500) {
                 window.lastUserActivity = now;
@@ -4523,14 +4531,20 @@
             const warnMs = Math.max(30000, lockMs - 60000);
 
             if (idleMs >= lockMs) {
+                isWarningModalOpen = false;
                 triggerPrivacyLock();
             } else if (idleMs >= warnMs) {
+                isWarningModalOpen = true;
                 const wm = document.getElementById('modal-session-timeout');
                 if (wm && wm.classList.contains('hidden')) {
                     wm.classList.remove('hidden');
                     if (typeof playSynthChime === 'function') playSynthChime('ALARM');
                 }
+                const remainingSecs = Math.max(1, Math.ceil((lockMs - idleMs) / 1000));
+                const cdSpan = document.getElementById('session-lock-countdown-secs');
+                if (cdSpan) cdSpan.textContent = remainingSecs;
             } else {
+                isWarningModalOpen = false;
                 const wm = document.getElementById('modal-session-timeout');
                 if (wm && !wm.classList.contains('hidden')) {
                     wm.classList.add('hidden');
@@ -4774,8 +4788,15 @@
         let currentTab = 'overview';
         let currentLeverage = 10;
         let activeRiskProfileMaxLev = 10;
-        let chartInstance = null;
-        let activeMarketVenue = localStorage.getItem('aegis_active_workspace') || (window.INITIAL_WORKSPACE && !window.INITIAL_WORKSPACE.startsWith('{{') ? window.INITIAL_WORKSPACE : 'CRYPTO');
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlWs = (urlParams.get('workspace') || '').toUpperCase();
+        const validWs = ['INDIA', 'CRYPTO', 'FOREX', 'FOREX_GOLD'];
+        let activeMarketVenue = (urlWs && validWs.includes(urlWs))
+            ? (urlWs === 'FOREX' ? 'FOREX_GOLD' : urlWs)
+            : (localStorage.getItem('aegis_active_workspace') || (window.INITIAL_WORKSPACE && !window.INITIAL_WORKSPACE.startsWith('{{') ? window.INITIAL_WORKSPACE : 'CRYPTO'));
+        if (urlWs && validWs.includes(urlWs)) {
+            try { localStorage.setItem('aegis_active_workspace', activeMarketVenue); } catch (e) {}
+        }
         window.activeMarketVenue = activeMarketVenue;
         window.ACTIVE_WORKSPACE = activeMarketVenue;
         window.activeTradingPool = localStorage.getItem('aegis_active_pool') || (window.INITIAL_TRADING_POOL && !window.INITIAL_TRADING_POOL.startsWith('{{') ? window.INITIAL_TRADING_POOL : 'BINANCE_LIVE_REAL');
@@ -5729,7 +5750,12 @@
             if (tabId === 'overview' && chartInstance) {
                 setTimeout(() => chartInstance.resize(), 50);
             }
+            if (tabId === 'positions') {
+                fetchState();
+            }
             if (tabId === 'analytics') {
+                fetchPnLCalendar();
+                fetchLiveTrades().then(() => renderBacktestTradeLogs());
                 if (currentBacktestDetail) {
                     setTimeout(() => {
                         renderBacktestEquityChart(currentBacktestDetail.equity_curve || []);
@@ -7190,8 +7216,8 @@
             const deposits = data.deposit_history || [];
             const health = data.system_health || {};
 
-            // Top Header & Metrics - derive strictly from authoritative workspace of stateData
-            const curNormWs = (data.active_workspace === 'FOREX' || data.active_workspace === 'FOREX_GOLD') ? 'FOREX_GOLD' : (data.active_workspace || window.activeMarketVenue || 'INDIA');
+            // Top Header & Metrics - derive strictly from window.activeMarketVenue authoritative client state
+            const curNormWs = (window.activeMarketVenue === 'FOREX' || window.activeMarketVenue === 'FOREX_GOLD') ? 'FOREX_GOLD' : (window.activeMarketVenue || (data.active_workspace === 'FOREX' || data.active_workspace === 'FOREX_GOLD' ? 'FOREX_GOLD' : data.active_workspace) || 'INDIA');
             const isIndia = (curNormWs === 'INDIA');
             const isCrypto = (curNormWs === 'CRYPTO');
             const isForex = (curNormWs === 'FOREX_GOLD');
@@ -7534,9 +7560,15 @@
                 const validOrders = (orders || []).filter(ord => {
                     const sym = String(ord.symbol || ord.asset || '').toUpperCase();
                     if (!sym) return false;
-                    if (isIndia) return !prohibitedOrders.some(p => sym.includes(p));
-                    if (isCrypto) return sym.includes('USDT') || sym.includes('BUSD') || sym.includes('USDC') || sym.includes('FDUSD') || sym.startsWith('BTC') || sym.startsWith('ETH') || sym.startsWith('SOL') || sym.startsWith('XRP') || sym.startsWith('BNB');
-                    return true;
+                    if (isIndia) {
+                        return !prohibitedOrders.some(p => sym.includes(p));
+                    } else if (isCrypto) {
+                        const cryptoTokens = ['USDT', 'BUSD', 'USDC', 'FDUSD', 'BTC', 'ETH', 'SOL', 'XRP', 'BNB', 'DOGE', 'ADA'];
+                        return cryptoTokens.some(c => sym.includes(c));
+                    } else {
+                        const fxTokens = ['EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF', 'NZD', 'XAU'];
+                        return fxTokens.some(f => sym.includes(f)) && !sym.includes('USDT');
+                    }
                 });
                 if (oBadge) oBadge.innerText = validOrders.length;
                 if (!validOrders || validOrders.length === 0) {
@@ -7550,13 +7582,14 @@
                         const filled = parseFloat(o.filled_quantity || o.executed_qty || 0.0);
                         const status = String(o.status || 'NEW').toUpperCase();
                         const timeStr = o.timestamp || 'RECENT';
+                        const priceDisp = isCrypto ? `${px.toFixed(px < 10 ? 4 : 2)} USDT` : `${curSym}${px.toFixed(px < 10 ? 4 : 2)}`;
                         return `
                             <tr class="border-b border-gray-800/60 hover:bg-gray-900/50">
                                 <td class="py-2.5 px-3 text-gray-400">${o.order_id || 'ORD-LIVE'}</td>
                                 <td class="py-2.5 px-3 font-bold text-white">${o.symbol || o.asset}</td>
                                 <td class="py-2.5 px-3 text-cyan-400">${o.type || 'LIMIT'}</td>
                                 <td class="py-2.5 px-3"><span class="px-1.5 py-0.5 rounded text-[9px] font-bold ${sideColor}">${side}</span></td>
-                                <td class="py-2.5 px-3 text-white font-mono">${curSym}${px.toFixed(px < 10 ? 4 : 2)}</td>
+                                <td class="py-2.5 px-3 text-white font-mono">${priceDisp}</td>
                                 <td class="py-2.5 px-3 text-gray-300 font-mono">${qty.toFixed(4)} <span class="text-[9px] text-gray-500">(${filled > 0 ? ((filled/qty)*100).toFixed(0)+'%' : '0%'})</span></td>
                                 <td class="py-2.5 px-3"><span class="px-1.5 py-0.5 rounded text-[9px] bg-amber-500/10 text-amber-400 font-bold border border-amber-500/20">${status}</span></td>
                                 <td class="py-2.5 px-3 text-right text-gray-400 text-[10px]">${timeStr}</td>

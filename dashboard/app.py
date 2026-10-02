@@ -635,6 +635,38 @@ async def read_dashboard(request: Request):
     else:
         audit_rows_html = '<tr><td colspan="6" class="py-6 text-center text-gray-500 font-mono text-xs">NO AUDIT EVENTS AVAILABLE</td></tr>'
 
+    # 11. Pre-render Institutional PnL Calendar Heatmap Grid
+    pnl_calendar_grid_html = ""
+    try:
+        from core.pnl_calendar_service import pnl_calendar_service
+        cal_data = pnl_calendar_service.get_monthly_calendar("2026-10", workspace=active_ws)
+        first_weekday = cal_data.get("calendar_metadata", {}).get("first_day_weekday", 3)
+        leading_blanks = (first_weekday + 1) % 7
+        cal_html_parts = []
+        for _ in range(leading_blanks):
+            cal_html_parts.append('<div class="h-20 rounded-xl bg-gray-950/20 border border-gray-900/40 opacity-30"></div>')
+        for d in cal_data.get("days", []):
+            is_fut = d.get("is_future", False)
+            pnl_val = d.get("net_pnl_usd", 0.0)
+            status = d.get("status", "NEUTRAL")
+            bg_cls = "bg-gray-950/20 border-dashed border-gray-800/40 opacity-40" if is_fut else ("bg-gradient-to-br from-emerald-950/25 via-darkcard to-gray-950 border-emerald-500/30" if status == "PROFIT" else ("bg-gradient-to-br from-rose-950/25 via-darkcard to-gray-950 border-rose-500/30" if status == "LOSS" else "bg-gray-950/40 border-gray-800/60 text-gray-400"))
+            pnl_cls = "text-gray-600" if is_fut else ("text-emerald-400 font-bold" if status == "PROFIT" else ("text-rose-400 font-bold" if status == "LOSS" else "text-gray-500"))
+            pnl_txt = "—" if is_fut else f"{'+' if pnl_val > 0 else ''}${abs(pnl_val):.2f}"
+            sub_txt = "UPCOMING" if is_fut else (f"{d.get('trades_count', 0)} trds · {d.get('win_rate', 0)}%" if d.get('trades_count', 0) > 0 else ("Weekend" if d.get('is_weekend') else "Flat Cash"))
+            top_asset_badge = f'<span class="text-[8px] font-mono px-1 py-0.2 rounded bg-gray-900 border border-gray-800 text-gray-400">{d.get("top_asset")}</span>' if d.get("top_asset") and d.get("top_asset") != "-" else ""
+            cal_html_parts.append(f"""
+                <div class="p-2.5 rounded-xl border flex flex-col justify-between h-20 transition-all cursor-pointer {bg_cls}" onclick="selectPnLDay({{date:'{d.get('date')}'}})">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[11px] font-bold {'text-gray-600' if is_fut else 'text-gray-300'}">{d.get('day_of_month')}</span>
+                        {top_asset_badge}
+                    </div>
+                    <div class="text-xs font-black font-mono tracking-tight {pnl_cls}">{pnl_txt}</div>
+                    <div class="text-[9px] font-mono text-gray-500 truncate">{sub_txt}</div>
+                </div>""")
+        pnl_calendar_grid_html = "".join(cal_html_parts)
+    except Exception as e:
+        pnl_calendar_grid_html = ""
+
     # Perform Template Replacements
     content = content.replace("{{ BTN_INDIA_CLASS }}", btn_india_class)
     content = content.replace("{{ BTN_FOREX_CLASS }}", btn_forex_class)
@@ -690,6 +722,7 @@ async def read_dashboard(request: Request):
     content = content.replace("<!-- PRERENDER_EXECUTION_LOGS -->", exec_logs_html)
     content = content.replace("<!-- PRERENDER_AUDIT_LOGS -->", audit_rows_html)
     content = content.replace("<!-- PRERENDER_LITE_POSITIONS -->", lite_pos_html)
+    content = content.replace("<!-- PRERENDER_PNL_CALENDAR_GRID -->", pnl_calendar_grid_html)
 
     # Lite Desk Venue & Broker replacements
     content = content.replace("{{ LITE_VENUE_FLAG }}", lite_flag)
@@ -924,9 +957,9 @@ async def get_state(workspace: Optional[str] = None, request_id: Optional[str] =
     if active_pool == "BINANCE_LIVE_REAL" or ws == "CRYPTO":
         try:
             live_binance_orders = await asyncio.to_thread(binance_broker.get_all_open_orders, "BINANCE_LIVE")
-            raw_orders = live_binance_orders if live_binance_orders else pool_data.get("order_stream", [])
+            raw_orders = [o for o in (live_binance_orders or []) if workspace_manager.is_symbol_allowed(o.get("symbol", o.get("asset", "")), "CRYPTO")]
         except Exception:
-            raw_orders = pool_data.get("order_stream", [])
+            raw_orders = []
     else:
         raw_orders = [o for o in (trader.get_live_stream() or []) if workspace_manager.is_symbol_allowed(o.get("symbol", o.get("asset", "")), ws)]
         if not raw_orders:
