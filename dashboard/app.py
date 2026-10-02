@@ -1163,6 +1163,8 @@ async def get_state(workspace: Optional[str] = None, request_id: Optional[str] =
         "current_drawdown_pct": drawdown_pct,
         "virtual_cash": cash_val,
         "floating_open_pnl_usd": float(pos_snapshot.get("unrealized_pnl", 0.0)),
+        "ai_state": ai_trading_controller.get_state(ws),
+        "ai_running": (ai_trading_controller.get_state(ws) == "RUNNING"),
         "request_id": request_id or "",
         "pnl_provenance": {
             "realized_pnl_source": "DOUBLE_ENTRY_LEDGER" if pool_realized_pnl != 0.0 else "PROFIT_VAULT_SETTLEMENT",

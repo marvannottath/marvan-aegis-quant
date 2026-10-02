@@ -7237,6 +7237,11 @@
             const auditLog = data.audit_log || [];
             const deposits = data.deposit_history || [];
             const health = data.system_health || {};
+            if (data.ai_running !== undefined) {
+                window.isAiRunning = Boolean(data.ai_running);
+            } else if (data.ai_state) {
+                window.isAiRunning = (data.ai_state === 'RUNNING');
+            }
 
             // Top Header & Metrics - derive strictly from window.activeMarketVenue authoritative client state
             const curNormWs = (window.activeMarketVenue === 'FOREX' || window.activeMarketVenue === 'FOREX_GOLD') ? 'FOREX_GOLD' : (window.activeMarketVenue || (data.active_workspace === 'FOREX' || data.active_workspace === 'FOREX_GOLD' ? 'FOREX_GOLD' : data.active_workspace) || 'INDIA');
@@ -8282,6 +8287,7 @@
             }
 
             switchTab('orders');
+            showNotification('ORDER TERMINAL READY', `${action} ${cleanSym} selected — Enter amount & click SUBMIT`, 'info');
 
             const orderBox = document.getElementById('order-asset');
             if (orderBox) {
@@ -8290,6 +8296,9 @@
                     orderBox.classList.add('ring-2', 'ring-amber-400');
                     setTimeout(() => orderBox.classList.remove('ring-2', 'ring-amber-400'), 1500);
                 } catch (e) {}
+            }
+            if (amtInput) {
+                setTimeout(() => amtInput.focus(), 300);
             }
         }
 
@@ -9464,6 +9473,7 @@
             _activeAiWorkspace = ws;
 
             const aiState = (aiStates && aiStates[ws]) ? aiStates[ws].state || aiStates[ws] : 'PAUSED';
+            window.isAiRunning = (aiState === 'RUNNING');
             const styles = AI_STATE_STYLES[aiState] || AI_STATE_STYLES['PAUSED'];
 
             // Update dot + label
