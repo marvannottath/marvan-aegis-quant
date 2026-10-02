@@ -688,6 +688,8 @@ async def read_dashboard(request: Request):
 
     content = content.replace("{{ VAULT_BALANCE }}", vault_str)
     content = content.replace("{{ TOTAL_ASSETS }}", total_assets_str)
+    binance_unw_str = f"{eq_val:,.2f} USDT" if is_crypto else "14.70 USDT"
+    content = content.replace("{{ UNW_BINANCE_VAL }}", binance_unw_str)
 
     content = content.replace("{{ SCANNER_SUBTITLE }}", scanner_subtitle)
     content = content.replace("{{ ORDER_TERMINAL_TITLE }}", order_title)

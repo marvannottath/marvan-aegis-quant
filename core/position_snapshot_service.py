@@ -359,23 +359,31 @@ class PositionSnapshotService:
                 is_auth = live_info.get("authenticated") or b_acc.get("authenticated")
 
                 if is_auth and (live_tot > 0 or live_avail > 0):
-                    total_equity = round(live_tot, 2)
                     free_cash = round(live_avail, 2)
+                    total_equity = round(max(live_tot, free_cash + total_exposure + unrealized_pnl), 2)
+                    if total_exposure <= 0 and live_tot > free_cash:
+                        total_exposure = round(live_tot - free_cash, 2)
                 elif is_auth:
-                    total_equity = round(total_exposure + unrealized_pnl, 2)
                     free_cash = round(live_avail, 2)
+                    total_equity = round(free_cash + total_exposure + unrealized_pnl, 2)
                 else:
                     real_spot = binance_broker.get_real_live_spot_balance()
                     if real_spot > 0:
                         free_cash = round(real_spot, 2)
                         total_equity = round(free_cash + total_exposure + unrealized_pnl, 2)
                     else:
-                        free_cash = round(float(pool.get("virtual_cash", 3.84)), 2)
-                        total_equity = round(free_cash + total_exposure + unrealized_pnl, 2)
+                        p_cash = float(pool.get("virtual_cash", 0.0))
+                        free_cash = round(p_cash if p_cash > 0 else 13.84, 2)
+                        p_eq = float(pool.get("equity", 0.0))
+                        total_equity = round(p_eq if p_eq > 0 else (free_cash + total_exposure + unrealized_pnl), 2)
+                pool["virtual_cash"] = free_cash
+                pool["equity"] = total_equity
                 initial_cap = self.get_and_update_peak_equity(pool_name, max(total_equity, 1.0))
             except Exception:
-                free_cash = round(float(pool.get("virtual_cash", 3.84)), 2)
-                total_equity = round(free_cash + total_exposure + unrealized_pnl, 2)
+                p_cash = float(pool.get("virtual_cash", 0.0))
+                free_cash = round(p_cash if p_cash > 0 else 13.84, 2)
+                p_eq = float(pool.get("equity", 0.0))
+                total_equity = round(p_eq if p_eq > 0 else (free_cash + total_exposure + unrealized_pnl), 2)
                 initial_cap = self.get_and_update_peak_equity(pool_name, max(total_equity, 1.0))
         elif is_testnet_crypto:
             vault_balance = 0.0

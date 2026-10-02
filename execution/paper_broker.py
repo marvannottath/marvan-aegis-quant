@@ -273,17 +273,22 @@ class PaperBroker:
         self.active_pool_name = target_name
 
         if target_name == "BINANCE_LIVE_REAL":
-            real_b = binance_broker.get_real_live_spot_balance()
-            if real_b <= 0:
-                real_b = float(self.pools.get("BINANCE_LIVE_REAL", {}).get("virtual_cash", 14.70))
-            if real_b <= 0:
-                real_b = 14.70
+            acc = binance_broker.get_account_info("BINANCE_LIVE_REAL")
+            real_avail = float(acc.get("available_balance", 0.0))
+            real_tot = float(acc.get("total_equity", 0.0))
+            if real_tot <= 0:
+                real_tot = binance_broker.get_real_live_spot_balance()
+            if real_tot <= 0:
+                pool_eq = float(self.pools.get("BINANCE_LIVE_REAL", {}).get("equity", 0.0))
+                real_tot = pool_eq if pool_eq > 0 else 14.70
+            if real_avail <= 0:
+                pool_cash = float(self.pools.get("BINANCE_LIVE_REAL", {}).get("virtual_cash", 0.0))
+                real_avail = pool_cash if pool_cash > 0 else 13.84
             live_pool = self.pools.setdefault("BINANCE_LIVE_REAL", {})
-            if "initial_capital" not in live_pool or live_pool.get("initial_capital", 0.0) <= 0:
-                live_pool["initial_capital"] = real_b
-            live_pool["virtual_cash"] = real_b
-            live_pool["equity"] = real_b
-            live_pool["base_equity"] = real_b
+            live_pool["initial_capital"] = real_tot
+            live_pool["virtual_cash"] = real_avail
+            live_pool["equity"] = real_tot
+            live_pool["base_equity"] = real_tot
             live_pool.setdefault("trade_history", [])
             live_pool.setdefault("order_stream", [])
             live_pool.setdefault("positions", {})

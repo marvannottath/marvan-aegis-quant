@@ -199,16 +199,29 @@ class WorkspaceManager:
             return self.WORKSPACE_INDIA
         if any(sym.endswith(q) for q in ['USDT', 'BUSD', 'USDC', 'FDUSD', 'TUSD', 'BTC', 'ETH', 'BNB']) or (sym.startswith('BTC') and 'INR' not in sym) or (sym.startswith('ETH') and 'INR' not in sym):
             return self.WORKSPACE_CRYPTO
+        # Base crypto assets: e.g. SOL, XRP, ADA, DOGE, PEPE, SUI, AVAX, LINK, DOT, NEAR, LTC
+        clean_crypto = sym.replace("USDT", "").replace("BUSD", "").replace("USDC", "").replace("USD", "")
+        if f"{clean_crypto}USDT" in self.METADATA[self.WORKSPACE_CRYPTO]['instruments'] or clean_crypto in [
+            'BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'DOGE', 'ADA', 'AVAX', 'DOT', 'MATIC', 'NEAR', 'SUI', 'PEPE', 'LTC', 'LINK', 'TRX', 'SHIB', 'UNI', 'ATOM'
+        ]:
+            return self.WORKSPACE_CRYPTO
         if any(c in sym for c in ['EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF', 'NZD', 'XAU']):
             return self.WORKSPACE_FOREX_GOLD
         return None
 
     def is_symbol_allowed(self, symbol: str, workspace: Optional[str] = None) -> bool:
         ws = self._normalize_workspace(workspace)
-        expected_ws = self.get_workspace_for_symbol(symbol)
-        if expected_ws is None:
-            return symbol.strip().upper() in self.METADATA.get(ws, {}).get('instruments', [])
-        return expected_ws == ws
+        sym = str(symbol).strip().upper()
+        if not sym:
+            return False
+        expected_ws = self.get_workspace_for_symbol(sym)
+        if expected_ws == ws:
+            return True
+        if ws == self.WORKSPACE_CRYPTO:
+            clean_s = sym.replace("USDT", "").replace("BUSD", "").replace("USDC", "").replace("USD", "")
+            if f"{clean_s}USDT" in self.METADATA[self.WORKSPACE_CRYPTO]['instruments']:
+                return True
+        return sym in self.METADATA.get(ws, {}).get('instruments', [])
 
     def validate_order_workspace(self, symbol: str, workspace: Optional[str] = None) -> Tuple[bool, str]:
         ws = self._normalize_workspace(workspace)

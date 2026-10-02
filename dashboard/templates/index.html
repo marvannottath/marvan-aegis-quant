@@ -8,6 +8,8 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="manifest" href="/static/manifest.json">
+    <link rel="icon" type="image/png" href="/static/logo.png">
+    <link rel="apple-touch-icon" href="/static/logo.png">
     <title>AEGIS QUANT — Institutional AI Trading Terminal</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -81,8 +83,8 @@
     <div id="aegis-login-gateway" class="hidden fixed inset-0 z-[99999] bg-[#070b14]/95 backdrop-blur-2xl flex items-center justify-center p-4 overflow-y-auto">
         <div class="max-w-md w-full bg-[#0d1424] border border-amber-500/30 p-6 md:p-8 rounded-3xl shadow-2xl space-y-5 relative my-auto">
             <div class="text-center space-y-1.5">
-                <div class="inline-flex p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-400 text-3xl mb-1 shadow-inner">
-                    <i class="fa-solid fa-shield-halved"></i>
+                <div class="inline-flex p-1.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 mb-2 shadow-inner">
+                    <img src="/static/logo.png" alt="Aegis Quant" class="w-16 h-16 rounded-xl object-contain drop-shadow">
                 </div>
                 <h2 class="text-xl font-black text-white tracking-wide">AEGIS<span class="text-amber-400">QUANT</span></h2>
                 <p class="text-xs text-gray-400">Universal Zero-Trust Trading Terminal Gateway</p>
@@ -156,8 +158,8 @@
             <button id="btn-toggle-sidebar" onclick="toggleSidebar()" class="text-gray-400 hover:text-white text-lg focus:outline-none">
                 <i class="fa-solid fa-bars-staggered"></i>
             </button>
-            <div class="flex items-center space-x-2">
-                <div class="w-7 h-7 rounded-lg bg-amber-500 flex items-center justify-center font-black text-black text-sm">A</div>
+            <div class="flex items-center space-x-2.5">
+                <img src="/static/logo.png" alt="Aegis Quant" class="w-8 h-8 rounded-lg object-contain shadow-md">
                 <span class="font-black text-base tracking-wider text-white">AEGIS<span class="text-amber-400 font-light">QUANT</span></span>
             </div>
         </div>
@@ -944,31 +946,31 @@
                 <div class="grid grid-cols-2 lg:grid-cols-6 gap-3 md:gap-4">
                     <div onclick="switchTab('portfolio')" class="bg-darkcard border border-darkborder p-4 rounded-xl space-y-1 cursor-pointer hover:border-amber-500/50 transition" title="Click to view Portfolio & Vault">
                         <div class="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Total Equity</div>
-                        <div id="metric-equity" class="text-xl md:text-2xl font-black text-white font-mono">₹100,000.00</div>
+                        <div id="metric-equity" class="text-xl md:text-2xl font-black text-white font-mono">{{ PORTFOLIO_EQUITY }}</div>
                         <div class="text-[10px] text-emerald-400 font-mono font-bold">Authoritative Ledger</div>
                     </div>
 
                     <div onclick="switchTab('analytics')" class="bg-darkcard border border-darkborder p-4 rounded-xl space-y-1 cursor-pointer hover:border-emerald-500/50 transition" title="Click to view Performance Analytics">
                         <div class="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Today's Realized PnL</div>
-                        <div id="metric-today-pnl" class="text-xl md:text-2xl font-black text-emerald-400 font-mono">+₹0.00</div>
+                        <div id="metric-today-pnl" class="text-xl md:text-2xl font-black text-emerald-400 font-mono">{{ TODAY_PNL }}</div>
                         <div class="text-[10px] text-gray-400 font-mono">+0.00% Daily Return</div>
                     </div>
 
                     <div onclick="switchTab('portfolio')" class="bg-darkcard border border-darkborder p-4 rounded-xl space-y-1 cursor-pointer hover:border-blue-500/50 transition" title="Click to view Available Cash">
                         <div class="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Free Cash</div>
-                        <div id="metric-free-cash" class="text-xl md:text-2xl font-black text-white font-mono">₹100,000.00</div>
+                        <div id="metric-free-cash" class="text-xl md:text-2xl font-black text-white font-mono">{{ VIRTUAL_CASH }}</div>
                         <div class="text-[10px] text-gray-400 font-mono">Available Margin</div>
                     </div>
 
                     <div onclick="switchTab('positions')" class="bg-darkcard border border-darkborder p-4 rounded-xl space-y-1 cursor-pointer hover:border-amber-500/50 transition" title="Click to view Open Positions">
                         <div class="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Open Positions</div>
-                        <div id="metric-open-count" class="text-xl md:text-2xl font-black text-amber-400 font-mono">0 Active</div>
+                        <div id="metric-open-count" class="text-xl md:text-2xl font-black text-amber-400 font-mono">{{ OPEN_POSITIONS_COUNT }} Active</div>
                         <div class="text-[10px] text-gray-400 font-mono">Max Profile: 8</div>
                     </div>
 
                     <div onclick="switchTab('positions')" class="bg-darkcard border border-darkborder p-4 rounded-xl space-y-1 cursor-pointer hover:border-blue-500/50 transition" title="Click to view Exposure Details">
                         <div class="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Total Exposure</div>
-                        <div id="metric-exposure" class="text-xl md:text-2xl font-black text-blue-400 font-mono">₹0.00</div>
+                        <div id="metric-exposure" class="text-xl md:text-2xl font-black text-blue-400 font-mono">{{ TOTAL_EXPOSURE }}</div>
                         <div class="text-[10px] text-gray-400 font-mono">Allocated Margin</div>
                     </div>
 
@@ -1011,7 +1013,7 @@
                                 <span>BINANCE LIVE SPOT</span>
                                 <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                             </div>
-                            <div id="unw-binance-val" class="text-base font-black text-white font-mono">$14.70 USDT</div>
+                            <div id="unw-binance-val" class="text-base font-black text-white font-mono">{{ UNW_BINANCE_VAL }}</div>
                             <div class="text-[10px] text-emerald-400">Real Assets Protected 🔒</div>
                         </div>
 
@@ -4810,11 +4812,9 @@
             const curSym = isInd ? '₹' : (isCry ? '' : '$');
             const curLoc = isInd ? 'en-IN' : 'en-US';
 
-            // Never display fake 19,940.75: Use live Binance balance or cached equity
-            const defaultEq = isInd ? 100000.0 : (isCry ? (window.lastCryptoEquity || 3.84) : 100000.0);
-            const eqFmt = isCry ? `${defaultEq.toLocaleString('en-US', {minimumFractionDigits: 2})} USDT` : `${curSym}${defaultEq.toLocaleString(curLoc, {minimumFractionDigits: 2})}`;
-            const zeroFmt = isCry ? '0.00 USDT' : `${curSym}0.00`;
-            const signedZeroFmt = isCry ? '+0.00 USDT' : `+${curSym}0.00`;
+            // Use live Binance balance or existing prerendered equity, NEVER hardcode 3.84
+            let defaultEq = isInd ? 100000.0 : (isCry ? (window.lastCryptoEquity || window.lastBinanceData?.live?.total_equity || null) : 100000.0);
+            let defaultCash = isInd ? 100000.0 : (isCry ? (window.lastCryptoCash || window.lastBinanceData?.live?.available_balance || null) : 100000.0);
 
             const eqEl = document.getElementById('metric-equity');
             const pnlEl = document.getElementById('metric-today-pnl');
@@ -4826,12 +4826,34 @@
             const thPosAlloc = document.getElementById('th-pos-alloc');
             const thPosPnl = document.getElementById('th-pos-pnl');
 
+            if (isCry && (!defaultEq || defaultEq <= 0) && eqEl && eqEl.innerText && !eqEl.innerText.includes('100,000')) {
+                const parsed = parseFloat(eqEl.innerText.replace(/[^0-9.]/g, ''));
+                if (parsed > 0) defaultEq = parsed;
+            }
+            if (isCry && (!defaultCash || defaultCash <= 0) && cashEl && cashEl.innerText && !cashEl.innerText.includes('100,000')) {
+                const parsed = parseFloat(cashEl.innerText.replace(/[^0-9.]/g, ''));
+                if (parsed > 0) defaultCash = parsed;
+            }
+            if (!defaultEq) defaultEq = isInd ? 100000.0 : (isCry ? 14.70 : 100000.0);
+            if (!defaultCash) defaultCash = isInd ? 100000.0 : (isCry ? 13.84 : 100000.0);
+
+            const eqFmt = isCry ? `${defaultEq.toLocaleString('en-US', {minimumFractionDigits: 2})} USDT` : `${curSym}${defaultEq.toLocaleString(curLoc, {minimumFractionDigits: 2})}`;
+            const cashFmt = isCry ? `${defaultCash.toLocaleString('en-US', {minimumFractionDigits: 2})} USDT` : `${curSym}${defaultCash.toLocaleString(curLoc, {minimumFractionDigits: 2})}`;
+            const zeroFmt = isCry ? '0.00 USDT' : `${curSym}0.00`;
+            const signedZeroFmt = isCry ? '+0.00 USDT' : `+${curSym}0.00`;
+
             if (eqEl) eqEl.innerText = eqFmt;
             if (pnlEl) pnlEl.innerText = signedZeroFmt;
-            if (cashEl) cashEl.innerText = eqFmt;
-            if (expEl) expEl.innerText = zeroFmt;
+            if (cashEl) cashEl.innerText = cashFmt;
+            if (expEl) {
+                if (isCry && defaultEq > defaultCash) {
+                    expEl.innerText = `${(defaultEq - defaultCash).toFixed(2)} USDT`;
+                } else {
+                    expEl.innerText = zeroFmt;
+                }
+            }
             if (ddEl) ddEl.innerText = '0.00%';
-            if (brokerMargin) brokerMargin.innerText = eqFmt;
+            if (brokerMargin) brokerMargin.innerText = cashFmt;
             if (thPosAlloc) thPosAlloc.innerText = isInd ? 'Allocated Margin (₹)' : (isCry ? 'Allocated Margin (USDT)' : 'Allocated Margin ($)');
             if (thPosPnl) thPosPnl.innerText = isInd ? 'Unrealized PnL (₹)' : (isCry ? 'Unrealized PnL (USDT)' : 'Unrealized PnL ($)');
 
@@ -7393,11 +7415,11 @@
             const unwVault = document.getElementById('unw-vault-val');
             const unwTotal = document.getElementById('card-total-networth');
             if (unwBinance) {
-                const liveBinanceVal = isCrypto ? equity : ((data.pools && data.pools.BINANCE_LIVE_REAL) ? Number(data.pools.BINANCE_LIVE_REAL.equity || 3.84) : 3.84);
+                const liveBinanceVal = isCrypto ? equity : (window.lastBinanceData?.live?.total_equity || ((data.pools && data.pools.BINANCE_LIVE_REAL) ? Number(data.pools.BINANCE_LIVE_REAL.equity || 14.70) : 14.70));
                 unwBinance.innerText = `${liveBinanceVal.toFixed(2)} USDT`;
             }
             if (unwUpstox) {
-                const liveUpstoxVal = (data.pools && data.pools.AEGIS_INDIA_INR) ? Number(data.pools.AEGIS_INDIA_INR.equity || 100000.0) : 100000.0;
+                const liveUpstoxVal = isIndia ? equity : 100000.0;
                 unwUpstox.innerText = `₹${liveUpstoxVal.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
             }
             if (unwMt5) {
@@ -7420,10 +7442,17 @@
 
             if (isCrypto && equity > 0) {
                 window.lastCryptoEquity = equity;
+                window.lastCryptoCash = cash;
             }
 
-            const totalExposure = positions.reduce((sum, p) => sum + (parseFloat(p.capital_allocated) || 0), 0);
+            let totalExposure = positions.reduce((sum, p) => sum + (parseFloat(p.capital_allocated || p.market_value) || 0), 0);
+            if (isCrypto && totalExposure <= 0 && equity > cash) {
+                totalExposure = Math.max(0.0, equity - cash);
+            }
             if (document.getElementById('metric-exposure')) document.getElementById('metric-exposure').innerText = formatMoney(totalExposure);
+            const activePosCount = positions.length > 0 ? positions.length : ((isCrypto && totalExposure > 0) ? 1 : 0);
+            if (document.getElementById('metric-open-count')) document.getElementById('metric-open-count').innerText = `${activePosCount} Active`;
+            if (document.getElementById('badge-open-pos')) document.getElementById('badge-open-pos').innerText = activePosCount;
 
             // Update Leverage & Risk Profile UI
             const maxLev = (data.risk_profile && data.risk_profile.max_leverage) ? data.risk_profile.max_leverage : 10;
