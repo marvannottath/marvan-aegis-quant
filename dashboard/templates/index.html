@@ -656,7 +656,7 @@
                     <div class="flex items-center space-x-3">
                         <i class="fa-solid fa-layer-group w-4 text-emerald-400"></i> <span>Positions</span>
                     </div>
-                    <span id="badge-open-pos" class="px-1.5 py-0.5 text-[9px] font-black bg-emerald-500/20 text-emerald-400 rounded">0</span>
+                    <span id="badge-open-pos" class="px-1.5 py-0.5 text-[9px] font-black bg-emerald-500/20 text-emerald-400 rounded">{{ OPEN_POSITIONS_COUNT }}</span>
                 </button>
                 <button onclick="switchTab('orders')" id="nav-orders" class="sidebar-item w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-bold text-gray-300 hover:text-white transition">
                     <i class="fa-solid fa-bolt w-4 text-amber-400"></i> <span>Order Terminal</span>
@@ -7566,7 +7566,9 @@
                     const prohibited = ['USDT', 'BUSD', 'BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'DOGE', 'ADA', 'EUR', 'GBP', 'JPY', 'XAU'];
                     return !prohibited.some(p => sym.includes(p));
                 } else if (isCrypto) {
-                    return sym.includes('USDT') || sym.includes('BUSD') || sym.includes('USDC') || sym.includes('FDUSD') || sym.startsWith('BTC') || sym.startsWith('ETH') || sym.startsWith('SOL') || sym.startsWith('XRP') || sym.startsWith('BNB');
+                    // Accept any symbol paired with a stablecoin (covers ALL spot holdings from Binance)
+                    return sym.endsWith('USDT') || sym.endsWith('BUSD') || sym.endsWith('USDC') || sym.endsWith('FDUSD') ||
+                           sym.includes('USDT') || sym.includes('BUSD') || sym.includes('USDC') || sym.includes('FDUSD');
                 } else {
                     const forexSymbols = ['EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF', 'NZD', 'XAU'];
                     return forexSymbols.some(f => sym.includes(f)) && !sym.includes('USDT');

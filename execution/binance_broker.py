@@ -1916,7 +1916,7 @@ class BinanceBroker:
         if not hasattr(self, "_fills_checked_cache"):
             self._fills_checked_cache = set()
 
-        bulk_data = self.get_bulk_market_data(environment)
+        bulk_data = self.get_bulk_market_data(environment=environment)
 
         for b in bals:
             asset = b.get("asset", "")
@@ -1979,19 +1979,20 @@ class BinanceBroker:
                     pass
 
             if not entry_price and ticker_symbol not in self._fills_checked_cache:
-                self._fills_checked_cache.add(ticker_symbol)
-                # Only query trade fills for positions with value >= $10.00 to avoid blocking on dust
-                if val_usd >= 10.0:
-                    try:
-                        fills = self.get_execution_fills(environment, ticker_symbol, limit=5)
-                        for fill in reversed(fills):
-                            if fill.get("isBuyer") or fill.get("buyer"):
-                                f_px = float(fill.get("price", 0.0))
-                                if f_px > 0:
-                                    entry_price = f_px
-                                    break
-                    except Exception:
-                        pass
+                # Query trade fills for any position with value >= $0.05 (was incorrectly gated at $10 before)
+                try:
+                    fills = self.get_execution_fills(environment, ticker_symbol, limit=5)
+                    for fill in reversed(fills):
+                        if fill.get("isBuyer") or fill.get("buyer"):
+                            f_px = float(fill.get("price", 0.0))
+                            if f_px > 0:
+                                entry_price = f_px
+                                break
+                    # Mark as checked only if we got a real entry (so we don't spam the API)
+                    # If fills returned empty/no price, mark checked anyway to avoid hammering — will retry after cache clear
+                    self._fills_checked_cache.add(ticker_symbol)
+                except Exception:
+                    pass
 
             is_fallback_cur = False
             if not entry_price or entry_price <= 0:
@@ -1999,8 +2000,13 @@ class BinanceBroker:
                 is_fallback_cur = True
 
             entry_price = round(entry_price, precision)
+            # Always cache a real (non-fallback) entry price so it persists across ticks
             if not is_fallback_cur:
                 self._entry_price_cache[ticker_symbol] = entry_price
+            elif ticker_symbol not in self._entry_price_cache:
+                # Store even fallback as a temporary baseline to detect PnL movement
+                # but DON'T set fills_checked_cache for fallback so next tick retries fills
+                self._fills_checked_cache.discard(ticker_symbol)
 
             capital_allocated = round(total_qty * entry_price, 2)
 

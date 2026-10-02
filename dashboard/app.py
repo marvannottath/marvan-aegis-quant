@@ -92,6 +92,23 @@ async def telemetry_middleware(request: Request, call_next):
 
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
+# Mount /static directory so logo.png, favicon.png, sw.js etc. are served
+from fastapi.staticfiles import StaticFiles
+STATIC_DIR = BASE_DIR / "static"
+if STATIC_DIR.exists():
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def serve_favicon():
+    fav = BASE_DIR / "static" / "favicon.png"
+    if fav.exists():
+        return FileResponse(str(fav), media_type="image/png")
+    logo = BASE_DIR / "static" / "logo.png"
+    if logo.exists():
+        return FileResponse(str(logo), media_type="image/png")
+    from fastapi import HTTPException
+    raise HTTPException(status_code=404, detail="favicon not found")
+
 @app.exception_handler(500)
 async def custom_500_handler(request: Request, exc: Exception):
     return HTMLResponse(
