@@ -146,6 +146,37 @@ def test_6_crypto_resilience_when_binance_down():
         )
 
 
+def test_7_dashboard_render_all_workspaces_no_unbound_error():
+    import asyncio
+    from fastapi import Request
+    from dashboard.app import read_dashboard
+
+    async def _run():
+        workspaces = ["INDIA", "CRYPTO", "FOREX_GOLD"]
+        for ws in workspaces:
+            req = MagicMock(spec=Request)
+            req.query_params = {"workspace": ws}
+            req.headers = {}
+            resp = await read_dashboard(req)
+            html = resp.body.decode("utf-8")
+            assert "{{ LITE_BROKER_BADGE }}" not in html, f"Placeholder remaining in {ws}"
+            assert "{{ LITE_BROKER_BADGE_CLASS }}" not in html, f"Class placeholder remaining in {ws}"
+            if ws == "INDIA":
+                assert "UPSTOX: NSE/BSE ACTIVE" in html, "India lite badge missing"
+            elif ws == "FOREX_GOLD":
+                assert "MT5: FOREX & GOLD LIVE ACTIVE" in html, "Forex lite badge missing"
+            elif ws == "CRYPTO":
+                assert "BINANCE:" in html, "Crypto lite badge missing"
+
+    asyncio.run(_run())
+    report(
+        "dashboard_render_all_workspaces_no_unbound_error",
+        True,
+        "All 3 workspaces rendered successfully without UnboundLocalError",
+        "All 3 workspaces render cleanly with resolved Lite and Pro elements"
+    )
+
+
 def main():
     print("=" * 80)
     print("RUNNING TARGETED PERFORMANCE, RESILIENCE & ISOLATION SUITE")
@@ -156,8 +187,9 @@ def main():
     test_4_binance_failure_bounded_retry()
     test_5_stale_cache_data_source_labeling()
     test_6_crypto_resilience_when_binance_down()
+    test_7_dashboard_render_all_workspaces_no_unbound_error()
     print("=" * 80)
-    print("ALL 6 PERFORMANCE & RESILIENCE TESTS PASSED SUCCESSFULLY! (100%)")
+    print("ALL 7 PERFORMANCE & RESILIENCE TESTS PASSED SUCCESSFULLY! (100%)")
     print("=" * 80)
 
 

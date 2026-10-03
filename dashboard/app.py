@@ -227,6 +227,10 @@ async def read_dashboard(request: Request):
     except Exception:
         today_pnl_val = round(float(port_agg.get("realized_pnl", 0.0)), 2)
 
+    # Safe deterministic defaults for Lite Desk broker badge
+    lite_broker_badge = "BROKER: DEMO ACTIVE"
+    lite_broker_badge_class = "bg-gray-500/10 text-gray-400 border border-gray-500/30"
+
     if is_india:
         eq_str = f"₹{eq_val:,.2f}"
         cash_str = f"₹{cash_val:,.2f}"
@@ -240,6 +244,8 @@ async def read_dashboard(request: Request):
         venue_subtitle = "Currency: INR (₹) • Settlement: T+1 Rolling • Regulation: SEBI Compliant • Risk Profile: Enforced"
         broker_badge = '<i class="fa-solid fa-bolt mr-1"></i>UPSTOX: NSE/BSE ACTIVE'
         hdr_env_label = f"AEGIS INDIA POOL ({eq_str})"
+        lite_broker_badge = "UPSTOX: NSE/BSE ACTIVE"
+        lite_broker_badge_class = "bg-blue-500/10 text-blue-400 border border-blue-500/30"
         scanner_subtitle = "Real-time market scanning across Indian Equities & Indices (NSE / BSE)"
         order_title = "Fast Order Execution Terminal — Upstox NSE / BSE"
         order_subtitle = "Server-side 7-Gate Risk Engine validates all parameters before execution (SEBI Compliant)"
