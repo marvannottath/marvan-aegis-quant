@@ -467,18 +467,32 @@ class BinanceBroker:
         if not hasattr(self, "_account_info_cache"):
             self._account_info_cache = {}
             self._account_info_cache_ts = {}
+            self._account_info_err_ts = {}
 
-        if not force_refresh and (now - self._account_info_cache_ts.get(cache_key, 0)) < 8.0:
+        if not force_refresh:
             cached = self._account_info_cache.get(cache_key)
-            if cached and cached.get("authenticated"):
-                return cached
+            if cached:
+                if cached.get("authenticated"):
+                    if (now - self._account_info_cache_ts.get(cache_key, 0)) < 8.0:
+                        res_copy = dict(cached)
+                        # Distinguish fresh live vs cached last-known
+                        if (now - self._account_info_cache_ts.get(cache_key, 0)) >= 1.0:
+                            res_copy["data_source"] = "CACHED_LAST_KNOWN"
+                        else:
+                            res_copy["data_source"] = "AUTHENTICATED_LIVE"
+                        return res_copy
+                else:
+                    # Bounded retry backoff on failures: 15.0s
+                    if (now - self._account_info_err_ts.get(cache_key, 0)) < 15.0:
+                        return cached
 
         api_k, sec_k, base_url, is_testnet = self._get_credentials_for_env(environment)
         if not api_k or not sec_k:
-            return {
+            res_not_cfg = {
                 "authenticated": False,
                 "account_status": "NOT_CONFIGURED",
                 "status": "NOT_CONFIGURED",
+                "data_source": "UNAVAILABLE",
                 "available_balance": 0.0,
                 "locked_balance": 0.0,
                 "balance_usd": 0.0,
@@ -491,6 +505,9 @@ class BinanceBroker:
                 "balances": [],
                 "message": f"Binance {'Live' if not is_testnet else 'Testnet'} API keys are not configured."
             }
+            self._account_info_cache[cache_key] = res_not_cfg
+            self._account_info_err_ts[cache_key] = now
+            return res_not_cfg
 
         try:
             st = self._get_server_time_ms()
@@ -498,7 +515,7 @@ class BinanceBroker:
             sig, signed_params = self._sign_query(sec_k, params)
             headers = {"X-MBX-APIKEY": api_k}
 
-            resp = requests.get(f"{base_url}/api/v3/account", params=signed_params, headers=headers, timeout=4.0)
+            resp = requests.get(f"{base_url}/api/v3/account", params=signed_params, headers=headers, timeout=2.5)
             if resp.status_code == 200:
                 data = resp.json()
                 bals = data.get("balances", [])
@@ -520,23 +537,17 @@ class BinanceBroker:
                             holdings_val_usd += (qty * px)
 
                 # Query Binance Futures summary to get real Futures wallet balance.
-                # The user's USDT may live in the Futures wallet (separate from Spot wallet).
-                # We ADD futures wallet balance to Spot equity to show the TRUE total balance.
-                # Guard: only add if futures balance is plausible (< 1,000,000 USDT safety cap).
                 f_summary = self.get_futures_account_summary(environment)
                 f_wallet_bal = float(f_summary.get("total_wallet_balance", 0.0))
                 f_unrealized = float(f_summary.get("total_unrealized_pnl", 0.0))
                 f_avail = float(f_summary.get("available_balance", 0.0))
 
-                # Safety cap: ignore futures balance if it looks like testnet/fake data (> 10,000 USDT
-                # and spot balance is near zero — typical sign of a testnet futures account)
                 spot_equity = round(usdt_free + usdt_locked + holdings_val_usd, 2)
                 futures_is_real = (f_wallet_bal < 10000.0) or (spot_equity > 1.0)
                 if futures_is_real and f_wallet_bal > 0:
                     total_equity = round(spot_equity + f_wallet_bal + f_unrealized, 2)
                     total_available = round(usdt_free + f_avail, 2)
                 else:
-                    # Futures balance looks testnet/inflated — use Spot only
                     total_equity = spot_equity
                     total_available = round(usdt_free, 2)
 
@@ -544,6 +555,7 @@ class BinanceBroker:
                     "authenticated": True,
                     "account_status": "AUTHENTICATED",
                     "status": "AUTHENTICATED",
+                    "data_source": "AUTHENTICATED_LIVE",
                     "connected": True,
                     "available_balance": total_available,
                     "liquid_margin": total_available,
@@ -568,10 +580,12 @@ class BinanceBroker:
                 self._account_info_cache_ts[cache_key] = now
                 return acc_res
             else:
-                return {
+                err_status = "AUTHENTICATION_FAILED" if resp.status_code in [401, 403] else "API_UNAVAILABLE"
+                err_res = {
                     "authenticated": False,
-                    "account_status": "AUTHENTICATION_FAILED",
-                    "status": "AUTHENTICATION_FAILED",
+                    "account_status": err_status,
+                    "status": err_status,
+                    "data_source": "API_ERROR",
                     "available_balance": 0.0,
                     "locked_balance": 0.0,
                     "balance_usd": 0.0,
@@ -582,13 +596,17 @@ class BinanceBroker:
                     "account_type": "UNKNOWN",
                     "environment": environment,
                     "balances": [],
-                    "error": resp.text
+                    "error": f"HTTP {resp.status_code}: {resp.text}"
                 }
+                self._account_info_cache[cache_key] = err_res
+                self._account_info_err_ts[cache_key] = now
+                return err_res
         except Exception as e:
-            return {
+            err_res = {
                 "authenticated": False,
-                "account_status": "CONNECTION_ERROR",
-                "status": "CONNECTION_ERROR",
+                "account_status": "API_UNAVAILABLE",
+                "status": "API_UNAVAILABLE",
+                "data_source": "CONNECTION_ERROR",
                 "available_balance": 0.0,
                 "locked_balance": 0.0,
                 "balance_usd": 0.0,
@@ -601,6 +619,9 @@ class BinanceBroker:
                 "balances": [],
                 "error": str(e)
             }
+            self._account_info_cache[cache_key] = err_res
+            self._account_info_err_ts[cache_key] = now
+            return err_res
 
     def get_futures_account_summary(self, environment: str = "BINANCE_LIVE") -> Dict[str, Any]:
         """Fetch Binance USDT-M Futures account balances and unrealized PnL with TTL caching."""
@@ -693,7 +714,7 @@ class BinanceBroker:
             self._futs_pos_ts = {}
 
         cache_key = environment
-        if (now - self._futs_pos_ts.get(cache_key, 0)) < 4.0:
+        if (now - self._futs_pos_ts.get(cache_key, 0)) < 8.0:
             return self._futs_pos_cache.get(cache_key, [])
 
         api_k, sec_k, _, is_testnet = self._get_credentials_for_env(environment)
@@ -710,9 +731,9 @@ class BinanceBroker:
             st = self._get_server_time_ms(fapi_url)
             params = {"timestamp": st, "recvWindow": 60000}
             sig, signed = self._sign_query(sec_k, params)
-            resp = requests.get(f"{fapi_url}/fapi/v3/positionRisk", params=signed, headers=headers, timeout=2.0)
+            resp = requests.get(f"{fapi_url}/fapi/v3/positionRisk", params=signed, headers=headers, timeout=1.5)
             if resp.status_code != 200:
-                resp = requests.get(f"{fapi_url}/fapi/v2/positionRisk", params=signed, headers=headers, timeout=2.0)
+                resp = requests.get(f"{fapi_url}/fapi/v2/positionRisk", params=signed, headers=headers, timeout=1.5)
             self._last_futures_status = resp.status_code
             if resp.status_code != 200:
                 self._last_futures_error = resp.text
@@ -1172,7 +1193,7 @@ class BinanceBroker:
         endpoints = [f"{LIVE_BASE_URL}/api/v3/ticker/bookTicker", f"{TESTNET_BASE_URL}/api/v3/ticker/bookTicker"]
         for ep in endpoints:
             try:
-                resp = requests.get(ep, timeout=2.5)
+                resp = requests.get(ep, timeout=1.5)
                 if resp.status_code == 200:
                     tickers = resp.json()
                     now_ms = int(time.time() * 1000)
@@ -1212,6 +1233,8 @@ class BinanceBroker:
             except Exception:
                 continue
 
+        if not results:
+            self._bulk_ticker_cache_ts = now
         return results
 
     # ------------------------------------------------------------------ #
@@ -1555,14 +1578,14 @@ class BinanceBroker:
             sig, signed_params = self._sign_query(sec_k, params)
             headers = {"X-MBX-APIKEY": api_k}
 
-            resp = requests.get(f"{base_url}/api/v3/myTrades", params=signed_params, headers=headers, timeout=5.0)
+            resp = requests.get(f"{base_url}/api/v3/myTrades", params=signed_params, headers=headers, timeout=1.5)
             if resp.status_code == 200:
                 data = resp.json()
                 if isinstance(data, list) and len(data) > 0:
                     return data
 
             # Fallback: query allOrders if myTrades is empty
-            resp_orders = requests.get(f"{base_url}/api/v3/allOrders", params=signed_params, headers=headers, timeout=5.0)
+            resp_orders = requests.get(f"{base_url}/api/v3/allOrders", params=signed_params, headers=headers, timeout=1.5)
             if resp_orders.status_code == 200:
                 orders_data = resp_orders.json()
                 fills = []
@@ -1702,7 +1725,7 @@ class BinanceBroker:
             self._auth_status_cache = None
             self._auth_status_cache_ts = 0.0
 
-        if not force_refresh and (now - self._auth_status_cache_ts) < 5.0 and self._auth_status_cache:
+        if not force_refresh and (now - self._auth_status_cache_ts) < 8.0 and self._auth_status_cache:
             return self._auth_status_cache
 
         now_str = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S IST")
@@ -1904,7 +1927,7 @@ class BinanceBroker:
             self._open_pos_ts = {}
 
         cache_key = environment
-        if not force_refresh and (now - self._open_pos_ts.get(cache_key, 0)) < 3.5:
+        if not force_refresh and (now - self._open_pos_ts.get(cache_key, 0)) < 8.0:
             return self._open_pos_cache.get(cache_key, [])
 
         is_testnet_env = ("TESTNET" in environment.upper() or "DEMO" in environment.upper())
@@ -2004,9 +2027,8 @@ class BinanceBroker:
             if not is_fallback_cur:
                 self._entry_price_cache[ticker_symbol] = entry_price
             elif ticker_symbol not in self._entry_price_cache:
-                # Store even fallback as a temporary baseline to detect PnL movement
-                # but DON'T set fills_checked_cache for fallback so next tick retries fills
-                self._fills_checked_cache.discard(ticker_symbol)
+                # Store fallback baseline without hammering fills endpoint on every subsequent request
+                self._entry_price_cache[ticker_symbol] = entry_price
 
             capital_allocated = round(total_qty * entry_price, 2)
 
@@ -2064,9 +2086,20 @@ class BinanceBroker:
         return positions
 
     def get_margin_positions(self, environment: str = "BINANCE_LIVE") -> List[Dict[str, Any]]:
-        """Fetch active Cross and Isolated Margin positions from Binance."""
+        """Fetch active Cross and Isolated Margin positions from Binance with TTL caching."""
+        now = time.time()
+        if not hasattr(self, "_margin_pos_cache"):
+            self._margin_pos_cache = {}
+            self._margin_pos_ts = {}
+
+        cache_key = environment
+        if (now - self._margin_pos_ts.get(cache_key, 0)) < 8.0:
+            return self._margin_pos_cache.get(cache_key, [])
+
         api_k, sec_k, base_url, is_testnet = self._get_credentials_for_env(environment)
         if not api_k or not sec_k or is_testnet:
+            self._margin_pos_cache[cache_key] = []
+            self._margin_pos_ts[cache_key] = now
             return []
         positions = []
         try:
@@ -2074,7 +2107,7 @@ class BinanceBroker:
             params = {"timestamp": st, "recvWindow": 60000}
             sig, signed = self._sign_query(sec_k, params)
             headers = {"X-MBX-APIKEY": api_k}
-            resp = requests.get(f"{base_url}/sapi/v1/margin/account", params=signed, headers=headers, timeout=3.5)
+            resp = requests.get(f"{base_url}/sapi/v1/margin/account", params=signed, headers=headers, timeout=1.5)
             if resp.status_code == 200:
                 data = resp.json()
                 bulk_prices = self.get_bulk_market_data()
@@ -2117,6 +2150,8 @@ class BinanceBroker:
                             })
         except Exception:
             pass
+        self._margin_pos_cache[cache_key] = positions
+        self._margin_pos_ts[cache_key] = now
         return positions
 
     def place_spot_market_order(self, symbol: str, side: str, quote_order_qty: float = 25.0, environment: Optional[str] = None) -> Dict[str, Any]:

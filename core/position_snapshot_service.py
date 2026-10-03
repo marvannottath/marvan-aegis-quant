@@ -212,25 +212,27 @@ class PositionSnapshotService:
                     if s_name not in existing_syms:
                         internal_pos_list.append(v)
 
-        # Remove any dismissed spot assets from paper_broker memory
-        try:
-            from execution.binance_broker import binance_broker
-            if hasattr(binance_broker, "_closed_spot_assets") and binance_broker._closed_spot_assets:
-                for d_sym in list(binance_broker._closed_spot_assets):
-                    paper_broker.positions.pop(d_sym, None)
-                    paper_broker.positions.pop(f"{d_sym}USDT", None)
-                    for p_val in paper_broker.pools.values():
-                        if isinstance(p_val, dict) and "positions" in p_val:
-                            p_val["positions"].pop(d_sym, None)
-                            p_val["positions"].pop(f"{d_sym}USDT", None)
-        except Exception:
-            pass
-
-        # For BINANCE_LIVE_REAL / BINANCE_LIVE: sync real held crypto positions from Binance Spot & Futures
-        if pool_name in ["BINANCE_LIVE_REAL", "BINANCE_LIVE"] or target_ws == "CRYPTO":
+        # Remove any dismissed spot assets from paper_broker memory (Strictly for CRYPTO workspace)
+        if target_ws == "CRYPTO":
             try:
                 from execution.binance_broker import binance_broker
-                live_positions = binance_broker.get_open_positions("BINANCE_LIVE")
+                if hasattr(binance_broker, "_closed_spot_assets") and binance_broker._closed_spot_assets:
+                    for d_sym in list(binance_broker._closed_spot_assets):
+                        paper_broker.positions.pop(d_sym, None)
+                        paper_broker.positions.pop(f"{d_sym}USDT", None)
+                        for p_val in paper_broker.pools.values():
+                            if isinstance(p_val, dict) and "positions" in p_val:
+                                p_val["positions"].pop(d_sym, None)
+                                p_val["positions"].pop(f"{d_sym}USDT", None)
+            except Exception:
+                pass
+
+        # For BINANCE_LIVE_REAL / BINANCE_LIVE: sync real held crypto positions from Binance Spot & Futures
+        # Strictly restricted to CRYPTO workspace
+        if target_ws == "CRYPTO" and pool_name in ["BINANCE_LIVE_REAL", "BINANCE_LIVE"]:
+            try:
+                from execution.binance_broker import binance_broker
+                live_positions = binance_broker.get_open_positions("BINANCE_LIVE", force_refresh=force_refresh)
                 if live_positions:
                     existing_symbols = {p.get("symbol") or p.get("asset") for p in internal_pos_list}
                     for lp in live_positions:
@@ -265,18 +267,18 @@ class PositionSnapshotService:
         for pos in internal_pos_list:
             sym = pos.get("asset") or pos.get("symbol") or ""
             clean_s = sym.upper().replace("USDT", "").replace("BUSD", "")
-            try:
-                from execution.binance_broker import binance_broker
-                if hasattr(binance_broker, "_closed_spot_assets"):
-                    if (sym.upper() in binance_broker._closed_spot_assets or 
-                        clean_s in binance_broker._closed_spot_assets or 
-                        f"{clean_s}USDT" in binance_broker._closed_spot_assets):
-                        continue
-            except Exception:
-                pass
-
-            # Filter out external unclosable dust (< 5.00 USDT) without internal platform order
             if target_ws == "CRYPTO":
+                try:
+                    from execution.binance_broker import binance_broker
+                    if hasattr(binance_broker, "_closed_spot_assets"):
+                        if (sym.upper() in binance_broker._closed_spot_assets or 
+                            clean_s in binance_broker._closed_spot_assets or 
+                            f"{clean_s}USDT" in binance_broker._closed_spot_assets):
+                            continue
+                except Exception:
+                    pass
+
+                # Filter out external unclosable dust (< 5.00 USDT) without internal platform order
                 v_mkt = float(pos.get("market_value", pos.get("capital_allocated", 0.0)))
                 has_internal = (sym in paper_broker.positions or 
                                 f"{clean_s}USDT" in paper_broker.positions or 
@@ -387,7 +389,7 @@ class PositionSnapshotService:
         self._snapshot_cache_ts[target_ws] = now
         return snap_dict
 
-    def get_portfolio_aggregate(self, workspace: Optional[str] = None, force_refresh: bool = False) -> Dict[str, Any]:
+    def get_portfolio_aggregate(self, workspace: Optional[str] = None, force_refresh: bool = False, pos_snap: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Single authoritative aggregation layer for Top-Level Metrics (Section 10).
         Calculates:
@@ -422,8 +424,9 @@ class PositionSnapshotService:
         pool_name = workspace_manager.get_workspace_pool(target_ws) if hasattr(workspace_manager, "get_workspace_pool") else meta.get("default_pool", "AEGIS_INDIA_INR")
         initial_cap = float(meta.get("initial_capital", 100000.0))
 
-        # Authoritative position snapshot
-        pos_snap = self.get_snapshot(target_ws)
+        # Authoritative position snapshot: reuse provided pos_snap if passed, else fetch
+        if pos_snap is None:
+            pos_snap = self.get_snapshot(target_ws, force_refresh=force_refresh)
         open_pos_count = pos_snap["open_position_count"]
         total_exposure = pos_snap["total_exposure"]
         used_margin = pos_snap["total_margin"]
@@ -431,7 +434,7 @@ class PositionSnapshotService:
 
         # Broker state
         paper_broker.switch_pool(pool_name)
-        paper_broker._update_equity()
+        paper_broker._update_equity(pos_snap=pos_snap)
         pool = paper_broker.pools.get(pool_name, {})
 
         is_live_crypto = (target_ws == "CRYPTO" and pool_name in ["BINANCE_LIVE_REAL", "BINANCE_LIVE"]) or (pool_name in ["BINANCE_LIVE_REAL", "BINANCE_LIVE"])
@@ -444,11 +447,10 @@ class PositionSnapshotService:
                 from execution.binance_broker import binance_broker
                 b_status = binance_broker.get_authoritative_status(force_refresh=force_refresh)
                 live_info = b_status.get("live", {})
-                b_acc = binance_broker.get_account_info("BINANCE_LIVE_REAL", force_refresh=force_refresh)
 
-                live_tot = float(live_info.get("total_equity", 0.0) or b_acc.get("total_equity", 0.0))
-                live_avail = float(live_info.get("available_balance", 0.0) or b_acc.get("available_balance", 0.0))
-                is_auth = live_info.get("authenticated") or b_acc.get("authenticated")
+                live_tot = float(live_info.get("total_equity", 0.0))
+                live_avail = float(live_info.get("available_balance", 0.0))
+                is_auth = live_info.get("authenticated")
 
                 if is_auth and (live_tot > 0 or live_avail > 0):
                     free_cash = round(live_avail, 2)

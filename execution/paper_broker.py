@@ -374,7 +374,7 @@ class PaperBroker:
             "virtual_cash": cap
         }
 
-    def _update_equity(self):
+    def _update_equity(self, pos_snap: Optional[Dict[str, Any]] = None):
         """
         Dynamically compute account equity strictly for active pool:
           Trading Account Equity = Virtual Cash + Used Margin + Unrealized PnL
@@ -413,7 +413,10 @@ class PaperBroker:
                 live_b = binance_broker.get_live_spot_balance("USDT")
                 if live_b > 0:
                     self.virtual_cash = round(live_b, 2)
-                open_pos = binance_broker.get_open_positions("BINANCE_LIVE")
+                if pos_snap and isinstance(pos_snap, dict) and "positions" in pos_snap:
+                    open_pos = pos_snap.get("positions", [])
+                else:
+                    open_pos = binance_broker.get_open_positions("BINANCE_LIVE")
                 crypto_val = sum(float(p.get("market_value", p.get("capital_allocated", 0.0))) for p in open_pos)
             except Exception:
                 pass

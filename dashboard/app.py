@@ -198,7 +198,7 @@ async def read_dashboard(request: Request):
     # 2. Authoritative Position Snapshot & Single Aggregation Layer (Section 1, 2, 10)
     from core.position_snapshot_service import position_snapshot_service
     pos_snap = await asyncio.to_thread(position_snapshot_service.get_snapshot, active_ws)
-    port_agg = await asyncio.to_thread(position_snapshot_service.get_portfolio_aggregate, active_ws)
+    port_agg = await asyncio.to_thread(position_snapshot_service.get_portfolio_aggregate, active_ws, False, pos_snap)
 
     eq_val = port_agg["total_equity"]
     cash_val = port_agg["free_cash"]
@@ -272,7 +272,7 @@ async def read_dashboard(request: Request):
         venue_title = "CRYPTO MARKETS (BINANCE)"
         venue_subtitle = "Currency: USDT ($) • 24/7 Continuous Spot & Futures • Multi-Model Risk Engine"
         from execution.binance_broker import binance_broker
-        b_stat = await asyncio.to_thread(binance_broker.get_authoritative_status)
+        b_stat = await asyncio.to_thread(binance_broker.get_authoritative_status, active_pool, False)
         is_live_auth = bool(b_stat.get("live", {}).get("authenticated") or active_pool == "BINANCE_LIVE_REAL")
         if is_live_auth:
             broker_badge = '<i class="fa-solid fa-circle-check mr-1"></i>BINANCE: LIVE AUTHENTICATED'
