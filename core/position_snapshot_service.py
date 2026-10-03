@@ -243,8 +243,9 @@ class PositionSnapshotService:
                             if (sym_name.upper() in binance_broker._closed_spot_assets or 
                                 clean_s in binance_broker._closed_spot_assets or 
                                 f"{clean_s}USDT" in binance_broker._closed_spot_assets):
-                                if val_mkt < 0.05:
-                                    continue
+                                continue
+                        if val_mkt < 5.00 and sym_name not in paper_broker.positions:
+                            continue
                         if sym_name not in existing_symbols:
                             internal_pos_list.append(lp)
                             if sym_name not in paper_broker.positions:
@@ -270,11 +271,18 @@ class PositionSnapshotService:
                     if (sym.upper() in binance_broker._closed_spot_assets or 
                         clean_s in binance_broker._closed_spot_assets or 
                         f"{clean_s}USDT" in binance_broker._closed_spot_assets):
-                        val_mkt = float(pos.get("market_value", pos.get("capital_allocated", 0.0)))
-                        if val_mkt < 0.05:
-                            continue
+                        continue
             except Exception:
                 pass
+
+            # Filter out external unclosable dust (< 5.00 USDT) without internal platform order
+            if target_ws == "CRYPTO":
+                v_mkt = float(pos.get("market_value", pos.get("capital_allocated", 0.0)))
+                has_internal = (sym in paper_broker.positions or 
+                                f"{clean_s}USDT" in paper_broker.positions or 
+                                sym in pool.get("positions", {}))
+                if v_mkt < 5.00 and not has_internal:
+                    continue
             if workspace_manager.is_symbol_allowed(sym, target_ws):
                 # Enrich position record with canonical fields
                 units = float(pos.get("units", pos.get("quantity", 0.0)))

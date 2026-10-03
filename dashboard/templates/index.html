@@ -1758,7 +1758,7 @@
                         <div class="space-y-2 text-xs font-mono">
                             <div class="p-2.5 bg-gray-950 border border-gray-800 rounded-xl flex justify-between items-center">
                                 <span class="text-gray-300">Max Drawdown Breaker:</span>
-                                <span class="text-emerald-400 font-bold">READY (10.0%)</span>
+                                <span id="risk-max-drawdown-breaker-val" class="text-emerald-400 font-bold">READY (10.0%)</span>
                             </div>
                             <div class="p-2.5 bg-gray-950 border border-gray-800 rounded-xl flex justify-between items-center">
                                 <span class="text-gray-300">Daily Loss Limit:</span>
@@ -5866,6 +5866,20 @@
                 tAgg.innerHTML = `AGGRESSIVE (25x Max) ${prof === 'AGGRESSIVE' ? '<span class="text-amber-400 font-bold ml-1">★ ACTIVE</span>' : ''}`;
                 tAgg.className = `profile-title font-bold text-xs ${prof === 'AGGRESSIVE' ? 'text-amber-400' : 'text-white'}`;
             }
+
+            // Dynamically update Max Drawdown Breaker display in hard limits card
+            const ddEl = document.getElementById('risk-max-drawdown-breaker-val');
+            if (ddEl) {
+                const ddPct = (prof === 'CONSERVATIVE') ? '5.0%' : ((prof === 'AGGRESSIVE') ? '20.0%' : '10.0%');
+                ddEl.innerText = `READY (${ddPct})`;
+            }
+
+            // Dynamically update active leverage ceiling
+            const levMax = (prof === 'CONSERVATIVE') ? 2 : ((prof === 'AGGRESSIVE') ? 25 : 10);
+            activeRiskProfileMaxLev = levMax;
+            if (typeof updateLeverageButtonsUI === 'function') {
+                updateLeverageButtonsUI(levMax);
+            }
         }
 
 
@@ -6147,7 +6161,7 @@
                     body: JSON.stringify({ asset: symbol, symbol: symbol, workspace: curVenue, reason: 'MANUAL_CLOSE_BTN' })
                 });
                 const data = await res.json();
-                if (data.status === 'SUCCESS' || data.status === 'CLOSED') {
+                if (data.status === 'SUCCESS' || data.status === 'CLOSED' || data.status === 'DUST_DISMISSED') {
                     // Double check removal
                     document.querySelectorAll(`[data-pos-row="${symbol}"], [data-pos-row="${cleanSym}"]`).forEach(r => r.remove());
                     
@@ -6158,7 +6172,8 @@
                     const curSuffix = isCrypto ? ' USDT' : '';
                     const sign = pnl >= 0 ? '+' : '-';
                     const vSweepMsg = (pnl > 0) ? ` | Swept ${curSym}${pnl.toFixed(2)}${curSuffix} to Vault!` : '';
-                    showNotification('Position Closed', `Position ${symbol} closed! Realized PnL: ${sign}${curSym}${Math.abs(pnl).toFixed(2)}${curSuffix}${vSweepMsg}`, 'success');
+                    const successMsg = data.message || `Position ${symbol} closed! Realized PnL: ${sign}${curSym}${Math.abs(pnl).toFixed(2)}${curSuffix}${vSweepMsg}`;
+                    showNotification('Position Closed', successMsg, 'success');
                     if (typeof playSynthChime === 'function') playSynthChime('SUCCESS');
                     if (data.vault_summary) {
                         try { renderVaultTransactions(data.vault_summary); } catch (e) {}
@@ -6186,6 +6201,8 @@
 
         async function setRiskProfile(profileName) {
             try {
+                // Optimistically update UI immediately
+                renderRiskProfiles(profileName);
                 const res = await fetch('/api/set-risk-profile', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
@@ -6194,7 +6211,10 @@
                 const data = await res.json();
                 if (data.status === 'SUCCESS') {
                     showNotification('Risk Profile Updated', `Active Risk Profile Switched to: ${profileName}`, 'success');
-                    fetchState();
+                    if (data.active_profile) {
+                        renderRiskProfiles(data.active_profile.name || profileName);
+                    }
+                    if (typeof fetchState === 'function') fetchState(window.activeMarketVenue);
                 }
             } catch (e) {
                 console.error('Set risk profile error:', e);
