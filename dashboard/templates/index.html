@@ -345,6 +345,9 @@
             </div>
             <div id="modal-resume-summary" class="text-[11px] font-bold mb-4 text-center"></div>
             <div class="flex space-x-3">
+                <button id="btn-resume-reset-cb" onclick="aiResumeResetCircuitBreaker()" class="flex-1 py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-black rounded-xl text-sm transition hidden flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-arrows-rotate"></i> RESET CIRCUIT BREAKER
+                </button>
                 <button id="btn-resume-confirm" onclick="aiResumeExecute()" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-xl text-sm transition hidden">
                     CONFIRM RESUME
                 </button>
@@ -1774,6 +1777,9 @@
                                 <span class="text-white font-bold">10% Free Margin</span>
                             </div>
                         </div>
+                        <button onclick="aiResumeResetCircuitBreaker()" class="w-full py-2 bg-amber-600/20 hover:bg-amber-600/40 border border-amber-500/40 text-amber-300 hover:text-white font-mono text-[11px] rounded-xl font-bold transition flex items-center justify-center gap-1.5 cursor-pointer">
+                            <i class="fa-solid fa-arrows-rotate"></i> Reset Circuit Breaker &amp; Recalibrate
+                        </button>
                         <!-- Hidden containers for JS compatibility -->
                         <span id="news-intel-status-badge" class="hidden"></span>
                         <div id="news-intel-content" class="hidden"></div>
@@ -9668,6 +9674,8 @@
             document.getElementById('modal-resume-gates').innerHTML = '<p class="text-gray-500">Running 14-gate preflight...</p>';
             document.getElementById('modal-resume-summary').textContent = '';
             document.getElementById('btn-resume-confirm').classList.add('hidden');
+            const btnResetCb = document.getElementById('btn-resume-reset-cb');
+            if (btnResetCb) btnResetCb.classList.add('hidden');
             try {
                 const res = await fetch(`/api/ai/resume-preflight/${ws}`);
                 const data = await res.json();
@@ -9689,8 +9697,40 @@
                 if (btnConfirm) {
                     btnConfirm.classList.toggle('hidden', !ok);
                 }
+                const hasCbOrDdFailure = gates.some(g => (g.id === 7 || g.id === 8) && !g.passed);
+                if (btnResetCb) {
+                    btnResetCb.classList.toggle('hidden', !hasCbOrDdFailure);
+                }
             } catch (e) {
                 document.getElementById('modal-resume-gates').innerHTML = `<p class="text-red-400">Preflight error: ${e.message}</p>`;
+            }
+        }
+
+        async function aiResumeResetCircuitBreaker() {
+            const ws = getCanonicalWorkspace(window.activeMarketVenue || _activeAiWorkspace);
+            const btnReset = document.getElementById('btn-resume-reset-cb');
+            if (btnReset) {
+                btnReset.disabled = true;
+                btnReset.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Resetting...';
+            }
+            try {
+                const res = await fetch('/api/risk/reset-circuit-breaker', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ workspace: ws })
+                });
+                const data = await res.json();
+                showNotification('Circuit Breaker Reset', data.message || 'Circuit breaker cleared and peak equity recalibrated.', 'success');
+                // Re-run preflight immediately
+                await aiResume();
+                await fetchOperationalStatus();
+            } catch (e) {
+                showNotification('Reset Error', e.message, 'error');
+            } finally {
+                if (btnReset) {
+                    btnReset.disabled = false;
+                    btnReset.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> RESET CIRCUIT BREAKER';
+                }
             }
         }
 

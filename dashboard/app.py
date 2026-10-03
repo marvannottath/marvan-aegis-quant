@@ -1240,6 +1240,7 @@ async def set_risk_profile_endpoint(data: dict):
     return JSONResponse({"status": "SUCCESS", "active_profile": res})
 
 @app.post("/api/risk/reset-circuit-breaker")
+@app.post("/api/risk/reset_circuit_breaker")
 async def reset_circuit_breaker_endpoint(request: Request):
     """Reset circuit breaker and recalibrate peak equity to current balance."""
     try:

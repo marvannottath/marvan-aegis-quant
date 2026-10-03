@@ -24,6 +24,9 @@ IST_TZ = timezone(timedelta(hours=5, minutes=30))
 PEAK_EQUITY_FILE = Path(__file__).resolve().parent.parent / "data" / "peak_equity_state.json"
 
 
+DAILY_OPEN_EQUITY_FILE = Path(__file__).resolve().parent.parent / "data" / "daily_open_equity_state.json"
+
+
 def _ist_now() -> str:
     return datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S IST")
 
@@ -39,6 +42,9 @@ class PositionSnapshotService:
         # Optional synthetic test injection hooks for verifying fail-closed delta detection
         self._injected_delta: Dict[str, Any] = {}
         self._forced_recon_status: Optional[str] = None
+
+    def _get_today_date_str(self) -> str:
+        return datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d")
 
     def _load_peak_equity(self) -> Dict[str, float]:
         if PEAK_EQUITY_FILE.exists():
@@ -57,6 +63,23 @@ class PositionSnapshotService:
         except Exception:
             pass
 
+    def _load_daily_open_equity(self) -> Dict[str, Any]:
+        if DAILY_OPEN_EQUITY_FILE.exists():
+            try:
+                with open(DAILY_OPEN_EQUITY_FILE, "r") as f:
+                    return json.load(f)
+            except Exception:
+                pass
+        return {"date": self._get_today_date_str(), "pools": {}}
+
+    def _save_daily_open_equity(self, data: Dict[str, Any]):
+        try:
+            DAILY_OPEN_EQUITY_FILE.parent.mkdir(parents=True, exist_ok=True)
+            with open(DAILY_OPEN_EQUITY_FILE, "w") as f:
+                json.dump(data, f, indent=2)
+        except Exception:
+            pass
+
     def get_and_update_peak_equity(self, pool_name: str, current_equity: float) -> float:
         peaks = self._load_peak_equity()
         stored_peak = float(peaks.get(pool_name, 0.0))
@@ -66,6 +89,52 @@ class PositionSnapshotService:
             self._save_peak_equity(peaks)
             return round(current_equity, 2)
         return round(stored_peak, 2)
+
+    def get_and_update_daily_open_equity(self, pool_name: str, current_equity: float) -> float:
+        """
+        Authoritative Daily Opening Equity Tracker.
+        Automatically rolls over on a new calendar day (IST/UTC).
+        If day changes, records current equity as the new day's opening equity.
+        """
+        today = self._get_today_date_str()
+        state = self._load_daily_open_equity()
+        stored_date = state.get("date", today)
+        pools = state.get("pools", {})
+
+        # Date rollover check (Next Day!)
+        if stored_date != today:
+            pools = {}
+            state["date"] = today
+
+        stored_open = float(pools.get(pool_name, 0.0))
+        if stored_open <= 0.0:
+            pools[pool_name] = round(current_equity, 2)
+            state["pools"] = pools
+            self._save_daily_open_equity(state)
+            return round(current_equity, 2)
+
+        return round(stored_open, 2)
+
+    def recalibrate_peak_equity(self, pool_name: str, current_equity: float):
+        """Force recalibrate peak equity and daily open equity to current equity."""
+        peaks = self._load_peak_equity()
+        peaks[pool_name] = round(current_equity, 2)
+        self._save_peak_equity(peaks)
+
+        today = self._get_today_date_str()
+        state = self._load_daily_open_equity()
+        state["date"] = today
+        if "pools" not in state or not isinstance(state["pools"], dict):
+            state["pools"] = {}
+        state["pools"][pool_name] = round(current_equity, 2)
+        self._save_daily_open_equity(state)
+
+        if hasattr(self, "_agg_cache"):
+            self._agg_cache.clear()
+            self._agg_cache_ts.clear()
+        if hasattr(self, "_snapshot_cache"):
+            self._snapshot_cache.clear()
+            self._snapshot_cache_ts.clear()
 
     def set_forced_reconciliation_status(self, status: Optional[str]):
         """Test hook to test fail-closed behavior."""
@@ -423,6 +492,13 @@ class PositionSnapshotService:
         else:
             drawdown_pct = max(0.0, round(((peak_equity - total_equity) / peak_equity) * 100.0, 2))
 
+        # Daily opening equity & Daily Drawdown calculation (Authoritative Requirement 13)
+        daily_open_equity = self.get_and_update_daily_open_equity(pool_name, total_equity)
+        if daily_open_equity <= 0.0:
+            daily_drawdown_pct = 0.0
+        else:
+            daily_drawdown_pct = max(0.0, round(((daily_open_equity - total_equity) / daily_open_equity) * 100.0, 2))
+
         res = {
             "workspace": target_ws,
             "pool_name": pool_name,
@@ -440,7 +516,10 @@ class PositionSnapshotService:
             "realized_pnl": realized_pnl,
             "vault_balance": vault_balance,
             "initial_capital": initial_cap,
+            "peak_equity": peak_equity,
             "drawdown_pct": max(0.0, drawdown_pct),
+            "daily_opening_equity": daily_open_equity,
+            "daily_drawdown_pct": max(0.0, daily_drawdown_pct),
             "reconciliation_status": pos_snap["reconciliation_status"],
             "status": pos_snap["status"],
             "snapshot": pos_snap

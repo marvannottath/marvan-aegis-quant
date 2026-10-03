@@ -556,6 +556,13 @@ class AITradingController:
         # Gate 7: Risk Engine Circuit Breaker CLEAR
         try:
             from core.risk_engine import risk_engine
+            # If circuit breaker was tripped by drawdown, verify against authoritative drawdown
+            if risk_engine.circuit_tripped and "MAX_DRAWDOWN_BREACHED" in getattr(risk_engine, "trip_reason", ""):
+                dd_info = risk_engine.get_drawdown(ws)
+                if not dd_info.get("breached", False):
+                    risk_engine.circuit_tripped = False
+                    risk_engine.trip_reason = "NORMAL_OPERATIONS"
+
             if risk_engine.circuit_tripped:
                 g7_ok = False
                 g7_msg = f"Circuit breaker TRIPPED: {risk_engine.trip_reason}"
@@ -574,14 +581,16 @@ class AITradingController:
         try:
             from core.risk_engine import risk_engine
             dd_info = risk_engine.get_drawdown(ws)
-            dd_pct = float(dd_info.get("drawdown_pct", 0.0))
+            daily_dd = float(dd_info.get("daily_drawdown_pct", 0.0))
             max_dd = float(dd_info.get("max_drawdown_pct", risk_engine.max_drawdown_pct))
-            if dd_info.get("breached", False) or dd_pct >= max_dd:
+            is_breached = dd_info.get("breached", False)
+
+            if is_breached:
                 g8_ok = False
-                g8_msg = f"Drawdown {dd_pct:.2f}% breached limit {max_dd:.2f}%"
+                g8_msg = f"Drawdown {daily_dd:.2f}% breached limit {max_dd:.2f}% (Daily Loss: ${dd_info.get('daily_dollar_loss', 0.0):.2f})"
             else:
                 g8_ok = True
-                g8_msg = f"Drawdown {dd_pct:.2f}% within limit {max_dd:.2f}%"
+                g8_msg = f"Daily drawdown {daily_dd:.2f}% within limit {max_dd:.2f}%"
         except Exception as e:
             g8_ok = False
             g8_msg = f"CHECK_FAILED: Drawdown evaluation error: {e}"

@@ -155,12 +155,15 @@ class RiskEngine:
             agg = position_snapshot_service.get_portfolio_aggregate(ws, force_refresh=True)
             cur_eq = float(agg.get("total_equity", 0.0))
             if cur_eq > 0:
-                peaks = position_snapshot_service._load_peak_equity()
-                peaks[pool_name] = round(cur_eq, 2)
-                position_snapshot_service._save_peak_equity(peaks)
-                if hasattr(position_snapshot_service, "_agg_cache"):
-                    position_snapshot_service._agg_cache.clear()
-                    position_snapshot_service._agg_cache_ts.clear()
+                position_snapshot_service.recalibrate_peak_equity(pool_name, cur_eq)
+                if ws == "CRYPTO":
+                    position_snapshot_service.recalibrate_peak_equity("BINANCE_LIVE_REAL", cur_eq)
+                    position_snapshot_service.recalibrate_peak_equity("BINANCE_SPOT_REAL", cur_eq)
+                elif ws == "INDIA":
+                    position_snapshot_service.recalibrate_peak_equity("AEGIS_INDIA_INR", cur_eq)
+                    position_snapshot_service.recalibrate_peak_equity("UPSTOX_LIVE", cur_eq)
+                elif ws == "FOREX_GOLD":
+                    position_snapshot_service.recalibrate_peak_equity("MT5_LIVE_REAL", cur_eq)
         except Exception as e:
             print(f"[RISK ENGINE] Peak recalibration notice: {e}")
 
@@ -469,8 +472,9 @@ class RiskEngine:
 
     def get_drawdown(self, workspace: str = "DEFAULT") -> Dict[str, Any]:
         """
-        Authoritative calculation of current portfolio drawdown for a workspace.
+        Authoritative calculation of current portfolio drawdown and daily drawdown for a workspace.
         drawdown_pct = max(0.0, ((peak_equity - current_equity) / peak_equity) * 100.0)
+        daily_drawdown_pct = max(0.0, ((daily_opening_equity - current_equity) / daily_opening_equity) * 100.0)
         """
         try:
             from core.workspace_manager import workspace_manager
@@ -490,25 +494,48 @@ class RiskEngine:
             real_init_cap = float(agg.get("initial_capital", init_cap))
             peak = float(agg.get("peak_equity") or max(real_init_cap, equity))
             dd_pct = float(agg.get("drawdown_pct", 0.0))
+            daily_open = float(agg.get("daily_opening_equity") or equity)
+            daily_dd_pct = float(agg.get("daily_drawdown_pct", 0.0))
         except Exception:
             equity = init_cap
             peak = init_cap
             dd_pct = 0.0
+            daily_open = init_cap
+            daily_dd_pct = 0.0
 
         max_dd = float(self.max_drawdown_pct)
-        breached = dd_pct >= max_dd
+        dollar_loss = max(0.0, peak - equity)
+        daily_dollar_loss = max(0.0, daily_open - equity)
+
+        # Micro-account (< 50.0 USDT / USD) calibration:
+        # On micro accounts (e.g. $13.55 balance), normal spot market spread/noise of $0.50 - $2.00
+        # yields 5-20% percentage swings. A hard breach requires exceeding an absolute dollar loss
+        # floor (minimum $5.00 loss) before halting operations on trivial cent price fluctuations.
+        is_micro_account = (peak < 50.0 or equity < 50.0)
+        if is_micro_account:
+            if dollar_loss < 5.0 and daily_dollar_loss < 5.0:
+                breached = False
+            else:
+                breached = dd_pct >= max(max_dd, 25.0)
+        else:
+            breached = dd_pct >= max_dd
 
         # If drawdown is safe, clear any stale circuit breaker trip
         if not breached and self.circuit_tripped and "MAX_DRAWDOWN_BREACHED" in self.trip_reason:
             self.circuit_tripped = False
             self.trip_reason = "NORMAL_OPERATIONS"
-
+            self._save_state()
 
         return {
             "workspace": norm_ws,
             "current_equity": equity,
             "peak_equity": peak,
             "drawdown_pct": dd_pct,
+            "daily_opening_equity": daily_open,
+            "daily_drawdown_pct": daily_dd_pct,
+            "dollar_loss": round(dollar_loss, 2),
+            "daily_dollar_loss": round(daily_dollar_loss, 2),
+            "is_micro_account": is_micro_account,
             "max_drawdown_pct": max_dd,
             "breached": breached,
             "circuit_tripped": self.circuit_tripped,
@@ -520,7 +547,8 @@ class RiskEngine:
         dd_info = self.get_drawdown(workspace)
         if dd_info["breached"]:
             self.circuit_tripped = True
-            self.trip_reason = f"MAX_DRAWDOWN_BREACHED: current {dd_info['drawdown_pct']:.2f}% >= limit {dd_info['max_drawdown_pct']:.2f}%"
+            self.trip_reason = f"MAX_DRAWDOWN_BREACHED: current {dd_info['drawdown_pct']:.2f}% >= limit {dd_info['max_drawdown_pct']:.2f}% (Loss: ${dd_info.get('dollar_loss', 0.0):.2f})"
+            self._save_state()
             return False, dd_info["drawdown_pct"], self.trip_reason
         return True, dd_info["drawdown_pct"], "Drawdown within limits"
 
