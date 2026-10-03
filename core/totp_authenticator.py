@@ -104,14 +104,21 @@ class TOTPAuthenticator:
         return False, "INVALID_CODE"
 
     def get_status(self) -> Dict[str, Any]:
-        """Returns public 2FA status snapshot."""
+        """Returns public 2FA status snapshot strictly without exposing secrets."""
         return {
             "is_enabled": self.is_enabled,
+            "status": "ACTIVE" if self.is_enabled else "NOT_ENABLED",
             "issuer": self.issuer,
             "account_name": self.account_name,
-            "provisioning_uri": self.get_provisioning_uri(),
-            "secret_masked": f"{self.secret[:4]}••••••••{self.secret[-4:]}" if len(self.secret) >= 8 else "••••",
             "backup_codes_remaining": len(self.backup_codes)
+        }
+
+    def get_one_time_provisioning(self) -> Dict[str, Any]:
+        """Returns one-time setup details ONLY during explicit 2FA enrollment."""
+        return {
+            "provisioning_uri": self.get_provisioning_uri(),
+            "issuer": self.issuer,
+            "account_name": self.account_name
         }
 
 totp_authenticator = TOTPAuthenticator()

@@ -307,7 +307,6 @@ class SuperAdminEngine:
         return {
             "status": "SUCCESS",
             "username": username,
-            "secret": secret,
             "otpauth_url": otpauth_url,
             "qr_image_url": qr_image_url,
             "totp_enabled": user.get("totp_enabled", True)
@@ -592,6 +591,7 @@ class SuperAdminEngine:
         for u in self.users.values():
             item = dict(u)
             item.pop("password_hash", None)
+            item.pop("totp_secret", None)
             output.append(item)
         return output
 

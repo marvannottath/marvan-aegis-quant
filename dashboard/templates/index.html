@@ -164,17 +164,18 @@
             </div>
         </div>
 
-        <!-- TOP-LEVEL TRI-MARKET VENUE SWITCHER -->
-        <div class="flex items-center bg-gray-950/90 border border-gray-800 p-1 rounded-xl space-x-1 font-mono text-xs shadow-inner">
-            <button id="btn-mkt-india" onclick="switchMarketVenue('INDIA')" class="px-3 py-1.5 rounded-lg font-bold text-xs transition flex items-center space-x-1.5 bg-amber-500 text-black shadow cursor-pointer">
-                <span>🇮🇳</span> <span>INDIA (₹)</span>
+        <!-- TOP-LEVEL COMPACT WORKSPACE SELECTOR -->
+        <div class="flex items-center bg-gray-950/90 border border-gray-800 p-1 rounded-xl space-x-1 font-mono text-xs shadow-inner" role="tablist" aria-label="Workspace Selector">
+            <button id="btn-mkt-crypto" onclick="switchMarketVenue('CRYPTO')" class="{{ BTN_CRYPTO_CLASS }} cursor-pointer" title="Crypto — Binance · USDT">
+                <span>🪙 CRYPTO</span>
             </button>
-            <button id="btn-mkt-crypto" onclick="switchMarketVenue('CRYPTO')" class="px-3 py-1.5 rounded-lg font-bold text-xs text-gray-400 hover:text-white transition flex items-center space-x-1.5 cursor-pointer">
-                <span>🌐</span> <span>CRYPTO (USDT)</span>
+            <button id="btn-mkt-india" onclick="switchMarketVenue('INDIA')" class="{{ BTN_INDIA_CLASS }} cursor-pointer" title="India — NSE/BSE · INR">
+                <span>🇮🇳 INDIA</span>
             </button>
-            <button id="btn-mkt-forex" onclick="switchMarketVenue('FOREX')" class="px-3 py-1.5 rounded-lg font-bold text-xs text-gray-400 hover:text-white transition flex items-center space-x-1.5 cursor-pointer">
-                <span>💱</span> <span>FOREX & GOLD ($)</span>
+            <button id="btn-mkt-forex" onclick="switchMarketVenue('FOREX')" class="{{ BTN_FOREX_CLASS }} cursor-pointer" title="Forex &amp; Gold — FX/XAUUSD · USD">
+                <span>💱 FOREX &amp; GOLD</span>
             </button>
+        </div>
         <!-- DESK VIEW MODE: LITE VS PRO & COMMAND PALETTE -->
         <div class="hidden sm:flex items-center space-x-1.5 font-mono text-xs">
             <div class="flex items-center bg-gray-950 border border-gray-800 p-0.5 rounded-xl">
@@ -502,9 +503,8 @@
                     <img id="prof-totp-qr" src="" alt="Google Authenticator QR" class="w-36 h-36 bg-white p-2 rounded-xl shadow-lg border border-gray-700">
                     <div class="text-[10px] text-gray-400">Scan this QR in Google Authenticator or Microsoft Authenticator</div>
                     <div class="flex items-center space-x-2 bg-gray-900 border border-gray-800 px-3 py-1 rounded-lg">
-                        <span class="text-[10px] text-gray-500">Secret:</span>
-                        <span id="prof-totp-secret-txt" class="font-mono text-amber-400 font-bold text-xs select-all">••••••••••••••••</span>
-                        <button onclick="copyTotpSecret()" class="text-gray-400 hover:text-white" title="Copy Secret"><i class="fa-solid fa-copy"></i></button>
+                        <span class="text-[10px] text-gray-500">Security:</span>
+                        <span class="font-mono text-emerald-400 font-bold text-xs">ENCRYPTED & PROTECTED</span>
                     </div>
                 </div>
                 <div class="flex items-center space-x-2">
@@ -1302,7 +1302,7 @@
                                         <span class="font-bold text-white text-[11px]">Statistical Arbitrage</span>
                                         <span class="px-1.5 py-0.2 rounded text-[8px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">DELTA NEUTRAL</span>
                                     </div>
-                                    <p class="text-[9px] text-gray-400 font-sans mt-0.5">BTC-ETH &amp; Nifty-BankNifty Z-Score Mean Reversion</p>
+                                    <p class="text-[9px] text-gray-400 font-sans mt-0.5">High-Sharpe Cointegrated Pairs Z-Score Mean Reversion</p>
                                 </div>
                                 <span class="text-xs font-black text-emerald-400">84.6% Win</span>
                             </div>
@@ -1598,16 +1598,16 @@
                             <h3 class="text-sm font-black text-white uppercase tracking-wider border-b border-gray-800 pb-2">Pre-Execution Risk Estimator</h3>
                             
                             <div class="space-y-2 text-xs font-mono">
-                                <div class="flex justify-between py-1.5 border-b border-gray-800/60"><span class="text-gray-400">Required Margin:</span><span id="est-margin" class="text-white font-bold">₹1,000.00</span></div>
-                                <div class="flex justify-between py-1.5 border-b border-gray-800/60"><span class="text-gray-400">Estimated Slippage:</span><span id="est-slippage" class="text-emerald-400 font-bold">₹0.00 (0.00%)</span></div>
-                                <div class="flex justify-between py-1.5 border-b border-gray-800/60"><span class="text-gray-400" id="est-fee-label">Estimated Fees (Upstox/NSE):</span><span id="est-fee" class="text-amber-400 font-bold">₹2.50</span></div>
-                                <div class="flex justify-between py-1.5 border-b border-gray-800/60"><span class="text-gray-400">Max Stop Loss Risk:</span><span id="est-max-loss" class="text-red-400 font-bold">₹75.00</span></div>
+                                <div class="flex justify-between py-1.5 border-b border-gray-800/60"><span class="text-gray-400">Required Margin:</span><span id="est-margin" class="text-white font-bold">{{ EST_MARGIN }}</span></div>
+                                <div class="flex justify-between py-1.5 border-b border-gray-800/60"><span class="text-gray-400">Estimated Slippage:</span><span id="est-slippage" class="text-emerald-400 font-bold">{{ EST_SLIPPAGE }}</span></div>
+                                <div class="flex justify-between py-1.5 border-b border-gray-800/60"><span class="text-gray-400" id="est-fee-label">{{ EST_FEE_LABEL }}</span><span id="est-fee" class="text-amber-400 font-bold">{{ EST_FEE }}</span></div>
+                                <div class="flex justify-between py-1.5 border-b border-gray-800/60"><span class="text-gray-400">Max Stop Loss Risk:</span><span id="est-max-loss" class="text-red-400 font-bold">{{ EST_MAX_LOSS }}</span></div>
                             </div>
                         </div>
 
                         <div class="p-3 bg-gray-950 border border-gray-800 rounded-xl text-[11px] text-gray-400 space-y-1">
                             <div class="font-bold text-amber-400 flex items-center"><i class="fa-solid fa-shield-halved mr-1"></i> Active Risk Guard: <span id="lbl-active-guard-profile" class="ml-1">MODERATE</span></div>
-                            <div>Trade Cap: <span id="lbl-trade-cap-val" class="text-amber-400 font-bold">₹5,000</span> | Risk Cap: <span class="text-white font-bold">2.5%</span> | Max Lev: <span id="lbl-max-lev-val" class="text-white font-bold">5x (SEBI Peak Margin)</span></div>
+                            <div>Trade Cap: <span id="lbl-trade-cap-val" class="text-amber-400 font-bold">{{ TRADE_CAP_VAL }}</span> | Risk Cap: <span class="text-white font-bold">2.5%</span> | Max Lev: <span id="lbl-max-lev-val" class="text-white font-bold">{{ MAX_LEV_VAL }}</span></div>
                         </div>
                     </div>
                 </div>
@@ -1762,7 +1762,7 @@
                             </div>
                             <div class="p-2.5 bg-gray-950 border border-gray-800 rounded-xl flex justify-between items-center">
                                 <span class="text-gray-300">Daily Loss Limit:</span>
-                                <span id="risk-daily-loss-limit" class="text-emerald-400 font-bold">2,000.00 USDT Limit</span>
+                                <span id="risk-daily-loss-limit" class="text-emerald-400 font-bold">{{ RISK_DAILY_LOSS_LIMIT }}</span>
                             </div>
                             <div class="p-2.5 bg-gray-950 border border-gray-800 rounded-xl flex justify-between items-center">
                                 <span class="text-gray-300">High Impact News Lock:</span>
@@ -1846,16 +1846,16 @@
 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div class="bg-darkcard border border-darkborder p-5 rounded-2xl space-y-2">
-                        <div class="text-xs text-gray-400 font-bold">Trading Account Equity</div>
-                        <div id="pf-trading-equity" class="text-2xl font-black text-white font-mono">₹100,000.00</div>
+                        <div class="text-xs text-gray-400 font-bold" title="Trading Account Equity = Cash + Margin + Unrealized PnL">Trading Account Equity</div>
+                        <div id="pf-trading-equity" class="text-2xl font-black text-white font-mono">{{ PORTFOLIO_EQUITY }}</div>
                     </div>
                     <div class="bg-darkcard border border-darkborder p-5 rounded-2xl space-y-2">
-                        <div class="text-xs text-gray-400 font-bold">Secured Profit Vault</div>
-                        <div id="pf-vault-reserve" class="text-2xl font-black text-emerald-400 font-mono">₹0.00</div>
+                        <div class="text-xs text-gray-400 font-bold" title="Secured Profit Vault = Retained profits isolated from trading drawdown">Secured Profit Vault</div>
+                        <div id="pf-vault-reserve" class="text-2xl font-black text-emerald-400 font-mono">{{ VAULT_BALANCE }}</div>
                     </div>
                     <div class="bg-darkcard border border-darkborder p-5 rounded-2xl space-y-2">
-                        <div class="text-xs text-gray-400 font-bold">Total Platform Assets</div>
-                        <div id="pf-total-assets" class="text-2xl font-black text-amber-400 font-mono">₹100,000.00</div>
+                        <div class="text-xs text-gray-400 font-bold" title="Total Platform Assets = Trading Account Equity + Secured Profit Vault">Total Platform Assets</div>
+                        <div id="pf-total-assets" class="text-2xl font-black text-amber-400 font-mono">{{ TOTAL_ASSETS }}</div>
                     </div>
                 </div>
             <div class="bg-darkcard border border-darkborder p-5 rounded-2xl space-y-4 shadow-xl">
@@ -2058,15 +2058,15 @@
                     </div>
                     <div class="bg-darkcard border border-darkborder p-4 rounded-xl">
                         <div class="text-[10px] text-gray-400 uppercase">Initial Capital</div>
-                        <div id="bt-init-cap" class="text-xl font-black text-white">$100,000.00</div>
+                        <div id="bt-init-cap" class="text-xl font-black text-white">{{ BT_INIT_CAP }}</div>
                     </div>
                     <div class="bg-darkcard border border-darkborder p-4 rounded-xl">
                         <div class="text-[10px] text-gray-400 uppercase">Final Capital</div>
-                        <div id="bt-final-cap" class="text-xl font-black text-emerald-400">$107,442.57</div>
+                        <div id="bt-final-cap" class="text-xl font-black text-emerald-400">{{ BT_FINAL_CAP }}</div>
                     </div>
                     <div class="bg-darkcard border border-darkborder p-4 rounded-xl">
                         <div class="text-[10px] text-gray-400 uppercase">Net PnL</div>
-                        <div id="bt-net-pnl" class="text-xl font-black text-emerald-400">+$7,442.57</div>
+                        <div id="bt-net-pnl" class="text-xl font-black text-emerald-400">{{ BT_NET_PNL }}</div>
                     </div>
                     <div class="bg-darkcard border border-darkborder p-4 rounded-xl">
                         <div class="text-[10px] text-gray-400 uppercase">Empirical Realized Win Rate</div>
@@ -2810,7 +2810,7 @@
                                         <img id="sec-totp-qr-img" src="" alt="Google Authenticator QR" class="w-40 h-40">
                                     </div>
                                     <div class="text-[10px] font-mono text-gray-400">
-                                        Secret: <span id="sec-totp-secret-key" class="text-amber-400 font-bold select-all tracking-wider">LOADING...</span>
+                                        Key Storage: <span class="text-emerald-400 font-bold tracking-wider">HARDENED (RFC 6238)</span>
                                     </div>
                                 </div>
                                 <div class="space-y-2 pt-2 border-t border-gray-800">
@@ -4239,13 +4239,15 @@
         async function refreshProfileTotp(username) {
             const u = username || sessionStorage.getItem('aegis_username') || 'marvan';
             const qrImg = document.getElementById('prof-totp-qr');
-            const secKey = document.getElementById('prof-totp-secret-txt');
             try {
                 const res = await fetch(`/api/admin/totp-provision/${u}`);
                 const data = await res.json();
                 if (data.status === 'SUCCESS') {
-                    if (qrImg) qrImg.src = data.qr_image_url;
-                    if (secKey) secKey.textContent = data.secret;
+                    if (qrImg && !data.totp_enabled) {
+                        qrImg.src = data.qr_image_url || '';
+                    } else if (qrImg) {
+                        qrImg.src = '';
+                    }
                     const badge = document.getElementById('prof-totp-badge');
                     if (badge) {
                         badge.className = data.totp_enabled ? 'px-2 py-0.5 rounded text-[10px] font-black bg-emerald-500/20 text-emerald-400 font-mono' : 'px-2 py-0.5 rounded text-[10px] font-black bg-gray-800 text-gray-400 font-mono';
@@ -4318,10 +4320,7 @@
         }
 
         function copyTotpSecret() {
-            const sec = document.getElementById('prof-totp-secret-txt')?.textContent || '';
-            navigator.clipboard.writeText(sec).then(() => {
-                showNotification('Copied', 'TOTP Secret Key copied to clipboard!', 'info');
-            });
+            showNotification('Security Notice', 'TOTP Secret Key is securely encrypted server-side and cannot be exported.', 'info');
         }
 
         // ── COLD STORAGE PROFIT SWEEP MODAL ───────────────────────────
@@ -4676,7 +4675,6 @@
         async function openTotpSetupDrawer() {
             const drawer = document.getElementById('sec-totp-drawer');
             const qrImg = document.getElementById('sec-totp-qr-img');
-            const secKey = document.getElementById('sec-totp-secret-key');
             const user = sessionStorage.getItem('aegis_username') || (activeUserSession ? activeUserSession.username : 'marvan');
 
             if (drawer) drawer.classList.toggle('hidden');
@@ -4684,9 +4682,8 @@
                 try {
                     const res = await fetch(`/api/auth/totp-setup/${user}`);
                     const data = await res.json();
-                    if (data.status === 'SUCCESS') {
-                        if (qrImg) qrImg.src = data.qr_image_url;
-                        if (secKey) secKey.textContent = data.secret;
+                    if (data.status === 'SUCCESS' && qrImg) {
+                        qrImg.src = data.qr_image_url;
                     }
                 } catch(e) {
                     console.error('TOTP setup fetch error:', e);
@@ -5019,7 +5016,7 @@
                 if (thPosAlloc) thPosAlloc.innerText = 'Allocated Margin (₹)';
                 if (thPosPnl) thPosPnl.innerText = 'Unrealized PnL (₹)';
                 if (document.getElementById('risk-daily-loss-limit')) {
-                    document.getElementById('risk-daily-loss-limit').innerHTML = '₹1,66,000.00 Limit <span class="text-xs text-gray-500 font-normal">(GLOBAL BASE: $2,000.00)</span>';
+                    document.getElementById('risk-daily-loss-limit').innerText = '₹5,000.00 Limit';
                 }
                 const capEl = document.getElementById('lbl-trade-cap-val');
                 if (capEl) capEl.innerText = '₹5,000';
@@ -5039,7 +5036,7 @@
                 if (thPosAlloc) thPosAlloc.innerText = 'Allocated Margin ($)';
                 if (thPosPnl) thPosPnl.innerText = 'Unrealized PnL ($)';
                 if (document.getElementById('risk-daily-loss-limit')) {
-                    document.getElementById('risk-daily-loss-limit').innerText = '$2,000.00 Limit';
+                    document.getElementById('risk-daily-loss-limit').innerText = '$500.00 Limit';
                 }
                 const capEl = document.getElementById('lbl-trade-cap-val');
                 if (capEl) capEl.innerText = '$5,000';
@@ -5065,7 +5062,7 @@
                 if (thPosAlloc) thPosAlloc.innerText = 'Allocated Margin (USDT)';
                 if (thPosPnl) thPosPnl.innerText = 'Unrealized PnL (USDT)';
                 if (document.getElementById('risk-daily-loss-limit')) {
-                    document.getElementById('risk-daily-loss-limit').innerText = '2,000.00 USDT Limit';
+                    document.getElementById('risk-daily-loss-limit').innerText = '100.00 USDT Limit';
                 }
                 const capEl = document.getElementById('lbl-trade-cap-val');
                 if (capEl) capEl.innerText = '5,000 USDT';
@@ -7145,8 +7142,9 @@
             const amt = parseFloat(document.getElementById('order-amount-input')?.value) || 1000;
             const isIndia = (window.activeMarketVenue === 'INDIA');
             const isCrypto = (window.activeMarketVenue === 'CRYPTO');
+            const isForex = (window.activeMarketVenue === 'FOREX' || window.activeMarketVenue === 'FOREX_GOLD');
 
-            let lev = currentLeverage || (isIndia ? 5 : 10);
+            let lev = currentLeverage || (isIndia ? 5 : (isCrypto ? 10 : 20));
             if (isIndia && lev > 5) lev = 5;
 
             const slPct = parseFloat(document.getElementById('order-sl-input')?.value) || 1.5;
@@ -7156,8 +7154,12 @@
             if (isIndia) {
                 // Upstox/NSE fee model: flat ₹20 or 0.05% turnover, whichever is lower
                 feeNum = Math.min(20.0, amt * 0.0005);
+            } else if (isCrypto) {
+                // Binance fee model: 0.10% spot taker fee
+                feeNum = amt * 0.001;
             } else {
-                feeNum = amt * 0.0005;
+                // Interbank Forex fee model: 0.02%
+                feeNum = amt * 0.0002;
             }
             const maxLossNum = amt * (slPct / 100);
 
@@ -7172,8 +7174,17 @@
             if (document.getElementById('est-margin')) document.getElementById('est-margin').innerText = `${curSym}${fmtMargin}${curSuffix}`;
             if (document.getElementById('est-fee')) document.getElementById('est-fee').innerText = `${curSym}${fmtFee}${curSuffix}`;
             if (document.getElementById('est-max-loss')) document.getElementById('est-max-loss').innerText = `${curSym}${fmtLoss}${curSuffix}`;
-            if (document.getElementById('est-slippage')) document.getElementById('est-slippage').innerText = isIndia ? '₹0.00 (0.00%)' : (isCrypto ? '0.00 USDT (0.00%)' : '$0.00 (0.00%)');
-            if (document.getElementById('est-fee-label')) document.getElementById('est-fee-label').innerText = isIndia ? 'Estimated Fees (Upstox/NSE):' : (isCrypto ? 'Estimated Fees (Binance 0.05%):' : 'Estimated Exchange Fees:');
+            
+            const slipPct = isIndia ? '0.02%' : (isCrypto ? '0.03%' : '0.01%');
+            const slipAmt = (amt * (isIndia ? 0.0002 : (isCrypto ? 0.0003 : 0.0001))).toFixed(2);
+            if (document.getElementById('est-slippage')) {
+                document.getElementById('est-slippage').innerText = `${curSym}${slipAmt}${curSuffix} (${slipPct})`;
+            }
+            if (document.getElementById('est-fee-label')) {
+                document.getElementById('est-fee-label').innerText = isIndia 
+                    ? 'Estimated Fees (Upstox/NSE 0.05%):' 
+                    : (isCrypto ? 'Estimated Fees (Binance 0.10% Spot):' : 'Estimated Fees (Interbank FX 0.02%):');
+            }
 
             const capEl = document.getElementById('lbl-trade-cap-val');
             if (capEl) capEl.innerText = isIndia ? '₹5,000' : (isCrypto ? '5,000 USDT' : '$5,000');
@@ -7424,7 +7435,7 @@
             if (document.getElementById('metric-open-count')) document.getElementById('metric-open-count').innerText = positions.length + ' Active';
             if (document.getElementById('badge-open-pos')) document.getElementById('badge-open-pos').innerText = positions.length;
             if (document.getElementById('pf-trading-equity')) document.getElementById('pf-trading-equity').innerText = formatMoney(equity);
-            if (document.getElementById('pf-vault-reserve')) document.getElementById('pf-vault-reserve').innerText = isIndia ? '₹0.00' : `${Number(vault || 0).toFixed(2)} USDT`;
+            if (document.getElementById('pf-vault-reserve')) document.getElementById('pf-vault-reserve').innerText = formatMoney(isIndia ? 0 : vault);
             if (document.getElementById('pf-total-assets')) document.getElementById('pf-total-assets').innerText = formatMoney(equity + (isIndia ? 0 : vault));
 
             // Sync Custodial Wallets tab
@@ -7436,7 +7447,7 @@
                 document.getElementById('fund-india-demat-val').innerText = '₹1,00,000.00';
             }
             if (document.getElementById('fund-vault-val')) {
-                document.getElementById('fund-vault-val').innerText = isIndia ? '₹0.00' : `${Number(vault || 0).toFixed(2)} USDT`;
+                document.getElementById('fund-vault-val').innerText = formatMoney(isIndia ? 0 : vault);
             }
 
             // Sync Unified Multi-Broker Net Worth master card
@@ -9388,7 +9399,8 @@
         // ── WHALE ORDER FLOW RADAR REFRESH ────────────────────────────
         async function fetchOrderFlowRadar() {
             try {
-                const res = await fetch('/api/radar/order-flow');
+                const ws = window.activeMarketVenue || 'CRYPTO';
+                const res = await fetch(`/api/radar/order-flow?workspace=${encodeURIComponent(ws)}`);
                 const data = await res.json();
                 if (data && data.status === 'SUCCESS') {
                     const bidPct = data.bid_volume_ratio || 58.4;

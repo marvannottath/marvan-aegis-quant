@@ -65,12 +65,20 @@ SEBI_MAX_LEVERAGE_INDIA = 5.0
 MAX_DRAWDOWN_LIMIT_PCT = 10.0
 
 
+WORKSPACE_DAILY_LOSS_LIMITS = {
+    "INDIA": 5000.0,
+    "CRYPTO": 100.0,
+    "FOREX_GOLD": 500.0
+}
+
+
 class RiskEngine:
     LEVERAGE_CAPS = {
         "INDIA": 5.0,
         "CRYPTO": 25.0,
         "FOREX_GOLD": 20.0
     }
+    WORKSPACE_DAILY_LOSS_LIMITS = WORKSPACE_DAILY_LOSS_LIMITS
     MAX_DRAWDOWN_LIMIT_PCT = 10.0
 
     def __init__(self, max_drawdown_pct: float = 10.0, default_profile: str = "CONSERVATIVE"):
@@ -80,6 +88,11 @@ class RiskEngine:
         self.trip_reason = "NORMAL_OPERATIONS"
         self.daily_realized_loss: float = 0.0
         self.daily_loss_limit_usd: float = 2000.0
+        self.daily_realized_loss_by_ws: Dict[str, float] = {
+            "INDIA": 0.0,
+            "CRYPTO": 0.0,
+            "FOREX_GOLD": 0.0
+        }
         self._last_reset_date: str = ""
         self._load_state()
         self.active_profile = PROFILES.get(self.active_profile_name, PROFILES["CONSERVATIVE"])
@@ -96,6 +109,11 @@ class RiskEngine:
                     self.custom_trade_cap_usd = max(1.0, float(data.get("custom_trade_cap_usd", 5000.0)))
                     self.daily_realized_loss = float(data.get("daily_realized_loss", 0.0))
                     self.daily_loss_limit_usd = float(data.get("daily_loss_limit_usd", 2000.0))
+                    raw_losses = data.get("daily_realized_loss_by_ws", {})
+                    self.daily_realized_loss_by_ws = {
+                        ws: float(raw_losses.get(ws, 0.0))
+                        for ws in self.WORKSPACE_DAILY_LOSS_LIMITS
+                    }
                     self._last_reset_date = data.get("last_reset_date", "")
             except Exception as e:
                 print(f"[RISK ENGINE] Load state notice: {e}")
@@ -110,6 +128,7 @@ class RiskEngine:
                     "custom_trade_cap_usd": self.custom_trade_cap_usd,
                     "daily_realized_loss": self.daily_realized_loss,
                     "daily_loss_limit_usd": self.daily_loss_limit_usd,
+                    "daily_realized_loss_by_ws": self.daily_realized_loss_by_ws,
                     "last_reset_date": self._last_reset_date
                 }, f, indent=2)
         except Exception as e:
@@ -119,12 +138,16 @@ class RiskEngine:
         today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         if today != self._last_reset_date:
             self.daily_realized_loss = 0.0
+            self.daily_realized_loss_by_ws = {ws: 0.0 for ws in self.WORKSPACE_DAILY_LOSS_LIMITS}
             self._last_reset_date = today
 
-    def record_loss(self, loss_usd: float):
+    def record_loss(self, loss_usd: float, workspace: str = "INDIA"):
         self._maybe_reset_daily_loss()
         if loss_usd > 0:
             self.daily_realized_loss += loss_usd
+            ws_key = workspace.upper() if workspace else "INDIA"
+            if ws_key in self.daily_realized_loss_by_ws:
+                self.daily_realized_loss_by_ws[ws_key] += loss_usd
             self._save_state()
 
     def set_risk_profile(self, profile_name: str) -> Dict[str, Any]:
@@ -225,7 +248,8 @@ class RiskEngine:
         leverage: float,
         current_open_positions: int,
         available_cash: float,
-        data_age_seconds: Optional[float] = None
+        data_age_seconds: Optional[float] = None,
+        workspace: Optional[str] = None
     ) -> Tuple[bool, str, str]:
         """
         HARD 7-Gate Server-Side Order Risk Pipeline.
@@ -258,10 +282,24 @@ class RiskEngine:
                    f"available ${available_cash:,.2f}.")
             return False, RISK_REJECTED_MARGIN, msg
 
-        # Gate 5: Daily loss
-        if self.daily_realized_loss >= self.daily_loss_limit_usd:
-            msg = (f"Daily loss limit ${self.daily_loss_limit_usd:,.2f} reached "
-                   f"(today: ${self.daily_realized_loss:,.2f}). No new orders today.")
+        # Gate 5: Daily loss (workspace-aware)
+        ws_name = (workspace or "").upper()
+        if ws_name and ws_name in self.WORKSPACE_DAILY_LOSS_LIMITS:
+            ws_limit = self.WORKSPACE_DAILY_LOSS_LIMITS[ws_name]
+            ws_loss = max(self.daily_realized_loss_by_ws.get(ws_name, 0.0), self.daily_realized_loss)
+            cur_sym = "₹" if ws_name == "INDIA" else ("$" if ws_name == "FOREX_GOLD" else "")
+            unit = " USDT" if ws_name == "CRYPTO" else ""
+            label = f" for {ws_name}"
+        else:
+            ws_limit = self.daily_loss_limit_usd
+            ws_loss = self.daily_realized_loss
+            cur_sym = "$"
+            unit = ""
+            label = ""
+
+        if ws_loss >= ws_limit:
+            msg = (f"Daily loss limit {cur_sym}{ws_limit:,.2f}{unit} reached{label} "
+                   f"(today: {cur_sym}{ws_loss:,.2f}{unit}). No new orders today.")
             return False, RISK_REJECTED_DAILY_LOSS, msg
 
         # Gate 6: Drawdown circuit breaker
@@ -347,12 +385,24 @@ class RiskEngine:
             leverage=leverage,
             current_open_positions=current_open_positions,
             available_cash=available_cash,
-            data_age_seconds=data_age_seconds
+            data_age_seconds=data_age_seconds,
+            workspace=norm_ws
         )
         return approved, code, msg
 
-    def get_risk_status(self) -> Dict[str, Any]:
+    validate_pre_execution_risk = validate_workspace_order
+
+    def get_risk_status(self, workspace: Optional[str] = None) -> Dict[str, Any]:
         """Centralized risk status for Phase 11 /api/risk/status endpoint."""
+        ws_key = (workspace or "INDIA").upper()
+        if ws_key not in self.WORKSPACE_DAILY_LOSS_LIMITS:
+            ws_key = "INDIA"
+
+        ws_limit = self.WORKSPACE_DAILY_LOSS_LIMITS.get(ws_key, 5000.0)
+        ws_realized = self.daily_realized_loss_by_ws.get(ws_key, 0.0)
+        currency = "INR" if ws_key == "INDIA" else ("USDT" if ws_key == "CRYPTO" else "USD")
+        currency_symbol = "₹" if ws_key == "INDIA" else ("$" if ws_key == "FOREX_GOLD" else "")
+
         news_status = "NEWS DATA NOT CONFIGURED"
         try:
             from core.macro_news_engine import macro_engine
@@ -365,11 +415,16 @@ class RiskEngine:
         return {
             "active_profile": self.active_profile_name,
             "profile_details": self.active_profile,
+            "workspace": ws_key,
+            "currency": currency,
+            "currency_symbol": currency_symbol,
+            "daily_loss_limit": ws_limit,
+            "daily_loss_limit_usd": self.daily_loss_limit_usd,
+            "daily_realized_loss": round(ws_realized, 2),
+            "daily_realized_loss_legacy": round(self.daily_realized_loss, 2),
             "max_leverage": self.active_profile.get("max_leverage"),
             "max_open_positions": self.active_profile.get("max_open_positions"),
             "custom_trade_cap_usd": self.custom_trade_cap_usd,
-            "daily_loss_limit_usd": self.daily_loss_limit_usd,
-            "daily_realized_loss": self.daily_realized_loss,
             "circuit_tripped": self.circuit_tripped,
             "trip_reason": self.trip_reason,
             "stop_loss_pct": self.active_profile.get("stop_loss_pct"),

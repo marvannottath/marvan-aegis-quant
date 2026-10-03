@@ -19,8 +19,8 @@ LATEST_FILE = DATA_DIR / "backtest_latest_run.json"
 
 
 class BacktestAnalyticsEngine:
-    def list_backtest_runs(self) -> List[Dict[str, Any]]:
-        """Return list of all historical backtest runs."""
+    def list_backtest_runs(self, workspace: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Return list of all historical backtest runs strictly scoped to workspace."""
         runs = []
         if RUNS_FILE.exists():
             try:
@@ -39,6 +39,10 @@ class BacktestAnalyticsEngine:
                     runs.append(self._summarize_run(latest))
             except Exception as e:
                 print(f"[BACKTEST ENGINE] Load latest notice: {e}")
+
+        if workspace and workspace.upper() != "ALL":
+            norm_ws = "FOREX_GOLD" if workspace.upper() in ["FOREX", "FOREX_GOLD"] else workspace.upper()
+            runs = [r for r in runs if r.get("workspace") == norm_ws]
 
         return runs
 
@@ -197,16 +201,26 @@ class BacktestAnalyticsEngine:
 
         return {"status": "RECONCILIATION_OK", "message": "All financial integrity checks PASSED (RECONCILIATION_OK)"}
 
-    def get_backtest_detail(self, backtest_id: str) -> Optional[Dict[str, Any]]:
-        """Return complete details for a specific backtest run."""
+    def get_backtest_detail(self, backtest_id: str, workspace: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """Return complete details for a specific backtest run (or latest for active workspace)."""
+        norm_ws = ("FOREX_GOLD" if workspace.upper() in ["FOREX", "FOREX_GOLD"] else workspace.upper()) if workspace and workspace.upper() != "ALL" else None
+
         # Check latest run first
+        if backtest_id == "latest":
+            matching_runs = self.list_backtest_runs(workspace=norm_ws)
+            if matching_runs:
+                target_id = matching_runs[0].get("backtest_id")
+                return self.get_backtest_detail(target_id, workspace=norm_ws)
+
         if LATEST_FILE.exists():
             try:
                 with open(LATEST_FILE, "r") as f:
                     latest = json.load(f)
                     lid = latest.get("backtest_id") or latest.get("run_id")
                     if backtest_id == "latest" or lid == backtest_id:
-                        return self._build_full_detail(latest)
+                        s = self._summarize_run(latest)
+                        if not norm_ws or s.get("workspace") == norm_ws:
+                            return self._build_full_detail(latest)
             except Exception:
                 pass
 

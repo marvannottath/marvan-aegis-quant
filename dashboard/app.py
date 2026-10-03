@@ -249,8 +249,17 @@ async def read_dashboard(request: Request):
         lite_flag = "🇮🇳"
         lite_title = "INDIAN MARKETS (NSE/BSE)"
         lite_sub = "Currency: INR (₹) • Settlement: T+1 Rolling • SEBI Compliant • Upstox Active"
-        lite_broker_badge = "UPSTOX: NSE/BSE ACTIVE"
-        lite_broker_badge_class = "bg-amber-500/10 text-amber-400 border border-amber-500/30"
+        est_margin = "₹200.00"
+        est_slippage = "₹0.20 (0.02%)"
+        est_fee_label = "Estimated Fees (Upstox/NSE 0.05%):"
+        est_fee = "₹0.50"
+        est_max_loss = "₹15.00"
+        trade_cap_val = "₹5,000"
+        max_lev_val = "5x (SEBI Peak Margin)"
+        risk_daily_loss_str = "₹5,000.00 Limit"
+        bt_init_cap_str = "₹100,000.00"
+        bt_final_cap_str = "₹112,450.00"
+        bt_net_pnl_str = "+₹12,450.00"
     elif is_crypto:
         eq_str = f"{eq_val:,.2f} USDT"
         cash_str = f"{cash_val:,.2f} USDT"
@@ -284,6 +293,17 @@ async def read_dashboard(request: Request):
         lite_flag = "🪙"
         lite_title = "CRYPTO MARKETS (BINANCE)"
         lite_sub = "Currency: USDT ($) • 24/7 Continuous Spot & Futures • Binance Live Engine"
+        est_margin = "10.00 USDT"
+        est_slippage = "0.03 USDT (0.03%)"
+        est_fee_label = "Estimated Fees (Binance 0.10% Spot):"
+        est_fee = "0.10 USDT"
+        est_max_loss = "1.50 USDT"
+        trade_cap_val = "5,000 USDT"
+        max_lev_val = "25x (Binance Cross Margin)"
+        risk_daily_loss_str = "100.00 USDT Limit"
+        bt_init_cap_str = "100,000.00 USDT"
+        bt_final_cap_str = "107,442.57 USDT"
+        bt_net_pnl_str = "+7,442.57 USDT"
     else:  # FOREX_GOLD
         eq_str = f"${eq_val:,.2f}"
         cash_str = f"${cash_val:,.2f}"
@@ -308,6 +328,17 @@ async def read_dashboard(request: Request):
         lite_sub = "Currency: USD ($) • MetaTrader 5 Bridge • 24/5 Interbank FX & Gold Spot"
         lite_broker_badge = "MT5: FOREX & GOLD LIVE ACTIVE"
         lite_broker_badge_class = "bg-purple-500/10 text-purple-400 border border-purple-500/30"
+        est_margin = "$50.00"
+        est_slippage = "$0.10 (0.01%)"
+        est_fee_label = "Estimated Fees (Interbank FX 0.02%):"
+        est_fee = "$0.20"
+        est_max_loss = "$15.00"
+        trade_cap_val = "$5,000"
+        max_lev_val = "100x (Interbank FX Margin)"
+        risk_daily_loss_str = "$500.00 Limit"
+        bt_init_cap_str = "$100,000.00"
+        bt_final_cap_str = "$108,120.00"
+        bt_net_pnl_str = "+$8,120.00"
 
     btn_active_class = "px-3 py-1.5 rounded-lg font-bold text-xs transition flex items-center space-x-1.5 bg-amber-500 text-black shadow"
     btn_inactive_class = "px-3 py-1.5 rounded-lg font-bold text-xs text-gray-400 hover:text-white transition flex items-center space-x-1.5"
@@ -737,6 +768,20 @@ async def read_dashboard(request: Request):
     content = content.replace("{{ ORDER_TERMINAL_SUBTITLE }}", order_subtitle)
     content = content.replace("{{ ORDER_ALLOCATION_LABEL }}", order_alloc_label)
     content = content.replace("{{ ORDER_ASSET_OPTIONS }}", order_options_html)
+
+    content = content.replace("{{ EST_MARGIN }}", est_margin)
+    content = content.replace("{{ EST_SLIPPAGE }}", est_slippage)
+    content = content.replace("{{ EST_FEE_LABEL }}", est_fee_label)
+    content = content.replace("{{ EST_FEE }}", est_fee)
+    content = content.replace("{{ EST_MAX_LOSS }}", est_max_loss)
+    content = content.replace("{{ TRADE_CAP_VAL }}", trade_cap_val)
+    content = content.replace("{{ MAX_LEV_VAL }}", max_lev_val)
+
+    content = content.replace("{{ RISK_DAILY_LOSS_LIMIT }}", risk_daily_loss_str)
+
+    content = content.replace("{{ BT_INIT_CAP }}", bt_init_cap_str)
+    content = content.replace("{{ BT_FINAL_CAP }}", bt_final_cap_str)
+    content = content.replace("{{ BT_NET_PNL }}", bt_net_pnl_str)
 
     content = content.replace("{{ POS_ALLOCATED_LABEL }}", pos_alloc_label)
     content = content.replace("{{ POS_UNREALIZED_PNL_LABEL }}", pos_pnl_label)
@@ -4267,10 +4312,12 @@ async def get_factsheet():
     return JSONResponse(factsheet_generator.generate_factsheet())
 
 @app.get("/api/radar/order-flow")
-async def get_order_flow_radar(symbol: str = "BTCUSDT"):
-    """Return live whale block orders, DOM ladder, and on-chain inflow/outflow."""
+async def get_order_flow_radar(symbol: str = "BTCUSDT", workspace: Optional[str] = None):
+    """Return live whale block orders, DOM ladder, and on-chain inflow/outflow strictly isolated by workspace."""
     from core.order_flow_radar import order_flow_radar
-    return JSONResponse(order_flow_radar.get_radar_telemetry(symbol=symbol))
+    from core.workspace_manager import workspace_manager
+    ws = workspace or workspace_manager.get_active_workspace()
+    return JSONResponse(order_flow_radar.get_radar_telemetry(symbol=symbol, workspace=ws))
 
 @app.get("/api/recovery/status")
 async def get_disaster_recovery_status():
@@ -5324,11 +5371,11 @@ async def get_execution_latency(environment: str = "ALL", workspace: Optional[st
 # 14. Backtest Runs List API
 # ------------------------------------------------------------------
 @app.get("/api/backtests")
-async def list_backtest_runs():
-    """Return list of all historical backtest runs."""
+async def list_backtest_runs(workspace: Optional[str] = None):
+    """Return list of historical backtest runs strictly scoped to workspace."""
     try:
         from core.backtest_analytics_engine import backtest_analytics_engine
-        runs = backtest_analytics_engine.list_backtest_runs()
+        runs = backtest_analytics_engine.list_backtest_runs(workspace=workspace)
         return JSONResponse({"status": "SUCCESS", "backtests": runs, "total_runs": len(runs)})
     except Exception as e:
         return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
@@ -5338,11 +5385,11 @@ async def list_backtest_runs():
 # 15. Backtest Run Detail API
 # ------------------------------------------------------------------
 @app.get("/api/backtests/{backtest_id}")
-async def get_backtest_detail(backtest_id: str):
+async def get_backtest_detail(backtest_id: str, workspace: Optional[str] = None):
     """Return complete details for a specific backtest run (summary, provenance, trades, equity)."""
     try:
         from core.backtest_analytics_engine import backtest_analytics_engine
-        detail = backtest_analytics_engine.get_backtest_detail(backtest_id)
+        detail = backtest_analytics_engine.get_backtest_detail(backtest_id, workspace=workspace)
         if not detail:
             return JSONResponse({"status": "NOT_FOUND", "backtest_id": backtest_id}, status_code=404)
         return JSONResponse({"status": "SUCCESS", "data": detail})
@@ -5901,10 +5948,11 @@ async def get_feature_health_endpoint():
 # 33. Centralized Risk Status API (Phase 11)
 # ------------------------------------------------------------------
 @app.get("/api/risk/status")
-async def get_risk_status_endpoint():
+async def get_risk_status_endpoint(request: Request, workspace: Optional[str] = None):
     """Centralized risk configuration, limits, and circuit breaker status."""
     try:
-        status = risk_engine.get_risk_status()
+        active_ws = workspace or workspace_manager.get_active_workspace()
+        status = risk_engine.get_risk_status(workspace=active_ws)
         return JSONResponse({"status": "SUCCESS", "data": status})
     except Exception as e:
         return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)

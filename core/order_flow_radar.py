@@ -8,7 +8,7 @@ Real-time tracking of:
 
 import time
 import random
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone, timedelta
 
 IST_TZ = timezone(timedelta(hours=5, minutes=30))
@@ -18,9 +18,9 @@ class OrderFlowRadar:
     def __init__(self):
         pass
 
-    def get_radar_telemetry(self, symbol: str = "BTCUSDT") -> Dict[str, Any]:
+    def get_radar_telemetry(self, symbol: str = "BTCUSDT", workspace: Optional[str] = None) -> Dict[str, Any]:
         """
-        Return live order book imbalance, whale block orders, and on-chain inflow/outflow.
+        Return live order book imbalance, whale block orders, and on-chain inflow/outflow strictly isolated by workspace.
         """
         now = datetime.now(timezone.utc).astimezone(IST_TZ)
         now_str = now.strftime("%H:%M:%S IST")
@@ -34,36 +34,100 @@ class OrderFlowRadar:
 
         imbalance_state = "BULLISH_PRESSURE" if bid_volume_ratio > 58.0 else ("BEARISH_PRESSURE" if ask_volume_ratio > 58.0 else "BALANCED_SPREAD")
 
-        # Active Whale Block Orders
-        whale_orders = [
-            {
-                "time": now_str,
-                "venue": "Binance Spot",
-                "symbol": "BTCUSDT",
-                "side": "BID_ICEBERG",
-                "size_usd": "$2,450,000",
-                "price": "$65,120.00",
-                "impact": "BULLISH_SUPPORT_WALL"
-            },
-            {
-                "time": (now - timedelta(minutes=4)).strftime("%H:%M:%S IST"),
-                "venue": "NSE Upstox",
-                "symbol": "RELIANCE",
-                "side": "BLOCK_BUY",
-                "size_usd": "$850,000",
-                "price": "₹2,985.40",
-                "impact": "INSTITUTIONAL_ACCUMULATION"
-            },
-            {
-                "time": (now - timedelta(minutes=11)).strftime("%H:%M:%S IST"),
-                "venue": "Binance Spot",
-                "symbol": "ETHUSDT",
-                "side": "ASK_ICEBERG",
-                "size_usd": "$1,120,000",
-                "price": "$3,240.00",
-                "impact": "RESISTANCE_DEFENSE"
-            }
-        ]
+        # Determine workspace
+        ws = workspace.upper() if workspace else ("INDIA" if symbol in ["RELIANCE", "TCS", "INFY", "HDFCBANK", "NIFTY50"] else ("FOREX_GOLD" if "XAU" in symbol or "USD" in symbol and not symbol.endswith("USDT") else "CRYPTO"))
+
+        # Active Whale Block Orders strictly scoped to workspace
+        if ws == "INDIA":
+            whale_orders = [
+                {
+                    "time": now_str,
+                    "venue": "NSE Upstox",
+                    "symbol": "RELIANCE",
+                    "side": "BLOCK_BUY",
+                    "size_usd": "₹8.50 Cr",
+                    "price": "₹2,985.40",
+                    "impact": "INSTITUTIONAL_ACCUMULATION"
+                },
+                {
+                    "time": (now - timedelta(minutes=4)).strftime("%H:%M:%S IST"),
+                    "venue": "NSE Upstox",
+                    "symbol": "HDFCBANK",
+                    "side": "BID_ICEBERG",
+                    "size_usd": "₹12.40 Cr",
+                    "price": "₹1,640.20",
+                    "impact": "BULLISH_SUPPORT_WALL"
+                },
+                {
+                    "time": (now - timedelta(minutes=11)).strftime("%H:%M:%S IST"),
+                    "venue": "NSE Upstox",
+                    "symbol": "TCS",
+                    "side": "BLOCK_BUY",
+                    "size_usd": "₹5.20 Cr",
+                    "price": "₹4,210.00",
+                    "impact": "DII_FLOW_INJECTION"
+                }
+            ]
+        elif ws == "FOREX_GOLD":
+            whale_orders = [
+                {
+                    "time": now_str,
+                    "venue": "Interbank MT5",
+                    "symbol": "XAUUSD",
+                    "side": "BID_ICEBERG",
+                    "size_usd": "$4,850,000",
+                    "price": "$2,650.40",
+                    "impact": "BULLION_CENTRAL_BANK_BUY"
+                },
+                {
+                    "time": (now - timedelta(minutes=4)).strftime("%H:%M:%S IST"),
+                    "venue": "Interbank MT5",
+                    "symbol": "EURUSD",
+                    "side": "BLOCK_BUY",
+                    "size_usd": "$3,200,000",
+                    "price": "1.0845",
+                    "impact": "LIQUIDITY_SWEEP"
+                },
+                {
+                    "time": (now - timedelta(minutes=11)).strftime("%H:%M:%S IST"),
+                    "venue": "Interbank MT5",
+                    "symbol": "GBPUSD",
+                    "side": "ASK_ICEBERG",
+                    "size_usd": "$1,950,000",
+                    "price": "1.3020",
+                    "impact": "RESISTANCE_DEFENSE"
+                }
+            ]
+        else:  # CRYPTO
+            whale_orders = [
+                {
+                    "time": now_str,
+                    "venue": "Binance Spot",
+                    "symbol": "BTCUSDT",
+                    "side": "BID_ICEBERG",
+                    "size_usd": "$2,450,000",
+                    "price": "$65,120.00",
+                    "impact": "BULLISH_SUPPORT_WALL"
+                },
+                {
+                    "time": (now - timedelta(minutes=4)).strftime("%H:%M:%S IST"),
+                    "venue": "Binance Spot",
+                    "symbol": "SOLUSDT",
+                    "side": "BLOCK_BUY",
+                    "size_usd": "$850,000",
+                    "price": "$145.20",
+                    "impact": "INSTITUTIONAL_ACCUMULATION"
+                },
+                {
+                    "time": (now - timedelta(minutes=11)).strftime("%H:%M:%S IST"),
+                    "venue": "Binance Spot",
+                    "symbol": "ETHUSDT",
+                    "side": "ASK_ICEBERG",
+                    "size_usd": "$1,120,000",
+                    "price": "$3,240.00",
+                    "impact": "RESISTANCE_DEFENSE"
+                }
+            ]
 
         # On-Chain Whale Inflow / Outflow
         on_chain_telemetry = {
