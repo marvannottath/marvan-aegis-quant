@@ -521,50 +521,39 @@
         </div>
     </div>
 
-    <!-- MODAL: COLD STORAGE PROFIT SWEEP ADVISORY -->
+    <!-- MODAL: COLD STORAGE PROFIT SWEEP ADVISORY (NOT IMPLEMENTED) -->
     <div id="modal-cold-storage" class="hidden fixed inset-0 z-[9999] flex items-center justify-center bg-black/85 backdrop-blur-md p-4">
-        <div class="bg-darkcard border border-darkborder max-w-lg w-full rounded-2xl p-6 space-y-4 shadow-2xl font-mono text-xs text-gray-300">
+        <div class="bg-darkcard border border-amber-500/30 max-w-lg w-full rounded-2xl p-6 space-y-4 shadow-2xl font-mono text-xs text-gray-300">
             <div class="flex justify-between items-center border-b border-gray-800 pb-3">
                 <div class="flex items-center space-x-2">
-                    <div class="w-8 h-8 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+                    <div class="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
                         <i class="fa-solid fa-hard-drive text-base"></i>
                     </div>
                     <div>
-                        <h3 class="text-sm font-bold text-white uppercase">Cold Storage Hardware Sweep</h3>
-                        <p class="text-[10px] text-gray-500">Air-Gapped Ledger / Trezor Hardware Vault Routing</p>
+                        <h3 class="text-sm font-bold text-white uppercase">Hardware Cold Storage</h3>
+                        <p class="text-[10px] text-amber-400 font-bold">STATUS: NOT IMPLEMENTED</p>
                     </div>
                 </div>
                 <button onclick="closeColdStorageModal()" class="text-gray-500 hover:text-white text-lg"><i class="fa-solid fa-xmark"></i></button>
             </div>
 
-            <div class="p-3 bg-cyan-950/20 border border-cyan-500/30 rounded-xl space-y-1.5 text-[11px] text-gray-300">
-                <div class="font-bold text-cyan-400 flex items-center gap-1.5">
-                    <i class="fa-solid fa-shield-halved"></i> Institutional Zero-Knowledge Custody
+            <div class="p-3 bg-amber-950/20 border border-amber-500/30 rounded-xl space-y-1.5 text-[11px] text-gray-300">
+                <div class="font-bold text-amber-400 flex items-center gap-1.5">
+                    <i class="fa-solid fa-triangle-exclamation"></i> Feature Status Advisory
                 </div>
-                <p>Private keys never exist on the cloud server. Harvested trading profits are swept directly from the reserve ledger to your self-custody hardware wallet address.</p>
+                <p>External hardware wallet air-gapped signing (Ledger / Trezor / Coldcard) is <strong>NOT IMPLEMENTED</strong>. No hardware interface exists on this server.</p>
+                <p class="text-gray-400">Trading profits are secured exclusively through the internal double-entry <strong>PROFIT VAULT / SECURED VAULT RESERVE</strong>.</p>
             </div>
 
-            <div class="space-y-3">
+            <div class="space-y-3 opacity-60">
                 <div>
                     <label class="block text-[10px] uppercase text-gray-400 mb-1">Hardware Wallet Device Type</label>
-                    <select id="cold-wallet-type" class="w-full bg-gray-950 border border-darkborder rounded-xl px-3 py-2 text-xs text-white focus:border-amber-500 focus:outline-none">
-                        <option value="LEDGER">Ledger Nano X / Stax (TRC20 / ERC20)</option>
-                        <option value="TREZOR">Trezor Safe 3 / Model T</option>
-                        <option value="COLDCARD">Coldcard Q / Mk4 (Bitcoin Native)</option>
-                        <option value="TANGEM">Tangem NFC Hardware Card</option>
+                    <select disabled id="cold-wallet-type" class="w-full bg-gray-950 border border-darkborder rounded-xl px-3 py-2 text-xs text-gray-400 cursor-not-allowed">
+                        <option value="UNAVAILABLE">Hardware Integration Unavailable</option>
                     </select>
                 </div>
-                <div>
-                    <label class="block text-[10px] uppercase text-gray-400 mb-1">Cold Wallet Public Address (USDT / TRC20 / BEP20)</label>
-                    <input id="cold-wallet-addr" type="text" placeholder="Enter hardware public address" class="w-full bg-gray-950 border border-darkborder rounded-xl px-3 py-2 text-xs text-white focus:border-amber-500 focus:outline-none">
-                </div>
-                <div>
-                    <label class="block text-[10px] uppercase text-gray-400 mb-1">Sweep Amount (USD)</label>
-                    <input id="cold-sweep-amount" type="number" step="10" placeholder="100.00" class="w-full bg-gray-950 border border-darkborder rounded-xl px-3 py-2 text-xs text-white focus:border-amber-500 focus:outline-none">
-                </div>
-                <div id="cold-sweep-msg" class="hidden p-2.5 rounded-xl text-xs font-mono"></div>
-                <button onclick="confirmColdStorageSweep()" class="w-full py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-black text-xs rounded-xl transition shadow cursor-pointer">
-                    DISPATCH AIR-GAPPED HARDWARE SWEEP
+                <button disabled class="w-full py-2.5 bg-gray-800 text-gray-500 font-black text-xs rounded-xl cursor-not-allowed border border-gray-700">
+                    AIR-GAPPED SWEEP — NOT IMPLEMENTED
                 </button>
             </div>
         </div>
@@ -713,7 +702,13 @@
         </aside>
 
         <!-- MAIN TERMINAL CONTENT AREA -->
-        <main class="flex-1 p-4 md:p-6 overflow-y-auto max-w-[1600px] mx-auto pb-20 md:pb-6">
+        <main class="flex-1 p-4 md:p-6 overflow-y-auto max-w-[1600px] mx-auto pb-20 md:pb-6 relative">
+
+            <!-- WORKSPACE HYDRATION SKELETON OVERLAY (Cold Load / Switch Guard) -->
+            <div id="workspace-loading-overlay" class="hidden absolute inset-0 z-30 bg-darkbg/80 backdrop-blur-sm flex flex-col items-center justify-center space-y-3 font-mono transition-opacity duration-150">
+                <div class="w-8 h-8 rounded-full border-2 border-amber-500/20 border-t-amber-500 animate-spin"></div>
+                <div class="text-xs font-bold text-gray-300" id="workspace-loading-text">Synchronizing Workspace State...</div>
+            </div>
 
             <!-- GLOBAL EMERGENCY KILL SWITCH ACTIVE BANNER (Visible on all tabs when triggered) -->
             <div id="global-kill-switch-banner" class="hidden mb-6 bg-red-950/80 border-2 border-red-500/80 p-4 rounded-2xl shadow-2xl backdrop-blur-md flex flex-wrap items-center justify-between gap-4 animate-pulse">
@@ -1002,9 +997,9 @@
                                 <div class="text-[10px] font-mono uppercase text-gray-400">Total Consolidated Net Worth</div>
                                 <div id="card-total-networth" class="text-2xl md:text-3xl font-black text-amber-400 font-mono tracking-tight">$14.70 <span class="text-xs text-gray-400 font-normal">USDT</span></div>
                             </div>
-                            <button onclick="openColdStorageModal()" class="px-3.5 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-mono text-xs font-bold rounded-xl transition shadow flex items-center gap-1.5 cursor-pointer" title="Ledger / Trezor Profit Sweep Advisory">
-                                <i class="fa-solid fa-hard-drive"></i>
-                                <span>COLD STORAGE</span>
+                            <button onclick="openColdStorageModal()" class="px-3.5 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 font-mono text-xs font-bold rounded-xl transition border border-gray-700 flex items-center gap-1.5 cursor-pointer" title="Hardware Cold Storage — Not Implemented (Advisory Only)">
+                                <i class="fa-solid fa-hard-drive text-amber-400"></i>
+                                <span>COLD STORAGE (NOT IMPLEMENTED)</span>
                             </button>
                         </div>
                     </div>
@@ -1052,46 +1047,46 @@
                 <!-- 2-COLUMN INTELLIGENCE: AI REGIME SWITCHER + HIGH-IMPACT ECONOMIC CALENDAR -->
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     
-                    <!-- AI MARKET REGIME CONTROLLER -->
+                    <!-- RISK & MARKET REGIME CENTER -->
                     <div class="bg-darkcard border border-darkborder p-5 rounded-2xl space-y-4 shadow-xl">
                         <div class="flex items-center justify-between border-b border-gray-800 pb-3">
                             <div class="flex items-center space-x-2">
                                 <i class="fa-solid fa-sliders text-cyan-400"></i>
-                                <h3 class="text-base font-bold text-white">AI Market Regime Selector</h3>
+                                <h3 class="text-base font-bold text-white">Risk &amp; Market Regime Center</h3>
                             </div>
                             <span id="badge-ai-regime-status" class="px-2.5 py-0.5 rounded-full text-[10px] font-black font-mono bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-                                BALANCED REGIME
+                                BALANCED • MODERATE
                             </span>
                         </div>
                         
-                        <p class="text-xs text-gray-400 font-mono">Dynamic execution parameters: automatically tunes max drawdown circuit, leverage caps, and trailing stop tightness.</p>
+                        <p class="text-xs text-gray-400 font-mono">Unified institutional policy: dynamically tunes active market regime, leverage caps, and circuit breakers in one authoritative state.</p>
 
                         <div class="grid grid-cols-3 gap-2.5 font-mono text-xs">
-                            <!-- DEFENSIVE -->
-                            <button id="btn-regime-defensive" onclick="setAiRegime('DEFENSIVE')" class="p-3 rounded-xl border border-gray-800 hover:border-emerald-500/50 bg-gray-950 transition flex flex-col items-center text-center space-y-1.5 cursor-pointer">
+                            <!-- DEFENSIVE / CONSERVATIVE -->
+                            <button id="btn-regime-defensive" onclick="setRiskProfile('CONSERVATIVE')" class="p-3 rounded-xl border border-gray-800 hover:border-emerald-500/50 bg-gray-950 transition flex flex-col items-center text-center space-y-1.5 cursor-pointer">
                                 <i class="fa-solid fa-shield-halved text-emerald-400 text-lg"></i>
                                 <span class="font-black text-white">DEFENSIVE</span>
-                                <span class="text-[9px] text-gray-400">0.5% Max DD • 2x Lev</span>
+                                <span class="text-[9px] text-gray-400">Conservative • 2x Lev</span>
                             </button>
 
-                            <!-- BALANCED -->
-                            <button id="btn-regime-balanced" onclick="setAiRegime('BALANCED')" class="p-3 rounded-xl border border-cyan-500/60 bg-cyan-950/20 transition flex flex-col items-center text-center space-y-1.5 cursor-pointer shadow-lg">
+                            <!-- BALANCED / MODERATE -->
+                            <button id="btn-regime-balanced" onclick="setRiskProfile('MODERATE')" class="p-3 rounded-xl border border-cyan-500/60 bg-cyan-950/20 transition flex flex-col items-center text-center space-y-1.5 cursor-pointer shadow-lg">
                                 <i class="fa-solid fa-scale-balanced text-cyan-400 text-lg"></i>
                                 <span class="font-black text-white">BALANCED</span>
-                                <span class="text-[9px] text-cyan-300">1.5% Max DD • 5x Lev</span>
+                                <span class="text-[9px] text-cyan-300">Moderate • 10x Lev</span>
                             </button>
 
-                            <!-- BULL RUN -->
-                            <button id="btn-regime-bull" onclick="setAiRegime('BULL_RUN')" class="p-3 rounded-xl border border-gray-800 hover:border-amber-500/50 bg-gray-950 transition flex flex-col items-center text-center space-y-1.5 cursor-pointer">
+                            <!-- BULL RUN / AGGRESSIVE -->
+                            <button id="btn-regime-bull" onclick="setRiskProfile('AGGRESSIVE')" class="p-3 rounded-xl border border-gray-800 hover:border-amber-500/50 bg-gray-950 transition flex flex-col items-center text-center space-y-1.5 cursor-pointer">
                                 <i class="fa-solid fa-rocket text-amber-400 text-lg"></i>
                                 <span class="font-black text-white">BULL_RUN</span>
-                                <span class="text-[9px] text-gray-400">3.0% Max DD • 10x Lev</span>
+                                <span class="text-[9px] text-gray-400">Aggressive • 25x Lev</span>
                             </button>
                         </div>
 
                         <div id="ai-regime-desc-box" class="p-2.5 bg-gray-950 border border-gray-800 rounded-xl font-mono text-[11px] text-gray-300 flex items-start gap-2">
                             <i class="fa-solid fa-circle-info text-amber-400 mt-0.5"></i>
-                            <span id="ai-regime-desc-text">Standard institutional quant mode. 1.5% drawdown circuit, up to 5x leverage, balanced alpha harvest.</span>
+                            <span id="ai-regime-desc-text">Balanced institutional quant mode: 10.0% drawdown circuit, 10x leverage ceiling, 2.5% trade risk cap.</span>
                         </div>
                     </div>
 
@@ -2530,7 +2525,7 @@
                     </div>
                     <div class="flex items-center gap-2">
                         <button onclick="triggerSystemAutoHeal()" class="px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer">
-                            <i class="fa-solid fa-broom"></i> Auto-Heal RAM
+                            <i class="fa-solid fa-broom"></i> Optimize Memory
                         </button>
                         <button onclick="triggerSystemBackup()" class="px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer">
                             <i class="fa-solid fa-database"></i> Daily Backup
@@ -4967,6 +4962,16 @@
                 window.history.replaceState({}, '', '?workspace=' + normVenue);
             } catch (e) {}
 
+            // Check if workspace is already cached in memory
+            window.workspaceCache = window.workspaceCache || {};
+            const isCold = !window.workspaceCache[normVenue];
+            const overlay = document.getElementById('workspace-loading-overlay');
+            const overlayText = document.getElementById('workspace-loading-text');
+            if (isCold && overlay) {
+                if (overlayText) overlayText.innerText = `Synchronizing ${normVenue} Workspace...`;
+                overlay.classList.remove('hidden');
+            }
+
             // INSTANT UI UPDATES (0ms)
             _activeAiWorkspace = normVenue;
             updateVenueBanner(normVenue);
@@ -5881,11 +5886,44 @@
 
             // Dynamically update active leverage ceiling
             const levMax = (prof === 'CONSERVATIVE') ? 2 : ((prof === 'AGGRESSIVE') ? 25 : 10);
-            activeRiskProfileMaxLev = levMax;
             if (typeof updateLeverageButtonsUI === 'function') {
                 updateLeverageButtonsUI(levMax);
             }
-        }
+
+            // Synchronize unified Risk & Market Regime Center overview card
+            const regimeBadge = document.getElementById('badge-ai-regime-status');
+            const regimeDesc = document.getElementById('ai-regime-desc-text');
+            if (regimeBadge) {
+                if (prof === 'CONSERVATIVE') {
+                    regimeBadge.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-black font-mono bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
+                    regimeBadge.textContent = 'DEFENSIVE • CONSERVATIVE';
+                } else if (prof === 'AGGRESSIVE') {
+                    regimeBadge.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-black font-mono bg-amber-500/20 text-amber-400 border border-amber-500/30';
+                    regimeBadge.textContent = 'BULL_RUN • AGGRESSIVE';
+                } else {
+                    regimeBadge.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-black font-mono bg-cyan-500/20 text-cyan-300 border border-cyan-500/30';
+                    regimeBadge.textContent = 'BALANCED • MODERATE';
+                }
+            }
+            if (regimeDesc) {
+                if (prof === 'CONSERVATIVE') {
+                    regimeDesc.textContent = 'Defensive capital preservation: 5.0% drawdown circuit, 2x leverage ceiling, 1.0% trade risk cap.';
+                } else if (prof === 'AGGRESSIVE') {
+                    regimeDesc.textContent = 'Aggressive bull momentum: 20.0% drawdown circuit, up to 25x crypto leverage, 5.0% trade risk cap.';
+                } else {
+                    regimeDesc.textContent = 'Balanced institutional quant mode: 10.0% drawdown circuit, 10x leverage ceiling, 2.5% trade risk cap.';
+                }
+            }
+            ['defensive', 'balanced', 'bull'].forEach(key => {
+                const btn = document.getElementById(`btn-regime-${key}`);
+                if (!btn) return;
+                const match = (key === 'defensive' && prof === 'CONSERVATIVE') || (key === 'balanced' && prof === 'MODERATE') || (key === 'bull' && prof === 'AGGRESSIVE');
+                if (match) {
+                    btn.className = 'p-3 rounded-xl border border-cyan-500/60 bg-cyan-950/20 transition flex flex-col items-center text-center space-y-1.5 cursor-pointer shadow-lg';
+                } else {
+                    btn.className = 'p-3 rounded-xl border border-gray-800 hover:border-gray-700 bg-gray-950 transition flex flex-col items-center text-center space-y-1.5 cursor-pointer';
+                }
+            });
 
 
         function setLeverage(lev) {
@@ -6552,7 +6590,7 @@
                     body: JSON.stringify({ pool: 'BINANCE_LIVE_REAL', confirm_live_authorization: true })
                 });
 
-                showNotification('Binance Live Connected', `✅ BINANCE LIVE (REAL USDT) API CONNECTED & SAVED PERMANENTLY!\n\nStatus: ${data.status || 'LIVE AUTHENTICATED'}\nEndpoint: api.binance.com\nUSDT Balance: $${(data.usdt_free || 0.0).toLocaleString()}`, 'success');
+                showNotification('Binance Live Connected', `✅ BINANCE LIVE DATA CONNECTION ESTABLISHED!\n\nStatus: ${data.status || 'DATA AUTHENTICATED'}\nEndpoint: api.binance.com\nUSDT Balance: $${(data.usdt_free || 0.0).toLocaleString()}\nSafety Notice: Live Order Execution remains fail-closed locked on server.`, 'success');
                 if (keyInput) keyInput.value = '';
                 if (secretInput) secretInput.value = '';
                 fetchBinanceStatus();
@@ -7272,6 +7310,10 @@
 
         
         function updateTerminalState(data) {
+            // Dismiss cold-load skeleton overlay immediately as data is ready
+            const overlay = document.getElementById('workspace-loading-overlay');
+            if (overlay) overlay.classList.add('hidden');
+
             checkStaleDataAndConnectionGuard(data);
             
             // Single Source of Truth Values
@@ -7512,11 +7554,8 @@
             }
 
             let totalExposure = positions.reduce((sum, p) => sum + (parseFloat(p.capital_allocated || p.market_value) || 0), 0);
-            if (isCrypto && totalExposure <= 0 && equity > cash) {
-                totalExposure = Math.max(0.0, equity - cash);
-            }
             if (document.getElementById('metric-exposure')) document.getElementById('metric-exposure').innerText = formatMoney(totalExposure);
-            const activePosCount = positions.length > 0 ? positions.length : ((isCrypto && totalExposure > 0) ? 1 : 0);
+            const activePosCount = positions.length;
             if (document.getElementById('metric-open-count')) document.getElementById('metric-open-count').innerText = `${activePosCount} Active`;
             if (document.getElementById('badge-open-pos')) document.getElementById('badge-open-pos').innerText = activePosCount;
 
@@ -8173,13 +8212,13 @@
                 const isGood = st === 'HEALTHY' || st === 'CONNECTED' || st === 'LIVE' || st === 'ONLINE' || st === 'ACTIVE';
                 const isWarn = st === 'DEGRADED' || st === 'STALE' || st === 'TEST MODE';
                 const badgeColor = isGood ? 'bg-emerald-500/10 text-emerald-400' : (isWarn ? 'bg-amber-500/10 text-amber-400' : 'bg-red-500/10 text-red-400');
-                const lat = s.latency_ms !== undefined ? `${s.latency_ms.toFixed(1)}ms` : '';
+                const lat = (s.latency_ms !== undefined && s.latency_ms !== null && s.latency_ms > 0) ? `${Number(s.latency_ms).toFixed(1)}ms` : 'NOT MEASURED';
                 return `
                 <div class="bg-darkcard border border-darkborder p-4 rounded-xl space-y-2 font-mono">
                     <div class="flex justify-between items-center">
                         <span class="font-bold text-white text-xs">${s.name}</span>
                         <div class="flex items-center space-x-2">
-                            ${lat ? `<span class="text-cyan-400 text-[10px]">${lat}</span>` : ''}
+                            <span class="${lat !== 'NOT MEASURED' ? 'text-cyan-400' : 'text-gray-500'} text-[10px]">${lat}</span>
                             <span class="px-2 py-0.5 text-[9px] font-black rounded ${badgeColor}">${s.status}</span>
                         </div>
                     </div>
@@ -8639,10 +8678,10 @@
                     return;
                 }
 
-                if (document.getElementById('exec-kpi-p50')) document.getElementById('exec-kpi-p50').innerText = (hasData && data.p50 !== null && data.p50 !== undefined) ? (Number(data.p50).toFixed(2) + ' ms') : '0.42 ms';
-                if (document.getElementById('exec-kpi-p95')) document.getElementById('exec-kpi-p95').innerText = (hasData && data.p95 !== null && data.p95 !== undefined) ? (Number(data.p95).toFixed(2) + ' ms') : '1.15 ms';
-                if (document.getElementById('exec-kpi-p99')) document.getElementById('exec-kpi-p99').innerText = (hasData && data.p99 !== null && data.p99 !== undefined) ? (Number(data.p99).toFixed(2) + ' ms') : '2.48 ms';
-                if (document.getElementById('exec-kpi-avg')) document.getElementById('exec-kpi-avg').innerText = (hasData && data.avg !== null && data.avg !== undefined) ? (Number(data.avg).toFixed(2) + ' ms') : '0.65 ms';
+                if (document.getElementById('exec-kpi-p50')) document.getElementById('exec-kpi-p50').innerText = (hasData && data.p50 !== null && data.p50 !== undefined) ? (Number(data.p50).toFixed(2) + ' ms') : 'NOT MEASURED';
+                if (document.getElementById('exec-kpi-p95')) document.getElementById('exec-kpi-p95').innerText = (hasData && data.p95 !== null && data.p95 !== undefined) ? (Number(data.p95).toFixed(2) + ' ms') : 'NOT MEASURED';
+                if (document.getElementById('exec-kpi-p99')) document.getElementById('exec-kpi-p99').innerText = (hasData && data.p99 !== null && data.p99 !== undefined) ? (Number(data.p99).toFixed(2) + ' ms') : 'NOT MEASURED';
+                if (document.getElementById('exec-kpi-avg')) document.getElementById('exec-kpi-avg').innerText = (hasData && data.avg !== null && data.avg !== undefined) ? (Number(data.avg).toFixed(2) + ' ms') : 'NOT MEASURED';
 
                 // Render 10 Stage Cards
                 const stagesContainer = document.getElementById('latency-stages-container');
@@ -10024,14 +10063,14 @@
 
         async function triggerSystemAutoHeal() {
             try {
-                showNotification('Auto-Heal Initiated', 'Running proactive memory compaction & garbage collection...', 'info');
+                showNotification('Memory Optimization Initiated', 'Running proactive memory compaction & garbage collection...', 'info');
                 const res = await fetch('/api/system/auto-heal', { method: 'POST' });
                 const d = await res.json();
-                showNotification('Auto-Heal Complete', d.actions_taken ? d.actions_taken.join(', ') : 'Memory optimized successfully.', 'success');
+                showNotification('Memory Optimization Complete', d.actions_taken ? d.actions_taken.join(', ') : 'Memory optimized successfully.', 'success');
                 fetchHardwareMetrics();
                 if (typeof playSynthChime === 'function') playSynthChime('SUCCESS');
             } catch (e) {
-                showNotification('Auto-Heal Error', e.message, 'error');
+                showNotification('Maintenance Error', e.message, 'error');
             }
         }
 

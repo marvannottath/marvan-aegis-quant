@@ -1,11 +1,15 @@
 """
-Aegis-Quant Safe Continuous Learning & Shadow Validation Engine.
-Enterprise Quant Standard:
-1. Champion vs Challenger Model Shadow Validation
+Aegis-Quant Post-Trade Telemetry & Shadow Evaluation Engine.
+Enterprise Quant Telemetry:
+1. Champion vs Challenger Shadow Scoring
 2. Hard Mathematical Risk Boundaries (Immutable Stops & Leverage Caps)
-3. Noise & Outlier Wick Filter
-4. Post-Trade Forensic Learning (Reward-Penalty RL)
+3. Noise & Outlier Wick Filter Logging
+4. Post-Trade Outcome Forensics (Shadow Reward-Penalty Tracking)
 5. 1-Click Rollback to Safe Base Model
+
+NOTE: This subsystem records post-trade performance analytics and shadow scoring.
+Adaptive weight changes are logged for offline analysis and do NOT alter real-time
+trade sizing or risk engine execution.
 """
 
 import json
@@ -26,8 +30,9 @@ def get_ist_time() -> str:
 
 class ContinuousLearningEngine:
     """
-    Safely adapts execution timing and entry weights across market regimes
-    WITHOUT allowing AI to loosen capital risk boundaries.
+    POST-TRADE TELEMETRY / SHADOW EVALUATION
+    Logs post-trade metrics, evaluates challenger model shadow performance,
+    and maintains historical performance statistics without altering live trading risk.
     """
 
     # IMMUTABLE HARD GUARDRAILS - No learning model can ever override these
@@ -79,7 +84,7 @@ class ContinuousLearningEngine:
                 {"rule": "FILTER_ILLIQUID_ASIAN_MIDNIGHT", "added_at": "2026-09-22", "reason": "Low depth widened spreads"}
             ],
             "last_training_epoch": get_ist_time(),
-            "status": "HEALTHY_CONTINUOUS_LEARNING"
+            "status": "POST_TRADE_TELEMETRY_HEALTHY"
         }
 
     def _save_state(self):

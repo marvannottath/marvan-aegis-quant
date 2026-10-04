@@ -564,29 +564,37 @@ async def read_dashboard(request: Request):
                 </div>
             </div>"""
 
-    # 8. Pre-render 13 System Health Indicators
+    # 8. Pre-render 13 System Health Indicators (Truthful latency)
+    from core.system_watchdog import system_watchdog
+    b_lat = None
+    if is_crypto:
+        b_lat = system_watchdog.probe_latency("BINANCE", "https://api.binance.com/api/v3/ping")
+    elif is_india:
+        b_lat = system_watchdog.probe_latency("UPSTOX", "https://api.upstox.com/v2/login")
+
     broker_service_name = "Upstox Broker" if is_india else ("Binance Gateway" if is_crypto else "Interbank FX Broker")
     broker_service_detail = "NSE/BSE Execution Active" if is_india else ("Demo Link Active" if is_crypto else "24/5 Interbank Active")
     health_services = [
-        {"name": "Backend", "status": "HEALTHY", "latency_ms": 1.2, "detail": "FastAPI Core Active"},
-        {"name": "Database", "status": "HEALTHY", "latency_ms": 0.8, "detail": "SQLite WAL Engine Active"},
-        {"name": "WebSocket", "status": "HEALTHY", "latency_ms": 0.5, "detail": "Broadcaster Active"},
-        {"name": "Market Data", "status": "HEALTHY", "latency_ms": 0.4, "detail": f"Watchdog Stream ({active_ws})"},
-        {"name": "AI Engine", "status": "HEALTHY", "latency_ms": 7.8, "detail": "7-Agent Ensemble Active"},
-        {"name": "Risk Engine", "status": "HEALTHY", "latency_ms": 1.5, "detail": "Server-Side 7-Gate Active"},
-        {"name": "Execution Engine", "status": "HEALTHY", "latency_ms": 2.1, "detail": "Smart Order Router Armed"},
-        {"name": broker_service_name, "status": "CONNECTED", "latency_ms": 12.4, "detail": broker_service_detail},
-        {"name": "Macro Intelligence", "status": "HEALTHY", "latency_ms": 5.0, "detail": f"Macro News Engine ({active_ws})"},
-        {"name": "Payment Engine", "status": "HEALTHY", "latency_ms": 3.2, "detail": "Payment Router Operational"},
-        {"name": "Ledger", "status": "HEALTHY", "latency_ms": 0.9, "detail": "Double-Entry Balance Reconciled"},
-        {"name": "Reconciliation", "status": "HEALTHY", "latency_ms": 1.1, "detail": "Accounting Sentinel Integrity 100%"},
-        {"name": "Backup", "status": "HEALTHY", "latency_ms": 2.4, "detail": "Database Backup Engine Active"}
+        {"name": "Backend", "status": "HEALTHY", "latency_ms": None, "detail": "FastAPI Core Active"},
+        {"name": "Database", "status": "HEALTHY", "latency_ms": None, "detail": "JSON State Store Operational"},
+        {"name": "WebSocket", "status": "HEALTHY", "latency_ms": None, "detail": "Heartbeat Broadcast Active"},
+        {"name": "Market Data", "status": "HEALTHY", "latency_ms": None, "detail": f"Watchdog Stream ({active_ws})"},
+        {"name": "AI Engine", "status": "HEALTHY", "latency_ms": None, "detail": "7-Agent Ensemble Active"},
+        {"name": "Risk Engine", "status": "HEALTHY", "latency_ms": None, "detail": "Server-Side 7-Gate Active"},
+        {"name": "Execution Engine", "status": "HEALTHY", "latency_ms": None, "detail": "Smart Order Router Armed"},
+        {"name": broker_service_name, "status": "CONNECTED", "latency_ms": b_lat, "detail": broker_service_detail},
+        {"name": "Macro Intelligence", "status": "HEALTHY", "latency_ms": None, "detail": f"Macro News Engine ({active_ws})"},
+        {"name": "Payment Engine", "status": "HEALTHY", "latency_ms": None, "detail": "Payment Router Operational"},
+        {"name": "Ledger", "status": "HEALTHY", "latency_ms": None, "detail": "Double-Entry Balance Reconciled"},
+        {"name": "Reconciliation", "status": "HEALTHY", "latency_ms": None, "detail": "Accounting Sentinel Integrity 100%"},
+        {"name": "Backup", "status": "HEALTHY", "latency_ms": None, "detail": "Database Backup Engine Active"}
     ]
     health_cards_html = ""
     for s in health_services:
         st = s["status"].upper()
         badgeColor = "bg-emerald-500/10 text-emerald-400" if st in ["HEALTHY", "CONNECTED", "ONLINE"] else "bg-amber-500/10 text-amber-400"
-        lat = f"{s['latency_ms']:.1f}ms"
+        lat_val = s.get("latency_ms")
+        lat = f"{lat_val:.1f}ms" if (lat_val is not None and lat_val > 0) else "NOT MEASURED"
         health_cards_html += f"""
             <div class="bg-darkcard border border-darkborder p-4 rounded-xl space-y-2 font-mono">
                 <div class="flex justify-between items-center">
@@ -1172,6 +1180,7 @@ async def get_state(workspace: Optional[str] = None, request_id: Optional[str] =
 
     today_str = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d")
     today_pnl = 0.0
+    pool_realized_pnl = 0.0
     try:
         from core.historical_log_service import historical_log_service
         today_hist_trades = historical_log_service.query(start_date=today_str, end_date=today_str, workspace=ws if ws != "ALL" else None)
@@ -1198,27 +1207,33 @@ async def get_state(workspace: Optional[str] = None, request_id: Optional[str] =
         b_service_status = "DISCONNECTED"
         b_detail = "Unauthenticated / Locked"
 
-    if ws == "INDIA":
-        broker_indicator = {"name": "Upstox/NSE", "status": "HEALTHY", "latency_ms": 11.2, "detail": "NSE/BSE Upstox Active", "heartbeat": now_ist}
-    elif ws == "CRYPTO":
-        broker_indicator = {"name": "Binance", "status": b_service_status, "latency_ms": 18.2, "detail": b_detail, "heartbeat": now_ist}
+    from core.system_watchdog import system_watchdog
+    b_lat = None
+    if ws == "CRYPTO":
+        b_lat = system_watchdog.probe_latency("BINANCE", "https://api.binance.com/api/v3/ping")
+        broker_indicator = {"name": "Binance", "status": b_service_status, "latency_ms": b_lat, "detail": b_detail, "heartbeat": now_ist}
+    elif ws == "INDIA":
+        b_lat = system_watchdog.probe_latency("UPSTOX", "https://api.upstox.com/v2/login")
+        broker_indicator = {"name": "Upstox/NSE", "status": "HEALTHY", "latency_ms": b_lat, "detail": "NSE/BSE Upstox Active", "heartbeat": now_ist}
     else:
-        broker_indicator = {"name": "Global FX", "status": "HEALTHY", "latency_ms": 8.4, "detail": "Interbank OTC Feed Active", "heartbeat": now_ist}
+        broker_indicator = {"name": "Global FX", "status": "HEALTHY", "latency_ms": None, "detail": "Interbank OTC Feed Active", "heartbeat": now_ist}
+
+    mkt_latency = watchdog.get_latency_percentiles().get("p50") or None
 
     health_services = [
-        {"name": "Backend", "status": "HEALTHY", "latency_ms": 1.2, "detail": "FastAPI Core Active", "heartbeat": now_ist},
-        {"name": "Database", "status": "HEALTHY", "latency_ms": 0.8, "detail": "JSON Store & File Locks Operational", "heartbeat": now_ist},
-        {"name": "WebSocket", "status": "HEALTHY", "latency_ms": 0.5, "detail": "Heartbeat Broadcast 1s Active", "heartbeat": now_ist},
-        {"name": "Market Data", "status": watchdog.get_all_status()["overall_status"], "latency_ms": 0.4, "detail": f"{ws} Watchdog Stream Active", "heartbeat": now_ist},
-        {"name": "AI Engine", "status": "HEALTHY", "latency_ms": 7.8, "detail": "7-Agent Ensemble Active", "heartbeat": now_ist},
-        {"name": "Risk Engine", "status": "HEALTHY", "latency_ms": 1.5, "detail": f"{risk_engine.active_profile_name} Server-Side Active", "heartbeat": now_ist},
-        {"name": "Execution Engine", "status": "HEALTHY", "latency_ms": 2.1, "detail": f"{meta['venue_name']} Router Armed", "heartbeat": now_ist},
+        {"name": "Backend", "status": "HEALTHY", "latency_ms": None, "detail": "FastAPI Core Active", "heartbeat": now_ist},
+        {"name": "Database", "status": "HEALTHY", "latency_ms": None, "detail": "JSON Store & File Locks Operational", "heartbeat": now_ist},
+        {"name": "WebSocket", "status": "HEALTHY", "latency_ms": None, "detail": "Heartbeat Broadcast 1s Active", "heartbeat": now_ist},
+        {"name": "Market Data", "status": watchdog.get_all_status()["overall_status"], "latency_ms": mkt_latency, "detail": f"{ws} Watchdog Stream Active", "heartbeat": now_ist},
+        {"name": "AI Engine", "status": "HEALTHY", "latency_ms": None, "detail": "7-Agent Ensemble Active", "heartbeat": now_ist},
+        {"name": "Risk Engine", "status": "HEALTHY", "latency_ms": None, "detail": f"{risk_engine.active_profile_name} Server-Side Active", "heartbeat": now_ist},
+        {"name": "Execution Engine", "status": "HEALTHY", "latency_ms": None, "detail": f"{meta['venue_name']} Router Armed", "heartbeat": now_ist},
         broker_indicator,
-        {"name": "Telegram/News", "status": news_intel.get("status", "NOT_CONFIGURED"), "latency_ms": 5.0, "detail": news_intel.get("display_banner", "NOT_CONFIGURED"), "heartbeat": now_ist},
-        {"name": "Payment Engine", "status": "HEALTHY", "latency_ms": 3.2, "detail": f"{'/'.join(meta['funding_methods'][:2])} Ready", "heartbeat": now_ist},
-        {"name": "Ledger", "status": "HEALTHY", "latency_ms": 0.9, "detail": "Double-Entry Balance Reconciled", "heartbeat": now_ist},
-        {"name": "Reconciliation", "status": "HEALTHY", "latency_ms": 1.1, "detail": "Accounting Sentinel Integrity 100%", "heartbeat": now_ist},
-        {"name": "Backup", "status": "HEALTHY", "latency_ms": 2.4, "detail": "Database Backup Engine Active", "heartbeat": now_ist}
+        {"name": "Telegram/News", "status": news_intel.get("status", "NOT_CONFIGURED"), "latency_ms": None, "detail": news_intel.get("display_banner", "NOT_CONFIGURED"), "heartbeat": now_ist},
+        {"name": "Payment Engine", "status": "HEALTHY", "latency_ms": None, "detail": f"{'/'.join(meta['funding_methods'][:2])} Ready", "heartbeat": now_ist},
+        {"name": "Ledger", "status": "HEALTHY", "latency_ms": None, "detail": "Double-Entry Balance Reconciled", "heartbeat": now_ist},
+        {"name": "Reconciliation", "status": "HEALTHY", "latency_ms": None, "detail": "Accounting Sentinel Integrity 100%", "heartbeat": now_ist},
+        {"name": "Backup", "status": "HEALTHY", "latency_ms": None, "detail": "Database Backup Engine Active", "heartbeat": now_ist}
     ]
 
     return {
@@ -2777,10 +2792,77 @@ async def universal_totp_activate(data: dict):
     return JSONResponse(res, status_code=status_code)
 
 @app.post("/api/auth/totp-deactivate")
-async def universal_totp_deactivate(data: dict):
-    """Deactivate Google Authenticator 2FA for user."""
-    username = data.get("username", "").strip()
-    res = super_admin.deactivate_totp(username)
+async def universal_totp_deactivate(request: Request, data: dict):
+    """
+    Securely deactivate Google Authenticator 2FA for user.
+    Requires:
+      - Valid authenticated session token (Bearer token or session_token in body)
+      - SUPER_ADMIN authorization role
+      - Re-verification of password OR current valid 6-digit TOTP code
+      - Comprehensive audit logging on both success and failure
+    """
+    client_ip = request.client.host if request.client else "127.0.0.1"
+    auth_header = request.headers.get("Authorization", "")
+    token = ""
+    if auth_header.startswith("Bearer "):
+        token = auth_header.split(" ", 1)[1].strip()
+    elif "session_token" in data:
+        token = str(data.get("session_token", "")).strip()
+
+    if not token:
+        super_admin.log_action("ANONYMOUS", "TOTP_DEACTIVATE_REJECTED", "Missing authorization session token", ip=client_ip)
+        return JSONResponse({"status": "FAILED", "message": "Authentication required: Session token missing"}, status_code=401)
+
+    session = super_admin.validate_session(token, required_role="SUPER_ADMIN")
+    if not session:
+        super_admin.log_action("UNAUTHORIZED", "TOTP_DEACTIVATE_REJECTED", "Insufficient permissions or invalid session token", ip=client_ip)
+        return JSONResponse({"status": "FAILED", "message": "Forbidden: Requires SUPER_ADMIN privileges"}, status_code=403)
+
+    target_username = data.get("username", "").strip()
+    if not target_username:
+        super_admin.log_action(session["username"], "TOTP_DEACTIVATE_REJECTED", "Target username missing", ip=client_ip)
+        return JSONResponse({"status": "FAILED", "message": "Username required"}, status_code=400)
+
+    target_user = super_admin.users.get(target_username.lower().strip())
+    if not target_user:
+        super_admin.log_action(session["username"], "TOTP_DEACTIVATE_REJECTED", f"Target user '{target_username}' not found", ip=client_ip)
+        return JSONResponse({"status": "FAILED", "message": "User not found"}, status_code=404)
+
+    # Re-authentication confirmation check: must provide password OR valid current TOTP code
+    password = str(data.get("password", "")).strip()
+    totp_code = str(data.get("totp_code") or data.get("code") or "").strip()
+
+    is_verified = False
+    verification_method = ""
+
+    from core.super_admin import verify_password_pbkdf2
+    if password and verify_password_pbkdf2(password, target_user.get("password_hash", "")):
+        is_verified = True
+        verification_method = "PASSWORD"
+    elif totp_code and super_admin.verify_totp(target_username, totp_code):
+        is_verified = True
+        verification_method = "TOTP"
+
+    if not is_verified:
+        super_admin.log_action(
+            session["username"],
+            "TOTP_DEACTIVATE_FAILED",
+            f"Failed 2FA deactivation for '{target_username}' — invalid password or TOTP code",
+            ip=client_ip
+        )
+        return JSONResponse(
+            {"status": "FAILED", "message": "Verification failed: Valid password or current 6-digit TOTP code required"},
+            status_code=400
+        )
+
+    # Perform deactivation only after strict verification
+    res = super_admin.deactivate_totp(target_username)
+    super_admin.log_action(
+        session["username"],
+        "TOTP_DEACTIVATED",
+        f"2FA deactivated for user '{target_username}' via {verification_method} re-authentication by {session['username']}",
+        ip=client_ip
+    )
     return JSONResponse(res)
 
 @app.post("/api/auth/biometric-register")

@@ -299,10 +299,21 @@ class SuperAdminEngine:
         account_name = f"{username} ({user.get('email', 'admin')})"
         otpauth_url = f"otpauth://totp/{issuer}:{account_name}?secret={secret}&issuer={issuer}&algorithm=SHA1&digits=6&period=30"
         
-        # Free, ultra-fast, zero-dependency QR code SVG / PNG generation via QuickChart QR API
-        import urllib.parse
-        encoded_otpauth = urllib.parse.quote(otpauth_url)
-        qr_image_url = f"https://quickchart.io/qr?text={encoded_otpauth}&size=220&margin=1&format=svg"
+        # Self-contained local offline SVG QR code generation (zero external network calls)
+        try:
+            import qrcode
+            import qrcode.image.svg
+            import io
+            factory = qrcode.image.svg.SvgPathImage
+            img = qrcode.make(otpauth_url, image_factory=factory)
+            buf = io.BytesIO()
+            img.save(buf)
+            svg_data = buf.getvalue().decode('utf-8')
+            encoded_svg = base64.b64encode(svg_data.encode('utf-8')).decode('ascii')
+            qr_image_url = f"data:image/svg+xml;base64,{encoded_svg}"
+        except Exception as e:
+            print(f"[SUPER ADMIN] Local QR generation notice: {e}")
+            qr_image_url = ""
 
         return {
             "status": "SUCCESS",

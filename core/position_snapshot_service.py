@@ -456,8 +456,8 @@ class PositionSnapshotService:
                 if is_auth and (live_tot > 0 or live_avail > 0):
                     free_cash = round(live_avail, 2)
                     total_equity = round(max(live_tot, free_cash + total_exposure + unrealized_pnl), 2)
-                    if total_exposure <= 0 and live_tot > free_cash:
-                        total_exposure = round(live_tot - free_cash, 2)
+                    # If there are open positions, exposure reflects verified position value.
+                    # When open_pos_count == 0, total_exposure remains strictly 0.00 to avoid phantom active positions.
                 elif is_auth:
                     free_cash = round(live_avail, 2)
                     total_equity = round(free_cash + total_exposure + unrealized_pnl, 2)
