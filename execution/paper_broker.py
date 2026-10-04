@@ -74,6 +74,17 @@ class PaperBroker:
                 "ai_active": True,
                 "order_stream": []
             },
+            "CTRADER_LIVE": {
+                "initial_capital": 10000.0,
+                "virtual_cash": 10000.0,
+                "equity": 10000.0,
+                "currency": "USD",
+                "currency_symbol": "$",
+                "positions": {},
+                "trade_history": [],
+                "ai_active": True,
+                "order_stream": []
+            },
             "AEGIS_INDIA_INR": {
                 "initial_capital": 100000.0,
                 "virtual_cash": 100000.0,
@@ -293,22 +304,38 @@ class PaperBroker:
             live_pool.setdefault("order_stream", [])
             live_pool.setdefault("positions", {})
 
-        if target_name in ("MT5_LIVE_REAL", "MT5_DEMO"):
-            from execution.mt5_broker import mt5_broker
-            mt5_acc = mt5_broker.get_account_info()
-            default_b = 10000.0 if target_name == "MT5_DEMO" else 1000.0
-            mt5_b = float(mt5_acc.get("balance", default_b))
-            if mt5_b <= 0.0:
-                mt5_b = default_b
-            mt5_pool = self.pools.setdefault(target_name, {})
-            if "initial_capital" not in mt5_pool or mt5_pool.get("initial_capital", 0.0) <= 0:
-                mt5_pool["initial_capital"] = mt5_b
-            mt5_pool["virtual_cash"] = mt5_b
-            mt5_pool["equity"] = mt5_b
-            mt5_pool["base_equity"] = mt5_b
-            mt5_pool.setdefault("trade_history", [])
-            mt5_pool.setdefault("order_stream", [])
-            mt5_pool.setdefault("positions", {})
+        if target_name in ("MT5_LIVE_REAL", "MT5_DEMO", "CTRADER_LIVE"):
+            if target_name == "CTRADER_LIVE":
+                try:
+                    from execution.ctrader_broker import ctrader_broker
+                    default_b = 10000.0
+                    ct_pool = self.pools.setdefault(target_name, {})
+                    if "initial_capital" not in ct_pool or ct_pool.get("initial_capital", 0.0) <= 0:
+                        ct_pool["initial_capital"] = default_b
+                    ct_pool.setdefault("virtual_cash", default_b)
+                    ct_pool.setdefault("equity", default_b)
+                    ct_pool.setdefault("base_equity", default_b)
+                    ct_pool.setdefault("trade_history", [])
+                    ct_pool.setdefault("order_stream", [])
+                    ct_pool.setdefault("positions", {})
+                except Exception:
+                    pass
+            else:
+                from execution.mt5_broker import mt5_broker
+                mt5_acc = mt5_broker.get_account_info()
+                default_b = 10000.0 if target_name == "MT5_DEMO" else 1000.0
+                mt5_b = float(mt5_acc.get("balance", default_b))
+                if mt5_b <= 0.0:
+                    mt5_b = default_b
+                mt5_pool = self.pools.setdefault(target_name, {})
+                if "initial_capital" not in mt5_pool or mt5_pool.get("initial_capital", 0.0) <= 0:
+                    mt5_pool["initial_capital"] = mt5_b
+                mt5_pool["virtual_cash"] = mt5_b
+                mt5_pool["equity"] = mt5_b
+                mt5_pool["base_equity"] = mt5_b
+                mt5_pool.setdefault("trade_history", [])
+                mt5_pool.setdefault("order_stream", [])
+                mt5_pool.setdefault("positions", {})
 
         self._sync_active_pool_refs()
         self._update_equity()
