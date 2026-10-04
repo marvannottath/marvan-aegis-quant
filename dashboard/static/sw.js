@@ -1,5 +1,5 @@
 // Aegis-Quant Institutional PWA Service Worker
-const CACHE_NAME = 'aegis-quant-v2';
+const CACHE_NAME = 'aegis-quant-v3';
 const STATIC_ASSETS = [
   '/',
   '/static/manifest.json',

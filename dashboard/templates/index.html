@@ -3915,6 +3915,9 @@
 
     <!-- JASS SCRIPTS: REAL-TIME CLIENT LOGIC -->
     <script>
+        // ── GLOBAL APPLICATION STATE ───────────────────────────────────────
+        let chartInstance = null;
+
         // ── UNIVERSAL ZERO-TRUST AUTHENTICATION & MULTI-USER GATEWAY ───────
         let activeUserSession = null;
 
@@ -5028,6 +5031,7 @@
             }
 
             refreshVenueData(currentSeq);
+            fetchPerformanceCurve();
         }
 
         function updateVenueBanner(venue) {
