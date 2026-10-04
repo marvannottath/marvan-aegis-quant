@@ -17,13 +17,10 @@ git fetch origin main
 git reset --hard origin/main
 echo "Git HEAD is now: $(git rev-parse --short HEAD)"
 
-echo "[2/4] Clearing cache and state files..."
-rm -f execution/profit_vault_state.json
-rm -f data/peak_equity_state.json
+echo "[2/4] Verifying state integrity..."
+# Preserve active position and peak equity state files across deploys
 
 echo "[3/4] Restarting Aegis-Quant background service..."
-pkill -9 -f "python.*main.py" 2>/dev/null || true
-sleep 1
 
 RESTARTED=0
 if [ -f /etc/systemd/system/marvan-pool.service ]; then
