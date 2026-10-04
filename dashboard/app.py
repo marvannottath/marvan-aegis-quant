@@ -1666,19 +1666,23 @@ async def close_position_endpoint(request: Request):
             except Exception:
                 pass
 
-        # 1. Liquidate/dismiss spot crypto asset in binance_broker so it won't be resurrected
-        binance_close_record = None
-        try:
-            from execution.binance_broker import binance_broker
-            b_res = binance_broker.close_spot_position(asset, environment="BINANCE_LIVE")
-            if b_res and b_res.get("status") == "SUCCESS" and b_res.get("trade_record"):
-                binance_close_record = b_res["trade_record"]
-        except Exception as e:
-            print(f"[CLOSE_SPOT_NOTICE]: {e}")
+        # Determine position product
+        pos = paper_broker.positions.get(asset) or paper_broker.positions.get(f"{asset}:USDT_M_FUTURES", {})
+        pos_product = pos.get("product", "USDT_M_FUTURES" if ":USDT_M_FUTURES" in asset else "SPOT")
 
-        # 2. If it is a Binance Futures position, execute reduceOnly close on Binance
-        is_crypto_target = (workspace == "CRYPTO" or "USDT" in asset.upper() or "BUSD" in asset.upper())
-        if is_crypto_target:
+        binance_close_record = None
+        # 1. If it is SPOT crypto, liquidate/dismiss spot crypto asset in binance_broker
+        if pos_product == "SPOT":
+            try:
+                from execution.binance_broker import binance_broker
+                b_res = binance_broker.close_spot_position(asset, environment="BINANCE_LIVE")
+                if b_res and b_res.get("status") == "SUCCESS" and b_res.get("trade_record"):
+                    binance_close_record = b_res["trade_record"]
+            except Exception as e:
+                print(f"[CLOSE_SPOT_NOTICE]: {e}")
+
+        # 2. If it is USDT_M_FUTURES, execute close_futures_position on Binance
+        if pos_product == "USDT_M_FUTURES":
             try:
                 from execution.binance_broker import binance_broker
                 binance_broker.close_futures_position(asset, environment="BINANCE_LIVE")
@@ -1686,7 +1690,6 @@ async def close_position_endpoint(request: Request):
                 print(f"[CLOSE_FUTURES_NOTICE]: {e}")
 
         # 3. Close in paper_broker and purge from all pools
-        pos = paper_broker.positions.get(asset, {})
         exit_price = float(pos.get("last_price") or pos.get("entry_price") or 0.0)
         res = paper_broker.close_position(asset, exit_price=exit_price, reason="MANUAL_TRADER_EXIT")
         if binance_close_record and (not res or str(res.get("trade_id", "")).startswith("DISMISS-")):
@@ -1696,10 +1699,10 @@ async def close_position_endpoint(request: Request):
         for p_name, p_data in paper_broker.pools.items():
             if isinstance(p_data, dict) and "positions" in p_data:
                 for k in list(p_data["positions"].keys()):
-                    if k.upper() in [asset.upper(), clean_name, f"{clean_name}USDT"]:
+                    if k.upper() in [asset.upper(), clean_name, f"{clean_name}USDT", f"{asset.upper()}:USDT_M_FUTURES"]:
                         del p_data["positions"][k]
         for k in list(paper_broker.positions.keys()):
-            if k.upper() in [asset.upper(), clean_name, f"{clean_name}USDT"]:
+            if k.upper() in [asset.upper(), clean_name, f"{clean_name}USDT", f"{asset.upper()}:USDT_M_FUTURES"]:
                 del paper_broker.positions[k]
 
         # 4. Clear snapshot service and historical log caches immediately
@@ -4968,6 +4971,18 @@ async def submit_order(request: Request):
         environment = body.get("environment", "PAPER")
         strategy    = body.get("strategy", "MANUAL")
         req_leverage = float(body.get("leverage", 1.0))
+        product = body.get("product", "SPOT")
+
+        # Live Binance Futures Hard Lock (Fail-Closed Gate)
+        if product == "USDT_M_FUTURES" and "LIVE" in environment.upper():
+            return JSONResponse({
+                "status": "EXECUTION_REJECTED",
+                "rejection_code": "LIVE_FUTURES_LOCKED",
+                "reason": "Live Binance Futures trading is hard-locked. Simulation and paper testing only.",
+                "message": "Live Binance Futures trading is hard-locked. Simulation and paper testing only.",
+                "workspace": "CRYPTO",
+                "symbol": symbol
+            }, status_code=403)
 
         # Check sub-trader max_trade_size limit
         auth_header = request.headers.get("Authorization", "")
@@ -5129,7 +5144,7 @@ async def submit_order(request: Request):
             if "LIVE" in environment.upper() and ws == "CRYPTO":
                 paper_broker.switch_pool("BINANCE_LIVE_REAL")
             osm.transition(order_id, "SUBMITTED", reason=f"Submitting to {environment} broker")
-            exec_result = paper_broker.place_order(symbol=symbol, side=side, amount_usd=amount_val, price=price)
+            exec_result = paper_broker.place_order(symbol=symbol, side=side, amount_usd=amount_val, price=price, product=product, leverage=req_leverage)
             if exec_result.get("status") == "SUCCESS":
                 exec_record = {"fill_price": exec_result.get("entry_price", price), "environment": environment, "broker": environment}
                 osm.transition(order_id, "ACKNOWLEDGED", reason=f"{environment} broker acknowledged")

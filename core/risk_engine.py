@@ -361,9 +361,11 @@ class RiskEngine:
         if price < 0:
             return False, RISK_REJECTED_INVALID_PRICE, "Order price cannot be negative"
 
-        # 4. SEBI Regulatory Leverage Cap (India strictly <= 5.0x)
+        # 4. Regulatory / Workspace Leverage Caps
         if norm_ws == "INDIA" and leverage > 5.0:
             return False, RISK_REJECTED_SEBI_LEVERAGE_CAP, f"Leverage {leverage}x exceeds SEBI intraday peak leverage limit of 5.0x for Indian equities"
+        if norm_ws == "CRYPTO" and leverage > self.LEVERAGE_CAPS.get("CRYPTO", 25.0):
+            return False, RISK_REJECTED_LEVERAGE, f"Leverage {leverage}x exceeds max allowed {self.LEVERAGE_CAPS.get('CRYPTO', 25.0)}x for Crypto Futures"
 
         # 5. Stale Market Data
         if data_age_seconds is not None and data_age_seconds > 5.0 and data_age_seconds != 9999.0:

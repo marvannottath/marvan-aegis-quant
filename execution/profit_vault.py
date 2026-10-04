@@ -247,12 +247,21 @@ class ProfitVault:
         # Post double-entry ledger entry for profit vault sweep
         try:
             from core.double_entry_ledger import double_entry_ledger
+            # Clean asset symbol for ledger (e.g. BTCUSDT:USDT_M_FUTURES -> USDT for crypto, or native currency)
+            if "BINANCE" in environment.upper():
+                ledger_asset = "USDT"
+            elif "INDIA" in environment.upper() or "UPSTOX" in environment.upper():
+                ledger_asset = "INR"
+            elif "MT5" in environment.upper() or "FOREX" in environment.upper():
+                ledger_asset = "USD"
+            else:
+                ledger_asset = asset.split(":")[0]
             double_entry_ledger.post_entry(
                 ledger_type="VAULT_LEDGER",
                 debit_account="CUSTOMER_TRADING_ACCOUNT",
                 credit_account="VAULT_RESERVE_ACCOUNT",
                 amount=sweep_amt,
-                asset=asset,
+                asset=ledger_asset,
                 reference_id=tx_id,
                 environment=environment
             )

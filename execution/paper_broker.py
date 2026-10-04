@@ -384,7 +384,8 @@ class PaperBroker:
         unrealized = 0.0
         allocated_margin = 0.0
 
-        for pos in self.positions.values():
+        liquidated_keys = []
+        for p_key, pos in list(self.positions.items()):
             price = pos.get("last_price", pos.get("entry_price", 0.0))
             cap = pos.get("capital_allocated", 1000.0)
             allocated_margin += cap
@@ -392,12 +393,31 @@ class PaperBroker:
             act = pos.get("action") or pos.get("side", "BUY")
             entry = pos.get("entry_price", price)
             units = pos.get("units", 0.0)
-            if act == "BUY":
+            prod = pos.get("product", "SPOT")
+            liq_px = float(pos.get("liquidation_price", 0.0))
+
+            # Liquidation check for futures positions
+            if prod == "USDT_M_FUTURES" and liq_px > 0.0:
+                is_liquidated = False
+                if act in ("BUY", "LONG") and price <= liq_px:
+                    is_liquidated = True
+                elif act in ("SELL", "SHORT") and price >= liq_px:
+                    is_liquidated = True
+                if is_liquidated:
+                    liquidated_keys.append((p_key, price))
+                    continue
+
+            if act in ("BUY", "LONG"):
                 pos_pnl = (price - entry) * units
             else:
                 pos_pnl = (entry - price) * units
             pos_pnl = max(-cap, pos_pnl)
             unrealized += pos_pnl
+
+        # Process liquidations if triggered
+        for l_key, l_price in liquidated_keys:
+            print(f"[PAPER_BROKER -> LIQUIDATION]: Position {l_key} liquidated at price {l_price}")
+            self.close_position(l_key, exit_price=l_price, reason="LIQUIDATION_BREACH")
 
         pool = self.pools.setdefault(self.active_pool_name, {})
 
@@ -449,32 +469,52 @@ class PaperBroker:
 
     def execute_order(self, asset: str, action: str, amount_usd: float, current_price: float, leverage: float = 10.0, **kwargs) -> Dict[str, Any]:
         """Execute order in active environment."""
+        product = kwargs.get("product", "SPOT")
         notional = amount_usd * leverage
         units = notional / current_price
 
+        # Differentiate position key for futures vs spot so both can coexist
+        pos_key = f"{asset}:USDT_M_FUTURES" if product == "USDT_M_FUTURES" else asset
+
         # Idempotency check: if position exists, update or skip duplicate
-        if asset in self.positions:
-            return self.positions[asset]
+        if pos_key in self.positions:
+            return self.positions[pos_key]
 
         trade_id = f"TRD-{self.active_pool_name[:4]}-{int(time.time()*1000)}-{asset}"
 
         position = {
             "trade_id": trade_id,
             "asset": asset,
+            "symbol": asset,
             "action": action,
+            "side": action,
+            "product": product,
             "units": round(units, 4),
             "entry_price": current_price,
             "last_price": current_price,
             "capital_allocated": round(amount_usd, 2),
+            "margin": round(amount_usd, 2),
             "leverage": leverage,
             "timestamp": datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S")
         }
+
+        # Calculate liquidation price for Futures
+        if product == "USDT_M_FUTURES":
+            eff_lev = max(1.0, float(leverage))
+            if action.upper() in ("BUY", "LONG"):
+                liq_price = current_price * (1.0 - (1.0 / eff_lev) + 0.005)
+            else:
+                liq_price = current_price * (1.0 + (1.0 / eff_lev) - 0.005)
+            position["liquidation_price"] = round(liq_price, 4)
 
         # Gate check for BINANCE_LIVE_REAL: strictly require LIVE_TRADING_ENABLED and real exchange order
         if self.active_pool_name == "BINANCE_LIVE_REAL":
             from core.environment_gate import environment_gate
             if not environment_gate.LIVE_TRADING_ENABLED:
                 print(f"[PAPER_BROKER] Order BLOCKED in BINANCE_LIVE_REAL: LIVE_TRADING_ENABLED is false.")
+                return {}
+            if product == "USDT_M_FUTURES":
+                print(f"[PAPER_BROKER] Order BLOCKED in BINANCE_LIVE_REAL: Crypto Futures live trading is locked.")
                 return {}
             try:
                 from execution.binance_broker import binance_broker
@@ -486,11 +526,18 @@ class PaperBroker:
                 print(f"[PAPER_BROKER -> BINANCE EXECUTION] Error: {e}")
                 return {}
         elif self.active_pool_name in ["BINANCE_TESTNET_DEMO", "BINANCE_DEMO", "BINANCE_LIVE"]:
-            try:
-                from execution.binance_broker import binance_broker
-                binance_broker.place_spot_market_order(symbol=asset, side=action, quote_order_qty=amount_usd)
-            except Exception as e:
-                print(f"[PAPER_BROKER -> BINANCE EXECUTION] Notice: {e}")
+            if product == "USDT_M_FUTURES":
+                try:
+                    from execution.binance_broker import binance_broker
+                    binance_broker.create_futures_order(symbol=asset, side=action, quantity=units, environment="BINANCE_TESTNET")
+                except Exception as e:
+                    print(f"[PAPER_BROKER -> BINANCE FUTURES NOTICE]: {e}")
+            else:
+                try:
+                    from execution.binance_broker import binance_broker
+                    binance_broker.place_spot_market_order(symbol=asset, side=action, quote_order_qty=amount_usd)
+                except Exception as e:
+                    print(f"[PAPER_BROKER -> BINANCE EXECUTION] Notice: {e}")
 
         # Deduct margin from active pool cash
         pool = self.pools.setdefault(self.active_pool_name, {})
@@ -498,7 +545,7 @@ class PaperBroker:
         pool["virtual_cash"] = round(max(0.0, pool_cash - amount_usd), 2)
         self.virtual_cash = pool["virtual_cash"]
 
-        self.positions[asset] = position
+        self.positions[pos_key] = position
         pool["positions"] = self.positions
         self._update_equity()
         self._save_state()
@@ -522,14 +569,17 @@ class PaperBroker:
 
     def find_position_pool(self, asset: str) -> Optional[str]:
         """Find which pool holds the given asset position."""
-        if asset in self.positions:
-            return self.active_pool_name
+        target_keys = [asset, f"{asset}:USDT_M_FUTURES"]
+        for k in target_keys:
+            if k in self.positions:
+                return self.active_pool_name
         for pool_name, pool in self.pools.items():
             if isinstance(pool, dict) and "positions" in pool:
-                if asset in pool["positions"]:
-                    return pool_name
+                for k in target_keys:
+                    if k in pool["positions"]:
+                        return pool_name
                 for sym in pool["positions"].keys():
-                    if sym.upper() == asset.upper():
+                    if sym.upper() == asset.upper() or sym.upper() == f"{asset.upper()}:USDT_M_FUTURES":
                         return pool_name
         return None
 
@@ -542,34 +592,43 @@ class PaperBroker:
         if target_pool and target_pool != self.active_pool_name:
             self.switch_pool(target_pool)
 
-        if asset not in self.positions:
+        # Check if asset or futures key exists in positions
+        found_key = None
+        target_keys = [asset, f"{asset}:USDT_M_FUTURES"]
+        for k in target_keys:
+            if k in self.positions:
+                found_key = k
+                break
+
+        if not found_key:
             for sym in list(self.positions.keys()):
-                if sym.upper() == asset.upper():
-                    asset = sym
+                if sym.upper() in [asset.upper(), f"{asset.upper()}:USDT_M_FUTURES"]:
+                    found_key = sym
                     break
 
         # Check across all pools if not in active pool
-        if asset not in self.positions:
+        if not found_key:
             for p_name, p_val in self.pools.items():
                 if isinstance(p_val, dict) and "positions" in p_val:
                     for sym, p_obj in list(p_val["positions"].items()):
-                        if sym.upper() == asset.upper():
+                        if sym.upper() in [asset.upper(), f"{asset.upper()}:USDT_M_FUTURES"]:
                             self.positions[sym] = p_obj
-                            asset = sym
+                            found_key = sym
                             break
-                    if asset in self.positions:
+                    if found_key:
                         break
 
-        # If crypto, dismiss in binance broker immediately so wallet poll won't resurrect it
+        # If crypto spot, dismiss in binance broker immediately so wallet poll won't resurrect it
         is_crypto_sym = asset.endswith("USDT") or asset.endswith("BUSD") or any(c in asset.upper() for c in ["BTC", "ETH", "SOL", "XRP", "BNB", "DOGE", "ADA"])
-        if is_crypto_sym:
+        is_futures_pos = found_key and (self.positions.get(found_key, {}).get("product") == "USDT_M_FUTURES" or ":USDT_M_FUTURES" in found_key)
+        if is_crypto_sym and not is_futures_pos:
             try:
                 from execution.binance_broker import binance_broker
                 binance_broker.dismiss_spot_position(asset)
             except Exception:
                 pass
 
-        if asset not in self.positions:
+        if not found_key:
             # If not in paper positions, try to synthesize from live Binance positions
             if is_crypto_sym:
                 try:
@@ -579,11 +638,12 @@ class PaperBroker:
                         lp_sym = (lp.get("symbol") or lp.get("asset") or "").upper()
                         if lp_sym == asset.upper() or lp_sym == f"{asset.upper()}USDT":
                             self.positions[asset] = lp
+                            found_key = asset
                             break
                 except Exception:
                     pass
 
-        if asset not in self.positions:
+        if not found_key:
             # Successfully return dismissal receipt so frontend receives SUCCESS
             return {
                 "trade_id": f"DISMISS-{int(time.time()*1000)}",
@@ -599,27 +659,30 @@ class PaperBroker:
                 "timestamp": datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S")
             }
 
-        pos = self.positions.pop(asset)
+        pos = self.positions.pop(found_key)
         entry = pos["entry_price"]
         units = pos["units"]
-        act = pos["action"]
+        act = pos.get("action") or pos.get("side", "BUY")
         cap = pos["capital_allocated"]
+        prod = pos.get("product", "USDT_M_FUTURES" if ":USDT_M_FUTURES" in found_key else "SPOT")
 
-        if act == "BUY":
+        if act in ("BUY", "LONG"):
             pnl_u = (exit_price - entry) * units
         else:
             pnl_u = (entry - exit_price) * units
 
         pnl_u = max(-cap, round(pnl_u, 2))
         pnl_p = round((pnl_u / cap) * 100.0, 2) if cap > 0 else 0.0
-        # Binance standard spot fee is 0.1% per leg (0.2% round-trip)
-        fee_est = round(((entry * units) + (exit_price * units)) * 0.001, 4)
+        # Fee estimation: 0.05% for futures, 0.1% for spot
+        fee_rate = 0.0005 if prod == "USDT_M_FUTURES" else 0.001
+        fee_est = round(((entry * units) + (exit_price * units)) * fee_rate, 4)
         net_pnl_val = round(pnl_u - fee_est, 2)
 
         trade_record = {
             "trade_id": pos.get("trade_id", f"TRD-{int(time.time()*1000)}"),
             "asset": asset,
             "symbol": asset,
+            "product": prod,
             "action": act,
             "side": act,
             "entry_price": entry,
@@ -627,6 +690,7 @@ class PaperBroker:
             "units": units,
             "quantity": units,
             "capital_allocated": cap,
+            "margin": cap,
             "leverage": pos.get("leverage", 1.0),
             "gross_pnl": pnl_u,
             "fee_usd": fee_est,
@@ -649,12 +713,19 @@ class PaperBroker:
         else:
             pool_cash = round(max(0.0, pool_cash + cap + pnl_u), 2)
         
-        # For Binance Live / Testnet: route real closing spot order to exchange
-        is_crypto_asset = asset.endswith("USDT") or asset.endswith("BUSD") or any(c in asset for c in ["BTC", "ETH", "SOL", "XRP", "BNB", "DOGE", "ADA"])
-        if self.active_pool_name in ["BINANCE_LIVE_REAL", "BINANCE_TESTNET_DEMO", "BINANCE_LIVE"] or is_crypto_asset:
+        # Routing closing order:
+        # If USDT_M_FUTURES: call binance futures close if LIVE/TESTNET
+        # If SPOT: route spot order
+        if prod == "USDT_M_FUTURES":
             try:
                 from execution.binance_broker import binance_broker
-                closing_side = "SELL" if act == "BUY" else "BUY"
+                binance_broker.close_futures_position(asset, environment="BINANCE_TESTNET")
+            except Exception as e:
+                print(f"[PAPER_BROKER -> FUTURES CLOSE NOTICE]: {e}")
+        elif self.active_pool_name in ["BINANCE_LIVE_REAL", "BINANCE_TESTNET_DEMO", "BINANCE_LIVE"] or is_crypto_asset:
+            try:
+                from execution.binance_broker import binance_broker
+                closing_side = "SELL" if act in ("BUY", "LONG") else "BUY"
 
                 # Determine target environment
                 env = pos.get("environment")
@@ -703,7 +774,7 @@ class PaperBroker:
                         if "MANUAL" not in reason and "FORCE" not in reason:
                             # For automated closes with significant capital, keep position
                             if close_qty * exit_price > 10.0:
-                                self.positions[asset] = pos
+                                self.positions[found_key] = pos
                                 return {"status": "FAILED", "error": f"Binance rejected: {err_msg}"}
                     binance_broker.dismiss_spot_position(asset)
                     if hasattr(binance_broker, "_account_info_cache"):
@@ -718,6 +789,7 @@ class PaperBroker:
                         binance_broker._entry_price_cache.pop(asset, None)
             except Exception as e:
                 # On any exception, still allow paper close — log but don't block the UI
+                print(f"[PAPER_BROKER -> CLOSE EXCEPTION]: {e} — proceeding with paper close anyway")
                 print(f"[PAPER_BROKER -> CLOSE EXCEPTION]: {e} — proceeding with paper close anyway")
 
         pool["virtual_cash"] = pool_cash
@@ -798,10 +870,10 @@ class PaperBroker:
             pos_sl = (pos.get("stop_loss_pct") / 100.0) if pos.get("stop_loss_pct") else default_sl
             pos_tp = (pos.get("take_profit_pct") / 100.0) if pos.get("take_profit_pct") else default_tp
             entry = pos["entry_price"]
-            act = pos["action"]
+            act = pos.get("action") or pos.get("side", "BUY")
             price = pos.get("last_price", entry)
 
-            pnl_pct = (price - entry) / entry if act == "BUY" else (entry - price) / entry
+            pnl_pct = (price - entry) / entry if act in ("BUY", "LONG") else (entry - price) / entry
 
             if pnl_pct <= -pos_sl:
                 rec = self.close_position(asset_key, price, reason=f"STOP_LOSS_ENFORCED (SL={pos_sl*100:.1f}%)")

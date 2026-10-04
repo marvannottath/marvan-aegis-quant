@@ -919,6 +919,66 @@ class BinanceBroker:
         except Exception as e:
             return {"status": "ERROR", "message": str(e)}
 
+    def create_futures_order(
+        self,
+        symbol: str,
+        side: str,
+        quantity: float,
+        price: float = 0.0,
+        leverage: float = 1.0,
+        order_type: str = "MARKET",
+        reduce_only: bool = False,
+        environment: str = "BINANCE_TESTNET"
+    ) -> Dict[str, Any]:
+        """
+        Create a USDT-M Futures Order on Binance.
+        HARD SAFETY GATE: Live Binance Futures execution is strictly locked closed.
+        Paper / Mock orders simulate deterministic fill.
+        """
+        env_upper = environment.upper()
+        if "LIVE" in env_upper or "REAL" in env_upper:
+            from core.environment_gate import environment_gate
+            if not environment_gate.LIVE_TRADING_ENABLED:
+                return {
+                    "status": "REJECTED",
+                    "code": "LIVE_FUTURES_LOCKED",
+                    "reason": "GATE_FAIL: Binance LIVE Futures trading is locked (LIVE_TRADING_ENABLED=false)",
+                    "message": "GATE_FAIL: Binance LIVE Futures trading is locked (LIVE_TRADING_ENABLED=false)"
+                }
+            return {
+                "status": "REJECTED",
+                "code": "LIVE_FUTURES_DISABLED",
+                "reason": "Binance LIVE Futures execution route is disabled by architecture policy",
+                "message": "Binance LIVE Futures execution route is disabled by architecture policy"
+            }
+
+        # Simulated Paper / Mock Futures fill
+        clean_sym = symbol.upper().replace("FUT-", "").replace("COIN-", "")
+        mock_order_id = f"FUT-{int(time.time()*1000)}-{uuid.uuid4().hex[:6].upper()}"
+        fill_price = price if price > 0 else 65000.0 if "BTC" in clean_sym else 100.0
+        return {
+            "status": "SUCCESS",
+            "provider_order_id": mock_order_id,
+            "order_id": mock_order_id,
+            "symbol": clean_sym,
+            "side": side.upper(),
+            "quantity": float(quantity),
+            "price": float(fill_price),
+            "leverage": float(leverage),
+            "order_type": order_type.upper(),
+            "product": "USDT_M_FUTURES",
+            "reduce_only": reduce_only,
+            "environment": environment,
+            "raw_data": {
+                "orderId": mock_order_id,
+                "symbol": clean_sym,
+                "status": "FILLED",
+                "cumQuote": str(round(fill_price * quantity, 2)),
+                "executedQty": str(quantity),
+                "avgPrice": str(fill_price)
+            }
+        }
+
     def get_spot_open_orders(self, environment: str = "BINANCE_LIVE") -> List[Dict[str, Any]]:
         """Fetch active open orders waiting on Binance Spot exchange."""
         api_k, sec_k, base_url, _ = self._get_credentials_for_env(environment)
