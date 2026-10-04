@@ -1870,7 +1870,13 @@
                         <div id="pf-trading-equity" class="text-2xl font-black text-white font-mono">{{ PORTFOLIO_EQUITY }}</div>
                     </div>
                     <div class="bg-darkcard border border-darkborder p-5 rounded-2xl space-y-2">
-                        <div class="text-xs text-gray-400 font-bold" title="Secured Profit Vault = Retained profits isolated from trading drawdown">Secured Profit Vault</div>
+                        <div class="flex items-center justify-between">
+                            <div class="text-xs text-gray-400 font-bold" title="Secured Profit Vault = Retained profits isolated from trading drawdown">Secured Profit Vault</div>
+                            <button id="btn-sweep-funding" onclick="sweepVaultToBinanceFunding()" class="px-2.5 py-1 bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 text-amber-400 hover:text-white rounded-lg text-[10px] font-bold font-mono transition flex items-center space-x-1 cursor-pointer" title="Transfer vault profits directly to your Binance App Funding Wallet">
+                                <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                <span>SWEEP TO BINANCE</span>
+                            </button>
+                        </div>
                         <div id="pf-vault-reserve" class="text-2xl font-black text-emerald-400 font-mono">{{ VAULT_BALANCE }}</div>
                     </div>
                     <div class="bg-darkcard border border-darkborder p-5 rounded-2xl space-y-2">
@@ -8101,6 +8107,40 @@
                         </div>
                     </div>
                 `;
+            }
+        }
+
+        async function sweepVaultToBinanceFunding() {
+            const btn = document.getElementById('btn-sweep-funding');
+            const confirmed = confirm("Do you want to sweep your Secured Profit Vault balance directly into your Binance App Funding Wallet? The USDT will move from Binance Spot to Binance Funding Wallet.");
+            if (!confirmed) return;
+
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i> <span>SWEEPING...</span>';
+            }
+
+            try {
+                const res = await fetch('/api/vault/sweep-to-binance-funding', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ amount: 0.0 }) // 0.0 sweeps entire current vault balance
+                });
+                const data = await res.json();
+                if (data.status === 'SUCCESS') {
+                    showSystemNotification(data.message || 'Successfully transferred to Binance Funding Wallet!', 'BINANCE SWEEP SUCCESS');
+                    await fetchState();
+                } else {
+                    showSystemNotification(data.message || 'Transfer failed. Check Binance API keys.', 'SWEEP NOTICE');
+                }
+            } catch (err) {
+                console.error('Sweep error:', err);
+                showSystemNotification('Failed to connect to transfer service.', 'ERROR');
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa-solid fa-arrow-up-right-from-square"></i> <span>SWEEP TO BINANCE</span>';
+                }
             }
         }
 

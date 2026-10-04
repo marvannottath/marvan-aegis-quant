@@ -267,6 +267,20 @@ class ProfitVault:
             )
         except Exception as e:
             print(f"[PROFIT VAULT] Double entry ledger post notice: {e}")
+        # If this is Binance Live Real, execute direct sweep to Binance Funding Wallet!
+        if environment in ["BINANCE_LIVE_REAL", "BINANCE_LIVE"]:
+            try:
+                from execution.binance_broker import binance_broker
+                b_resp = binance_broker.transfer_spot_to_funding(amount=sweep_amt, asset=ledger_asset)
+                if b_resp.get("status") == "SUCCESS":
+                    tx_record["binance_transfer_id"] = b_resp.get("transfer_id")
+                    tx_record["binance_transfer_status"] = "FUNDING_WALLET_CREDITED"
+                    print(f"[PROFIT VAULT -> BINANCE FUNDING WALLET]: Successfully transferred +{sweep_amt} {ledger_asset} to Binance Funding Wallet (TranID: {b_resp.get('transfer_id')})")
+                else:
+                    tx_record["binance_transfer_status"] = b_resp.get("message", "TRANSFER_SKIPPED")
+            except Exception as e:
+                tx_record["binance_transfer_status"] = f"TRANSFER_ERROR: {str(e)}"
+
         print(f"[PROFIT VAULT] Swept +${sweep_amt:.2f} realized profit into {environment} Vault | New Balance: ${new_bal:,.2f}")
         return tx_record
 

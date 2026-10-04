@@ -2070,6 +2070,52 @@ async def get_vault_full_history():
     """Fetch complete historical ledger of all profit sweeps."""
     return JSONResponse({"history": profit_vault.get_full_sweep_history()})
 
+@app.post("/api/vault/sweep-to-binance-funding")
+async def sweep_to_binance_funding_endpoint(request: Request):
+    """
+    Directly transfer accumulated Secured Profit Vault balance from Spot Wallet
+    to Binance Funding Wallet using Binance SAPI Universal Transfer.
+    """
+    from execution.binance_broker import binance_broker
+    from execution.profit_vault import profit_vault
+    try:
+        body = await request.json()
+        amount = float(body.get("amount", 0.0))
+    except Exception:
+        amount = 0.0
+
+    current_vault = profit_vault.get_vault_balance("BINANCE_LIVE_REAL")
+    if amount <= 0:
+        amount = current_vault
+
+    if amount <= 0:
+        return JSONResponse({"status": "FAILED", "message": "No vault profit available to sweep."}, status_code=400)
+
+    res = binance_broker.transfer_spot_to_funding(amount=amount, asset="USDT")
+    if res.get("status") == "SUCCESS":
+        # Deduct swept amount from vault store
+        store = profit_vault.vault_stores.setdefault("BINANCE_LIVE_REAL", {"transactions": [], "withdrawals": [], "transfers": []})
+        store["withdrawals"].append({
+            "amount": amount,
+            "asset": "USDT",
+            "destination": "BINANCE_FUNDING_WALLET",
+            "transfer_id": res.get("transfer_id"),
+            "status": "COMPLETED",
+            "timestamp": datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S")
+        })
+        profit_vault._save_state()
+        return JSONResponse({
+            "status": "SUCCESS",
+            "message": f"Successfully transferred +{amount} USDT directly to your Binance Funding Wallet! Check your Binance App Funding Wallet.",
+            "transfer_id": res.get("transfer_id"),
+            "amount": amount
+        })
+    else:
+        return JSONResponse({
+            "status": "FAILED",
+            "message": res.get("message", "Binance API transfer failed. Make sure your Binance API key has Universal Transfer permissions.")
+        }, status_code=400)
+
 @app.get("/api/export-statement", response_class=HTMLResponse)
 async def export_statement_endpoint(period: str = "ALL"):
     """Generate and return official printable HTML statement."""

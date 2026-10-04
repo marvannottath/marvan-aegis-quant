@@ -2268,6 +2268,54 @@ class BinanceBroker:
 
         return self.verify_connection()
 
+    def transfer_spot_to_funding(self, amount: float, asset: str = "USDT") -> Dict[str, Any]:
+        """
+        Execute Binance Universal Transfer from Spot Wallet (MAIN) to Funding Wallet (FUNDING).
+        Endpoint: POST /sapi/v1/asset/transfer
+        type: MAIN_FUNDING
+        This sweeps verified realized trading profits directly into the user's Binance Funding Wallet.
+        """
+        api_k, sec_k, base_url, is_testnet = self._get_credentials_for_env("BINANCE_LIVE")
+        if not api_k or not sec_k:
+            return {"status": "ERROR", "message": "Binance Live API key & secret required for live wallet sweep."}
+        if amount <= 0:
+            return {"status": "ERROR", "message": "Transfer amount must be positive."}
+        if is_testnet:
+            return {"status": "SKIPPED", "message": "Testnet does not support Funding Wallet transfers."}
+
+        try:
+            st = self._get_server_time_ms(base_url)
+            params = {
+                "type": "MAIN_FUNDING",
+                "asset": asset.upper(),
+                "amount": str(round(amount, 4)),
+                "timestamp": st,
+                "recvWindow": 60000
+            }
+            sig, signed_params = self._sign_query(sec_k, params)
+            headers = {"X-MBX-APIKEY": api_k}
+
+            resp = requests.post(f"{base_url}/sapi/v1/asset/transfer", params=signed_params, headers=headers, timeout=5.0)
+            if resp.status_code == 200:
+                data = resp.json()
+                tran_id = data.get("tranId")
+                return {
+                    "status": "SUCCESS",
+                    "transfer_id": tran_id,
+                    "amount": round(amount, 4),
+                    "asset": asset.upper(),
+                    "message": f"Successfully swept {amount} {asset} to Binance Funding Wallet."
+                }
+            else:
+                return {
+                    "status": "FAILED",
+                    "code": resp.status_code,
+                    "error": resp.text,
+                    "message": f"Binance Transfer API error: {resp.text}"
+                }
+        except Exception as e:
+            return {"status": "ERROR", "message": f"Transfer execution failed: {str(e)}"}
+
 
 # Global singleton adapter
 binance_broker = BinanceBroker()
