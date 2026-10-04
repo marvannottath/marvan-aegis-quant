@@ -27,7 +27,7 @@ IST_TZ = timezone(timedelta(hours=5, minutes=30))
 LEDGER_FILE = Path(__file__).resolve().parent.parent / "data" / "double_entry_ledger.json"
 
 def get_ist_str() -> str:
-    return datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S")
+    return datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S IST")
 
 class DoubleEntryLedger:
     def __init__(self):

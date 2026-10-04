@@ -24,6 +24,63 @@ def get_ist_time() -> str:
     """Return canonical current IST timestamp string."""
     return datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S IST")
 
+def get_real_process_uptime() -> int:
+    """Return real OS process uptime in seconds, comparing against /proc/<pid>/stat or ps -p <pid> -o etime=."""
+    pid = os.getpid()
+    # 1. Linux /proc/<pid>/stat
+    try:
+        with open("/proc/uptime", "r") as f_up:
+            uptime_sys = float(f_up.readline().split()[0])
+        with open(f"/proc/{pid}/stat", "r") as f_stat:
+            fields = f_stat.read().split(")")[-1].split()
+            ticks = float(fields[19])
+            clk_tck = os.sysconf(os.sysconf_names["SC_CLK_TCK"])
+            proc_start = ticks / clk_tck
+            return max(0, int(uptime_sys - proc_start))
+    except Exception:
+        pass
+
+    # 2. ps -p <pid> -o etime= (macOS / BSD / Linux)
+    try:
+        import subprocess
+        res = subprocess.run(["ps", "-p", str(pid), "-o", "etime="], capture_output=True, text=True, timeout=2)
+        if res.returncode == 0 and res.stdout.strip():
+            raw = res.stdout.strip()
+            parts = raw.split("-")
+            days = int(parts[0]) if len(parts) == 2 else 0
+            t_part = parts[1] if len(parts) == 2 else parts[0]
+            t_nums = [int(p) for p in t_part.split(":")]
+            if len(t_nums) == 3:
+                return days * 86400 + t_nums[0] * 3600 + t_nums[1] * 60 + t_nums[2]
+            elif len(t_nums) == 2:
+                return days * 86400 + t_nums[0] * 60 + t_nums[1]
+    except Exception:
+        pass
+
+    # 3. Process start time fallback
+    return max(0, int(time.time() - APP_START_TIME))
+
+def format_telemetry_ts(ts_val) -> Optional[str]:
+    """Format epoch or string timestamp cleanly into canonical IST timestamp or None."""
+    if not ts_val:
+        return None
+    if isinstance(ts_val, (int, float)):
+        return datetime.fromtimestamp(ts_val, tz=IST_TZ).strftime("%Y-%m-%d %H:%M:%S IST")
+    if isinstance(ts_val, str):
+        clean = ts_val.strip()
+        if clean.endswith("IST"):
+            return clean
+        if clean.endswith("UTC") or clean.endswith("Z"):
+            try:
+                clean_iso = clean.replace("UTC", "+00:00").replace("Z", "+00:00")
+                dt = datetime.fromisoformat(clean_iso)
+                return dt.astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S IST")
+            except Exception:
+                pass
+        # If timestamp is already formatted like 'YYYY-MM-DD HH:MM:SS', assume already recorded in IST
+        return f"{clean} IST"
+    return None
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -3155,7 +3212,7 @@ def get_vps_system_metrics() -> Dict[str, Any]:
         except Exception:
             pass
 
-    uptime_s = int(time.time() - APP_START_TIME)
+    uptime_s = get_real_process_uptime()
     uptime_hrs = uptime_s // 3600
     uptime_mins = (uptime_s % 3600) // 60
     uptime_str = f"{uptime_hrs}h {uptime_mins}m" if uptime_hrs > 0 else f"{uptime_mins}m {uptime_s % 60}s"
@@ -4832,7 +4889,7 @@ async def websocket_endpoint(websocket: WebSocket):
             ws = current_ws[0]
             state = await get_state(workspace=ws)
             state["event_type"] = "ENGINE_HEARTBEAT"
-            state["server_time"] = time.strftime("%H:%M:%S IST")
+            state["server_time"] = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%H:%M:%S IST")
             state["sequence"] = seq
             state["payload"] = dict(state)
             await websocket.send_json(state)
@@ -4852,32 +4909,67 @@ async def get_state_alias():
 @app.get("/api/status")
 async def get_api_status():
     """Authoritative System & Service Telemetry Endpoint."""
-    import os, time
+    import os
     from execution.paper_broker import paper_broker
     from core.risk_engine import risk_engine
     
     from core.position_snapshot_service import position_snapshot_service
     from core.workspace_manager import workspace_manager
+    from core.market_data_watchdog import market_data_watchdog
+    from core.execution_event_pipeline import execution_event_pipeline
+    from core.double_entry_ledger import double_entry_ledger
+    from core.reconciliation_sentinel import reconciliation_sentinel
+
     active_ws = workspace_manager.get_active_workspace()
     pos_snap = await asyncio.to_thread(position_snapshot_service.get_snapshot, active_ws)
     port_agg = await asyncio.to_thread(position_snapshot_service.get_portfolio_aggregate, active_ws)
+
+    # 1. Real OS Process Uptime
+    real_uptime = get_real_process_uptime()
+
+    # 2. Canonical IST Server Time
+    server_time_ist = get_ist_time()
+
+    # 3. Provenance-backed Telemetry Timestamps
+    # Market Tick: latest tick time across all tracked symbols
+    latest_tick_ts = max(market_data_watchdog._last_tick.values()) if market_data_watchdog._last_tick else None
+    last_market_tick_str = format_telemetry_ts(latest_tick_ts)
+
+    # Signal: latest signal event
+    sig_events = execution_event_pipeline.get_events(limit=1, event_type="signal_event")
+    last_signal_str = format_telemetry_ts(sig_events[0].get("timestamp")) if sig_events else None
+
+    # Risk Decision: latest risk decision event or pre-trade check
+    risk_events = execution_event_pipeline.get_events(limit=1, event_type="risk_decision")
+    last_risk_str = format_telemetry_ts(risk_events[0].get("timestamp")) if risk_events else None
+
+    # Execution: latest fill or submission event
+    exec_events = [e for e in execution_event_pipeline.events if e.get("event_type") in ("complete_fill", "order_submitted", "order_created", "partial_fill")]
+    last_exec_str = format_telemetry_ts(exec_events[0].get("timestamp")) if exec_events else None
+
+    # Ledger Sync: latest posted entry
+    last_ledger_str = format_telemetry_ts(double_entry_ledger.entries[0].get("timestamp")) if double_entry_ledger.entries else None
+
+    # Reconciliation: latest report from sentinel
+    recon_ts = reconciliation_sentinel.last_report.get("reconciled_at") or (reconciliation_sentinel.last_check_time if reconciliation_sentinel.last_check_time > 0 else None)
+    last_recon_str = format_telemetry_ts(recon_ts)
 
     return {
         "status": "HEALTHY",
         "build_version": "v6.0.0",
         "git_commit": get_current_git_commit(),
-        "server_time": time.strftime("%Y-%m-%d %H:%M:%S IST"),
+        "server_time": server_time_ist,
         "process_pid": os.getpid(),
-        "uptime_seconds": 86400,
+        "uptime_seconds": real_uptime,
         "engine_status": "RUNNING",
         "mode": "SIMULATION / DEMO",
         "ws_connected": True,
-        "last_market_tick_at": time.strftime("%Y-%m-%d %H:%M:%S IST"),
-        "last_signal_at": time.strftime("%Y-%m-%d %H:%M:%S IST"),
-        "last_risk_decision_at": time.strftime("%Y-%m-%d %H:%M:%S IST"),
-        "last_execution_at": time.strftime("%Y-%m-%d %H:%M:%S IST"),
-        "last_ledger_sync_at": time.strftime("%Y-%m-%d %H:%M:%S IST"),
-        "last_reconciliation_at": time.strftime("%Y-%m-%d %H:%M:%S IST"),
+        "last_market_tick_at": last_market_tick_str,
+        "last_signal_at": last_signal_str,
+        "last_risk_decision_at": last_risk_str,
+        "last_execution_at": last_exec_str,
+        "last_ledger_sync_at": last_ledger_str,
+        "last_reconciliation_at": last_recon_str,
         "open_positions_count": pos_snap["open_position_count"],
         "total_exposure": pos_snap["total_exposure"],
         "equity": port_agg["total_equity"],
