@@ -223,6 +223,23 @@
 
             <!-- Server Time Clock -->
             <div id="lbl-server-time" class="font-bold text-gray-400 bg-gray-900 border border-gray-800 px-2.5 py-1 rounded-lg text-[11px]">--:--:-- IST</div>
+            <script>
+                (function() {
+                    function updateClock() {
+                        const el = document.getElementById('lbl-server-time');
+                        if (!el) return;
+                        const now = new Date();
+                        const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+                        const istDate = new Date(utc + (3600000 * 5.5));
+                        const h = String(istDate.getHours()).padStart(2, '0');
+                        const m = String(istDate.getMinutes()).padStart(2, '0');
+                        const s = String(istDate.getSeconds()).padStart(2, '0');
+                        el.innerHTML = `${h}:${m}:${s} <span class="text-amber-400 font-bold">IST</span>`;
+                    }
+                    updateClock();
+                    setInterval(updateClock, 1000);
+                })();
+            </script>
 
             <!-- Privacy Mask (Blur Balances) & Quick Lock Buttons -->
             <button id="btn-privacy-mask-nav" onclick="togglePrivacyMask()" class="h-8 px-2.5 rounded-lg bg-gray-900 border border-gray-800 hover:border-amber-500/50 text-gray-400 hover:text-white transition flex items-center space-x-1.5 cursor-pointer shadow" title="Privacy Mode: Hide/Mask Account Balances (Eye Blur)">
@@ -4970,6 +4987,8 @@
             if (isCold && overlay) {
                 if (overlayText) overlayText.innerText = `Synchronizing ${normVenue} Workspace...`;
                 overlay.classList.remove('hidden');
+                // Failsafe: dismiss overlay after 2.5s maximum to never trap clicks
+                setTimeout(() => { if (overlay) overlay.classList.add('hidden'); }, 2500);
             }
 
             // INSTANT UI UPDATES (0ms)
@@ -5924,7 +5943,7 @@
                     btn.className = 'p-3 rounded-xl border border-gray-800 hover:border-gray-700 bg-gray-950 transition flex flex-col items-center text-center space-y-1.5 cursor-pointer';
                 }
             });
-
+        }
 
         function setLeverage(lev) {
             currentLeverage = lev;
