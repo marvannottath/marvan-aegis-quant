@@ -246,7 +246,10 @@ class EnvironmentGate:
         env_upper = environment.upper()
 
         # Gate 1: Valid environment
-        if environment not in self.VALID_ENVIRONMENTS and env_upper not in ("BINANCE_TESTNET", "BINANCE_LIVE", "BINANCE_LIVE_REAL", "BINANCE_TESTNET_DEMO"):
+        forex_envs = ("MT5_LIVE_REAL", "MT5_DEMO", "CTRADER_LIVE", "CTRADER_OPEN_API", "FOREX_PAPER")
+        crypto_envs = ("BINANCE_TESTNET", "BINANCE_LIVE", "BINANCE_LIVE_REAL", "BINANCE_TESTNET_DEMO")
+        india_envs = ("AEGIS_INDIA_INR", "UPSTOX_LIVE", "UPSTOX_DEMO", "ZERODHA_KITE")
+        if environment not in self.VALID_ENVIRONMENTS and env_upper not in crypto_envs and env_upper not in forex_envs and env_upper not in india_envs:
             return False, f"GATE_FAIL: Unknown environment '{environment}'"
 
         # Gate 2: LIVE requires explicit flag

@@ -55,7 +55,7 @@ class WorkspaceManager:
             'currency': 'USD',
             'currency_symbol': '$',
             'default_pool': 'MT5_LIVE_REAL',
-            'allowed_pools': ['MT5_LIVE_REAL', 'MT5_DEMO', 'FOREX_GOLD'],
+            'allowed_pools': ['MT5_LIVE_REAL', 'MT5_DEMO', 'CTRADER_LIVE', 'FOREX_GOLD'],
             'venue_name': 'Interbank OTC / Global FX',
             'settlement': 'T+2 Rolling Spot',
             'regulation': 'Global Multi-Regulated OTC',
@@ -128,7 +128,7 @@ class WorkspaceManager:
                     saved_pools = data.get('active_pool_per_workspace', {})
                     if isinstance(saved_pools, dict):
                         self._active_pool_per_workspace.update(saved_pools)
-                    if self._active_pool_per_workspace.get(self.WORKSPACE_FOREX_GOLD) not in ['MT5_LIVE_REAL', 'MT5_DEMO']:
+                    if self._active_pool_per_workspace.get(self.WORKSPACE_FOREX_GOLD) not in ['MT5_LIVE_REAL', 'MT5_DEMO', 'CTRADER_LIVE']:
                         self._active_pool_per_workspace[self.WORKSPACE_FOREX_GOLD] = 'MT5_LIVE_REAL'
                     if self._active_pool_per_workspace.get(self.WORKSPACE_CRYPTO) not in ['BINANCE_LIVE_REAL', 'BINANCE_TESTNET_DEMO']:
                         self._active_pool_per_workspace[self.WORKSPACE_CRYPTO] = 'BINANCE_LIVE_REAL'
@@ -164,7 +164,7 @@ class WorkspaceManager:
         ws = self._normalize_workspace(workspace)
         if ws == self.WORKSPACE_FOREX_GOLD:
             saved = self._active_pool_per_workspace.get(ws)
-            if saved and saved in ['MT5_LIVE_REAL', 'MT5_DEMO']:
+            if saved and saved in ['MT5_LIVE_REAL', 'MT5_DEMO', 'CTRADER_LIVE']:
                 return saved
             return 'MT5_LIVE_REAL'
         if ws == self.WORKSPACE_CRYPTO:
