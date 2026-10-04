@@ -1743,22 +1743,37 @@ async def close_position_endpoint(request: Request):
         pos_product = pos.get("product", "USDT_M_FUTURES" if ":USDT_M_FUTURES" in asset else "SPOT")
 
         binance_close_record = None
+        binance_live_notice = None
         # 1. If it is SPOT crypto, liquidate/dismiss spot crypto asset in binance_broker
         if pos_product == "SPOT":
             try:
                 from execution.binance_broker import binance_broker
                 b_res = binance_broker.close_spot_position(asset, environment="BINANCE_LIVE")
-                if b_res and b_res.get("status") == "SUCCESS" and b_res.get("trade_record"):
-                    binance_close_record = b_res["trade_record"]
+                if b_res:
+                    if b_res.get("status") == "SUCCESS" and b_res.get("trade_record"):
+                        binance_close_record = b_res["trade_record"]
+                        binance_live_notice = b_res.get("message")
+                    elif b_res.get("status") == "ERROR":
+                        binance_live_notice = f"Binance Spot Notice: {b_res.get('message', 'Failed to sell on Binance')}"
+                        print(f"[CLOSE_SPOT_ERROR]: {binance_live_notice}")
+                    else:
+                        binance_live_notice = b_res.get("message")
             except Exception as e:
+                binance_live_notice = f"Binance Spot Exception: {e}"
                 print(f"[CLOSE_SPOT_NOTICE]: {e}")
 
         # 2. If it is USDT_M_FUTURES, execute close_futures_position on Binance
         if pos_product == "USDT_M_FUTURES":
             try:
                 from execution.binance_broker import binance_broker
-                binance_broker.close_futures_position(asset, environment="BINANCE_LIVE")
+                bf_res = binance_broker.close_futures_position(asset, environment="BINANCE_LIVE")
+                if bf_res and bf_res.get("status") == "ERROR":
+                    binance_live_notice = f"Binance Futures Notice: {bf_res.get('message', 'Failed to close futures position')}"
+                    print(f"[CLOSE_FUTURES_ERROR]: {binance_live_notice}")
+                elif bf_res:
+                    binance_live_notice = bf_res.get("message")
             except Exception as e:
+                binance_live_notice = f"Binance Futures Exception: {e}"
                 print(f"[CLOSE_FUTURES_NOTICE]: {e}")
 
         # 3. Close in paper_broker and purge from all pools
@@ -1816,7 +1831,8 @@ async def close_position_endpoint(request: Request):
             "realized_pnl": pnl_val,
             "vault_sweep": pnl_val if pnl_val > 0 else 0.0,
             "vault_balance": v_bal,
-            "vault_summary": profit_vault.get_vault_summary(paper_broker.active_pool_name)
+            "vault_summary": profit_vault.get_vault_summary(paper_broker.active_pool_name),
+            "binance_notice": binance_live_notice
         })
     except Exception as e:
         return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=400)

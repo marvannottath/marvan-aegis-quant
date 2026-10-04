@@ -183,7 +183,12 @@ class BinanceBroker:
 
         # Check if user has free spot balance to sell on Binance Spot
         try:
-            bals = self.get_balances(environment)
+            acc_info = self.get_account_info(environment, force_refresh=True)
+            raw_bals = acc_info.get("balances", [])
+            bals = [
+                b for b in raw_bals
+                if float(b.get("free", 0.0)) > 0 or float(b.get("locked", 0.0)) > 0
+            ]
             for b in bals:
                 if b.get("asset", "").upper() == sym_clean:
                     free_qty = float(b.get("free", 0.0))
@@ -255,7 +260,7 @@ class BinanceBroker:
                                     "capital_allocated": round(entry_px * fill_qty, 2),
                                     "leverage": 1.0,
                                     "gross_pnl": gross_pnl,
-                                    "fee_usd": fee_est,
+                                    "fee_usd": fee_usd,
                                     "net_pnl": net_pnl,
                                     "pnl_usd": net_pnl,
                                     "pnl_pct": round((gross_pnl / (entry_px * fill_qty)) * 100.0, 2) if (entry_px * fill_qty) > 0 else 0.0,
