@@ -70,8 +70,8 @@ class UserWallet:
             ), 2
         )
 
-        # 3. Vault balance (only for AEGIS_QUANT_MASTER by default)
-        vault_balance = round(float(profit_vault.vault_balance), 2) if environment == "AEGIS_QUANT_MASTER" else 0.0
+        # 3. Vault balance (resolved per environment from authoritative profit_vault)
+        vault_balance = round(float(profit_vault.get_vault_balance(environment)), 2)
 
         # 4. Compute derived buckets
         cash = round(float(pool_state.get("virtual_cash", pool_state.get("initial_capital", 100000.0))), 2)
@@ -84,7 +84,10 @@ class UserWallet:
         # 5. Reconciliation check
         ledger_equity = round(total_deposits - total_withdrawals + realized_pnl - fees_paid, 2)
         pool_equity = round(float(pool_state.get("equity", cash)), 2)
-        broker_equity = round(pool_equity + vault_balance, 2)
+        is_live_broker = environment in ["BINANCE_LIVE_REAL", "BINANCE_LIVE", "UPSTOX_LIVE", "MT5_LIVE_REAL"] or "LIVE" in environment.upper() or "REAL" in environment.upper()
+        # For live broker environments, broker equity already contains realized profit (vault is internal allocation)
+        # For paper/simulated environments, broker equity adds segregated vault balance
+        broker_equity = pool_equity if is_live_broker else round(pool_equity + vault_balance, 2)
         if environment == "AEGIS_QUANT_MASTER":
             recon = paper_broker.get_reconciliation()
             recon_ok = recon.get("status") == "RECONCILIATION_OK"

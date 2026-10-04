@@ -24,6 +24,19 @@ from datetime import datetime, timezone, timedelta
 IST_TZ = timezone(timedelta(hours=5, minutes=30))
 VAULT_FILE = Path(__file__).resolve().parent / "profit_vault_state.json"
 
+# Pool classifications for profit vault accounting
+EXTERNAL_LIVE_POOLS = {"BINANCE_LIVE_REAL", "BINANCE_LIVE", "UPSTOX_LIVE", "MT5_LIVE_REAL"}
+PAPER_SIMULATED_POOLS = {
+    "AEGIS_QUANT_MASTER",
+    "BINANCE_TESTNET_DEMO",
+    "BINANCE_DEMO",
+    "AEGIS_INDIA_INR",
+    "UPSTOX_DEMO",
+    "MT5_DEMO",
+    "FOREX_GOLD",
+    "PAPER"
+}
+
 def get_ist_timestamp() -> str:
     return datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S")
 
@@ -136,11 +149,15 @@ class ProfitVault:
             print(f"[PROFIT VAULT] Save notice: {e}")
 
     def get_vault_balance(self, environment: str = "AEGIS_QUANT_MASTER") -> float:
-        # For live trading accounts (Binance Live / MT5 Live / Upstox Live), vault balance is strictly 0.0 (all capital in broker wallet)
-        if "LIVE" in environment.upper() or "REAL" in environment.upper():
-            return 0.0
+        """
+        Dynamically compute vault balance = base_balance + sum(confirmed sweeps) - sum(completed withdrawals) - sum(confirmed transfers).
+        For EXTERNAL_LIVE_POOLS (BINANCE_LIVE_REAL, UPSTOX_LIVE, MT5_LIVE_REAL), base_balance is strictly 0.0 (enforced by _sanitize_live_stores),
+        and any swept profits represent internal ledger allocations (the actual money resides in the external broker wallet).
+        """
         store = self.vault_stores.get(environment, {"transactions": [], "withdrawals": [], "transfers": []})
-        base = float(store.get("base_balance", 0.0))
+        # Double check: if it's an external live pool, ensure base_balance cannot be nonzero
+        is_live_pool = environment in EXTERNAL_LIVE_POOLS or "LIVE" in environment.upper() or "REAL" in environment.upper()
+        base = 0.0 if is_live_pool else float(store.get("base_balance", 0.0))
         sweeps_sum = sum(float(tx.get("sweep_amount", 0.0)) for tx in store.get("transactions", []) if tx.get("status") == "CONFIRMED")
         withdrawals_sum = sum(float(w.get("amount", 0.0)) for w in store.get("withdrawals", []) if w.get("status") == "COMPLETED")
         transfers_sum = sum(float(t.get("amount", 0.0)) for t in store.get("transfers", []) if t.get("status") == "CONFIRMED")
@@ -306,24 +323,25 @@ class ProfitVault:
         today_str = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d")
         today_sweeps = [t for t in txs if t.get("timestamp", "").startswith(today_str)]
 
-        if "LIVE" in environment.upper() or "REAL" in environment.upper():
+        is_live_pool = environment in EXTERNAL_LIVE_POOLS or "LIVE" in environment.upper() or "REAL" in environment.upper()
+        if is_live_pool:
             return {
                 "environment": environment,
-                "vault_balance": 0.0,
+                "vault_balance": bal,
                 "trading_capital": 0.0,
-                "realized_profit_today": 0.0,
-                "realized_profit_total": 0.0,
-                "available_to_sweep": 0.0,
+                "realized_profit_today": round(sum(float(t.get("realized_profit", 0.0)) for t in today_sweeps), 2),
+                "realized_profit_total": round(sum(float(t.get("realized_profit", 0.0)) for t in txs), 2),
+                "available_to_sweep": bal,
                 "pending_transfer": 0.0,
                 "successfully_transferred_profit": 0.0,
                 "allowlisted_wallet": self.allowlisted_wallet,
                 "allowlisted_network": self.allowlisted_network,
                 "auto_external_sweep_enabled": False,
-                "external_transfer_status": "LIVE BROKER: VAULT ISOLATION ACTIVE (CAPITAL RESIDES IN EXCHANGE WALLET)",
-                "recent_sweeps": [],
-                "sweep_history": [],
-                "transfer_history": [],
-                "withdrawal_history": [],
+                "external_transfer_status": "LIVE BROKER: INTERNAL ALLOCATION (FUNDS RESIDE IN EXCHANGE WALLET)",
+                "recent_sweeps": txs[:10],
+                "sweep_history": txs,
+                "transfer_history": tfs,
+                "withdrawal_history": wds,
                 "ledger_verified": True
             }
 

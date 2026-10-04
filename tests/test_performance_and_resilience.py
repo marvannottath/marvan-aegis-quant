@@ -197,6 +197,47 @@ def test_8_forex_performance_curve_equity_isolation():
     )
 
 
+def test_9_profit_vault_reconciliation_and_isolation():
+    """
+    BUG-03 Regression Test:
+    Verify profit vault reconciliation across paper and live environments:
+    1. Base balance for live pools must be 0.0 (no synthetic seed).
+    2. Simulated pools sum verified sweep transactions and include vault balance in total equity.
+    3. External live brokers (Binance Live) do not double-count vault balance in total equity.
+    4. Cross-workspace equation: Cash + Margin + PnL + Vault == Total Equity holds across all 3 workspaces.
+    """
+    from execution.profit_vault import profit_vault, EXTERNAL_LIVE_POOLS
+    from core.position_snapshot_service import position_snapshot_service
+    from execution.user_wallet import user_wallet
+
+    # 1. External live pool base balance is 0.0
+    for live_pool in ["BINANCE_LIVE_REAL", "MT5_LIVE_REAL", "UPSTOX_LIVE"]:
+        store = profit_vault.vault_stores.get(live_pool, {})
+        assert store.get("base_balance", 0.0) == 0.0, f"Live pool {live_pool} has non-zero base balance"
+
+    # 2. Check all 3 workspace aggregates satisfy the financial invariant
+    for ws in ["INDIA", "CRYPTO", "FOREX_GOLD"]:
+        agg = position_snapshot_service.get_portfolio_aggregate(ws, force_refresh=True)
+        computed_eq = round(agg["free_cash"] + agg["used_margin"] + agg["unrealized_pnl"] + agg.get("vault_balance", 0.0), 2)
+        assert abs(computed_eq - agg["total_equity"]) < 0.05, f"{ws} equity equation failed: {computed_eq} vs {agg['total_equity']}"
+
+    # 3. User wallet does not double count live broker equity
+    w_live = user_wallet.compute_all(environment="BINANCE_LIVE_REAL")
+    assert w_live["broker_equity"] == round(float(paper_broker.pools.get("BINANCE_LIVE_REAL", {}).get("equity", 0.0)), 2)
+
+    # 4. Vault summary returns proper status for live pools
+    v_sum = profit_vault.get_vault_summary("BINANCE_LIVE_REAL")
+    assert "LIVE BROKER" in v_sum["external_transfer_status"]
+    assert v_sum["auto_external_sweep_enabled"] is False
+
+    report(
+        "profit_vault_reconciliation_and_isolation",
+        True,
+        "Paper & live vault reconciled with zero double-counting across all 3 workspaces",
+        "Authoritative broker equity strictly preserved for live pools; paper pools segregated"
+    )
+
+
 def main():
     print("=" * 80)
     print("RUNNING TARGETED PERFORMANCE, RESILIENCE & ISOLATION SUITE")
@@ -209,8 +250,9 @@ def main():
     test_6_crypto_resilience_when_binance_down()
     test_7_dashboard_render_all_workspaces_no_unbound_error()
     test_8_forex_performance_curve_equity_isolation()
+    test_9_profit_vault_reconciliation_and_isolation()
     print("=" * 80)
-    print("ALL 8 PERFORMANCE & RESILIENCE TESTS PASSED SUCCESSFULLY! (100%)")
+    print("ALL 9 PERFORMANCE & RESILIENCE TESTS PASSED SUCCESSFULLY! (100%)")
     print("=" * 80)
 
 

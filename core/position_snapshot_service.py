@@ -440,9 +440,9 @@ class PositionSnapshotService:
         is_live_crypto = (target_ws == "CRYPTO" and pool_name in ["BINANCE_LIVE_REAL", "BINANCE_LIVE"]) or (pool_name in ["BINANCE_LIVE_REAL", "BINANCE_LIVE"])
         is_testnet_crypto = (target_ws == "CRYPTO" and pool_name in ["BINANCE_TESTNET_DEMO", "BINANCE_DEMO"])
 
-        # Vault reserve — only applies to simulated/paper master portfolio (AEGIS_QUANT_MASTER)
+        # Vault reserve and pool equity resolution
         if is_live_crypto:
-            vault_balance = 0.0
+            vault_balance = round(float(profit_vault.get_vault_balance(pool_name)), 2)
             try:
                 from execution.binance_broker import binance_broker
                 b_status = binance_broker.get_authoritative_status(force_refresh=force_refresh)
@@ -480,13 +480,13 @@ class PositionSnapshotService:
                 total_equity = round(p_eq if p_eq > 0 else (free_cash + total_exposure + unrealized_pnl), 2)
                 initial_cap = self.get_and_update_peak_equity(pool_name, max(total_equity, 1.0))
         elif is_testnet_crypto:
-            vault_balance = 0.0
+            vault_balance = round(float(profit_vault.get_vault_balance(pool_name)), 2)
             free_cash = round(float(pool.get("virtual_cash", initial_cap)), 2)
-            total_equity = round(free_cash + used_margin + unrealized_pnl, 2)
-        elif pool_name in ["AEGIS_INDIA_INR", "UPSTOX_DEMO", "UPSTOX_LIVE"] or target_ws == "INDIA":
-            vault_balance = 0.0
+            total_equity = round(free_cash + used_margin + unrealized_pnl + vault_balance, 2)
+        elif pool_name in ["AEGIS_INDIA_INR", "UPSTOX_DEMO"] or (target_ws == "INDIA" and pool_name != "UPSTOX_LIVE"):
+            vault_balance = round(float(profit_vault.get_vault_balance(pool_name)), 2)
             free_cash = round(float(pool.get("virtual_cash", initial_cap)), 2)
-            total_equity = round(free_cash + used_margin + unrealized_pnl, 2)
+            total_equity = round(free_cash + used_margin + unrealized_pnl + vault_balance, 2)
         else:
             free_cash = round(float(pool.get("virtual_cash", initial_cap)), 2)
             vault_balance = round(float(profit_vault.get_vault_balance(pool_name)), 2)
