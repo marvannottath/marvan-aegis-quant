@@ -4651,7 +4651,7 @@ async def get_chart_history(metric: str = "equity", tf: str = "1D", workspace: O
     ws = workspace or workspace_manager.get_active_workspace()
     meta = workspace_manager.get_workspace_meta(ws)
     target_pool = meta["default_pool"]
-    curve = performance_curve_engine.get_curve(metric=metric, time_range=tf, environment=target_pool)
+    curve = performance_curve_engine.get_curve(metric=metric, time_range=tf, environment=target_pool, workspace=ws)
     pts = curve.get("points", [])
     labels = [p.get("timestamp", "") for p in pts]
     data = [p.get("value", 0.0) for p in pts]
@@ -5350,7 +5350,7 @@ async def get_performance_curve(
             if not environment:
                 env = paper_broker.active_pool_name if paper_broker.active_pool_name in allowed else default_pool
 
-        result = performance_curve_engine.get_curve(metric=metric, time_range=range, environment=env or "AEGIS_QUANT_MASTER")
+        result = performance_curve_engine.get_curve(metric=metric, time_range=range, environment=env or "AEGIS_QUANT_MASTER", workspace=ws if 'ws' in locals() else None)
         return JSONResponse(result)
     except Exception as e:
         return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)

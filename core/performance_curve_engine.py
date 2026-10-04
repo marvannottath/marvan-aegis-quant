@@ -20,7 +20,8 @@ class PerformanceCurveEngine:
         self,
         metric: str = "equity",
         time_range: str = "1D",
-        environment: str = "AEGIS_QUANT_MASTER"
+        environment: str = "AEGIS_QUANT_MASTER",
+        workspace: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Return timestamped curve data points from authoritative sources.
@@ -83,11 +84,16 @@ class PerformanceCurveEngine:
 
         # Reconcile current authoritative equity from Single Source of Truth
         from core.position_snapshot_service import position_snapshot_service
-        target_ws = "CRYPTO"
-        if "INDIA" in environment:
+        from core.workspace_manager import workspace_manager
+
+        if workspace:
+            target_ws = workspace_manager._normalize_workspace(workspace)
+        elif "INDIA" in environment or "UPSTOX" in environment:
             target_ws = "INDIA"
-        elif "FOREX" in environment or environment == "AEGIS_QUANT_MASTER":
+        elif "FOREX" in environment or "MT5" in environment or environment == "AEGIS_QUANT_MASTER":
             target_ws = "FOREX_GOLD"
+        else:
+            target_ws = "CRYPTO"
 
         try:
             agg = position_snapshot_service.get_portfolio_aggregate(target_ws)
@@ -101,7 +107,22 @@ class PerformanceCurveEngine:
                 v_margin = sum(float(p.get("capital_allocated", p.get("margin", 0.0))) for p in v_pos.values()) if isinstance(v_pos, dict) else 0.0
                 cur_equity = round(v_cash + v_vault + v_margin, 2)
             else:
-                cur_equity = round(float(paper_broker.equity) + float(profit_vault.vault_balance), 2)
+                # Strictly isolate fallback by target_ws; never bleed un-scoped paper_broker.equity
+                ws_pool_map = {
+                    "INDIA": "AEGIS_INDIA_INR",
+                    "FOREX_GOLD": "MT5_LIVE_REAL",
+                    "CRYPTO": "BINANCE_LIVE_REAL"
+                }
+                mapped_pool = ws_pool_map.get(target_ws)
+                if mapped_pool and mapped_pool in paper_broker.pools:
+                    p_data = paper_broker.pools[mapped_pool]
+                    p_cash = float(p_data.get("virtual_cash", opening_amt))
+                    p_vault = float(profit_vault.get_vault_balance(mapped_pool))
+                    p_pos = p_data.get("positions", {})
+                    p_margin = sum(float(p.get("capital_allocated", p.get("margin", 0.0))) for p in p_pos.values()) if isinstance(p_pos, dict) else 0.0
+                    cur_equity = round(p_cash + p_vault + p_margin, 2)
+                else:
+                    cur_equity = round(float(opening_amt), 2)
 
         # Build clean non-double-counted event series
         events = []

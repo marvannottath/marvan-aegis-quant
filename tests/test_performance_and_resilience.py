@@ -177,6 +177,26 @@ def test_7_dashboard_render_all_workspaces_no_unbound_error():
     )
 
 
+def test_8_forex_performance_curve_equity_isolation():
+    from core.performance_curve_engine import performance_curve_engine
+    # Switch paper_broker to CRYPTO with low equity (~13.84)
+    paper_broker.switch_pool("BINANCE_LIVE_REAL")
+    crypto_equity = paper_broker.equity
+
+    # Request performance curve for FOREX_GOLD with MT5_LIVE_REAL
+    forex_curve = performance_curve_engine.get_curve(metric="equity", time_range="1D", environment="MT5_LIVE_REAL")
+    forex_latest = forex_curve.get("latest", 0.0)
+
+    # Forensic check: Forex curve must NOT return Crypto's equity
+    is_isolated = (forex_latest != crypto_equity) and (forex_latest >= 1000.0)
+    report(
+        "forex_performance_curve_equity_isolation",
+        is_isolated,
+        f"Forex latest equity: {forex_latest} USD vs Crypto equity: {crypto_equity} USDT",
+        "Forex curve strictly isolated from Crypto pool equity"
+    )
+
+
 def main():
     print("=" * 80)
     print("RUNNING TARGETED PERFORMANCE, RESILIENCE & ISOLATION SUITE")
@@ -188,8 +208,9 @@ def main():
     test_5_stale_cache_data_source_labeling()
     test_6_crypto_resilience_when_binance_down()
     test_7_dashboard_render_all_workspaces_no_unbound_error()
+    test_8_forex_performance_curve_equity_isolation()
     print("=" * 80)
-    print("ALL 7 PERFORMANCE & RESILIENCE TESTS PASSED SUCCESSFULLY! (100%)")
+    print("ALL 8 PERFORMANCE & RESILIENCE TESTS PASSED SUCCESSFULLY! (100%)")
     print("=" * 80)
 
 
