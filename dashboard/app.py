@@ -1055,11 +1055,11 @@ async def reset_workspace_pool(request: Request):
     except Exception:
         pass
 
-    # Clear AI BLOCKED state back to clean PAUSED
+    # Recalibrate peak equity and daily open equity to clean baseline
     try:
-        from core.ai_trading_controller import ai_trading_controller, PAUSED, BLOCKED
-        if ai_trading_controller.get_state(target_ws) == BLOCKED:
-            ai_trading_controller.pause(target_ws, "OPERATOR_RESET_POOL")
+        from core.position_snapshot_service import position_snapshot_service
+        for p in [target_pool, default_pool]:
+            position_snapshot_service.recalibrate_peak_equity(p, cap)
     except Exception:
         pass
 

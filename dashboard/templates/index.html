@@ -8561,7 +8561,7 @@
                 canvas.style.display = 'block';
                 if (emptyState) emptyState.classList.add('hidden');
 
-                const labels = points.map(p => {
+                const labels = points.map((p, idx) => {
                     if (!p.timestamp) return '';
                     const clean = p.timestamp.replace(' IST', '').trim();
                     const parts = clean.split(' ');
@@ -8569,6 +8569,9 @@
                     const datePart = parts[0];
                     const timePart = parts[1];
                     if (currentChartTF === '1D') {
+                        // Distinguish start baseline anchor day from today
+                        if (idx === 0 && points.length === 2) return 'Start (24h ago)';
+                        if (idx === 1 && points.length === 2) return 'Now (' + timePart.substring(0, 5) + ')';
                         return timePart.substring(0, 5); // HH:mm
                     } else if (currentChartTF === '1W') {
                         return datePart.substring(5) + ' ' + timePart.substring(0, 5); // MM-DD HH:mm
