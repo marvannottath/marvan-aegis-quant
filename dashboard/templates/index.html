@@ -8641,9 +8641,6 @@
                     const datePart = parts[0];
                     const timePart = parts[1];
                     if (currentChartTF === '1D') {
-                        // Distinguish start baseline anchor day from today
-                        if (idx === 0 && points.length === 2) return 'Start (24h ago)';
-                        if (idx === 1 && points.length === 2) return 'Now (' + timePart.substring(0, 5) + ')';
                         return timePart.substring(0, 5); // HH:mm
                     } else if (currentChartTF === '1W') {
                         return datePart.substring(5) + ' ' + timePart.substring(0, 5); // MM-DD HH:mm
@@ -8651,7 +8648,7 @@
                         return datePart.substring(5); // MM-DD
                     }
                 });
-                const values = points.map(p => p.value);
+                const values = points.map(p => Number(p.value !== undefined ? p.value : 0.0));
 
                 const isIndia = (window.activeMarketVenue === 'INDIA');
                 const isCrypto = (window.activeMarketVenue === 'CRYPTO');
@@ -8671,20 +8668,41 @@
                     labelName = 'Drawdown (%)';
                 }
 
-                const chartDataSig = `${ws}_${currentChartMetric}_${currentChartTF}_${values.length}_${values[values.length - 1]}`;
+                // Compute robust suggested y-axis bounds to prevent zero-range scale collapse
+                let minVal = Math.min(...values);
+                let maxVal = Math.max(...values);
+                let suggestedMin = undefined;
+                let suggestedMax = undefined;
+
+                if (currentChartMetric === 'drawdown') {
+                    suggestedMin = 0;
+                    suggestedMax = Math.max(5, maxVal * 1.2);
+                } else if (minVal === maxVal) {
+                    if (minVal === 0) {
+                        suggestedMin = -10;
+                        suggestedMax = 10;
+                    } else if (minVal > 0) {
+                        suggestedMin = Math.max(0, minVal * 0.95);
+                        suggestedMax = maxVal * 1.05;
+                    } else {
+                        suggestedMin = minVal * 1.05;
+                        suggestedMax = maxVal * 0.95;
+                    }
+                } else {
+                    const pad = Math.max(1, (maxVal - minVal) * 0.1);
+                    suggestedMin = minVal - pad;
+                    suggestedMax = maxVal + pad;
+                }
+
+                const chartDataSig = `${ws}_${currentChartMetric}_${currentChartTF}_${values.length}_${values[0]}_${values[values.length - 1]}`;
                 if (canvas._lastChartSig === chartDataSig && chartInstance) {
-                    return; // Same data, skip repainting
+                    return; // Same data and metric, skip repainting
                 }
                 canvas._lastChartSig = chartDataSig;
 
                 if (chartInstance) {
-                    chartInstance.data.labels = labels;
-                    chartInstance.data.datasets[0].label = labelName;
-                    chartInstance.data.datasets[0].data = values;
-                    chartInstance.data.datasets[0].borderColor = borderColor;
-                    chartInstance.data.datasets[0].backgroundColor = bgGradient;
-                    chartInstance.update('none');
-                    return;
+                    chartInstance.destroy();
+                    chartInstance = null;
                 }
 
                 const ctx = canvas.getContext('2d');
@@ -8697,15 +8715,20 @@
                             data: values,
                             borderColor: borderColor,
                             backgroundColor: bgGradient,
-                            borderWidth: 2,
-                            pointRadius: values.length > 50 ? 0 : 3,
+                            borderWidth: 2.5,
+                            pointRadius: values.length > 50 ? 0 : 3.5,
+                            pointHoverRadius: 6,
                             fill: true,
-                            tension: 0.2
+                            tension: 0.25
                         }]
                     },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
+                        interaction: {
+                            intersect: false,
+                            mode: 'index'
+                        },
                         plugins: {
                             legend: { display: false },
                             tooltip: {
@@ -8721,8 +8744,25 @@
                             }
                         },
                         scales: {
-                            x: { grid: { color: '#1e293b' }, ticks: { color: '#64748b', font: { family: 'monospace', size: 10 } } },
-                            y: { grid: { color: '#1e293b' }, ticks: { color: '#64748b', font: { family: 'monospace', size: 10 } } }
+                            x: {
+                                grid: { color: 'rgba(30, 41, 59, 0.6)' },
+                                ticks: { color: '#94a3b8', font: { family: 'monospace', size: 10 } }
+                            },
+                            y: {
+                                suggestedMin: suggestedMin,
+                                suggestedMax: suggestedMax,
+                                grid: { color: 'rgba(30, 41, 59, 0.6)' },
+                                ticks: {
+                                    color: '#94a3b8',
+                                    font: { family: 'monospace', size: 10 },
+                                    callback: function(val) {
+                                        if (currentChartMetric === 'drawdown') return val.toFixed(1) + '%';
+                                        if (isCrypto) return val >= 1000 ? (val / 1000).toFixed(1) + 'k' : val.toFixed(0);
+                                        if (isIndia) return val >= 100000 ? '₹' + (val / 100000).toFixed(1) + 'L' : (val >= 1000 ? '₹' + (val / 1000).toFixed(0) + 'k' : '₹' + val.toFixed(0));
+                                        return val >= 1000 ? '$' + (val / 1000).toFixed(0) + 'k' : '$' + val.toFixed(0);
+                                    }
+                                }
+                            }
                         }
                     }
                 });

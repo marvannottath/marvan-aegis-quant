@@ -142,20 +142,27 @@ class PerformanceCurveEngine:
 
         if not events:
             val = cur_equity if metric == "equity" else 0.0
-            start_ts = cutoff_dt.strftime("%Y-%m-%d %H:%M:%S")
+            # Generate 12 evenly-spaced points across the window for continuous line rendering
+            num_baseline_points = 12
+            total_seconds = max(60.0, (now_dt - cutoff_dt).total_seconds())
+            sec_step = total_seconds / (num_baseline_points - 1)
+            baseline_points = []
+            for i in range(num_baseline_points):
+                pt_dt = cutoff_dt + timedelta(seconds=i * sec_step)
+                baseline_points.append({
+                    "timestamp": pt_dt.strftime("%Y-%m-%d %H:%M:%S"),
+                    "value": val
+                })
             return {
                 "status": "SUCCESS",
                 "metric": metric,
                 "range": time_range,
                 "environment": environment,
-                "points": [
-                    {"timestamp": start_ts, "value": val},
-                    {"timestamp": now_str, "value": val}
-                ],
+                "points": baseline_points,
                 "latest": val,
                 "min": val,
                 "max": val,
-                "point_count": 2,
+                "point_count": len(baseline_points),
                 "baseline_anchor": True
             }
 
