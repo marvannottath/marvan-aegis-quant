@@ -319,6 +319,40 @@ class AutonomousTrader:
                                         )
                                         if live_result and live_result.get("status") not in ("ERROR", "REJECTED", "GATE_BLOCKED"):
                                             live_order_placed = True
+                                            # Ensure asset is removed from dismissed spot sets
+                                            binance_broker.undismiss_spot_position(ticker)
+                                            # Record newly opened live position into broker tracking
+                                            pos_record = {
+                                                "trade_id": f"TRD-BINA-{ticker}-{int(time.time()*1000)}",
+                                                "asset": ticker,
+                                                "symbol": ticker,
+                                                "action": act,
+                                                "side": act,
+                                                "units": qty,
+                                                "quantity": qty,
+                                                "entry_price": current_price,
+                                                "last_price": current_price,
+                                                "capital_allocated": size_usd,
+                                                "margin": size_usd,
+                                                "leverage": 1.0,
+                                                "market_value": size_usd,
+                                                "pnl_usd": 0.0,
+                                                "pnl_pct": 0.0,
+                                                "unrealized_pnl": 0.0,
+                                                "product": "SPOT",
+                                                "status": "ACTIVE",
+                                                "environment": "BINANCE_LIVE",
+                                                "source": "BINANCE_SPOT_LIVE",
+                                                "timestamp": datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S")
+                                            }
+                                            self.broker.positions[ticker] = pos_record
+                                            self.broker.pools.setdefault("BINANCE_LIVE_REAL", {}).setdefault("positions", {})[ticker] = pos_record
+                                            # Deduct used spot cash from virtual_cash pool
+                                            cur_pool_cash = float(self.broker.pools.get("BINANCE_LIVE_REAL", {}).get("virtual_cash", self.broker.virtual_cash))
+                                            new_pool_cash = max(0.0, round(cur_pool_cash - size_usd, 2))
+                                            self.broker.pools.setdefault("BINANCE_LIVE_REAL", {})["virtual_cash"] = new_pool_cash
+                                            self.broker.virtual_cash = new_pool_cash
+                                            self.broker._save_state()
                                             self._log_action(ticker, act, current_price, size_usd, f"BINANCE LIVE ORDER PLACED: {live_result.get('orderId', live_result.get('order_id', 'PLACED'))} | Opp {opp_score:.0f}%")
                                         else:
                                             # Gate blocked or error — log and fall through to paper
@@ -467,6 +501,9 @@ class AutonomousTrader:
                                         self.broker.virtual_cash = real_live_cash
                                 elif live_sell_res.get("status") == "ERROR":
                                     print(f"[AUTONOMOUS TRADER WARNING] Binance sell rejected for {pos_asset}: {live_sell_res.get('message')}")
+                                    # If real Binance sell rejected, do NOT drop position from platform tracking!
+                                    self._log_action(pos_asset, "SELL_FAILED", new_live_price, pos.get("capital_allocated", 0.0), f"Binance Sell Rejected: {live_sell_res.get('message')} - Keeping position active")
+                                    continue
                             except Exception as live_close_err:
                                 print(f"[AUTONOMOUS TRADER] Live close error for {pos_asset}: {live_close_err}")
 

@@ -2040,16 +2040,24 @@ class BinanceBroker:
             except Exception:
                 pass
 
-            # If dismissed/closed asset, NEVER show it in active positions
+            # Only treat as dismissed if value is genuine dust (< 4.80 USDT)
+            # Active holdings with value >= 4.80 USDT must ALWAYS be visible and tracked as open positions
             is_dismissed = (sym_clean in self._closed_spot_assets or 
                             ticker_symbol in self._closed_spot_assets or 
                             f"{sym_clean}USDT" in self._closed_spot_assets)
-            if is_dismissed:
+            if is_dismissed and val_usd < 4.80:
                 continue
 
+            # If real holding exists (>= 4.80 USDT), ensure it is removed from stale dismissed sets
+            if val_usd >= 4.80 and is_dismissed:
+                self._closed_spot_assets.discard(sym_clean)
+                self._closed_spot_assets.discard(ticker_symbol)
+                self._closed_spot_assets.discard(f"{sym_clean}USDT")
+                self._save_closed_spot_assets()
+
             # Minimum viable trading notional on Binance spot is 5.00 USDT.
-            # Holdings below 5.00 USDT without an internal bot trade record are wallet remnants/dust and must not be shown.
-            if val_usd < 5.00 and not has_internal_record:
+            # Holdings below 4.80 USDT without an internal bot trade record are wallet remnants/dust and must not be shown.
+            if val_usd < 4.80 and not has_internal_record:
                 self._entry_price_cache.pop(f"{asset}USDT", None)
                 continue
 

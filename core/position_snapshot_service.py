@@ -212,21 +212,6 @@ class PositionSnapshotService:
                     if s_name not in existing_syms:
                         internal_pos_list.append(v)
 
-        # Remove any dismissed spot assets from paper_broker memory (Strictly for CRYPTO workspace)
-        if target_ws == "CRYPTO":
-            try:
-                from execution.binance_broker import binance_broker
-                if hasattr(binance_broker, "_closed_spot_assets") and binance_broker._closed_spot_assets:
-                    for d_sym in list(binance_broker._closed_spot_assets):
-                        paper_broker.positions.pop(d_sym, None)
-                        paper_broker.positions.pop(f"{d_sym}USDT", None)
-                        for p_val in paper_broker.pools.values():
-                            if isinstance(p_val, dict) and "positions" in p_val:
-                                p_val["positions"].pop(d_sym, None)
-                                p_val["positions"].pop(f"{d_sym}USDT", None)
-            except Exception:
-                pass
-
         # For BINANCE_LIVE_REAL / BINANCE_LIVE: sync real held crypto positions from Binance Spot & Futures
         # Strictly restricted to CRYPTO workspace
         if target_ws == "CRYPTO" and pool_name in ["BINANCE_LIVE_REAL", "BINANCE_LIVE"]:
@@ -241,13 +226,15 @@ class PositionSnapshotService:
                             continue
                         clean_s = sym_name.upper().replace("USDT", "").replace("BUSD", "")
                         val_mkt = float(lp.get("market_value", lp.get("capital_allocated", 0.0)))
-                        if hasattr(binance_broker, "_closed_spot_assets"):
-                            if (sym_name.upper() in binance_broker._closed_spot_assets or 
-                                clean_s in binance_broker._closed_spot_assets or 
-                                f"{clean_s}USDT" in binance_broker._closed_spot_assets):
-                                continue
-                        if val_mkt < 5.00 and sym_name not in paper_broker.positions:
+                        # If real coins exist on Binance with value >= $4.80, ALWAYS include them
+                        if val_mkt < 4.80 and sym_name not in paper_broker.positions:
                             continue
+                        # Clear symbol from closed set if user still holds coins
+                        if hasattr(binance_broker, "_closed_spot_assets") and val_mkt >= 4.80:
+                            binance_broker._closed_spot_assets.discard(sym_name.upper())
+                            binance_broker._closed_spot_assets.discard(clean_s)
+                            binance_broker._closed_spot_assets.discard(f"{clean_s}USDT")
+
                         if sym_name not in existing_symbols:
                             internal_pos_list.append(lp)
                             if sym_name not in paper_broker.positions:
@@ -268,22 +255,24 @@ class PositionSnapshotService:
             sym = pos.get("asset") or pos.get("symbol") or ""
             clean_s = sym.upper().replace("USDT", "").replace("BUSD", "")
             if target_ws == "CRYPTO":
-                try:
-                    from execution.binance_broker import binance_broker
-                    if hasattr(binance_broker, "_closed_spot_assets"):
-                        if (sym.upper() in binance_broker._closed_spot_assets or 
-                            clean_s in binance_broker._closed_spot_assets or 
-                            f"{clean_s}USDT" in binance_broker._closed_spot_assets):
-                            continue
-                except Exception:
-                    pass
-
-                # Filter out external unclosable dust (< 5.00 USDT) without internal platform order
                 v_mkt = float(pos.get("market_value", pos.get("capital_allocated", 0.0)))
+                # If coin has real market value (>= 4.80 USDT), it is NEVER filtered out by _closed_spot_assets
+                if v_mkt < 4.80:
+                    try:
+                        from execution.binance_broker import binance_broker
+                        if hasattr(binance_broker, "_closed_spot_assets"):
+                            if (sym.upper() in binance_broker._closed_spot_assets or 
+                                clean_s in binance_broker._closed_spot_assets or 
+                                f"{clean_s}USDT" in binance_broker._closed_spot_assets):
+                                continue
+                    except Exception:
+                        pass
+
+                # Filter out external unclosable dust (< 4.80 USDT) without internal platform order
                 has_internal = (sym in paper_broker.positions or 
                                 f"{clean_s}USDT" in paper_broker.positions or 
                                 sym in pool.get("positions", {}))
-                if v_mkt < 5.00 and not has_internal:
+                if v_mkt < 4.80 and not has_internal:
                     continue
             if workspace_manager.is_symbol_allowed(sym, target_ws):
                 # Enrich position record with canonical fields

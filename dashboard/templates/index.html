@@ -7555,6 +7555,16 @@
             if (document.getElementById('pf-vault-reserve')) document.getElementById('pf-vault-reserve').innerText = formatMoney(isIndia ? 0 : vault);
             if (document.getElementById('pf-total-assets')) document.getElementById('pf-total-assets').innerText = formatMoney(equity + (isIndia ? 0 : vault));
 
+            // Only show Sweep to Binance button when un-transferred profit exists in Crypto mode
+            const sweepBtn = document.getElementById('btn-sweep-funding');
+            if (sweepBtn) {
+                if (isCrypto && vault > 0.05) {
+                    sweepBtn.style.display = 'inline-flex';
+                } else {
+                    sweepBtn.style.display = 'none';
+                }
+            }
+
             // Sync Custodial Wallets tab
             if (document.getElementById('fund-binance-spot-val')) {
                 const bLive = (data.pools && data.pools.BINANCE_LIVE_REAL) ? Number(data.pools.BINANCE_LIVE_REAL.virtual_cash || (isCrypto ? cash : 3.84)) : (isCrypto ? cash : 3.84);
