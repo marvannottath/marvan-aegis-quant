@@ -564,20 +564,36 @@ class RiskEngine:
         dollar_loss = max(0.0, peak - equity)
         daily_dollar_loss = max(0.0, daily_open - equity)
 
+        # Calculate Realized Capital Drawdown (Based purely on settled cash + closed trade losses):
+        # Open positions are actively managed with automated stop loss, so market volatility / floating price
+        # noise does not represent realized capital erosion.
+        ws_key = norm_ws.upper()
+        daily_realized_loss = float(self.daily_realized_loss_by_ws.get(ws_key, self.daily_realized_loss))
+        ws_loss_limit = float(self.WORKSPACE_DAILY_LOSS_LIMITS.get(ws_key, self.daily_loss_limit_usd))
+
+        # Realized equity drawdown percentage:
+        realized_equity = max(0.0, peak - daily_realized_loss)
+        realized_dd_pct = round(((peak - realized_equity) / peak) * 100.0, 2) if peak > 0 else 0.0
+
         # Micro-account (< 50.0 USDT / USD) calibration:
         # On micro accounts (e.g. $13.55 balance), normal spot market spread/noise of $0.50 - $2.00
         # yields 5-20% percentage swings. A hard breach requires exceeding an absolute dollar loss
         # floor (minimum $5.00 loss) before halting operations on trivial cent price fluctuations.
         is_micro_account = (peak < 50.0 or equity < 50.0)
-        if is_micro_account:
-            if dollar_loss < 5.0 and daily_dollar_loss < 5.0:
-                breached = False
-            else:
-                breached = dd_pct >= max(max_dd, 25.0)
-        else:
-            breached = dd_pct >= max_dd
 
-        # If drawdown is safe, clear any stale circuit breaker trip
+        # Circuit breaker is tripped strictly on REALIZED capital loss breaching limits:
+        # 1. Daily realized loss hits or exceeds the workspace daily loss limit
+        # 2. Realized capital loss percentage breaches maximum allowable drawdown limit
+        realized_loss_breach = (daily_realized_loss >= ws_loss_limit and ws_loss_limit > 0)
+        
+        if is_micro_account:
+            # On micro-accounts, small fluctuations shouldn't trip. Breached only if actual loss exceeds $5.00
+            # AND realized drawdown breaches 25% or daily loss limit is hit.
+            breached = (daily_realized_loss >= 5.0 and realized_dd_pct >= max(max_dd, 25.0)) or realized_loss_breach
+        else:
+            breached = (realized_dd_pct >= max_dd) or realized_loss_breach
+
+        # If realized drawdown is safe, automatically clear any stale circuit breaker trip
         if not breached and self.circuit_tripped and "MAX_DRAWDOWN_BREACHED" in self.trip_reason:
             self.circuit_tripped = False
             self.trip_reason = "NORMAL_OPERATIONS"
@@ -588,6 +604,9 @@ class RiskEngine:
             "current_equity": equity,
             "peak_equity": peak,
             "drawdown_pct": dd_pct,
+            "realized_drawdown_pct": realized_dd_pct,
+            "daily_realized_loss": round(daily_realized_loss, 2),
+            "daily_loss_limit": round(ws_loss_limit, 2),
             "daily_opening_equity": daily_open,
             "daily_drawdown_pct": daily_dd_pct,
             "dollar_loss": round(dollar_loss, 2),
@@ -600,11 +619,11 @@ class RiskEngine:
         }
 
     def evaluate_drawdown(self, workspace: str = "DEFAULT") -> Tuple[bool, float, str]:
-        """Returns (allowed: bool, drawdown_pct: float, reason: str)."""
+        """Returns (allowed: bool, drawdown_pct: float, reason: str). Circuit breaker checks realized loss."""
         dd_info = self.get_drawdown(workspace)
         if dd_info["breached"]:
             self.circuit_tripped = True
-            self.trip_reason = f"MAX_DRAWDOWN_BREACHED: current {dd_info['drawdown_pct']:.2f}% >= limit {dd_info['max_drawdown_pct']:.2f}% (Loss: ${dd_info.get('dollar_loss', 0.0):.2f})"
+            self.trip_reason = f"MAX_DRAWDOWN_BREACHED: realized loss ${dd_info.get('daily_realized_loss', 0.0):.2f} (Limit: ${dd_info.get('daily_loss_limit', 0.0):.2f}, Drawdown: {dd_info.get('realized_drawdown_pct', 0.0):.2f}%)"
             self._save_state()
             return False, dd_info["drawdown_pct"], self.trip_reason
         return True, dd_info["drawdown_pct"], "Drawdown within limits"

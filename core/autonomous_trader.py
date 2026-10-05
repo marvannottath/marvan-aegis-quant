@@ -459,6 +459,14 @@ class AutonomousTrader:
                                 from execution.binance_broker import binance_broker
                                 live_sell_res = binance_broker.close_spot_position(pos_asset, environment="BINANCE_LIVE")
                                 print(f"[AUTONOMOUS TRADER] Binance Live Spot Close for {pos_asset}: {live_sell_res}")
+                                if live_sell_res.get("status") in ["SUCCESS", "FILLED"]:
+                                    # Refresh available USDT free cash immediately
+                                    real_live_cash = binance_broker.get_live_spot_balance("USDT")
+                                    if real_live_cash > 0:
+                                        self.broker.pools.setdefault("BINANCE_LIVE_REAL", {})["virtual_cash"] = real_live_cash
+                                        self.broker.virtual_cash = real_live_cash
+                                elif live_sell_res.get("status") == "ERROR":
+                                    print(f"[AUTONOMOUS TRADER WARNING] Binance sell rejected for {pos_asset}: {live_sell_res.get('message')}")
                             except Exception as live_close_err:
                                 print(f"[AUTONOMOUS TRADER] Live close error for {pos_asset}: {live_close_err}")
 

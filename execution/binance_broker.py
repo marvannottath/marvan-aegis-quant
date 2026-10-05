@@ -183,142 +183,142 @@ class BinanceBroker:
 
         # Check if user has free spot balance to sell on Binance Spot
         try:
+            free_qty = 0.0
             acc_info = self.get_account_info(environment, force_refresh=True)
             raw_bals = acc_info.get("balances", [])
-            bals = [
-                b for b in raw_bals
-                if float(b.get("free", 0.0)) > 0 or float(b.get("locked", 0.0)) > 0
-            ]
-            for b in bals:
+            for b in raw_bals:
                 if b.get("asset", "").upper() == sym_clean:
                     free_qty = float(b.get("free", 0.0))
-                    if free_qty > 0:
-                        mdata = self.get_market_data(environment, pair)
-                        px = float(mdata.get("last_price", 0.0))
-                        if px <= 0:
-                            bulk_p = self.get_bulk_market_data(environment=environment)
-                            px = float(bulk_p.get(pair, {}).get("last_price", 0.0))
+                    break
 
-                        formatted_qty = self.format_quantity(environment, pair, free_qty)
-                        notional = (formatted_qty * px) if px > 0 else (free_qty * px)
+            if free_qty > 0:
+                mdata = self.get_market_data(environment, pair)
+                px = float(mdata.get("last_price", 0.0))
+                if px <= 0:
+                    bulk_p = self.get_bulk_market_data(environment=environment)
+                    px = float(bulk_p.get(pair, {}).get("last_price", 0.0))
 
-                        if notional >= 5.0 or px <= 0:
-                            order_res = self.create_order(
-                                environment=environment,
-                                symbol=pair,
-                                side="SELL",
-                                quantity=formatted_qty if formatted_qty > 0 else free_qty,
-                                order_type="MARKET"
-                            )
-                            if order_res.get("status") in ["SUCCESS", "FILLED"]:
-                                self.dismiss_spot_position(sym_clean)
-                                self.dismiss_spot_position(pair)
+                formatted_qty = self.format_quantity(environment, pair, free_qty)
+                notional = (formatted_qty * px) if px > 0 else (free_qty * px)
 
-                                fill_px = float(order_res.get("average_fill_price") or px)
-                                fill_qty = float(order_res.get("executed_quantity") or formatted_qty or free_qty)
-                                entry_px = float(self._entry_price_cache.get(pair, 0.0) or self._entry_price_cache.get(sym_clean, 0.0))
-                                if entry_px <= 0:
-                                    entry_px = self.get_entry_price(environment, pair)
-                                if entry_px <= 0:
-                                    entry_px = fill_px
+                # If position value is at least 4.80 USDT (Binance spot min notional ~5 USDT with buffer), attempt market sell
+                if notional >= 4.80 or px <= 0:
+                    order_res = self.create_order(
+                        environment=environment,
+                        symbol=pair,
+                        side="SELL",
+                        quantity=formatted_qty if formatted_qty > 0 else free_qty,
+                        order_type="MARKET"
+                    )
+                    if order_res.get("status") in ["SUCCESS", "FILLED"]:
+                        self.dismiss_spot_position(sym_clean)
+                        self.dismiss_spot_position(pair)
 
-                                gross_pnl = round((fill_px - entry_px) * fill_qty, 4)
-                                
-                                # Extract exact Binance commission from fill receipt if available
-                                exact_exit_fee = 0.0
-                                fills = order_res.get("fills", [])
-                                if fills:
-                                    for f in fills:
-                                        c_amt = float(f.get("commission", 0.0))
-                                        c_asset = str(f.get("commissionAsset", "")).upper()
-                                        if c_asset in ["USDT", "BUSD", "USD"]:
-                                            exact_exit_fee += c_amt
-                                        elif c_asset == "BNB":
-                                            bulk_px = self.get_bulk_market_data(environment=environment)
-                                            bnb_px = float(bulk_px.get("BNBUSDT", {}).get("last_price", 600.0) or 600.0)
-                                            exact_exit_fee += (c_amt * bnb_px)
-                                        else:
-                                            exact_exit_fee += (c_amt * fill_px)
-                                    # Total round-trip fee: exact exit fill commission + entry commission
-                                    fee_usd = round(exact_exit_fee + (entry_px * fill_qty * (0.00075 if exact_exit_fee < (fill_px * fill_qty * 0.0009) else 0.001)), 4)
+                        fill_px = float(order_res.get("average_fill_price") or px)
+                        fill_qty = float(order_res.get("executed_quantity") or formatted_qty or free_qty)
+                        entry_px = float(self._entry_price_cache.get(pair, 0.0) or self._entry_price_cache.get(sym_clean, 0.0))
+                        if entry_px <= 0:
+                            entry_px = self.get_entry_price(environment, pair)
+                        if entry_px <= 0:
+                            entry_px = fill_px
+
+                        gross_pnl = round((fill_px - entry_px) * fill_qty, 4)
+                        
+                        # Extract exact Binance commission from fill receipt if available
+                        exact_exit_fee = 0.0
+                        fills = order_res.get("fills", [])
+                        if fills:
+                            for f in fills:
+                                c_amt = float(f.get("commission", 0.0))
+                                c_asset = str(f.get("commissionAsset", "")).upper()
+                                if c_asset in ["USDT", "BUSD", "USD"]:
+                                    exact_exit_fee += c_amt
+                                elif c_asset == "BNB":
+                                    bulk_px = self.get_bulk_market_data(environment=environment)
+                                    bnb_px = float(bulk_px.get("BNBUSDT", {}).get("last_price", 600.0) or 600.0)
+                                    exact_exit_fee += (c_amt * bnb_px)
                                 else:
-                                    fee_usd = round(((entry_px * fill_qty) + (fill_px * fill_qty)) * 0.001, 4)
-
-                                net_pnl = round(gross_pnl - fee_usd, 2)
-                                now_str = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S")
-
-                                trade_record = {
-                                    "trade_id": f"TRD-BINA-{sym_clean}-{int(time.time()*1000)}",
-                                    "asset": pair,
-                                    "symbol": pair,
-                                    "action": "BUY",
-                                    "side": "BUY",
-                                    "entry_price": entry_px,
-                                    "exit_price": fill_px,
-                                    "units": fill_qty,
-                                    "quantity": fill_qty,
-                                    "capital_allocated": round(entry_px * fill_qty, 2),
-                                    "leverage": 1.0,
-                                    "gross_pnl": gross_pnl,
-                                    "fee_usd": fee_usd,
-                                    "net_pnl": net_pnl,
-                                    "pnl_usd": net_pnl,
-                                    "pnl_pct": round((gross_pnl / (entry_px * fill_qty)) * 100.0, 2) if (entry_px * fill_qty) > 0 else 0.0,
-                                    "result": "WIN" if net_pnl > 0 else "LOSS",
-                                    "reason": "BINANCE_SPOT_CLOSE",
-                                    "timestamp": now_str,
-                                    "date": now_str[:10],
-                                    "workspace": "CRYPTO",
-                                    "source": "BINANCE_LIVE"
-                                }
-
-                                try:
-                                    from execution.paper_broker import paper_broker
-                                    pool = paper_broker.pools.setdefault("BINANCE_LIVE_REAL", {})
-                                    hist = pool.setdefault("trade_history", [])
-                                    hist.insert(0, trade_record)
-                                    if len(hist) > 500:
-                                        pool["trade_history"] = hist[:500]
-                                    paper_broker._save_state()
-                                except Exception as pb_err:
-                                    print(f"[BINANCE CLOSE] paper_broker save notice: {pb_err}")
-
-                                if net_pnl > 0:
-                                    try:
-                                        from execution.profit_vault import profit_vault
-                                        profit_vault.record_trade_profit("BINANCE_LIVE_REAL", net_pnl)
-                                    except Exception as v_err:
-                                        print(f"[BINANCE CLOSE] vault sweep notice: {v_err}")
-
-                                return {
-                                    "status": "SUCCESS",
-                                    "message": f"Sold {fill_qty} {sym_clean} on Binance Spot. Net PnL: ${net_pnl:+.2f}",
-                                    "order": order_res,
-                                    "trade_record": trade_record,
-                                    "realized_pnl": net_pnl
-                                }
-                            else:
-                                print(f"[BINANCE CLOSE REJECTED]: {order_res}")
-                                return {
-                                    "status": "ERROR",
-                                    "message": order_res.get("message", "Binance rejected market sell order"),
-                                    "order": order_res
-                                }
+                                    exact_exit_fee += (c_amt * fill_px)
+                            # Total round-trip fee: exact exit fill commission + entry commission
+                            fee_usd = round(exact_exit_fee + (entry_px * fill_qty * (0.00075 if exact_exit_fee < (fill_px * fill_qty * 0.0009) else 0.001)), 4)
                         else:
-                            # Balance value is below Binance 5.00 USDT MIN_NOTIONAL (dust) -> dismiss from active tracking
-                            self.dismiss_spot_position(sym_clean)
-                            self.dismiss_spot_position(pair)
-                            return {
-                                "status": "DUST_DISMISSED",
-                                "message": f"{sym_clean} balance value (${notional:.2f}) is below Binance 5.00 USDT MIN_NOTIONAL. Dismissed."
-                            }
+                            fee_usd = round(((entry_px * fill_qty) + (fill_px * fill_qty)) * 0.001, 4)
+
+                        net_pnl = round(gross_pnl - fee_usd, 2)
+                        now_str = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S")
+
+                        trade_record = {
+                            "trade_id": f"TRD-BINA-{sym_clean}-{int(time.time()*1000)}",
+                            "asset": pair,
+                            "symbol": pair,
+                            "action": "BUY",
+                            "side": "BUY",
+                            "entry_price": entry_px,
+                            "exit_price": fill_px,
+                            "units": fill_qty,
+                            "quantity": fill_qty,
+                            "capital_allocated": round(entry_px * fill_qty, 2),
+                            "leverage": 1.0,
+                            "gross_pnl": gross_pnl,
+                            "fee_usd": fee_usd,
+                            "net_pnl": net_pnl,
+                            "pnl_usd": net_pnl,
+                            "pnl_pct": round((gross_pnl / (entry_px * fill_qty)) * 100.0, 2) if (entry_px * fill_qty) > 0 else 0.0,
+                            "result": "WIN" if net_pnl > 0 else "LOSS",
+                            "reason": "BINANCE_SPOT_CLOSE",
+                            "timestamp": now_str,
+                            "date": now_str[:10],
+                            "workspace": "CRYPTO",
+                            "source": "BINANCE_LIVE"
+                        }
+
+                        try:
+                            from execution.paper_broker import paper_broker
+                            pool = paper_broker.pools.setdefault("BINANCE_LIVE_REAL", {})
+                            hist = pool.setdefault("trade_history", [])
+                            hist.insert(0, trade_record)
+                            if len(hist) > 500:
+                                pool["trade_history"] = hist[:500]
+                            paper_broker._save_state()
+                        except Exception as pb_err:
+                            print(f"[BINANCE CLOSE] paper_broker save notice: {pb_err}")
+
+                        if net_pnl > 0:
+                            try:
+                                from execution.profit_vault import profit_vault
+                                profit_vault.record_trade_profit("BINANCE_LIVE_REAL", net_pnl)
+                            except Exception as v_err:
+                                print(f"[BINANCE CLOSE] vault sweep notice: {v_err}")
+
+                        return {
+                            "status": "SUCCESS",
+                            "message": f"Sold {fill_qty} {sym_clean} on Binance Spot. Net PnL: ${net_pnl:+.2f}",
+                            "order": order_res,
+                            "trade_record": trade_record,
+                            "realized_pnl": net_pnl
+                        }
+                    else:
+                        print(f"[BINANCE CLOSE REJECTED]: {order_res}")
+                        return {
+                            "status": "ERROR",
+                            "message": order_res.get("message", "Binance rejected market sell order"),
+                            "order": order_res
+                        }
+                elif notional > 0 and notional < 4.80:
+                    # Balance value is genuine dust (less than $4.80) -> dismiss from active tracking
+                    self.dismiss_spot_position(sym_clean)
+                    self.dismiss_spot_position(pair)
+                    return {
+                        "status": "DUST_DISMISSED",
+                        "message": f"{sym_clean} balance value (${notional:.2f}) is below Binance 5.00 USDT MIN_NOTIONAL. Dismissed."
+                    }
         except Exception as e:
             print(f"[BINANCE] Spot close execution error for {symbol}: {e}")
             return {"status": "ERROR", "message": str(e)}
 
         self.dismiss_spot_position(sym_clean)
         self.dismiss_spot_position(pair)
-        return {"status": "SUCCESS", "message": f"{symbol} closed and permanently dismissed from active tracking."}
+        return {"status": "SUCCESS", "message": f"{symbol} closed and dismissed from active tracking."}
 
     def _save_closed_spot_assets(self):
         """Persist dismissed spot positions to JSON file."""
