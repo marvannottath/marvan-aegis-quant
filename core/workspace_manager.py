@@ -327,11 +327,22 @@ class WorkspaceManager:
         except Exception as e:
             print(f'[WORKSPACE_MGR] Audit log notice: {e}')
 
+        # Account Context & Cache Invalidation integration
+        try:
+            from core.account_context import account_context_manager
+            from core.account_cache import account_cache
+            curr_acc = account_context_manager.resolve(workspace=target_ws)
+            account_cache.switch_account(curr_acc.account_id)
+        except Exception as e:
+            curr_acc = None
+            print(f'[WORKSPACE_MGR] Account context sync notice: {e}')
+
         return {
             'status': 'SUCCESS',
             'previous_workspace': prev_ws,
             'active_workspace': target_ws,
             'active_pool': target_pool,
+            'account_id': curr_acc.account_id if curr_acc else target_pool,
             'currency': meta['currency'],
             'currency_symbol': meta['currency_symbol'],
             'initial_capital': meta['initial_capital'],
@@ -340,6 +351,11 @@ class WorkspaceManager:
             'switch_count': self._switch_count
         }
 
+    def get_active_account_context(self):
+        """Return authoritative AccountContext for active workspace."""
+        from core.account_context import account_context_manager
+        return account_context_manager.resolve(workspace=self._active_workspace)
+
     def set_workspace_pool(self, workspace: str, pool: str):
         ws = self._normalize_workspace(workspace)
         if ws in self.METADATA and pool in self.METADATA[ws]['allowed_pools']:
@@ -347,3 +363,4 @@ class WorkspaceManager:
             self._save_state()
 
 workspace_manager = WorkspaceManager()
+

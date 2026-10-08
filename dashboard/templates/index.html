@@ -52,6 +52,19 @@
         .tab-content.active { display: block; }
         .sidebar-item.active { background-color: #1e293b; border-left: 3px solid #f59e0b; color: #ffffff; }
 
+        /* Professional Light Theme Support */
+        html.light-theme body { background-color: #f8fafc !important; color: #0f172a !important; }
+        html.light-theme header,
+        html.light-theme .bg-darkcard,
+        html.light-theme .bg-gray-950,
+        html.light-theme .bg-gray-900 { background-color: #ffffff !important; color: #0f172a !important; border-color: #e2e8f0 !important; }
+        html.light-theme .text-white { color: #0f172a !important; }
+        html.light-theme .text-gray-300 { color: #334155 !important; }
+        html.light-theme .text-gray-400,
+        html.light-theme .text-gray-500 { color: #64748b !important; }
+        html.light-theme .border-gray-800,
+        html.light-theme .border-darkborder { border-color: #e2e8f0 !important; }
+
         /* Privacy Mask Balance Blur */
         body.privacy-blur-active .privacy-blur-target,
         body.privacy-blur-active #metric-equity,
@@ -240,6 +253,12 @@
                     setInterval(updateClock, 1000);
                 })();
             </script>
+
+            <!-- Theme Toggle: Light vs Dark -->
+            <button id="btn-theme-toggle" onclick="toggleThemeMode()" class="h-8 px-2.5 rounded-lg bg-gray-900 border border-gray-800 hover:border-amber-500/50 text-gray-400 hover:text-white transition flex items-center space-x-1.5 cursor-pointer shadow" title="Toggle Theme (Light / Dark)">
+                <i id="theme-toggle-icon" class="fa-solid fa-moon text-xs text-amber-400"></i>
+                <span id="theme-toggle-label" class="hidden md:inline text-[10px] font-bold">DARK</span>
+            </button>
 
             <!-- Privacy Mask (Blur Balances) & Quick Lock Buttons -->
             <button id="btn-privacy-mask-nav" onclick="togglePrivacyMask()" class="h-8 px-2.5 rounded-lg bg-gray-900 border border-gray-800 hover:border-amber-500/50 text-gray-400 hover:text-white transition flex items-center space-x-1.5 cursor-pointer shadow" title="Privacy Mode: Hide/Mask Account Balances (Eye Blur)">
@@ -4501,6 +4520,31 @@
             }
         }
 
+        function toggleThemeMode() {
+            const isLight = document.documentElement.classList.toggle('light-theme');
+            localStorage.setItem('aegis_theme', isLight ? 'light' : 'dark');
+            const icon = document.getElementById('theme-toggle-icon');
+            const lbl = document.getElementById('theme-toggle-label');
+            if (icon) icon.className = isLight ? 'fa-solid fa-sun text-xs text-amber-500' : 'fa-solid fa-moon text-xs text-amber-400';
+            if (lbl) lbl.innerText = isLight ? 'LIGHT' : 'DARK';
+        }
+
+        // Initialize saved theme on load
+        (function() {
+            try {
+                const savedTheme = localStorage.getItem('aegis_theme');
+                if (savedTheme === 'light') {
+                    document.documentElement.classList.add('light-theme');
+                    setTimeout(() => {
+                        const icon = document.getElementById('theme-toggle-icon');
+                        const lbl = document.getElementById('theme-toggle-label');
+                        if (icon) icon.className = 'fa-solid fa-sun text-xs text-amber-500';
+                        if (lbl) lbl.innerText = 'LIGHT';
+                    }, 50);
+                }
+            } catch (e) {}
+        })();
+
         function togglePrivacyMask() {
             applyPrivacyMaskUI(!isPrivacyMaskActive);
             if (typeof playSynthChime === 'function') playSynthChime('SWITCH');
@@ -4986,8 +5030,16 @@
             if (btnCry) btnCry.className = (normVenue === 'CRYPTO') ? activeClass : inactiveClass;
 
             try {
-                window.history.replaceState({}, '', '?workspace=' + normVenue);
+                const cleanPath = normVenue === 'INDIA' ? '/india' : (normVenue === 'CRYPTO' ? '/crypto' : '/forex-gold');
+                window.history.replaceState({}, '', cleanPath);
             } catch (e) {}
+
+            // Zero Data Mixing: Invalidate old account-scoped UI state immediately
+            const posTbody = document.getElementById('positions-full-tbody');
+            if (posTbody) {
+                posTbody._lastCacheKey = null;
+                posTbody.innerHTML = '<tr><td colspan="9" class="py-6 text-center text-gray-500 font-mono text-xs"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Synchronizing ' + normVenue + ' positions...</td></tr>';
+            }
 
             // Check if workspace is already cached in memory
             window.workspaceCache = window.workspaceCache || {};

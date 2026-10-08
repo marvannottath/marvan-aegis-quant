@@ -215,6 +215,10 @@ async def on_startup():
 INDEX_HTML_PATH = BASE_DIR / "templates" / "index.html"
 
 @app.api_route("/", methods=["GET", "HEAD"], response_class=HTMLResponse)
+@app.get("/crypto", response_class=HTMLResponse)
+@app.get("/india", response_class=HTMLResponse)
+@app.get("/forex-gold", response_class=HTMLResponse)
+@app.get("/forex", response_class=HTMLResponse)
 async def read_dashboard(request: Request):
     """Serve the master hedge fund dashboard with 100% truthful server-side pre-rendered financial state & HTML tables for the active workspace."""
     template_path = BASE_DIR / "templates" / "index.html"
@@ -227,7 +231,15 @@ async def read_dashboard(request: Request):
     
     # 1. Authoritative Workspace Determination
     from core.workspace_manager import workspace_manager
-    ws_param = request.query_params.get("workspace")
+    path = request.url.path.lower()
+    if path == "/crypto":
+        ws_param = "CRYPTO"
+    elif path == "/india":
+        ws_param = "INDIA"
+    elif path in ("/forex-gold", "/forex"):
+        ws_param = "FOREX_GOLD"
+    else:
+        ws_param = request.query_params.get("workspace")
     if ws_param:
         norm_ws = "FOREX_GOLD" if ws_param.upper() in ["FOREX", "FOREX_GOLD"] else ws_param.upper()
         if norm_ws in workspace_manager.VALID_WORKSPACES:
@@ -6523,6 +6535,206 @@ async def submit_binance_order_endpoint(request: Request):
 
     except Exception as e:
         return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+# ------------------------------------------------------------------
+# 36. Authoritative Account Context API
+# ------------------------------------------------------------------
+@app.get("/api/account/context")
+async def get_account_context_endpoint(
+    account_id: Optional[str] = None,
+    workspace: Optional[str] = None,
+    environment: Optional[str] = None,
+    broker: Optional[str] = None
+):
+    """
+    Authoritative Account Context.
+    Fails closed with ACCOUNT_CONTEXT_UNAVAILABLE if unambiguous context cannot be resolved.
+    """
+    try:
+        from core.account_context import account_context_manager, AccountContextUnavailableError
+        from core.workspace_manager import workspace_manager
+        
+        target_ws = workspace or (None if account_id else workspace_manager.get_active_workspace())
+        ctx = account_context_manager.resolve(
+            account_id=account_id,
+            workspace=target_ws,
+            environment=environment,
+            broker=broker
+        )
+        return JSONResponse({
+            "status": "SUCCESS",
+            "account_context": ctx.to_dict()
+        })
+    except Exception as e:
+        return JSONResponse({
+            "status": "FAIL_CLOSED",
+            "error_code": "ACCOUNT_CONTEXT_UNAVAILABLE",
+            "message": str(e)
+        }, status_code=400)
+
+
+# ------------------------------------------------------------------
+# 37. Capital Availability & Residual/Dust Breakdown API
+# ------------------------------------------------------------------
+@app.get("/api/capital/breakdown")
+async def get_capital_breakdown_endpoint(
+    workspace: Optional[str] = None,
+    account_id: Optional[str] = None
+):
+    """
+    9-bucket capital availability breakdown and residual/dust status.
+    """
+    try:
+        from core.capital_availability_engine import capital_availability_engine
+        from core.position_snapshot_service import position_snapshot_service
+        from core.workspace_manager import workspace_manager
+        from core.account_context import account_context_manager
+
+        ws = workspace or workspace_manager.get_active_workspace()
+        ctx = account_context_manager.resolve(account_id=account_id, workspace=ws)
+        agg = await asyncio.to_thread(position_snapshot_service.get_portfolio_aggregate, ws)
+
+        total_equity = float(agg.get("total_equity", 0.0))
+        available_cash = float(agg.get("free_cash", 0.0))
+        used_margin = float(agg.get("used_margin", 0.0))
+        vault_balance = float(agg.get("vault_balance", 0.0))
+
+        breakdown = capital_availability_engine.compute_breakdown(
+            account_id=ctx.account_id,
+            total_equity=total_equity,
+            broker_balance=total_equity,
+            available_cash=available_cash,
+            used_margin=used_margin,
+            reserved_cash=vault_balance,
+            currency=ctx.currency,
+            broker=ctx.broker
+        )
+
+        return JSONResponse({
+            "status": "SUCCESS",
+            "breakdown": breakdown.to_dict()
+        })
+    except Exception as e:
+        return JSONResponse({
+            "status": "ERROR",
+            "message": str(e)
+        }, status_code=500)
+
+
+# ------------------------------------------------------------------
+# 38. Dynamic Risk Management & Policy Versioning APIs
+# ------------------------------------------------------------------
+@app.post("/api/risk/preview-change")
+async def preview_risk_change_endpoint(request: Request):
+    """
+    Evaluate full engine calculation for proposed risk setting change.
+    Returns impact level: LOW, MEDIUM, HIGH, CRITICAL.
+    """
+    try:
+        body = await request.json()
+        proposed = body.get("proposed_settings", {})
+        from core.workspace_manager import workspace_manager
+        ws = body.get("workspace") or workspace_manager.get_active_workspace()
+        account_id = body.get("account_id") or f"{ws}_ACTIVE"
+
+        from core.risk_policy_versioning import risk_policy_manager
+        from core.position_snapshot_service import position_snapshot_service
+
+        current_settings = risk_engine.get_profile_summary()
+        agg = await asyncio.to_thread(position_snapshot_service.get_portfolio_aggregate, ws)
+        snap = await asyncio.to_thread(position_snapshot_service.get_snapshot, ws)
+
+        equity = float(agg.get("total_equity", 100000.0))
+        exposure = float(snap.get("total_exposure", 0.0))
+        pos_count = int(snap.get("open_position_count", 0))
+        free_cash = float(agg.get("free_cash", equity))
+
+        preview = risk_policy_manager.preview_risk_change(
+            account_id=account_id,
+            workspace=ws,
+            current_state=current_settings,
+            proposed_state=proposed,
+            account_equity=equity,
+            current_exposure=exposure,
+            open_positions_count=pos_count,
+            tradeable_capital=free_cash
+        )
+
+        return JSONResponse({
+            "status": "SUCCESS",
+            "preview": preview.to_dict()
+        })
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+@app.post("/api/risk/apply-change")
+async def apply_risk_change_endpoint(request: Request):
+    """
+    Apply a confirmed risk change preview.
+    Enforces strong confirmation for HIGH/CRITICAL changes.
+    """
+    try:
+        body = await request.json()
+        preview_id = body.get("preview_id")
+        confirmed = bool(body.get("confirmed", False))
+        actor = body.get("actor", "OPERATOR")
+
+        if not preview_id:
+            return JSONResponse({"status": "ERROR", "message": "preview_id is required"}, status_code=400)
+
+        from core.risk_policy_versioning import risk_policy_manager
+        res = risk_policy_manager.apply_confirmed_change(preview_id, confirmed=confirmed, user_actor=actor)
+        if res.get("status") == "APPLIED":
+            new_set = res.get("new_settings", {})
+            if "profile" in new_set:
+                risk_engine.set_risk_profile(new_set["profile"])
+            if "max_trade_cap_usd" in new_set:
+                risk_engine.set_max_trade_cap(float(new_set["max_trade_cap_usd"]))
+        return JSONResponse(res)
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+@app.post("/api/risk/rollback")
+async def rollback_risk_change_endpoint(request: Request):
+    """
+    1-Click rollback to previous known-good risk policy.
+    """
+    try:
+        body = {}
+        try:
+            body = await request.json()
+        except Exception:
+            pass
+        actor = body.get("actor", "SUPER_ADMIN")
+
+        from core.risk_policy_versioning import risk_policy_manager
+        res = risk_policy_manager.rollback_to_previous_policy(user_actor=actor)
+        if res.get("status") == "ROLLED_BACK":
+            restored = res.get("restored_settings", {})
+            if "profile" in restored:
+                risk_engine.set_risk_profile(restored["profile"])
+            if "max_trade_cap_usd" in restored:
+                risk_engine.set_max_trade_cap(float(restored["max_trade_cap_usd"]))
+        return JSONResponse(res)
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+@app.get("/api/risk/history")
+async def get_risk_history_endpoint(limit: int = 10):
+    """
+    Retrieve audit history of applied risk policy versions.
+    """
+    try:
+        from core.risk_policy_versioning import risk_policy_manager
+        history = risk_policy_manager.get_version_history(limit=limit)
+        return JSONResponse({"status": "SUCCESS", "history": history})
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
 
 
 

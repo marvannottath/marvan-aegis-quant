@@ -4,12 +4,20 @@ Immutable, append-only order lifecycle with explicit allowed transitions.
 Every state transition generates an audit record with timestamp and reason.
 
 Allowed transitions:
-  CREATED        -> RISK_PENDING
-  RISK_PENDING   -> APPROVED | REJECTED
-  APPROVED       -> SUBMITTED
-  SUBMITTED      -> ACKNOWLEDGED | FAILED | CANCELLED
-  ACKNOWLEDGED   -> PARTIALLY_FILLED | FILLED | CANCELLED | FAILED
-  PARTIALLY_FILLED -> FILLED | CANCELLED | FAILED
+  CREATED               -> RISK_PENDING, CANCELLED
+  RISK_PENDING          -> APPROVED, REJECTED
+  APPROVED              -> SUBMITTED
+  SUBMITTED             -> ACKNOWLEDGED, FAILED, CANCELLED, PENDING_VERIFICATION
+  PENDING_VERIFICATION  -> ACKNOWLEDGED, FILLED, FAILED, CANCELLED
+  ACKNOWLEDGED          -> PARTIALLY_FILLED, FILLED, CANCELLED, FAILED, CLOSED
+  PARTIALLY_FILLED      -> PARTIALLY_FILLED, FILLED, CANCELLED, FAILED, CLOSED
+
+Hard Invariants:
+  - Separate instrument tracking (SPOT vs USDT_M_FUTURES).
+  - Explicit requested_quantity vs executed_quantity vs remaining_quantity.
+  - Expected price vs actual fill price (slippage tracking).
+  - Idempotent deduplication via idempotency_key.
+  - Ambiguous broker state moves to PENDING_VERIFICATION, never blind duplicate submission.
 """
 
 import uuid
@@ -29,12 +37,13 @@ class OrderStateMachineError(Exception):
 
 # Allowed state transitions
 ORDER_TRANSITIONS: Dict[str, List[str]] = {
-    "CREATED":          ["RISK_PENDING", "CANCELLED"],
-    "RISK_PENDING":     ["APPROVED", "REJECTED"],
-    "APPROVED":         ["SUBMITTED"],
-    "SUBMITTED":        ["ACKNOWLEDGED", "FAILED", "CANCELLED"],
-    "ACKNOWLEDGED":     ["PARTIALLY_FILLED", "FILLED", "CANCELLED", "FAILED", "CLOSED"],
-    "PARTIALLY_FILLED": ["FILLED", "CANCELLED", "FAILED", "CLOSED"],
+    "CREATED":              ["RISK_PENDING", "CANCELLED"],
+    "RISK_PENDING":         ["APPROVED", "REJECTED"],
+    "APPROVED":             ["SUBMITTED"],
+    "SUBMITTED":            ["ACKNOWLEDGED", "FAILED", "CANCELLED", "PENDING_VERIFICATION"],
+    "PENDING_VERIFICATION": ["ACKNOWLEDGED", "FILLED", "FAILED", "CANCELLED"],
+    "ACKNOWLEDGED":         ["PARTIALLY_FILLED", "FILLED", "CANCELLED", "FAILED", "CLOSED"],
+    "PARTIALLY_FILLED":     ["PARTIALLY_FILLED", "FILLED", "CANCELLED", "FAILED", "CLOSED"],
     # Terminal states
     "FILLED":    ["CLOSED"],
     "CLOSED":    [],
@@ -93,6 +102,8 @@ class OrderStateMachine:
         order_type: str,
         environment: str,
         price: float = 0.0,
+        expected_price: float = 0.0,
+        instrument: str = "SPOT",
         strategy: str = "",
         provider: str = "PAPER",
         provider_order_id: Optional[str] = None,
@@ -113,6 +124,8 @@ class OrderStateMachine:
         order_id = f"ORD-{env_tag}-{int(time.time()*1000)}-{uuid.uuid4().hex[:6].upper()}"
         exec_id = f"EXEC-{int(time.time()*1000)}-{uuid.uuid4().hex[:6].upper()}"
         now_ts = _now_str()
+        qty_float = float(quantity)
+        exp_price = float(expected_price or price)
 
         order = {
             "order_id":                     order_id,
@@ -122,15 +135,21 @@ class OrderStateMachine:
             "provider_order_id":            provider_order_id or "",
             "provider":                     provider or ("BINANCE" if "BINANCE" in environment else "PAPER"),
             "symbol":                       symbol,
+            "instrument":                   instrument.upper(),  # SPOT vs USDT_M_FUTURES
             "side":                         side.upper(),
-            "quantity":                     float(quantity),
+            "quantity":                     qty_float,
+            "requested_quantity":           qty_float,
+            "executed_quantity":            0.0,
+            "remaining_quantity":           qty_float,
             "price":                        float(price),
+            "expected_price":               exp_price,
+            "actual_fill_price":            0.0,
+            "slippage_usd":                 0.0,
             "order_type":                   order_type.upper(),
             "environment":                  environment,
             "strategy":                     strategy,
             "status":                       "CREATED",
             "fill_qty":                     0.0,
-            "executed_quantity":            0.0,
             "avg_fill_price":               0.0,
             "average_fill_price":           0.0,
             "fees":                         0.0,
@@ -166,7 +185,7 @@ class OrderStateMachine:
         """
         Transition order to a new state.
         Raises OrderStateMachineError on invalid transitions.
-        Handles idempotent duplicate events gracefully.
+        Handles partial fills and idempotent duplicate events gracefully.
         """
         if order_id not in self.orders:
             raise OrderStateMachineError(f"Order '{order_id}' not found")
@@ -176,16 +195,19 @@ class OrderStateMachine:
         now_ts = _now_str()
 
         # Idempotency guard: duplicate transition to same state is accepted without error
-        if current == new_state:
+        if current == new_state and new_state != "PARTIALLY_FILLED":
             if provider_order_id and not order.get("provider_order_id"):
                 order["provider_order_id"] = str(provider_order_id)
             if fill_qty > 0:
                 order["fill_qty"] = round(fill_qty, 6)
                 order["executed_quantity"] = round(fill_qty, 6)
+                req_qty = float(order.get("requested_quantity", order.get("quantity", fill_qty)))
+                order["remaining_quantity"] = max(0.0, round(req_qty - fill_qty, 6))
             if avg_fill_price > 0:
-                order["avg_fill_price"] = round(avg_fill_price, 2)
-                order["average_fill_price"] = round(avg_fill_price, 2)
-            self._save()
+                order["avg_fill_price"] = round(avg_fill_price, 4)
+                order["average_fill_price"] = round(avg_fill_price, 4)
+                order["actual_fill_price"] = round(avg_fill_price, 4)
+            self._save(order)
             return order
 
         allowed = ORDER_TRANSITIONS.get(current, [])
@@ -221,12 +243,31 @@ class OrderStateMachine:
         if fees > 0:
             order["fees"] = round(fees, 4)
 
+        req_qty = float(order.get("requested_quantity", order.get("quantity", 0.0)))
         if fill_qty > 0:
             order["fill_qty"] = round(fill_qty, 6)
             order["executed_quantity"] = round(fill_qty, 6)
+            order["remaining_quantity"] = max(0.0, round(req_qty - fill_qty, 6))
+        elif new_state == "FILLED" and order.get("executed_quantity", 0.0) == 0:
+            order["executed_quantity"] = req_qty
+            order["fill_qty"] = req_qty
+            order["remaining_quantity"] = 0.0
+
         if avg_fill_price > 0:
-            order["avg_fill_price"] = round(avg_fill_price, 2)
-            order["average_fill_price"] = round(avg_fill_price, 2)
+            order["avg_fill_price"] = round(avg_fill_price, 4)
+            order["average_fill_price"] = round(avg_fill_price, 4)
+            order["actual_fill_price"] = round(avg_fill_price, 4)
+            # Calculate execution slippage against expected price
+            exp_px = float(order.get("expected_price", 0.0))
+            if exp_px > 0:
+                side = order.get("side", "BUY")
+                exec_qty = float(order.get("executed_quantity", 1.0))
+                if side == "BUY":
+                    slip = (avg_fill_price - exp_px) * exec_qty
+                else:
+                    slip = (exp_px - avg_fill_price) * exec_qty
+                order["slippage_usd"] = round(slip, 4)
+
         if execution_record is not None:
             order["execution_record"] = execution_record
 
@@ -247,7 +288,7 @@ class OrderStateMachine:
         return [o for o in self.orders.values() if o["environment"] == environment]
 
     def get_open_orders(self, environment: str) -> List[Dict[str, Any]]:
-        open_states = {"CREATED", "RISK_PENDING", "APPROVED", "SUBMITTED", "ACKNOWLEDGED", "PARTIALLY_FILLED"}
+        open_states = {"CREATED", "RISK_PENDING", "APPROVED", "SUBMITTED", "ACKNOWLEDGED", "PARTIALLY_FILLED", "PENDING_VERIFICATION"}
         return [o for o in self.orders.values() if o["environment"] == environment and o["status"] in open_states]
 
 

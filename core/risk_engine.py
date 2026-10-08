@@ -242,6 +242,65 @@ class RiskEngine:
         capped_size = min(self.custom_trade_cap_usd, min(virtual_cash, max(6.0 if virtual_cash >= 6.0 else virtual_cash, round(size, 2))))
         return round(capped_size, 2)
 
+    def calculate_capital_scaled_position_size(
+        self,
+        tradeable_capital: float,
+        volatility: float,
+        confidence_score: float,
+        regime_scalar: float = 1.0,
+        stop_distance_pct: float = 0.5,
+        broker_min_notional: float = 5.0,
+        broker_max_order: float = 1000000.0,
+        account_max_exposure_cap: Optional[float] = None,
+        workspace: str = "CRYPTO"
+    ) -> float:
+        """
+        Dynamic position sizing as a function of:
+        - tradeable capital (NOT total equity, NOT raw broker balance)
+        - current regime scalar
+        - volatility
+        - conviction / confidence score
+        - stop distance
+        - broker min notional / max order constraints
+        - account max exposure cap
+        - risk budget
+        """
+        if tradeable_capital <= 0 or tradeable_capital < broker_min_notional:
+            return 0.0
+
+        risk_pct = self.active_profile.get("max_risk_per_trade_pct", 1.0) / 100.0
+        # Risk budget in currency terms based on tradeable capital
+        risk_budget = tradeable_capital * risk_pct
+
+        # Position size derived from risk budget and stop distance: Size = RiskBudget / StopDistance
+        eff_stop_dist = max(0.001, stop_distance_pct / 100.0)
+        risk_based_size = risk_budget / eff_stop_dist
+
+        # Volatility and conviction scalars
+        vol_scalar = max(0.5, min(1.5, (0.01 / max(0.001, volatility))))
+        conf_scalar = max(0.6, min(1.3, confidence_score / 70.0))
+        reg_scalar = max(0.2, min(1.5, regime_scalar))
+
+        raw_size = risk_based_size * vol_scalar * conf_scalar * reg_scalar
+
+        # Upper bound: cannot exceed tradeable capital (or custom trade cap)
+        max_allowed = min(tradeable_capital, self.custom_trade_cap_usd)
+        if account_max_exposure_cap is not None and account_max_exposure_cap > 0:
+            max_allowed = min(max_allowed, account_max_exposure_cap)
+        if broker_max_order > 0:
+            max_allowed = min(max_allowed, broker_max_order)
+
+        final_size = min(max_allowed, raw_size)
+
+        # Enforce broker minimum notional
+        if final_size < broker_min_notional:
+            if tradeable_capital >= broker_min_notional:
+                final_size = broker_min_notional
+            else:
+                return 0.0
+
+        return round(final_size, 2)
+
     def validate_order_pipeline(
         self,
         amount_usd: float,

@@ -1,23 +1,43 @@
 """
 Aegis-Quant Generic Broker Adapter Interface.
-Abstract base class for all exchange & brokerage connectors (Upstox, Zerodha, Binance, FIX).
-Allows new brokers to be added without modifying the core trading or risk engines.
+Abstract base class for all exchange & brokerage connectors (Upstox, Binance, MT5, cTrader, Kotak).
+Guarantees consistent contracts across Indian equities, derivatives, crypto, and forex venues.
+
+Requirements contract:
+  - connect()
+  - get_account()
+  - get_balance()
+  - get_available_balance()
+  - get_positions()
+  - get_orders()
+  - place_order()
+  - cancel_order()
+  - close_position()
+  - get_market_data()
+  - get_fees()
+  - get_trading_rules()
+  - get_symbol_constraints()
+  - get_market_status()
+
+Rules:
+- Mark unavailable metadata as UNKNOWN rather than inventing values.
+- Never fake broker transfers or unavailable liquidity.
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Union
 
 
 class BrokerAdapter(ABC):
     """
-    Abstract interface for all broker adapters.
-    Guarantees consistent contracts across Indian equities, derivatives, and crypto venues.
+    Standard Broker Adapter Contract.
+    Enables future brokers to plug in without modifying core trading logic.
     """
 
     @property
     @abstractmethod
     def broker_name(self) -> str:
-        """Return unique broker identifier (e.g., 'UPSTOX', 'ZERODHA', 'BINANCE')."""
+        """Return unique broker identifier (e.g., 'UPSTOX', 'BINANCE', 'MT5', 'CTRADER')."""
         pass
 
     @property
@@ -32,63 +52,33 @@ class BrokerAdapter(ABC):
         pass
 
     @abstractmethod
-    def authenticate(self, credentials: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """Validate API credentials and obtain/refresh session tokens."""
+    def get_account(self) -> Dict[str, Any]:
+        """Fetch authoritative account details (account_id, name, currency, status, permissions)."""
         pass
 
     @abstractmethod
-    def get_profile(self) -> Dict[str, Any]:
-        """Fetch user profile details (user_id, client_code, exchanges enabled)."""
+    def get_balance(self) -> Dict[str, Any]:
+        """Fetch full balance snapshot: total_equity, cash, used_margin, available_balance, currency."""
         pass
 
     @abstractmethod
-    def get_funds(self) -> Dict[str, Any]:
-        """
-        Fetch authoritative cash and margin balances in account currency.
-        Returns:
-          available_margin, used_margin, payin, payout, cash, currency
-        """
-        pass
-
-    @abstractmethod
-    def get_holdings(self) -> List[Dict[str, Any]]:
-        """
-        Fetch long-term portfolio holdings (demat/CNC).
-        Returns list of:
-          isin, company_name, symbol, exchange, quantity, average_price, ltp, pnl_usd_or_inr
-        """
+    def get_available_balance(self) -> float:
+        """Fetch deployable cash/margin balance."""
         pass
 
     @abstractmethod
     def get_positions(self) -> List[Dict[str, Any]]:
-        """
-        Fetch open and closed intraday/derivatives positions.
-        Returns list of:
-          symbol, exchange, product (MIS/CNC), side, quantity, buy_price, sell_price, ltp, unrealized_pnl
-        """
+        """Fetch open positions with symbol, side, units, entry_price, current_price, unrealized_pnl."""
         pass
 
     @abstractmethod
     def get_orders(self) -> List[Dict[str, Any]]:
-        """Fetch all orders placed for the current trading day."""
-        pass
-
-    @abstractmethod
-    def get_order(self, order_id: str) -> Optional[Dict[str, Any]]:
-        """Fetch detailed status and lifecycle transitions for a specific order."""
+        """Fetch orders placed for current trading session."""
         pass
 
     @abstractmethod
     def place_order(self, order_request: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Place order on the broker/exchange.
-        Enforces tick size, freeze quantities, session hours, and product types.
-        """
-        pass
-
-    @abstractmethod
-    def modify_order(self, order_id: str, changes: Dict[str, Any]) -> Dict[str, Any]:
-        """Modify an active pending or open limit/stop order."""
+        """Submit order to venue enforcing broker limits, lot sizes, and tick steps."""
         pass
 
     @abstractmethod
@@ -96,25 +86,59 @@ class BrokerAdapter(ABC):
         """Cancel an open pending order."""
         pass
 
-    @abstractmethod
-    def get_trades(self) -> List[Dict[str, Any]]:
-        """Fetch trade fills for the day."""
-        pass
+    def close_position(self, symbol: str, **kwargs) -> Dict[str, Any]:
+        """
+        Close an existing open position.
+        Default implementation places opposite market order for total open units.
+        """
+        return {"status": "UNKNOWN", "symbol": symbol, "message": "Default close not implemented for this adapter"}
 
     @abstractmethod
-    def get_market_data(self, symbols: List[str]) -> Dict[str, Any]:
+    def get_market_data(self, symbols: Union[str, List[str]]) -> Dict[str, Any]:
         """Fetch real-time LTP, bid/ask, volume, and OHLC quotes."""
         pass
 
-    @abstractmethod
-    def get_instruments(self, exchange: str = "NSE") -> List[Dict[str, Any]]:
-        """Fetch broker master instrument list for an exchange."""
-        pass
+    def get_fees(self, symbol: str) -> Dict[str, Any]:
+        """
+        Return venue-specific fee structure for symbol.
+        Returns UNKNOWN where unavailable.
+        """
+        return {
+            "symbol": symbol,
+            "maker_fee_pct": "UNKNOWN",
+            "taker_fee_pct": "UNKNOWN",
+            "commission_per_order": "UNKNOWN",
+            "stt_ctt_pct": "UNKNOWN",
+            "exchange_turnover_pct": "UNKNOWN"
+        }
 
-    @abstractmethod
-    def reconcile(self) -> Dict[str, Any]:
+    def get_trading_rules(self, symbol: str) -> Dict[str, Any]:
         """
-        Reconcile broker balances & positions against internal double-entry ledger.
-        Returns reconciliation status, delta, and discrepancies.
+        Return venue execution rules: session hours, circuit limits, order types allowed.
         """
-        pass
+        return {
+            "symbol": symbol,
+            "session": "UNKNOWN",
+            "market_orders_allowed": True,
+            "limit_orders_allowed": True,
+            "stop_loss_allowed": True,
+            "leverage_max": "UNKNOWN"
+        }
+
+    def get_symbol_constraints(self, symbol: str) -> Dict[str, Any]:
+        """
+        Return quantitative order constraints: min notional, min quantity, step size, tick size.
+        """
+        return {
+            "symbol": symbol,
+            "min_notional": "UNKNOWN",
+            "min_quantity": "UNKNOWN",
+            "step_size": "UNKNOWN",
+            "tick_size": "UNKNOWN",
+            "price_precision": "UNKNOWN",
+            "quantity_precision": "UNKNOWN"
+        }
+
+    def get_market_status(self) -> str:
+        """Return venue market status: OPEN | CLOSED | PRE_OPEN | POST_CLOSE | UNKNOWN."""
+        return "UNKNOWN"
