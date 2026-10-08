@@ -54,7 +54,8 @@ class TestDemoLiveEnvironmentIsolation(unittest.TestCase):
 
     def setUp(self):
         # Set up known test balances and orders
-        pass
+        if "AEGIS_INDIA_INR" in paper_broker.pools:
+            paper_broker.reset_pool("AEGIS_INDIA_INR", 100000.0)
 
     # ==================================================================
     # 1 & 2. BALANCE ISOLATION

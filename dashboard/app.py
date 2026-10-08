@@ -1010,14 +1010,19 @@ async def serve_admin_portal(request: Request):
     return HTMLResponse(content="<h2>Admin portal not found</h2>", status_code=404)
 
 @app.get("/api/workspace/current")
-async def get_current_workspace():
-    """Return authoritative active workspace and metadata."""
+async def get_current_workspace(request: Request):
+    """Return authoritative active workspace and metadata with environment."""
     from core.workspace_manager import workspace_manager
     ws = workspace_manager.get_active_workspace()
     meta = workspace_manager.get_workspace_meta(ws)
+    referer = str(request.headers.get("referer", "")).lower()
+    env = request.query_params.get("environment") or ("DEMO" if "/demo" in referer else "LIVE")
+    pool = workspace_manager.get_workspace_pool(ws, environment=env)
     return {
         "status": "SUCCESS",
         "active_workspace": ws,
+        "environment": env,
+        "active_pool": pool,
         "metadata": meta,
         "currency": meta["currency"],
         "currency_symbol": meta["currency_symbol"],
@@ -1136,7 +1141,7 @@ async def reset_workspace_pool(request: Request):
     }, status_code=200)
 
 @app.api_route("/api/state", methods=["GET", "HEAD"])
-async def get_state(workspace: Optional[str] = None, request_id: Optional[str] = None):
+async def get_state(workspace: Optional[str] = None, request_id: Optional[str] = None, environment: Optional[str] = None):
     """Authoritative backend single source of truth state scoped strictly to the active workspace."""
     from execution.paper_broker import paper_broker
     from core.risk_engine import risk_engine
@@ -1151,7 +1156,10 @@ async def get_state(workspace: Optional[str] = None, request_id: Optional[str] =
     # Determine authoritative workspace and metadata
     ws = workspace_manager._normalize_workspace(workspace) if workspace else workspace_manager.get_active_workspace()
     meta = workspace_manager.get_workspace_meta(ws)
-    target_pool = workspace_manager.get_workspace_pool(ws) if hasattr(workspace_manager, "get_workspace_pool") else meta["default_pool"]
+    if environment in ("LIVE", "DEMO", "PAPER"):
+        target_pool = workspace_manager.get_workspace_pool(ws, environment=environment)
+    else:
+        target_pool = workspace_manager.get_workspace_pool(ws) if hasattr(workspace_manager, "get_workspace_pool") else meta["default_pool"]
     active_pool = target_pool if target_pool in meta.get("allowed_pools", []) else meta["default_pool"]
     if paper_broker.active_pool_name != active_pool:
         paper_broker.switch_pool(active_pool)
@@ -1166,8 +1174,8 @@ async def get_state(workspace: Optional[str] = None, request_id: Optional[str] =
 
     # Positions: Single Authoritative Position Snapshot (Sections 1, 2, 9, 10)
     from core.position_snapshot_service import position_snapshot_service
-    pos_snapshot = await asyncio.to_thread(position_snapshot_service.get_snapshot, ws)
-    port_aggregate = await asyncio.to_thread(position_snapshot_service.get_portfolio_aggregate, ws)
+    pos_snapshot = await asyncio.to_thread(position_snapshot_service.get_snapshot, ws, False, environment)
+    port_aggregate = await asyncio.to_thread(position_snapshot_service.get_portfolio_aggregate, ws, False, None, environment)
     positions = pos_snapshot["positions"]
     equity_val = port_aggregate["total_equity"]
     cash_val = port_aggregate["free_cash"]
@@ -1357,6 +1365,7 @@ async def get_state(workspace: Optional[str] = None, request_id: Optional[str] =
     ]
 
     return {
+        "environment": environment or "LIVE",
         "active_workspace": ws,
         "active_capital_pool": active_pool,
         "currency": currency,
@@ -5033,7 +5042,9 @@ async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
     from core.workspace_manager import workspace_manager
     ws_param = websocket.query_params.get("workspace")
+    env_param = websocket.query_params.get("environment")
     current_ws = [workspace_manager._normalize_workspace(ws_param) if ws_param else workspace_manager.get_active_workspace()]
+    current_env = [env_param.upper() if env_param and env_param.upper() in ("LIVE", "DEMO", "PAPER") else "LIVE"]
     seq = 0
 
     async def client_listener():
@@ -5044,6 +5055,10 @@ async def websocket_endpoint(websocket: WebSocket):
                     msg = json.loads(msg_text)
                     if msg.get("action") == "set_workspace" and msg.get("workspace"):
                         current_ws[0] = workspace_manager._normalize_workspace(msg["workspace"])
+                    if msg.get("action") == "set_environment" and msg.get("environment"):
+                        target_env = str(msg["environment"]).upper()
+                        if target_env in ("LIVE", "DEMO", "PAPER"):
+                            current_env[0] = target_env
                 except Exception:
                     pass
         except Exception:
@@ -5056,7 +5071,9 @@ async def websocket_endpoint(websocket: WebSocket):
             await asyncio.sleep(1.0)
             seq += 1
             ws = current_ws[0]
-            state = await get_state(workspace=ws)
+            env = current_env[0]
+            state = await get_state(workspace=ws, environment=env)
+            state["environment"] = env
             state["event_type"] = "ENGINE_HEARTBEAT"
             state["server_time"] = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%H:%M:%S IST")
             state["sequence"] = seq
@@ -5694,7 +5711,10 @@ async def get_performance_curve(
         from core.performance_curve_engine import performance_curve_engine
         from execution.paper_broker import paper_broker
         env = environment
-        if workspace:
+        if environment in ("LIVE", "DEMO", "PAPER"):
+            ws = workspace_manager._normalize_workspace(workspace) if workspace else workspace_manager.get_active_workspace()
+            env = workspace_manager.get_workspace_pool(ws, environment=environment)
+        elif workspace:
             ws = workspace_manager._normalize_workspace(workspace)
             meta = workspace_manager.get_workspace_meta(ws)
             default_pool = meta.get("default_pool", "AEGIS_QUANT_MASTER")
@@ -6675,7 +6695,8 @@ async def get_account_context_endpoint(
 @app.get("/api/capital/breakdown")
 async def get_capital_breakdown_endpoint(
     workspace: Optional[str] = None,
-    account_id: Optional[str] = None
+    account_id: Optional[str] = None,
+    environment: Optional[str] = None
 ):
     """
     9-bucket capital availability breakdown and residual/dust status.
@@ -6687,8 +6708,8 @@ async def get_capital_breakdown_endpoint(
         from core.account_context import account_context_manager
 
         ws = workspace or workspace_manager.get_active_workspace()
-        ctx = account_context_manager.resolve(account_id=account_id, workspace=ws)
-        agg = await asyncio.to_thread(position_snapshot_service.get_portfolio_aggregate, ws)
+        ctx = account_context_manager.resolve(account_id=account_id, workspace=ws, environment=environment)
+        agg = await asyncio.to_thread(position_snapshot_service.get_portfolio_aggregate, ws, False, None, environment or ctx.environment)
 
         total_equity = float(agg.get("total_equity", 0.0))
         available_cash = float(agg.get("free_cash", 0.0))

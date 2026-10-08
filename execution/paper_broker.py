@@ -928,11 +928,12 @@ class PaperBroker:
         used_margin = sum(p.get("capital_allocated", 0.0) for p in self.positions.values())
         unrealized_pnl = 0.0
         for pos in self.positions.values():
-            price = pos.get("last_price", pos["entry_price"])
-            if pos["action"] == "BUY":
-                unrealized_pnl += (price - pos["entry_price"]) * pos["units"]
+            price = pos.get("last_price", pos.get("entry_price", 0.0))
+            is_buy = (pos.get("action") or pos.get("side") or "BUY").upper() == "BUY"
+            if is_buy:
+                unrealized_pnl += (price - pos.get("entry_price", price)) * pos.get("units", 0.0)
             else:
-                unrealized_pnl += (pos["entry_price"] - price) * pos["units"]
+                unrealized_pnl += (pos.get("entry_price", price) - price) * pos.get("units", 0.0)
 
         vault_reserve = profit_vault.get_vault_balance(self.active_pool_name)
         trading_equity = round(self.virtual_cash + used_margin + unrealized_pnl, 2)
@@ -942,13 +943,7 @@ class PaperBroker:
             "environment": self.active_pool_name,
             "cash": round(self.virtual_cash, 2),
             "used_margin": round(used_margin, 2),
-            "live_price": float(p.get("last_price", p["entry_price"])),
-                    "unrealized_pnl_usd": round(((p.get("last_price", p["entry_price"]) - p["entry_price"]) * p["units"]) if p["action"] == "BUY" else ((p["entry_price"] - p.get("last_price", p["entry_price"])) * p["units"]), 2),
-                    "unrealized_pnl_pct": round(((((p.get("last_price", p["entry_price"]) - p["entry_price"]) * p["units"]) if p["action"] == "BUY" else ((p["entry_price"] - p.get("last_price", p["entry_price"])) * p["units"])) / max(1.0, p.get("capital_allocated", 1000.0))) * 100.0, 2),
-                    "live_price": float(p.get("last_price", p.get("entry_price", 1.0))),
-                    "unrealized_pnl_usd": round(((p.get("last_price", p["entry_price"]) - p["entry_price"]) * p["units"]) if (p.get("action") or p.get("side")) == "BUY" else ((p["entry_price"] - p.get("last_price", p["entry_price"])) * p["units"]), 2),
-                    "unrealized_pnl_pct": round(((((p.get("last_price", p["entry_price"]) - p["entry_price"]) * p["units"]) if (p.get("action") or p.get("side")) == "BUY" else ((p["entry_price"] - p.get("last_price", p["entry_price"])) * p["units"])) / max(1.0, p.get("capital_allocated", 1000.0))) * 100.0, 2),
-                    "unrealized_pnl": round(unrealized_pnl, 2),
+            "unrealized_pnl": round(unrealized_pnl, 2),
             "trading_account_equity": trading_equity,
             "secured_vault_reserve": vault_reserve,
             "vault_reserve": vault_reserve,
@@ -1021,22 +1016,22 @@ class PaperBroker:
                 {
                     **p,
                     "live_price": float(p.get("last_price", p.get("entry_price", 1.0))),
-                    "unrealized_pnl_usd": round(((p.get("last_price", p["entry_price"]) - p["entry_price"]) * p["units"]) if (p.get("action") or p.get("side")) == "BUY" else ((p["entry_price"] - p.get("last_price", p["entry_price"])) * p["units"]), 2),
-                    "unrealized_pnl_pct": round(((((p.get("last_price", p["entry_price"]) - p["entry_price"]) * p["units"]) if (p.get("action") or p.get("side")) == "BUY" else ((p["entry_price"] - p.get("last_price", p["entry_price"])) * p["units"])) / max(1.0, p.get("capital_allocated", 1000.0))) * 100.0, 2),
-                    "unrealized_pnl": round(((p.get("last_price", p["entry_price"]) - p["entry_price"]) * p["units"]) if p["action"] == "BUY" else ((p["entry_price"] - p.get("last_price", p["entry_price"])) * p["units"]), 2),
-                    "pnl_usd": round(((p.get("last_price", p["entry_price"]) - p["entry_price"]) * p["units"]) if p["action"] == "BUY" else ((p["entry_price"] - p.get("last_price", p["entry_price"])) * p["units"]), 2),
-                    "pnl_pct": round(((((p.get("last_price", p["entry_price"]) - p["entry_price"]) * p["units"]) if p["action"] == "BUY" else ((p["entry_price"] - p.get("last_price", p["entry_price"])) * p["units"])) / max(1.0, p.get("capital_allocated", 1000.0))) * 100.0, 2)
+                    "unrealized_pnl_usd": round(((p.get("last_price", p.get("entry_price", 1.0)) - p.get("entry_price", 1.0)) * p.get("units", 1.0)) if ((p.get("action") or p.get("side") or "BUY").upper() == "BUY") else ((p.get("entry_price", 1.0) - p.get("last_price", p.get("entry_price", 1.0))) * p.get("units", 1.0)), 2),
+                    "unrealized_pnl_pct": round(((((p.get("last_price", p.get("entry_price", 1.0)) - p.get("entry_price", 1.0)) * p.get("units", 1.0)) if ((p.get("action") or p.get("side") or "BUY").upper() == "BUY") else ((p.get("entry_price", 1.0) - p.get("last_price", p.get("entry_price", 1.0))) * p.get("units", 1.0))) / max(1.0, p.get("capital_allocated", 1000.0))) * 100.0, 2),
+                    "unrealized_pnl": round(((p.get("last_price", p.get("entry_price", 1.0)) - p.get("entry_price", 1.0)) * p.get("units", 1.0)) if ((p.get("action") or p.get("side") or "BUY").upper() == "BUY") else ((p.get("entry_price", 1.0) - p.get("last_price", p.get("entry_price", 1.0))) * p.get("units", 1.0)), 2),
+                    "pnl_usd": round(((p.get("last_price", p.get("entry_price", 1.0)) - p.get("entry_price", 1.0)) * p.get("units", 1.0)) if ((p.get("action") or p.get("side") or "BUY").upper() == "BUY") else ((p.get("entry_price", 1.0) - p.get("last_price", p.get("entry_price", 1.0))) * p.get("units", 1.0)), 2),
+                    "pnl_pct": round(((((p.get("last_price", p.get("entry_price", 1.0)) - p.get("entry_price", 1.0)) * p.get("units", 1.0)) if ((p.get("action") or p.get("side") or "BUY").upper() == "BUY") else ((p.get("entry_price", 1.0) - p.get("last_price", p.get("entry_price", 1.0))) * p.get("units", 1.0))) / max(1.0, p.get("capital_allocated", 1000.0))) * 100.0, 2)
                 } for p in self.positions.values()
             ],
             "open_positions": [
                 {
                     **p,
                     "live_price": float(p.get("last_price", p.get("entry_price", 1.0))),
-                    "unrealized_pnl_usd": round(((p.get("last_price", p["entry_price"]) - p["entry_price"]) * p["units"]) if (p.get("action") or p.get("side")) == "BUY" else ((p["entry_price"] - p.get("last_price", p["entry_price"])) * p["units"]), 2),
-                    "unrealized_pnl_pct": round(((((p.get("last_price", p["entry_price"]) - p["entry_price"]) * p["units"]) if (p.get("action") or p.get("side")) == "BUY" else ((p["entry_price"] - p.get("last_price", p["entry_price"])) * p["units"])) / max(1.0, p.get("capital_allocated", 1000.0))) * 100.0, 2),
-                    "unrealized_pnl": round(((p.get("last_price", p["entry_price"]) - p["entry_price"]) * p["units"]) if p["action"] == "BUY" else ((p["entry_price"] - p.get("last_price", p["entry_price"])) * p["units"]), 2),
-                    "pnl_usd": round(((p.get("last_price", p["entry_price"]) - p["entry_price"]) * p["units"]) if p["action"] == "BUY" else ((p["entry_price"] - p.get("last_price", p["entry_price"])) * p["units"]), 2),
-                    "pnl_pct": round(((((p.get("last_price", p["entry_price"]) - p["entry_price"]) * p["units"]) if p["action"] == "BUY" else ((p["entry_price"] - p.get("last_price", p["entry_price"])) * p["units"])) / max(1.0, p.get("capital_allocated", 1000.0))) * 100.0, 2)
+                    "unrealized_pnl_usd": round(((p.get("last_price", p.get("entry_price", 1.0)) - p.get("entry_price", 1.0)) * p.get("units", 1.0)) if ((p.get("action") or p.get("side") or "BUY").upper() == "BUY") else ((p.get("entry_price", 1.0) - p.get("last_price", p.get("entry_price", 1.0))) * p.get("units", 1.0)), 2),
+                    "unrealized_pnl_pct": round(((((p.get("last_price", p.get("entry_price", 1.0)) - p.get("entry_price", 1.0)) * p.get("units", 1.0)) if ((p.get("action") or p.get("side") or "BUY").upper() == "BUY") else ((p.get("entry_price", 1.0) - p.get("last_price", p.get("entry_price", 1.0))) * p.get("units", 1.0))) / max(1.0, p.get("capital_allocated", 1000.0))) * 100.0, 2),
+                    "unrealized_pnl": round(((p.get("last_price", p.get("entry_price", 1.0)) - p.get("entry_price", 1.0)) * p.get("units", 1.0)) if ((p.get("action") or p.get("side") or "BUY").upper() == "BUY") else ((p.get("entry_price", 1.0) - p.get("last_price", p.get("entry_price", 1.0))) * p.get("units", 1.0)), 2),
+                    "pnl_usd": round(((p.get("last_price", p.get("entry_price", 1.0)) - p.get("entry_price", 1.0)) * p.get("units", 1.0)) if ((p.get("action") or p.get("side") or "BUY").upper() == "BUY") else ((p.get("entry_price", 1.0) - p.get("last_price", p.get("entry_price", 1.0))) * p.get("units", 1.0)), 2),
+                    "pnl_pct": round(((((p.get("last_price", p.get("entry_price", 1.0)) - p.get("entry_price", 1.0)) * p.get("units", 1.0)) if ((p.get("action") or p.get("side") or "BUY").upper() == "BUY") else ((p.get("entry_price", 1.0) - p.get("last_price", p.get("entry_price", 1.0))) * p.get("units", 1.0))) / max(1.0, p.get("capital_allocated", 1000.0))) * 100.0, 2)
                 } for p in self.positions.values()
             ],
             "open_positions_count": len(self.positions),
