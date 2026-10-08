@@ -47,13 +47,33 @@ class AccountContext:
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
-        return asdict(self)
+        d = asdict(self)
+        d["mode"] = "LIVE" if self.environment == "LIVE" else "DEMO"
+        d["environment_id"] = self.environment
+        d["workspace_id"] = self.workspace
+        d["permissions"] = ["READ", "TRADE"] if self.environment == "PAPER" else ["READ"]
+        return d
+
+    @property
+    def mode(self) -> str:
+        return "LIVE" if self.environment == "LIVE" else "DEMO"
+
+    @property
+    def environment_id(self) -> str:
+        return self.environment
+
+    @property
+    def workspace_id(self) -> str:
+        return self.workspace
 
     def is_live(self) -> bool:
         return self.environment == "LIVE"
 
     def is_paper(self) -> bool:
         return self.environment == "PAPER"
+
+    def is_demo(self) -> bool:
+        return self.environment in ("PAPER", "DEMO", "TESTNET")
 
     def is_backtest(self) -> bool:
         return self.environment == "BACKTEST"
@@ -168,10 +188,10 @@ class AccountContextManager:
             ),
 
             # ── FOREX & COMMODITIES ─────────────────────────────
-            "MT5_LIVE_REAL": AccountContext(
-                account_id="MT5_LIVE_REAL",
+            "MT5_DEMO": AccountContext(
+                account_id="MT5_DEMO",
                 workspace="FOREX_GOLD",
-                environment="PAPER",            # Sandboxed until broker credentials verified
+                environment="PAPER",
                 broker="MT5",
                 currency="USD",
                 currency_symbol="$",
@@ -189,7 +209,30 @@ class AccountContextManager:
                 },
                 account_status=STATUS_ACTIVE,
                 initial_capital=100000.0,
-                metadata={"exchange": "Interbank OTC / Global FX"}
+                metadata={"exchange": "Interbank OTC / Global FX Demo Sandbox"}
+            ),
+            "MT5_LIVE_REAL": AccountContext(
+                account_id="MT5_LIVE_REAL",
+                workspace="FOREX_GOLD",
+                environment="LIVE",
+                broker="MT5",
+                currency="USD",
+                currency_symbol="$",
+                instruments=["FOREX", "COMMODITIES"],
+                risk_profile="CONSERVATIVE",
+                capabilities={
+                    "spot": True,
+                    "futures": False,
+                    "auto_trading": False,
+                    "vault": True,
+                    "news": True,
+                    "backtest": False,
+                    "reports": True,
+                    "withdrawals": False
+                },
+                account_status=STATUS_ACTIVE,
+                initial_capital=0.0,
+                metadata={"exchange": "Interbank OTC / Global FX Live"}
             ),
             "CTRADER_LIVE": AccountContext(
                 account_id="CTRADER_LIVE",
@@ -224,12 +267,17 @@ class AccountContextManager:
         """Fetch account context by ID. No fallbacks."""
         return self._accounts.get(account_id)
 
-    def list_accounts(self, workspace: Optional[str] = None) -> List[AccountContext]:
-        """List accounts, optionally filtered by workspace."""
-        if not workspace:
-            return list(self._accounts.values())
-        norm_ws = "FOREX_GOLD" if str(workspace).upper() in ["FOREX", "FOREX_GOLD"] else str(workspace).upper()
-        return [acc for acc in self._accounts.values() if acc.workspace == norm_ws]
+    def list_accounts(self, workspace: Optional[str] = None, environment: Optional[str] = None) -> List[AccountContext]:
+        """List accounts, optionally filtered by workspace and/or environment."""
+        accs = list(self._accounts.values())
+        if workspace:
+            norm_ws = "FOREX_GOLD" if str(workspace).upper() in ["FOREX", "FOREX_GOLD"] else str(workspace).upper()
+            accs = [acc for acc in accs if acc.workspace == norm_ws]
+        if environment:
+            e_str = str(environment).strip().upper()
+            norm_e = "PAPER" if e_str in ("DEMO", "TESTNET", "SANDBOX") else e_str
+            accs = [acc for acc in accs if acc.environment == norm_e]
+        return accs
 
     def resolve(
         self,
@@ -241,8 +289,16 @@ class AccountContextManager:
         """
         Authoritative Account Context Resolver.
         FAILS CLOSED if the context cannot be unambiguously resolved.
-        Never silently defaults to CRYPTO or an arbitrary pool.
+        Enforces strict environment boundary:
+          - DEMO/PAPER accounts cannot be resolved in LIVE.
+          - LIVE accounts cannot be resolved in DEMO.
         """
+        # Standardize environment alias: DEMO -> PAPER
+        norm_env = None
+        if environment:
+            e_str = str(environment).strip().upper()
+            norm_env = "PAPER" if e_str in ("DEMO", "TESTNET", "SANDBOX", "PAPER") else ("LIVE" if e_str == "LIVE" else e_str)
+
         # 1. Direct account_id resolution
         if account_id and account_id in self._accounts:
             ctx = self._accounts[account_id]
@@ -253,16 +309,16 @@ class AccountContextManager:
                     raise AccountContextUnavailableError(
                         f"Account '{account_id}' belongs to workspace '{ctx.workspace}', not requested '{norm_ws}'"
                     )
-            if environment and ctx.environment != environment.upper():
+            if norm_env and ctx.environment != norm_env:
                 raise AccountContextUnavailableError(
-                    f"Account '{account_id}' environment is '{ctx.environment}', not requested '{environment}'"
+                    f"Account '{account_id}' environment is '{ctx.environment}', cannot be accessed from '{environment}'"
                 )
             return ctx
 
         # 2. Structured query resolution by workspace + environment + broker
         if workspace:
             norm_ws = "FOREX_GOLD" if str(workspace).upper() in ["FOREX", "FOREX_GOLD"] else str(workspace).upper()
-            norm_env = str(environment).upper() if environment else "PAPER"
+            target_env = norm_env if norm_env else "PAPER"
             
             candidates = [
                 acc for acc in self._accounts.values()
@@ -271,23 +327,24 @@ class AccountContextManager:
             if not candidates:
                 raise AccountContextUnavailableError(f"No registered account for workspace '{norm_ws}'")
 
-            # Filter by environment if specified
-            if environment:
-                candidates = [acc for acc in candidates if acc.environment == norm_env]
+            # Filter by target environment
+            matched_env = [acc for acc in candidates if acc.environment == target_env]
+            if not matched_env:
+                raise AccountContextUnavailableError(
+                    f"No registered account for workspace '{norm_ws}' in environment '{target_env}'"
+                )
 
             # Filter by broker if specified
             if broker:
                 norm_broker = str(broker).upper()
-                candidates = [acc for acc in candidates if acc.broker.upper() == norm_broker]
+                matched_broker = [acc for acc in matched_env if acc.broker.upper() == norm_broker]
+                if matched_broker:
+                    return matched_broker[0]
+                raise AccountContextUnavailableError(
+                    f"No registered account for workspace '{norm_ws}', environment '{target_env}', broker '{broker}'"
+                )
 
-            if len(candidates) == 1:
-                return candidates[0]
-            elif len(candidates) > 1:
-                # Disambiguate default paper vs live
-                preferred = [c for c in candidates if c.environment == norm_env]
-                if preferred:
-                    return preferred[0]
-                return candidates[0]
+            return matched_env[0]
 
         # 3. Fail Closed — Cannot resolve
         raise AccountContextUnavailableError(

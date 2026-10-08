@@ -189,6 +189,10 @@
                 <span>💱 FOREX &amp; GOLD</span>
             </button>
         </div>
+
+        <!-- AUTHORITATIVE ENVIRONMENT BADGE (LIVE / DEMO) -->
+        <!-- PRERENDER_ENV_INDICATOR -->
+
         <!-- DESK VIEW MODE: LITE VS PRO & COMMAND PALETTE -->
         <div class="hidden sm:flex items-center space-x-1.5 font-mono text-xs">
             <div class="flex items-center bg-gray-950 border border-gray-800 p-0.5 rounded-xl">
@@ -481,6 +485,9 @@
                     <div id="prof-modal-limit" class="font-bold text-emerald-400 font-mono">UNLIMITED</div>
                 </div>
             </div>
+
+            <!-- Profile Trading Environment Card & Switcher -->
+            <!-- PRERENDER_PROFILE_ENV_CARD -->
 
             <!-- Audio & Sound Effects Synthesizer Control -->
             <div class="p-3 bg-gray-950 border border-gray-800 rounded-xl flex items-center justify-between text-[11px]">
@@ -5113,7 +5120,11 @@
             if (btnCry) btnCry.className = (normVenue === 'CRYPTO') ? activeClass : inactiveClass;
 
             try {
-                const cleanPath = normVenue === 'INDIA' ? '/india' : (normVenue === 'CRYPTO' ? '/crypto' : '/forex-gold');
+                const isDemo = window.location.pathname.startsWith('/demo');
+                const basePrefix = isDemo ? '/demo' : '';
+                const cleanPath = normVenue === 'INDIA' 
+                    ? (isDemo ? '/demo/india' : '/india') 
+                    : (normVenue === 'CRYPTO' ? `${basePrefix}/crypto` : `${basePrefix}/forex-gold`);
                 window.history.replaceState({}, '', cleanPath);
             } catch (e) {}
 
@@ -5167,6 +5178,42 @@
 
             refreshVenueData(currentSeq);
             fetchPerformanceCurve();
+        }
+
+        function switchEnvironment(targetEnv) {
+            targetEnv = (targetEnv || '').toUpperCase();
+            if (targetEnv !== 'LIVE' && targetEnv !== 'DEMO') return;
+
+            if (targetEnv === 'LIVE') {
+                const ok = confirm("⚠️ CONFIRM ENVIRONMENT SWITCH TO LIVE\n\nYou are switching to the LIVE Institutional environment.\nAll live safety gates remain server-enforced (LIVE_TRADING_ENABLED=false).\n\nProceed to LIVE?");
+                if (!ok) return;
+            }
+
+            // Zero Data Mixing: Invalidate all client financial state immediately
+            invalidateAllFinancialState();
+
+            const ws = (window.activeMarketVenue || 'INDIA').toLowerCase();
+            let targetUrl = '/';
+            if (targetEnv === 'DEMO') {
+                targetUrl = (ws === 'crypto' || ws === 'india' || ws === 'forex-gold' || ws === 'forex') 
+                    ? `/demo/${ws}` 
+                    : '/demo';
+            } else {
+                targetUrl = (ws === 'crypto' || ws === 'forex-gold' || ws === 'forex') 
+                    ? `/${ws}` 
+                    : '/';
+            }
+
+            window.location.href = targetUrl;
+        }
+
+        function invalidateAllFinancialState() {
+            const posTbody = document.getElementById('positions-full-tbody');
+            if (posTbody) posTbody.innerHTML = '<tr><td colspan="9" class="py-6 text-center text-gray-500 font-mono text-xs"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Switching environment... loading fresh state</td></tr>';
+            const ordTbody = document.getElementById('orders-full-tbody');
+            if (ordTbody) ordTbody.innerHTML = '<tr><td colspan="8" class="py-6 text-center text-gray-500 font-mono text-xs"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Switching environment... loading fresh state</td></tr>';
+            const sigTbody = document.getElementById('signals-full-tbody');
+            if (sigTbody) sigTbody.innerHTML = '<tr><td colspan="8" class="py-6 text-center text-gray-500 font-mono text-xs"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Switching environment... loading fresh state</td></tr>';
         }
 
         function updateVenueBanner(venue) {

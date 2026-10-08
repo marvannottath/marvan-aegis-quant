@@ -219,8 +219,13 @@ INDEX_HTML_PATH = BASE_DIR / "templates" / "index.html"
 @app.get("/india", response_class=HTMLResponse)
 @app.get("/forex-gold", response_class=HTMLResponse)
 @app.get("/forex", response_class=HTMLResponse)
+@app.get("/demo", response_class=HTMLResponse)
+@app.get("/demo/crypto", response_class=HTMLResponse)
+@app.get("/demo/india", response_class=HTMLResponse)
+@app.get("/demo/forex-gold", response_class=HTMLResponse)
+@app.get("/demo/forex", response_class=HTMLResponse)
 async def read_dashboard(request: Request):
-    """Serve the master hedge fund dashboard with 100% truthful server-side pre-rendered financial state & HTML tables for the active workspace."""
+    """Serve the master hedge fund dashboard with 100% truthful server-side pre-rendered financial state & HTML tables for the active workspace and environment."""
     template_path = BASE_DIR / "templates" / "index.html"
     if not template_path.exists():
         return HTMLResponse("<h1>Dashboard template not found</h1>", status_code=404)
@@ -229,17 +234,23 @@ async def read_dashboard(request: Request):
     now_dt = datetime.now(timezone.utc).astimezone(IST_TZ)
     now_str = now_dt.strftime("%Y-%m-%d %H:%M:%S IST")
     
-    # 1. Authoritative Workspace Determination
+    # 1. Authoritative Environment & Workspace Determination
     from core.workspace_manager import workspace_manager
     path = request.url.path.lower()
-    if path == "/crypto":
+    is_demo = path.startswith("/demo")
+    current_env = "DEMO" if is_demo else "LIVE"
+
+    if path in ("/demo/crypto", "/crypto"):
         ws_param = "CRYPTO"
-    elif path == "/india":
+    elif path in ("/demo/india", "/india"):
         ws_param = "INDIA"
-    elif path in ("/forex-gold", "/forex"):
+    elif path in ("/demo/forex-gold", "/demo/forex", "/forex-gold", "/forex"):
         ws_param = "FOREX_GOLD"
+    elif is_demo and path == "/demo":
+        ws_param = request.query_params.get("workspace") or "INDIA"
     else:
         ws_param = request.query_params.get("workspace")
+
     if ws_param:
         norm_ws = "FOREX_GOLD" if ws_param.upper() in ["FOREX", "FOREX_GOLD"] else ws_param.upper()
         if norm_ws in workspace_manager.VALID_WORKSPACES:
@@ -256,18 +267,14 @@ async def read_dashboard(request: Request):
             active_ws = workspace_manager.get_active_workspace()
 
     meta = workspace_manager.get_metadata(active_ws)
-    cookie_pool = request.cookies.get("aegis_active_pool")
-    if cookie_pool and cookie_pool in meta.get("allowed_pools", []):
-        workspace_manager.set_workspace_pool(active_ws, cookie_pool)
-        active_pool = cookie_pool
-    else:
-        active_pool = workspace_manager.get_workspace_pool(active_ws) if hasattr(workspace_manager, "get_workspace_pool") else meta.get("default_pool", "AEGIS_INDIA_INR")
+    # Strictly resolve authoritative pool for this environment and workspace (never cross-mix)
+    active_pool = workspace_manager.get_workspace_pool(active_ws, environment=current_env)
     paper_broker.switch_pool(active_pool)
 
-    # 2. Authoritative Position Snapshot & Single Aggregation Layer (Section 1, 2, 10)
+    # 2. Authoritative Position Snapshot & Single Aggregation Layer scoped to environment
     from core.position_snapshot_service import position_snapshot_service
-    pos_snap = await asyncio.to_thread(position_snapshot_service.get_snapshot, active_ws)
-    port_agg = await asyncio.to_thread(position_snapshot_service.get_portfolio_aggregate, active_ws, False, pos_snap)
+    pos_snap = await asyncio.to_thread(position_snapshot_service.get_snapshot, active_ws, False, current_env)
+    port_agg = await asyncio.to_thread(position_snapshot_service.get_portfolio_aggregate, active_ws, False, pos_snap, current_env)
 
     eq_val = port_agg["total_equity"]
     cash_val = port_agg["free_cash"]
@@ -821,6 +828,50 @@ async def read_dashboard(request: Request):
         pnl_calendar_grid_html = "".join(cal_html_parts)
     except Exception as e:
         pnl_calendar_grid_html = ""
+
+    # Dynamic Environment Indicators & Switch Target
+    if is_demo:
+        hdr_env_indicator_html = """
+        <div id="hdr-env-badge" class="flex items-center space-x-1.5 px-3 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-mono text-xs font-black shadow-inner">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+            <span id="lbl-env-indicator-text">DEMO ENVIRONMENT</span>
+            <span class="text-[10px] text-emerald-400/80 font-normal border-l border-emerald-500/30 pl-1.5">SANDBOX</span>
+        </div>"""
+        profile_env_card_html = """
+        <div class="p-3 bg-gray-950 border border-emerald-500/30 rounded-xl flex items-center justify-between text-[11px]">
+            <div>
+                <div class="text-gray-400 text-[10px]">CURRENT ENVIRONMENT</div>
+                <div class="font-bold text-emerald-400 flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-400"></span> DEMO SANDBOX</div>
+            </div>
+            <button onclick="switchEnvironment('LIVE')" class="px-3 py-1.5 rounded-lg bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white border border-red-500/40 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow">
+                <i class="fa-solid fa-arrow-right-arrow-left text-[10px]"></i> Switch to LIVE
+            </button>
+        </div>"""
+        env_switch_target = f"/{active_ws.lower()}" if active_ws != "INDIA" else "/"
+    else:
+        hdr_env_indicator_html = """
+        <div id="hdr-env-badge" class="flex items-center space-x-1.5 px-3 py-1 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 font-mono text-xs font-black shadow-inner">
+            <span class="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
+            <span id="lbl-env-indicator-text">LIVE ENVIRONMENT</span>
+            <span class="text-[10px] text-red-500/80 font-normal border-l border-red-500/30 pl-1.5">GATED</span>
+        </div>"""
+        profile_env_card_html = """
+        <div class="p-3 bg-gray-950 border border-red-500/30 rounded-xl flex items-center justify-between text-[11px]">
+            <div>
+                <div class="text-gray-400 text-[10px]">CURRENT ENVIRONMENT</div>
+                <div class="font-bold text-red-400 flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-red-500"></span> LIVE INSTITUTIONAL</div>
+            </div>
+            <button onclick="switchEnvironment('DEMO')" class="px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white border border-emerald-500/40 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow">
+                <i class="fa-solid fa-arrow-right-arrow-left text-[10px]"></i> Switch to DEMO
+            </button>
+        </div>"""
+        env_switch_target = f"/demo/{active_ws.lower()}" if active_ws != "INDIA" else "/demo"
+
+    content = content.replace("<!-- PRERENDER_ENV_INDICATOR -->", hdr_env_indicator_html)
+    content = content.replace("<!-- PRERENDER_PROFILE_ENV_CARD -->", profile_env_card_html)
+    content = content.replace("{{ CURRENT_ENVIRONMENT }}", current_env)
+    content = content.replace("{{ IS_DEMO }}", "true" if is_demo else "false")
+    content = content.replace("{{ ENV_SWITCH_TARGET_URL }}", env_switch_target)
 
     # Perform Template Replacements
     content = content.replace("{{ BTN_INDIA_CLASS }}", btn_india_class)

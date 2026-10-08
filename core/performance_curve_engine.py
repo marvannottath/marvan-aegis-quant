@@ -92,11 +92,9 @@ class PerformanceCurveEngine:
             target_ws = "INDIA"
         elif "FOREX" in environment or "MT5" in environment or environment == "AEGIS_QUANT_MASTER":
             target_ws = "FOREX_GOLD"
-        else:
-            target_ws = "CRYPTO"
-
+        env_mode = "LIVE" if str(environment).upper() in ["LIVE", "BINANCE_LIVE_REAL", "MT5_LIVE_REAL", "UPSTOX_LIVE"] else "PAPER"
         try:
-            agg = position_snapshot_service.get_portfolio_aggregate(target_ws)
+            agg = position_snapshot_service.get_portfolio_aggregate(target_ws, environment=env_mode)
             cur_equity = round(float(agg.get("total_equity", opening_amt)), 2)
         except Exception:
             if environment in paper_broker.pools and environment != "AEGIS_QUANT_MASTER":

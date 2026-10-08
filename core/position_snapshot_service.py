@@ -168,28 +168,34 @@ class PositionSnapshotService:
             self._snapshot_cache.clear()
             self._snapshot_cache_ts.clear()
 
-    def get_snapshot(self, workspace: Optional[str] = None, force_refresh: bool = False) -> Dict[str, Any]:
+    def get_snapshot(self, workspace: Optional[str] = None, force_refresh: bool = False, environment: Optional[str] = None) -> Dict[str, Any]:
         """
-        Generate an authoritative, deterministic position snapshot for the specified workspace.
+        Generate an authoritative, deterministic position snapshot for the specified workspace and environment.
         """
         from core.workspace_manager import workspace_manager
         from execution.paper_broker import paper_broker
 
         target_ws = workspace_manager._normalize_workspace(workspace)
         now = time.time()
+        cache_key = f"{environment or 'DEFAULT'}:{target_ws}"
         if not hasattr(self, "_snapshot_cache"):
             self._snapshot_cache = {}
             self._snapshot_cache_ts = {}
 
-        if not force_refresh and (now - self._snapshot_cache_ts.get(target_ws, 0)) < 3.0:
-            cached = self._snapshot_cache.get(target_ws)
+        if not force_refresh and (now - self._snapshot_cache_ts.get(cache_key, 0)) < 3.0:
+            cached = self._snapshot_cache.get(cache_key)
             if cached:
                 return cached
 
         meta = workspace_manager.get_workspace_meta(target_ws)
-        default_pool = workspace_manager.get_workspace_pool(target_ws) if hasattr(workspace_manager, "get_workspace_pool") else meta.get("default_pool", "AEGIS_INDIA_INR")
-        allowed_pools = meta.get("allowed_pools", [default_pool])
-        pool_name = paper_broker.active_pool_name if paper_broker.active_pool_name in allowed_pools else default_pool
+        if environment:
+            default_pool = workspace_manager.get_workspace_pool(target_ws, environment=environment)
+            pool_name = default_pool
+        else:
+            default_pool = workspace_manager.get_workspace_pool(target_ws) if hasattr(workspace_manager, "get_workspace_pool") else meta.get("default_pool", "AEGIS_INDIA_INR")
+            allowed_pools = meta.get("allowed_pools", [default_pool])
+            pool_name = paper_broker.active_pool_name if paper_broker.active_pool_name in allowed_pools else default_pool
+
         cur_sym = meta.get("currency_symbol", "₹" if target_ws == "INDIA" else "$")
         cur_code = meta.get("currency", "INR" if target_ws == "INDIA" else ("USDT" if target_ws == "CRYPTO" else "USD"))
 
@@ -379,7 +385,7 @@ class PositionSnapshotService:
         self._snapshot_cache_ts[target_ws] = now
         return snap_dict
 
-    def get_portfolio_aggregate(self, workspace: Optional[str] = None, force_refresh: bool = False, pos_snap: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def get_portfolio_aggregate(self, workspace: Optional[str] = None, force_refresh: bool = False, pos_snap: Optional[Dict[str, Any]] = None, environment: Optional[str] = None) -> Dict[str, Any]:
         """
         Single authoritative aggregation layer for Top-Level Metrics (Section 10).
         Calculates:
@@ -401,22 +407,26 @@ class PositionSnapshotService:
 
         target_ws = workspace_manager._normalize_workspace(workspace)
         now = time.time()
+        cache_key = f"{environment or 'DEFAULT'}:{target_ws}"
         if not hasattr(self, "_agg_cache"):
             self._agg_cache = {}
             self._agg_cache_ts = {}
 
-        if not force_refresh and (now - self._agg_cache_ts.get(target_ws, 0)) < 3.0:
-            cached = self._agg_cache.get(target_ws)
+        if not force_refresh and (now - self._agg_cache_ts.get(cache_key, 0)) < 3.0:
+            cached = self._agg_cache.get(cache_key)
             if cached:
                 return cached
 
         meta = workspace_manager.get_workspace_meta(target_ws)
-        pool_name = workspace_manager.get_workspace_pool(target_ws) if hasattr(workspace_manager, "get_workspace_pool") else meta.get("default_pool", "AEGIS_INDIA_INR")
+        if environment:
+            pool_name = workspace_manager.get_workspace_pool(target_ws, environment=environment)
+        else:
+            pool_name = workspace_manager.get_workspace_pool(target_ws) if hasattr(workspace_manager, "get_workspace_pool") else meta.get("default_pool", "AEGIS_INDIA_INR")
         initial_cap = float(meta.get("initial_capital", 100000.0))
 
         # Authoritative position snapshot: reuse provided pos_snap if passed, else fetch
         if pos_snap is None:
-            pos_snap = self.get_snapshot(target_ws, force_refresh=force_refresh)
+            pos_snap = self.get_snapshot(target_ws, force_refresh=force_refresh, environment=environment)
         open_pos_count = pos_snap["open_position_count"]
         total_exposure = pos_snap["total_exposure"]
         used_margin = pos_snap["total_margin"]

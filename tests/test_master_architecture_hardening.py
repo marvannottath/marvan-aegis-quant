@@ -333,6 +333,7 @@ class TestMasterArchitectureHardening(unittest.TestCase):
     # ==================================================================
     def test_14_ai_model_catalog_and_version_switching(self):
         """Model catalog returns validated models and switches champions safely for NEW TRADES ONLY."""
+        continuous_learner.state["champion_version"] = "v2.0.0-BREAKOUT"
         catalog = continuous_learner.get_model_catalog()
         self.assertIn("active_version", catalog)
         self.assertEqual(len(catalog["models"]), 3)

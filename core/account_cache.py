@@ -29,20 +29,31 @@ class AccountScopedCache:
         self._lock = Lock()
         self._active_account_id: Optional[str] = None
 
-    def _build_key(self, namespace: str, account_id: str) -> str:
+    def _build_key(self, namespace: str, account_id: str, environment: Optional[str] = None) -> str:
         if not account_id:
             raise ValueError("ACCOUNT_CACHE_ERROR: account_id cannot be empty")
-        return f"{namespace}:{account_id.strip()}"
+        env_str = str(environment).strip().upper() if environment else None
+        if not env_str:
+            try:
+                from core.account_context import account_context_manager
+                acc = account_context_manager.get_account(account_id.strip())
+                if acc:
+                    env_str = acc.environment
+            except Exception:
+                pass
+        env_str = "PAPER" if env_str in ("DEMO", "TESTNET", "SANDBOX") else (env_str or "PAPER")
+        return f"{namespace}:{env_str}:{account_id.strip()}"
 
     def set(
         self,
         namespace: str,
         account_id: str,
         value: Any,
-        ttl_seconds: Optional[float] = None
+        ttl_seconds: Optional[float] = None,
+        environment: Optional[str] = None
     ):
-        """Set account-scoped cached data with TTL."""
-        key = self._build_key(namespace, account_id)
+        """Set environment-and-account scoped cached data with TTL."""
+        key = self._build_key(namespace, account_id, environment)
         ttl = ttl_seconds if ttl_seconds is not None else self._default_ttl
         with self._lock:
             self._cache[key] = {
@@ -50,15 +61,16 @@ class AccountScopedCache:
                 "expires_at": time.time() + ttl,
                 "updated_at": time.time(),
                 "account_id": account_id,
+                "environment": key.split(":")[1] if ":" in key else "PAPER",
                 "namespace": namespace
             }
 
-    def get(self, namespace: str, account_id: str) -> Optional[Any]:
+    def get(self, namespace: str, account_id: str, environment: Optional[str] = None) -> Optional[Any]:
         """
-        Retrieve account-scoped cached data.
-        Returns None if key missing, expired, or belonging to another account.
+        Retrieve environment-and-account scoped cached data.
+        Returns None if key missing, expired, or belonging to another environment/account.
         """
-        key = self._build_key(namespace, account_id)
+        key = self._build_key(namespace, account_id, environment)
         with self._lock:
             entry = self._cache.get(key)
             if not entry:
@@ -69,15 +81,31 @@ class AccountScopedCache:
                 return None
             return entry["data"]
 
-    def invalidate_account(self, account_id: str):
-        """Invalidate all cached namespaces for a specific account."""
+    def invalidate_account(self, account_id: str, environment: Optional[str] = None):
+        """Invalidate all cached namespaces for a specific account (and optional environment)."""
         with self._lock:
-            prefix = f":{account_id.strip()}"
-            keys_to_delete = [k for k in self._cache.keys() if k.endswith(prefix)]
+            if environment:
+                env_str = str(environment).strip().upper()
+                norm_env = "PAPER" if env_str in ("DEMO", "TESTNET", "SANDBOX") else env_str
+                suffix = f":{norm_env}:{account_id.strip()}"
+                keys_to_delete = [k for k in self._cache.keys() if k.endswith(suffix)]
+            else:
+                suffix = f":{account_id.strip()}"
+                keys_to_delete = [k for k in self._cache.keys() if k.endswith(suffix)]
             for k in keys_to_delete:
                 del self._cache[k]
 
-    def switch_account(self, new_account_id: str, previous_account_id: Optional[str] = None):
+    def invalidate_environment(self, environment: str):
+        """Invalidate all cached keys for a specific environment."""
+        env_str = str(environment).strip().upper()
+        norm_env = "PAPER" if env_str in ("DEMO", "TESTNET", "SANDBOX") else env_str
+        with self._lock:
+            prefix = f":{norm_env}:"
+            keys_to_delete = [k for k in self._cache.keys() if prefix in k]
+            for k in keys_to_delete:
+                del self._cache[k]
+
+    def switch_account(self, new_account_id: str, previous_account_id: Optional[str] = None, environment: Optional[str] = None):
         """
         Handle account switch sequence:
         1. Invalidate previous account cache if requested
@@ -85,8 +113,8 @@ class AccountScopedCache:
         """
         with self._lock:
             if previous_account_id and previous_account_id != new_account_id:
-                prefix = f":{previous_account_id.strip()}"
-                keys_to_delete = [k for k in self._cache.keys() if k.endswith(prefix)]
+                suffix = f":{previous_account_id.strip()}"
+                keys_to_delete = [k for k in self._cache.keys() if k.endswith(suffix)]
                 for k in keys_to_delete:
                     del self._cache[k]
             self._active_account_id = new_account_id

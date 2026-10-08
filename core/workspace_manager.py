@@ -160,18 +160,43 @@ class WorkspaceManager:
     def get_active_workspace(self) -> str:
         return self._active_workspace
 
-    def get_workspace_pool(self, workspace: Optional[str] = None) -> str:
+    def get_workspace_pool(self, workspace: Optional[str] = None, environment: Optional[str] = None) -> str:
         ws = self._normalize_workspace(workspace)
+        env_norm = None
+        if environment:
+            e_str = str(environment).strip().upper()
+            env_norm = "PAPER" if e_str in ("DEMO", "TESTNET", "SANDBOX", "PAPER") else ("LIVE" if e_str == "LIVE" else e_str)
+
         if ws == self.WORKSPACE_FOREX_GOLD:
+            if env_norm == "LIVE":
+                return 'MT5_LIVE_REAL'
+            elif env_norm == "PAPER":
+                return 'MT5_DEMO'
             saved = self._active_pool_per_workspace.get(ws)
             if saved and saved in ['MT5_LIVE_REAL', 'MT5_DEMO', 'CTRADER_LIVE']:
                 return saved
             return 'MT5_LIVE_REAL'
+
         if ws == self.WORKSPACE_CRYPTO:
+            if env_norm == "LIVE":
+                return 'BINANCE_LIVE_REAL'
+            elif env_norm == "PAPER":
+                return 'BINANCE_TESTNET_DEMO'
             saved = self._active_pool_per_workspace.get(ws)
             if saved and saved in ['BINANCE_LIVE_REAL', 'BINANCE_TESTNET_DEMO', 'BINANCE_DEMO', 'BINANCE_LIVE']:
                 return saved
             return 'BINANCE_LIVE_REAL'
+
+        if ws == self.WORKSPACE_INDIA:
+            if env_norm == "LIVE":
+                return 'UPSTOX_LIVE'
+            elif env_norm == "PAPER":
+                return 'AEGIS_INDIA_INR'
+            saved = self._active_pool_per_workspace.get(ws)
+            if saved and saved in ['AEGIS_INDIA_INR', 'UPSTOX_DEMO', 'UPSTOX_LIVE']:
+                return saved
+            return 'AEGIS_INDIA_INR'
+
         meta = self.get_workspace_meta(ws)
         saved = self._active_pool_per_workspace.get(ws)
         if saved and saved in meta.get('allowed_pools', []):
