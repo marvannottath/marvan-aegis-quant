@@ -41,6 +41,7 @@ from core.broker_adapter import BrokerAdapter
 from core.order_state_machine import order_state_machine
 from core.market_regime_sizer import market_regime_sizer
 from core.environment_gate import environment_gate
+from core.continuous_learner import continuous_learner
 
 
 class TestMasterArchitectureHardening(unittest.TestCase):
@@ -326,6 +327,46 @@ class TestMasterArchitectureHardening(unittest.TestCase):
         wd_allowed, wd_reason = environment_gate.check_withdrawal_allowed(environment="LIVE")
         self.assertFalse(wd_allowed)
         self.assertIn("LIVE_WITHDRAWALS_ENABLED=false", wd_reason)
+
+    # ==================================================================
+    # 10. CONTINUOUS LEARNER MODEL VERSIONING & SWITCHING
+    # ==================================================================
+    def test_14_ai_model_catalog_and_version_switching(self):
+        """Model catalog returns validated models and switches champions safely for NEW TRADES ONLY."""
+        catalog = continuous_learner.get_model_catalog()
+        self.assertIn("active_version", catalog)
+        self.assertEqual(len(catalog["models"]), 3)
+        self.assertEqual(catalog["scope"], "NEW_TRADES_ONLY")
+
+        # Test switching to Model v3
+        res = continuous_learner.switch_model("v3.0.0-CONSENSUS", user_actor="TEST_RUNNER", reason="Higher Sharpe")
+        self.assertEqual(res["status"], "SUCCESS")
+        self.assertEqual(res["active_version"], "v3.0.0-CONSENSUS")
+        self.assertEqual(res["scope"], "NEW_TRADES_ONLY")
+
+        # Verify active catalog reflects switch
+        new_catalog = continuous_learner.get_model_catalog()
+        self.assertEqual(new_catalog["active_version"], "v3.0.0-CONSENSUS")
+        self.assertGreater(len(new_catalog["version_history"]), 0)
+
+        # Invalid model must fail gracefully
+        err = continuous_learner.switch_model("INVALID_VERSION_99")
+        self.assertEqual(err["status"], "ERROR")
+
+    def test_15_ai_model_compare_and_rollback(self):
+        """Model comparison computes parameter deltas and rollback restores previous version."""
+        cmp = continuous_learner.compare_models("v1.0.0-CONSERVATIVE", "v3.0.0-CONSENSUS")
+        self.assertEqual(cmp["status"], "SUCCESS")
+        self.assertGreater(cmp["delta_win_rate"], 0)
+        self.assertGreater(cmp["delta_sharpe"], 0)
+
+        # Switch to v1 then rollback to v3
+        continuous_learner.switch_model("v1.0.0-CONSERVATIVE", user_actor="TEST_RUNNER", reason="Test switch")
+        self.assertEqual(continuous_learner.get_model_catalog()["active_version"], "v1.0.0-CONSERVATIVE")
+
+        rb = continuous_learner.rollback_model(user_actor="TEST_RUNNER")
+        self.assertEqual(rb["status"], "SUCCESS")
+        self.assertEqual(rb["active_version"], "v3.0.0-CONSENSUS")
 
 
 if __name__ == "__main__":

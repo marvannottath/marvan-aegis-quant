@@ -3140,6 +3140,50 @@ async def rollback_continuous_learning(request: Request):
     super_admin.log_action(session["username"], "AI_MODEL_ROLLBACK", "Rolled back to Golden Baseline v2.0.0")
     return JSONResponse(res)
 
+@app.get("/api/ai/models")
+async def get_ai_models_endpoint():
+    """Retrieve catalog of validated AI models and active champion version."""
+    return JSONResponse(continuous_learner.get_model_catalog())
+
+@app.post("/api/ai/models/compare")
+async def compare_ai_models_endpoint(request: Request):
+    """Compare two AI model versions side-by-side."""
+    try:
+        body = await request.json()
+        v1 = body.get("version_a", "")
+        v2 = body.get("version_b", "")
+        return JSONResponse(continuous_learner.compare_models(v1, v2))
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+@app.post("/api/ai/models/switch")
+async def switch_ai_model_endpoint(request: Request):
+    """Controlled switch of active trading model for NEW TRADES ONLY."""
+    try:
+        body = await request.json()
+        target_version = body.get("target_version", "")
+        reason = body.get("reason", "Operator model switch")
+        user = body.get("user", "SUPER_ADMIN")
+        res = continuous_learner.switch_model(target_version, user_actor=user, reason=reason)
+        return JSONResponse(res)
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+@app.post("/api/ai/models/rollback")
+async def rollback_ai_model_endpoint(request: Request):
+    """1-Click rollback to previous active AI model version."""
+    try:
+        body = {}
+        try:
+            body = await request.json()
+        except Exception:
+            pass
+        user = body.get("user", "SUPER_ADMIN")
+        res = continuous_learner.rollback_model(user_actor=user)
+        return JSONResponse(res)
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
 @app.post("/api/auth/logout")
 async def universal_auth_logout(request: Request):
     """Invalidate and destroy user session token."""

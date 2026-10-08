@@ -595,6 +595,89 @@
         </div>
     </div>
 
+    <!-- MODAL: DYNAMIC RISK CHANGE PREVIEW & CONFIRMATION -->
+    <div id="modal-risk-change-preview" class="hidden fixed inset-0 z-[10000] flex items-center justify-center bg-black/85 backdrop-blur-md p-4">
+        <div class="bg-darkcard border border-amber-500/40 max-w-xl w-full rounded-2xl p-6 space-y-4 shadow-2xl font-mono text-xs text-gray-300">
+            <div class="flex justify-between items-center border-b border-gray-800 pb-3">
+                <div class="flex items-center space-x-2">
+                    <div class="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                        <i class="fa-solid fa-shield-halved text-base"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-white uppercase">Risk Policy Change Preview</h3>
+                        <p class="text-[10px] text-gray-400">Calculated Dynamic Impact Audit</p>
+                    </div>
+                </div>
+                <button onclick="closeRiskPreviewModal()" class="text-gray-500 hover:text-white text-lg cursor-pointer"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div class="flex items-center justify-between p-3 bg-gray-950 rounded-xl border border-gray-800">
+                <span class="text-gray-400">Calculated Risk Impact:</span>
+                <span id="risk-preview-badge" class="px-2.5 py-1 rounded text-xs font-black font-mono">MEDIUM</span>
+            </div>
+
+            <div class="bg-gray-950 p-3 rounded-xl border border-gray-800 space-y-2">
+                <div class="grid grid-cols-3 text-[11px] font-bold border-b border-gray-800 pb-1.5 text-gray-400">
+                    <div>Metric / Parameter</div>
+                    <div class="text-center">Current State</div>
+                    <div class="text-right">Proposed State</div>
+                </div>
+                <div class="grid grid-cols-3 text-xs py-1 border-b border-gray-900">
+                    <span class="text-gray-400">Risk Profile</span>
+                    <span id="risk-prev-cur-profile" class="text-center text-white font-bold">—</span>
+                    <span id="risk-prev-prop-profile" class="text-right text-amber-400 font-bold">—</span>
+                </div>
+                <div class="grid grid-cols-3 text-xs py-1 border-b border-gray-900">
+                    <span class="text-gray-400">Max Leverage</span>
+                    <span id="risk-prev-cur-lev" class="text-center text-white">—</span>
+                    <span id="risk-prev-prop-lev" class="text-right text-amber-400 font-bold">—</span>
+                </div>
+                <div class="grid grid-cols-3 text-xs py-1 border-b border-gray-900">
+                    <span class="text-gray-400">Max Risk / Trade</span>
+                    <span id="risk-prev-cur-risk" class="text-center text-white">—</span>
+                    <span id="risk-prev-prop-risk" class="text-right text-amber-400 font-bold">—</span>
+                </div>
+                <div class="grid grid-cols-3 text-xs py-1 border-b border-gray-900">
+                    <span class="text-gray-400">Worst-Case Loss</span>
+                    <span id="risk-prev-cur-loss" class="text-center text-white">—</span>
+                    <span id="risk-prev-prop-loss" class="text-right text-red-400 font-bold">—</span>
+                </div>
+                <div class="grid grid-cols-3 text-xs py-1">
+                    <span class="text-gray-400">Exposure Cap</span>
+                    <span id="risk-prev-cur-exp" class="text-center text-white">—</span>
+                    <span id="risk-prev-prop-exp" class="text-right text-amber-400 font-bold">—</span>
+                </div>
+            </div>
+
+            <div class="p-2.5 bg-blue-950/20 border border-blue-500/30 rounded-xl text-[11px] text-blue-300 flex items-start space-x-2">
+                <i class="fa-solid fa-circle-info text-blue-400 mt-0.5"></i>
+                <div>
+                    <span class="font-bold">SCOPE: NEW TRADES ONLY.</span> Existing open positions remain protected by their established stop losses and will not be altered.
+                </div>
+            </div>
+
+            <div id="risk-critical-confirm-box" class="hidden p-3 bg-red-950/30 border border-red-500/40 rounded-xl text-xs space-y-2">
+                <div class="text-red-400 font-bold flex items-center space-x-1.5">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <span>CRITICAL RISK ESCALATION DETECTED</span>
+                </div>
+                <label class="flex items-center space-x-2 text-gray-300 text-[11px] cursor-pointer">
+                    <input type="checkbox" id="chk-risk-critical-ack" class="rounded border-gray-700 text-red-500 focus:ring-0">
+                    <span>I acknowledge the elevated risk parameters and approve policy application.</span>
+                </label>
+            </div>
+
+            <div class="flex space-x-3 pt-2">
+                <button onclick="closeRiskPreviewModal()" class="flex-1 py-2.5 bg-gray-900 hover:bg-gray-800 border border-gray-800 text-gray-300 hover:text-white font-bold text-xs rounded-xl transition cursor-pointer">
+                    Cancel & Keep Current
+                </button>
+                <button id="btn-apply-risk-preview" onclick="applyConfirmedRiskChange()" class="flex-1 py-2.5 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-xl transition shadow cursor-pointer">
+                    Proceed & Apply Policy
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- MODAL: INACTIVITY SESSION TIMEOUT WARNING -->
     <div id="modal-session-timeout" class="hidden fixed inset-0 z-[10000] flex items-center justify-center bg-black/90 backdrop-blur-md p-4">
         <div class="bg-darkcard border border-amber-500/50 max-w-md w-full rounded-2xl p-6 space-y-4 shadow-2xl font-mono text-xs text-center text-gray-300">
@@ -6353,25 +6436,146 @@
             }
         }
 
+        window.pendingRiskPreviewId = null;
+        window.pendingRiskProfileName = null;
+        window.pendingRiskIsCritical = false;
+
         async function setRiskProfile(profileName) {
             try {
-                // Optimistically update UI immediately
-                renderRiskProfiles(profileName);
-                const res = await fetch('/api/set-risk-profile', {
+                // Request dynamic engine calculation of proposed risk change
+                const res = await fetch('/api/risk/preview-change', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ profile: profileName })
+                    body: JSON.stringify({
+                        proposed_settings: { profile: profileName },
+                        workspace: window.activeMarketVenue || 'CRYPTO'
+                    })
                 });
                 const data = await res.json();
-                if (data.status === 'SUCCESS') {
-                    showNotification('Risk Profile Updated', `Active Risk Profile Switched to: ${profileName}`, 'success');
-                    if (data.active_profile) {
-                        renderRiskProfiles(data.active_profile.name || profileName);
+                if (data.status === 'SUCCESS' && data.preview) {
+                    const prev = data.preview;
+                    window.pendingRiskPreviewId = prev.preview_id;
+                    window.pendingRiskProfileName = profileName;
+                    window.pendingRiskIsCritical = (prev.risk_level === 'CRITICAL');
+
+                    // Populate preview modal fields
+                    const cur = prev.current_settings || {};
+                    const prop = prev.proposed_settings || {};
+                    const m = prev.metrics || {};
+
+                    const elCurProf = document.getElementById('risk-prev-cur-profile');
+                    const elPropProf = document.getElementById('risk-prev-prop-profile');
+                    const elCurLev = document.getElementById('risk-prev-cur-lev');
+                    const elPropLev = document.getElementById('risk-prev-prop-lev');
+                    const elCurRisk = document.getElementById('risk-prev-cur-risk');
+                    const elPropRisk = document.getElementById('risk-prev-prop-risk');
+                    const elCurLoss = document.getElementById('risk-prev-cur-loss');
+                    const elPropLoss = document.getElementById('risk-prev-prop-loss');
+                    const elCurExp = document.getElementById('risk-prev-cur-exp');
+                    const elPropExp = document.getElementById('risk-prev-prop-exp');
+                    const badge = document.getElementById('risk-preview-badge');
+                    const critBox = document.getElementById('risk-critical-confirm-box');
+                    const chkAck = document.getElementById('chk-risk-critical-ack');
+
+                    if (elCurProf) elCurProf.innerText = cur.active_profile || 'CURRENT';
+                    if (elPropProf) elPropProf.innerText = profileName;
+                    if (elCurLev) elCurLev.innerText = `${cur.max_leverage || 2}x`;
+                    if (elPropLev) elPropLev.innerText = `${prop.max_leverage || (profileName === 'AGGRESSIVE' ? 25 : (profileName === 'MODERATE' ? 10 : 2))}x`;
+                    if (elCurRisk) elCurRisk.innerText = `${cur.max_risk_pct || 1.0}%`;
+                    const propRiskPct = prop.max_risk_per_trade_pct || (profileName === 'AGGRESSIVE' ? 5.0 : (profileName === 'MODERATE' ? 2.5 : 1.0));
+                    if (elPropRisk) elPropRisk.innerText = `${propRiskPct}%`;
+                    if (elCurLoss) elCurLoss.innerText = `$${m.worst_case_loss_current || 10.00}`;
+                    if (elPropLoss) elPropLoss.innerText = `$${m.worst_case_loss_proposed || (m.equity ? (m.equity * propRiskPct / 100.0).toFixed(2) : 25.00)}`;
+                    if (elCurExp) elCurExp.innerText = `${m.current_exposure || 0.00}%`;
+                    if (elPropExp) elPropExp.innerText = `${m.proposed_exposure || (m.current_exposure || 15.00)}%`;
+
+                    if (badge) {
+                        badge.innerText = prev.risk_level;
+                        if (prev.risk_level === 'CRITICAL') {
+                            badge.className = 'px-2.5 py-1 rounded text-xs font-black font-mono bg-red-500/20 text-red-400 border border-red-500/50';
+                        } else if (prev.risk_level === 'HIGH') {
+                            badge.className = 'px-2.5 py-1 rounded text-xs font-black font-mono bg-amber-500/20 text-amber-400 border border-amber-500/50';
+                        } else {
+                            badge.className = 'px-2.5 py-1 rounded text-xs font-black font-mono bg-emerald-500/20 text-emerald-400 border border-emerald-500/50';
+                        }
                     }
-                    if (typeof fetchState === 'function') fetchState(window.activeMarketVenue);
+
+                    if (critBox) {
+                        if (prev.risk_level === 'CRITICAL') {
+                            critBox.classList.remove('hidden');
+                            if (chkAck) chkAck.checked = false;
+                        } else {
+                            critBox.classList.add('hidden');
+                        }
+                    }
+
+                    // Open Risk Impact Calculation Modal
+                    const modal = document.getElementById('modal-risk-change-preview');
+                    if (modal) modal.classList.remove('hidden');
+                } else {
+                    // Fallback to direct apply with notification if preview endpoint failed
+                    renderRiskProfiles(profileName);
+                    await fetch('/api/set-risk-profile', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ profile: profileName })
+                    });
                 }
             } catch (e) {
                 console.error('Set risk profile error:', e);
+            }
+        }
+
+        function closeRiskPreviewModal() {
+            const modal = document.getElementById('modal-risk-change-preview');
+            if (modal) modal.classList.add('hidden');
+            window.pendingRiskPreviewId = null;
+        }
+
+        async function applyConfirmedRiskChange() {
+            if (window.pendingRiskIsCritical) {
+                const chk = document.getElementById('chk-risk-critical-ack');
+                if (chk && !chk.checked) {
+                    alert("Please check the critical risk acknowledgement box before proceeding.");
+                    return;
+                }
+            }
+            if (!window.pendingRiskPreviewId) return;
+
+            const btn = document.getElementById('btn-apply-risk-preview');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerText = 'Applying Policy...';
+            }
+
+            try {
+                const res = await fetch('/api/risk/apply-change', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        preview_id: window.pendingRiskPreviewId,
+                        confirmed: true,
+                        actor: 'TRADER'
+                    })
+                });
+                const data = await res.json();
+                closeRiskPreviewModal();
+
+                if (data.status === 'APPLIED') {
+                    showNotification('Risk Policy Applied', `Risk Profile switched to: ${window.pendingRiskProfileName} (${data.version}) for NEW TRADES ONLY.`, 'success');
+                    renderRiskProfiles(window.pendingRiskProfileName);
+                    if (typeof fetchState === 'function') fetchState(window.activeMarketVenue);
+                } else {
+                    showNotification('Risk Change Notice', data.message || 'Failed to apply risk policy', 'warning');
+                }
+            } catch (e) {
+                console.error('Apply risk change error:', e);
+                showNotification('Error', 'Network error applying risk change', 'error');
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerText = 'Proceed & Apply Policy';
+                }
             }
         }
 
