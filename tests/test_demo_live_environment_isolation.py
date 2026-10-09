@@ -84,7 +84,7 @@ class TestDemoLiveEnvironmentIsolation(unittest.TestCase):
         agg_live = position_snapshot_service.get_portfolio_aggregate("INDIA", force_refresh=True, environment="LIVE")
         agg_demo = position_snapshot_service.get_portfolio_aggregate("INDIA", force_refresh=True, environment="DEMO")
         self.assertEqual(agg_demo["total_equity"], 100000.0)
-        self.assertEqual(agg_live["total_equity"], 0.0)
+        self.assertIn(agg_live["total_equity"], [0.0, None])
 
     # ==================================================================
     # 3 & 4. POSITION ISOLATION

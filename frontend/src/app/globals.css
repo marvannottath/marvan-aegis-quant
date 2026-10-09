@@ -2,24 +2,62 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --color-canvas: #f8fafc;
+  --color-panel: #ffffff;
+  --color-border: #e2e8f0;
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #334155;
+  --color-text-muted: #64748b;
+  --color-profit: #16a34a;
+  --color-loss: #dc2626;
+  --color-brand: #2563eb;
+}
+
 @layer base {
   body {
-    @apply bg-darkbg text-gray-100 antialiased selection:bg-blue-500 selection:text-white;
+    @apply bg-canvas text-txt-primary antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11", "tnum";
+    background-color: #f8fafc;
+    color: #0f172a;
+    min-height: 100vh;
+  }
+
+  /* Institutional financial tabular figures */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
   }
 }
 
-/* Custom Scrollbars */
+/* Custom crisp scrollbars for institutional data grids */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
+
 ::-webkit-scrollbar-track {
-  background: #0B0F19;
+  background: #f1f5f9;
 }
+
 ::-webkit-scrollbar-thumb {
-  background: #1F2937;
-  border-radius: 9999px;
+  background: #cbd5e1;
+  border-radius: 3px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
-  background: #374151;
+  background: #94a3b8;
+}
+
+/* Card styling utility */
+.card-panel {
+  @apply bg-panel border border-line rounded-lg shadow-sm;
+}
+
+.card-panel-hover {
+  @apply transition-all duration-150 hover:border-line-strong hover:shadow;
+}
+
+/* Data grid row hover */
+.table-row-hover {
+  @apply transition-colors duration-100 hover:bg-slate-50;
 }

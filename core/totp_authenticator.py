@@ -103,6 +103,59 @@ class TOTPAuthenticator:
 
         return False, "INVALID_CODE"
 
+    def verify_and_consume_code(self, candidate_code: str, identifier: str = "system_admin") -> Tuple[bool, str]:
+        """
+        Verifies code and atomically records time_counter into SQLite DB with PRIMARY KEY constraint.
+        Survives process restarts and concurrent multi-worker requests.
+        """
+        cleaned = candidate_code.strip().replace(" ", "").replace("-", "")
+        if not cleaned:
+            return False, "EMPTY_CODE"
+
+        # Check backup codes first
+        if cleaned.upper() in self.backup_codes:
+            self.backup_codes.remove(cleaned.upper())
+            self._save_state()
+            return True, "BACKUP_CODE_ACCEPTED"
+
+        if not cleaned.isdigit() or len(cleaned) != 6:
+            return False, "INVALID_CODE"
+
+        current_counter = int(time.time() // self.time_step)
+        matched_counter = None
+        for step in [0, -1, 1]:
+            expected = self.generate_current_code(offset_steps=step)
+            if hmac.compare_digest(cleaned, expected):
+                matched_counter = current_counter + step
+                break
+
+        if matched_counter is None:
+            return False, "INVALID_CODE"
+
+        # Durable atomic SQLite anti-replay
+        try:
+            db_path = STATE_FILE.parent / "aegis_quant.db"
+            import sqlite3
+            with sqlite3.connect(str(db_path), timeout=30.0) as conn:
+                conn.execute("PRAGMA journal_mode=WAL;")
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS totp_consumed_steps (
+                        admin_username TEXT NOT NULL,
+                        time_counter INTEGER NOT NULL,
+                        consumed_at TEXT NOT NULL,
+                        PRIMARY KEY (admin_username, time_counter)
+                    );
+                """)
+                conn.execute(
+                    "INSERT INTO totp_consumed_steps (admin_username, time_counter, consumed_at) VALUES (?, ?, ?)",
+                    (identifier.lower().strip(), matched_counter, str(time.time()))
+                )
+            return True, "TOTP_ACCEPTED"
+        except sqlite3.IntegrityError:
+            return False, "TOTP_REPLAY_DETECTED"
+        except Exception as e:
+            return False, f"PERSISTENCE_ERROR: {e}"
+
     def get_status(self) -> Dict[str, Any]:
         """Returns public 2FA status snapshot strictly without exposing secrets."""
         return {

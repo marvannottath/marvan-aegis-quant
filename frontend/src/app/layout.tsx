@@ -1,23 +1,12 @@
-import type { Metadata, Viewport } from 'next';
+import React from 'react';
+import type { Metadata } from 'next';
 import './globals.css';
+import { TradingProvider } from '../context/TradingContext';
+import { AppShell } from '../components/layout/AppShell';
 
 export const metadata: Metadata = {
-  title: 'Marvan Aegis-Quant AI | Autonomous Trading Console',
-  description: 'Marvan\'s Autonomous AI Quant Trading System & Trade Forensics Console',
-  manifest: '/manifest.json',
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: 'black-translucent',
-    title: 'Marvan Aegis-Quant',
-  },
-};
-
-export const viewport: Viewport = {
-  themeColor: '#0B0F19',
-  width: 'device-width',
-  initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  title: 'AEGIS QUANT — Institutional Trading Platform',
+  description: 'High-frequency algorithmic trading terminal and portfolio management engine',
 };
 
 export default function RootLayout({
@@ -26,9 +15,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark">
-      <body className="min-h-screen bg-darkbg text-gray-100 pb-20 md:pb-8">
-        {children}
+    <html lang="en" className="h-full">
+      <body className="h-full bg-canvas text-txt-primary">
+        <TradingProvider>
+          <AppShell>{children}</AppShell>
+        </TradingProvider>
       </body>
     </html>
   );

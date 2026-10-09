@@ -300,7 +300,9 @@ class AccountContextManager:
             norm_env = "PAPER" if e_str in ("DEMO", "TESTNET", "SANDBOX", "PAPER") else ("LIVE" if e_str == "LIVE" else e_str)
 
         # 1. Direct account_id resolution
-        if account_id and account_id in self._accounts:
+        if account_id:
+            if account_id not in self._accounts:
+                raise AccountContextUnavailableError(f"Account '{account_id}' does not exist")
             ctx = self._accounts[account_id]
             # If workspace or environment is explicitly specified, verify compatibility
             if workspace:

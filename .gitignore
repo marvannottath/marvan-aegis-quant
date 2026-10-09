@@ -23,3 +23,6 @@ data/closed_spot_positions.json
 saved_models/*.pth
 scratch/
 *.tmp
+
+frontend/.next/
+frontend/out/

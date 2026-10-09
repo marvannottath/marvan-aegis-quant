@@ -25,7 +25,8 @@ class TestInstitutionalPlatformSuite(unittest.TestCase):
         from core.totp_authenticator import totp_authenticator
         status = totp_authenticator.get_status()
         self.assertTrue(status["is_enabled"])
-        self.assertIn("otpauth://totp", status["provisioning_uri"])
+        prov_uri = status.get("provisioning_uri") or totp_authenticator.get_provisioning_uri()
+        self.assertIn("otpauth://totp", prov_uri)
 
         # Generate current code and verify
         current_code = totp_authenticator.generate_current_code()

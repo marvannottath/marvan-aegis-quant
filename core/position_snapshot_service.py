@@ -209,8 +209,10 @@ class PositionSnapshotService:
         else:
             internal_pos_list = []
 
-        # Merge paper_broker.positions so positions in root memory are never dropped
-        if isinstance(paper_broker.positions, dict):
+        is_live_pool = pool_name in ["BINANCE_LIVE_REAL", "MT5_LIVE_REAL", "UPSTOX_LIVE"] or "LIVE" in pool_name.upper()
+
+        # Merge paper_broker.positions so positions in root memory are never dropped for DEMO/PAPER pools
+        if not is_live_pool and isinstance(paper_broker.positions, dict):
             existing_syms = {p.get("symbol") or p.get("asset") for p in internal_pos_list}
             for k, v in paper_broker.positions.items():
                 if isinstance(v, dict):
@@ -438,7 +440,14 @@ class PositionSnapshotService:
         pool = paper_broker.pools.get(pool_name, {})
 
         is_live_crypto = (target_ws == "CRYPTO" and pool_name in ["BINANCE_LIVE_REAL", "BINANCE_LIVE"]) or (pool_name in ["BINANCE_LIVE_REAL", "BINANCE_LIVE"])
-        is_testnet_crypto = (target_ws == "CRYPTO" and pool_name in ["BINANCE_TESTNET_DEMO", "BINANCE_DEMO"])
+        is_live_forex = (target_ws == "FOREX_GOLD" and pool_name in ["MT5_LIVE_REAL", "CTRADER_LIVE"])
+        is_live_india = (target_ws == "INDIA" and pool_name == "UPSTOX_LIVE")
+        is_live_pool = is_live_crypto or is_live_forex or is_live_india or ("LIVE" in pool_name.upper())
+        is_testnet_crypto = pool_name in ["BINANCE_TESTNET", "BINANCE_SPOT_DEMO", "BINANCE_TESTNET_DEMO"]
+
+        data_source = "SIMULATION_PAPER"
+        broker_connected = True
+        is_simulated = not is_live_pool
 
         # Vault reserve and pool equity resolution
         if is_live_crypto:
@@ -450,44 +459,116 @@ class PositionSnapshotService:
 
                 live_tot = float(live_info.get("total_equity", 0.0))
                 live_avail = float(live_info.get("available_balance", 0.0))
-                is_auth = live_info.get("authenticated")
+                is_auth = bool(live_info.get("authenticated", False))
 
                 if is_auth and (live_tot > 0 or live_avail > 0):
+                    data_source = "AUTHENTICATED_LIVE"
+                    broker_connected = True
                     free_cash = round(live_avail, 2)
                     total_equity = round(max(live_tot, free_cash + total_exposure + unrealized_pnl), 2)
-                    # If there are open positions, exposure reflects verified position value.
-                    # When open_pos_count == 0, total_exposure remains strictly 0.00 to avoid phantom active positions.
+                    pool["virtual_cash"] = free_cash
+                    pool["equity"] = total_equity
+                    initial_cap = self.get_and_update_peak_equity(pool_name, max(total_equity, 1.0))
                 elif is_auth:
+                    data_source = "AUTHENTICATED_LIVE"
+                    broker_connected = True
                     free_cash = round(live_avail, 2)
                     total_equity = round(free_cash + total_exposure + unrealized_pnl, 2)
+                    pool["virtual_cash"] = free_cash
+                    pool["equity"] = total_equity
+                    initial_cap = self.get_and_update_peak_equity(pool_name, max(total_equity, 1.0))
                 else:
-                    real_spot = binance_broker.get_real_live_spot_balance()
-                    if real_spot > 0:
-                        free_cash = round(real_spot, 2)
-                        total_equity = round(free_cash + total_exposure + unrealized_pnl, 2)
-                    else:
-                        p_cash = float(pool.get("virtual_cash", 0.0))
-                        free_cash = round(p_cash if p_cash > 0 else 0.0, 2)
-                        p_eq = float(pool.get("equity", 0.0))
-                        total_equity = round(p_eq if p_eq > 0 else (free_cash + total_exposure + unrealized_pnl), 2)
-                pool["virtual_cash"] = free_cash
-                pool["equity"] = total_equity
-                initial_cap = self.get_and_update_peak_equity(pool_name, max(total_equity, 1.0))
+                    # LIVE crypto is NOT authenticated — NEVER substitute simulated paper state
+                    data_source = "DISCONNECTED"
+                    broker_connected = False
+                    free_cash = None
+                    total_equity = None
+                    open_pos_count = 0
+                    total_exposure = 0.0
+                    used_margin = 0.0
+                    unrealized_pnl = 0.0
             except Exception:
-                p_cash = float(pool.get("virtual_cash", 0.0))
-                free_cash = round(p_cash if p_cash > 0 else 0.0, 2)
-                p_eq = float(pool.get("equity", 0.0))
-                total_equity = round(p_eq if p_eq > 0 else (free_cash + total_exposure + unrealized_pnl), 2)
-                initial_cap = self.get_and_update_peak_equity(pool_name, max(total_equity, 1.0))
+                data_source = "DISCONNECTED"
+                broker_connected = False
+                free_cash = None
+                total_equity = None
+                open_pos_count = 0
+                total_exposure = 0.0
+                used_margin = 0.0
+                unrealized_pnl = 0.0
+        elif is_live_forex:
+            vault_balance = round(float(profit_vault.get_vault_balance(pool_name)), 2)
+            try:
+                from execution.mt5_broker import mt5_broker
+                mt5_stat = mt5_broker.get_status()
+                if mt5_stat.get("is_connected", False):
+                    data_source = "AUTHENTICATED_LIVE"
+                    broker_connected = True
+                    acc_info = mt5_broker.get_account_info()
+                    free_cash = round(float(acc_info.get("free_margin", acc_info.get("balance", 0.0))), 2)
+                    total_equity = round(float(acc_info.get("equity", free_cash)), 2)
+                else:
+                    data_source = "DISCONNECTED"
+                    broker_connected = False
+                    free_cash = None
+                    total_equity = None
+                    open_pos_count = 0
+                    total_exposure = 0.0
+                    used_margin = 0.0
+                    unrealized_pnl = 0.0
+            except Exception:
+                data_source = "DISCONNECTED"
+                broker_connected = False
+                free_cash = None
+                total_equity = None
+                open_pos_count = 0
+                total_exposure = 0.0
+                used_margin = 0.0
+                unrealized_pnl = 0.0
+        elif is_live_india:
+            vault_balance = round(float(profit_vault.get_vault_balance(pool_name)), 2)
+            try:
+                from execution.upstox_broker import upstox_broker
+                upstox_stat = upstox_broker.get_status()
+                if upstox_stat.get("status") == "CONNECTED":
+                    data_source = "AUTHENTICATED_LIVE"
+                    broker_connected = True
+                    funds = upstox_stat.get("funds", {})
+                    free_cash = round(float(funds.get("available_margin", 0.0)), 2)
+                    total_equity = round(free_cash + used_margin + unrealized_pnl + vault_balance, 2)
+                else:
+                    data_source = "DISCONNECTED"
+                    broker_connected = False
+                    free_cash = None
+                    total_equity = None
+                    open_pos_count = 0
+                    total_exposure = 0.0
+                    used_margin = 0.0
+                    unrealized_pnl = 0.0
+            except Exception:
+                data_source = "DISCONNECTED"
+                broker_connected = False
+                free_cash = None
+                total_equity = None
+                open_pos_count = 0
+                total_exposure = 0.0
+                used_margin = 0.0
+                unrealized_pnl = 0.0
         elif is_testnet_crypto:
+            data_source = "SIMULATION_PAPER"
+            broker_connected = True
             vault_balance = round(float(profit_vault.get_vault_balance(pool_name)), 2)
             free_cash = round(float(pool.get("virtual_cash", initial_cap)), 2)
             total_equity = round(free_cash + used_margin + unrealized_pnl + vault_balance, 2)
         elif pool_name in ["AEGIS_INDIA_INR", "UPSTOX_DEMO"] or (target_ws == "INDIA" and pool_name != "UPSTOX_LIVE"):
+            data_source = "SIMULATION_PAPER"
+            broker_connected = True
             vault_balance = round(float(profit_vault.get_vault_balance(pool_name)), 2)
             free_cash = round(float(pool.get("virtual_cash", initial_cap)), 2)
             total_equity = round(free_cash + used_margin + unrealized_pnl + vault_balance, 2)
         else:
+            data_source = "SIMULATION_PAPER"
+            broker_connected = True
             free_cash = round(float(pool.get("virtual_cash", initial_cap)), 2)
             vault_balance = round(float(profit_vault.get_vault_balance(pool_name)), 2)
             total_equity = round(free_cash + used_margin + unrealized_pnl + vault_balance, 2)
@@ -496,46 +577,60 @@ class PositionSnapshotService:
         realized_pnl = round(double_entry_ledger.get_account_balance("REALIZED_PNL_ACCOUNT", pool_name), 2)
 
         # Peak equity & Drawdown calculation
-        peak_equity = self.get_and_update_peak_equity(pool_name, total_equity)
-        if peak_equity <= 0.0:
-            drawdown_pct = 0.0
+        if total_equity is not None:
+            peak_equity = self.get_and_update_peak_equity(pool_name, total_equity)
+            drawdown_pct = max(0.0, round(((peak_equity - total_equity) / peak_equity) * 100.0, 2)) if peak_equity > 0 else 0.0
+            daily_open_equity = self.get_and_update_daily_open_equity(pool_name, total_equity)
+            daily_drawdown_pct = max(0.0, round(((daily_open_equity - total_equity) / daily_open_equity) * 100.0, 2)) if daily_open_equity > 0 else 0.0
         else:
-            drawdown_pct = max(0.0, round(((peak_equity - total_equity) / peak_equity) * 100.0, 2))
+            peak_equity = None
+            drawdown_pct = None
+            daily_open_equity = None
+            daily_drawdown_pct = None
 
-        # Daily opening equity & Daily Drawdown calculation (Authoritative Requirement 13)
-        daily_open_equity = self.get_and_update_daily_open_equity(pool_name, total_equity)
-        if daily_open_equity <= 0.0:
-            daily_drawdown_pct = 0.0
-        else:
-            daily_drawdown_pct = max(0.0, round(((daily_open_equity - total_equity) / daily_open_equity) * 100.0, 2))
+        data_status = "AUTHENTICATED_LIVE" if (is_live_pool and broker_connected) else ("BROKER_DISCONNECTED" if is_live_pool else "SIMULATION_PAPER")
 
         res = {
             "workspace": target_ws,
             "pool_name": pool_name,
+            "environment": "LIVE" if is_live_pool else "DEMO",
             "currency": pos_snap["currency"],
             "currency_symbol": pos_snap["currency_symbol"],
             "total_equity": total_equity,
             "free_cash": free_cash,
-            "open_positions": open_pos_count,
-            "open_positions_count": open_pos_count,
-            "exposure": total_exposure,
-            "total_exposure": total_exposure,
-            "used_margin": used_margin,
-            "available_margin": max(0.0, round(free_cash, 2)),
-            "unrealized_pnl": unrealized_pnl,
+            "open_positions": open_pos_count if broker_connected else 0,
+            "open_positions_count": open_pos_count if broker_connected else 0,
+            "exposure": total_exposure if broker_connected else 0.0,
+            "total_exposure": total_exposure if broker_connected else 0.0,
+            "used_margin": used_margin if broker_connected else 0.0,
+            "available_margin": max(0.0, round(free_cash, 2)) if (free_cash is not None) else None,
+            "unrealized_pnl": unrealized_pnl if broker_connected else 0.0,
             "realized_pnl": realized_pnl,
             "vault_balance": vault_balance,
             "initial_capital": initial_cap,
             "peak_equity": peak_equity,
-            "drawdown_pct": max(0.0, drawdown_pct),
+            "drawdown_pct": drawdown_pct,
             "daily_opening_equity": daily_open_equity,
-            "daily_drawdown_pct": max(0.0, daily_drawdown_pct),
-            "reconciliation_status": pos_snap["reconciliation_status"],
-            "status": pos_snap["status"],
-            "snapshot": pos_snap
+            "daily_drawdown_pct": daily_drawdown_pct,
+            "reconciliation_status": "RECONCILIATION_OK" if broker_connected else "BROKER_DISCONNECTED",
+            "data_source": data_source,
+            "broker_connected": broker_connected,
+            "is_simulated": is_simulated,
+            "data_status": data_status,
+            "status": "PASS" if broker_connected else "DISCONNECTED",
+            "snapshot": pos_snap if broker_connected else {
+                **pos_snap,
+                "status": "DISCONNECTED",
+                "broker_sync": "DISCONNECTED",
+                "open_position_count": 0,
+                "total_exposure": 0.0,
+                "total_margin": 0.0,
+                "unrealized_pnl": 0.0,
+                "positions": []
+            }
         }
-        self._agg_cache[target_ws] = res
-        self._agg_cache_ts[target_ws] = now
+        self._agg_cache[cache_key] = res
+        self._agg_cache_ts[cache_key] = now
         return res
 
 

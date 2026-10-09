@@ -217,9 +217,13 @@ def test_9_profit_vault_reconciliation_and_isolation():
 
     # 2. Check all 3 workspace aggregates satisfy the financial invariant
     for ws in ["INDIA", "CRYPTO", "FOREX_GOLD"]:
-        agg = position_snapshot_service.get_portfolio_aggregate(ws, force_refresh=True)
+        agg = position_snapshot_service.get_portfolio_aggregate(ws, force_refresh=True, environment="DEMO")
         computed_eq = round(agg["free_cash"] + agg["used_margin"] + agg["unrealized_pnl"] + agg.get("vault_balance", 0.0), 2)
         assert abs(computed_eq - agg["total_equity"]) < 0.05, f"{ws} equity equation failed: {computed_eq} vs {agg['total_equity']}"
+
+        agg_live = position_snapshot_service.get_portfolio_aggregate(ws, force_refresh=True, environment="LIVE")
+        if agg_live.get("data_source") == "DISCONNECTED":
+            assert agg_live["total_equity"] is None, f"{ws} live total equity must be None when disconnected"
 
     # 3. User wallet does not double count live broker equity
     w_live = user_wallet.compute_all(environment="BINANCE_LIVE_REAL")

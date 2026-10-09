@@ -16,12 +16,14 @@ import base64
 import struct
 import hashlib
 import secrets
+import sqlite3
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, List, Optional, Tuple
 
 IST_TZ = timezone(timedelta(hours=5, minutes=30))
 ADMIN_USER_FILE = Path(__file__).resolve().parent.parent / "data" / "admin_users.json"
+TOTP_REPLAY_DB = Path(__file__).resolve().parent.parent / "data" / "aegis_quant.db"
 ADMIN_EMAIL_TARGET = "marvannottath@gmail.com"
 
 def get_ist_time() -> str:
@@ -288,6 +290,76 @@ class SuperAdminEngine:
             if valid_code and hmac.compare_digest(clean_code, valid_code):
                 return True
         return False
+
+    def _init_totp_replay_db(self):
+        """Initialize durable SQLite table for consumed TOTP time-steps."""
+        try:
+            TOTP_REPLAY_DB.parent.mkdir(parents=True, exist_ok=True)
+            with sqlite3.connect(str(TOTP_REPLAY_DB), timeout=30.0) as conn:
+                conn.execute("PRAGMA journal_mode=WAL;")
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS totp_consumed_steps (
+                        admin_username TEXT NOT NULL,
+                        time_counter INTEGER NOT NULL,
+                        consumed_at TEXT NOT NULL,
+                        PRIMARY KEY (admin_username, time_counter)
+                    );
+                """)
+        except Exception as e:
+            print(f"[SUPER ADMIN] Error initializing TOTP replay DB: {e}")
+
+    def verify_and_consume_totp(self, username: str, code: str) -> Tuple[bool, str]:
+        """
+        Strictly verify 6-digit authenticator code and atomically consume its RFC 6238 time-step counter.
+        Durable anti-replay: stores accepted time_counter in SQLite database with PRIMARY KEY constraint.
+        Survives process restarts, application reloads, and multi-worker concurrent requests.
+        Never stores raw TOTP secrets or plaintext codes.
+        """
+        u_key = username.lower().strip()
+        user = self.users.get(u_key)
+        if not user:
+            return False, "USER_NOT_FOUND"
+
+        secret = user.get("totp_secret", "")
+        clean_code = str(code).strip()
+        if not clean_code.isdigit() or len(clean_code) != 6:
+            return False, "INVALID_CODE_FORMAT"
+
+        # Check rate-limiting lockout for this admin
+        is_locked, wait_time = self.check_brute_force_lockout(f"totp:{u_key}")
+        if is_locked:
+            return False, f"RATE_LIMITED:{wait_time}"
+
+        # RFC 6238 standard verification across [-1, 0, +1] 30s windows
+        current_step = int(time.time() // 30)
+        matched_counter = None
+
+        for step in [0, -1, 1]:
+            valid_code = self.generate_totp_code(secret, time_step=step)
+            if valid_code and hmac.compare_digest(clean_code, valid_code):
+                matched_counter = current_step + step
+                break
+
+        if matched_counter is None:
+            self.record_login_failure(f"totp:{u_key}")
+            return False, "INVALID_TOTP"
+
+        # Atomically consume the time-step counter in SQLite
+        try:
+            self._init_totp_replay_db()
+            with sqlite3.connect(str(TOTP_REPLAY_DB), timeout=30.0) as conn:
+                conn.execute("PRAGMA journal_mode=WAL;")
+                conn.execute(
+                    "INSERT INTO totp_consumed_steps (admin_username, time_counter, consumed_at) VALUES (?, ?, ?)",
+                    (u_key, matched_counter, get_ist_time())
+                )
+            self.record_login_success(f"totp:{u_key}")
+            return True, "TOTP_ACCEPTED"
+        except sqlite3.IntegrityError:
+            # Counter has already been recorded for this admin (replay attempt!)
+            return False, "TOTP_REPLAY_DETECTED"
+        except Exception as e:
+            return False, f"PERSISTENCE_ERROR: {e}"
 
     def get_totp_provisioning_uri(self, username: str) -> Dict[str, Any]:
         """Generate standard otpauth:// URI and QR code image URL for Google Authenticator."""
