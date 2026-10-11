@@ -88,6 +88,21 @@ class PositionSnapshotService:
             peaks[pool_name] = round(current_equity, 2)
             self._save_peak_equity(peaks)
             return round(current_equity, 2)
+
+        # Detect cross-contamination / legacy mock residue:
+        # If stored peak is more than 3x the current equity, but no massive realized losses exist on ledger,
+        # recalibrate peak equity to current equity so artificial 90%+ drawdowns never paralyze live trading.
+        if current_equity > 0 and stored_peak > (current_equity * 3.0):
+            try:
+                from core.double_entry_ledger import double_entry_ledger
+                realized_loss = abs(double_entry_ledger.get_account_balance("REALIZED_LOSSES_ACCOUNT", pool_name))
+                if realized_loss < (stored_peak - current_equity) * 0.5:
+                    peaks[pool_name] = round(current_equity, 2)
+                    self._save_peak_equity(peaks)
+                    return round(current_equity, 2)
+            except Exception:
+                pass
+
         return round(stored_peak, 2)
 
     def get_and_update_daily_open_equity(self, pool_name: str, current_equity: float) -> float:

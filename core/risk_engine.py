@@ -167,7 +167,7 @@ class RiskEngine:
         return self.active_profile
 
     def reset_circuit_breaker(self, workspace: str = "CRYPTO") -> Dict[str, Any]:
-        """Reset circuit breaker, clear daily realized loss, and recalibrate peak equity to current equity."""
+        """Reset circuit breaker, clear daily realized loss, and recalibrate peak equity strictly per pool."""
         self.circuit_tripped = False
         self.trip_reason = "NORMAL_OPERATIONS"
         self.daily_realized_loss = 0.0
@@ -177,26 +177,17 @@ class RiskEngine:
             from core.position_snapshot_service import position_snapshot_service
             from core.workspace_manager import workspace_manager
             ws = workspace_manager._normalize_workspace(workspace)
-            meta = workspace_manager.get_workspace_meta(ws)
-            pool_name = meta.get("default_pool", "BINANCE_LIVE_REAL")
-
-            agg = position_snapshot_service.get_portfolio_aggregate(ws, force_refresh=True)
-            cur_eq = float(agg.get("total_equity", 0.0))
-            if cur_eq > 0:
-                position_snapshot_service.recalibrate_peak_equity(pool_name, cur_eq)
-                if ws == "CRYPTO":
-                    position_snapshot_service.recalibrate_peak_equity("BINANCE_LIVE_REAL", cur_eq)
-                    position_snapshot_service.recalibrate_peak_equity("BINANCE_SPOT_REAL", cur_eq)
-                    position_snapshot_service.recalibrate_peak_equity("BINANCE_TESTNET_DEMO", cur_eq)
-                    position_snapshot_service.recalibrate_peak_equity("AEGIS_QUANT_MASTER", cur_eq)
-                elif ws == "INDIA":
-                    position_snapshot_service.recalibrate_peak_equity("AEGIS_INDIA_INR", cur_eq)
-                    position_snapshot_service.recalibrate_peak_equity("UPSTOX_LIVE", cur_eq)
-                    position_snapshot_service.recalibrate_peak_equity("UPSTOX_DEMO", cur_eq)
-                elif ws == "FOREX_GOLD":
-                    position_snapshot_service.recalibrate_peak_equity("MT5_LIVE_REAL", cur_eq)
-                    position_snapshot_service.recalibrate_peak_equity("MT5_DEMO", cur_eq)
-                    position_snapshot_service.recalibrate_peak_equity("FOREX_GOLD", cur_eq)
+            
+            # Recalibrate each environment pool strictly against its OWN authentic balance
+            for env_key in ["DEMO", "LIVE"]:
+                try:
+                    p_name = workspace_manager.get_workspace_pool(ws, environment=env_key)
+                    agg = position_snapshot_service.get_portfolio_aggregate(ws, force_refresh=True, environment=env_key)
+                    eq = float(agg.get("total_equity", 0.0) or 0.0)
+                    if eq > 0:
+                        position_snapshot_service.recalibrate_peak_equity(p_name, eq)
+                except Exception:
+                    pass
         except Exception as e:
             print(f"[RISK ENGINE] Peak recalibration notice: {e}")
 
