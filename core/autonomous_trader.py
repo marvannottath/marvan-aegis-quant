@@ -407,6 +407,12 @@ class AutonomousTrader:
                     pnl_pct = (new_live_price - entry) / entry if act == "BUY" else (entry - new_live_price) / entry
                     pnl_usd = (new_live_price - entry) * units if act == "BUY" else (entry - new_live_price) * units
 
+                    # Dynamically store live PnL in position so UI and broker endpoints see it
+                    pos["pnl_usd"] = round(pnl_usd, 2)
+                    pos["pnl_pct"] = round(pnl_pct * 100, 2)
+                    pos["unrealized_pnl"] = round(pnl_usd, 2)
+                    pos["current_price"] = pos["last_price"]
+
                     # Peak Trailing PnL Tracking
                     highest_pnl = max(pos.get("highest_pnl_pct", 0.0), pnl_pct)
                     pos["highest_pnl_pct"] = highest_pnl
@@ -425,8 +431,11 @@ class AutonomousTrader:
                     is_tsl_tier1 = (highest_pnl >= 0.008) and (pnl_pct <= highest_pnl - 0.0030)
                     is_trailing_stop = is_tsl_tier2 or is_tsl_tier1
 
+                    # Derive position workspace safely
+                    pos_ws = "CRYPTO" if ("USDT" in pos_asset or "BUSD" in pos_asset) else ("FOREX_GOLD" if any(c in pos_asset for c in ["EUR", "GBP", "USD", "XAU"]) else "INDIA")
+
                     # Fee-Aware Scalping & Swing Take-Profit Rules:
-                    if pool in ["MT5_LIVE_REAL", "MT5_DEMO"] or active_ws == "FOREX_GOLD":
+                    if pool in ["MT5_LIVE_REAL", "MT5_DEMO"] or pos_ws == "FOREX_GOLD":
                         is_fee_secured_tp = (pnl_pct >= 0.010)  # +1.0% Forex take profit
                         is_milestone = (pnl_pct >= 0.020)       # +2.0% Milestone profit
                         is_staggered_harvest = ((step_counter + idx) % 15 == 0) and (pnl_usd >= 1.0 and pnl_pct >= 0.008)
@@ -507,7 +516,7 @@ class AutonomousTrader:
                         except Exception:
                             pass
 
-                        if pool == "BINANCE_LIVE_REAL" or active_ws == "CRYPTO":
+                        if pool == "BINANCE_LIVE_REAL" or pos_ws == "CRYPTO":
                             try:
                                 from execution.binance_broker import binance_broker
                                 real_live_cash = binance_broker.get_live_spot_balance("USDT")

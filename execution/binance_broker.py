@@ -72,6 +72,7 @@ class BinanceBroker:
 
         self._exchange_info_cache: Dict[str, Any] = {}
         self._exchange_info_cache_ts: float = 0.0
+        self._entry_price_cache: Dict[str, float] = {}
 
         self._load_config()
 

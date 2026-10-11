@@ -453,6 +453,13 @@ class PaperBroker:
             pos_pnl = max(-cap, pos_pnl)
             unrealized += pos_pnl
 
+            # Dynamic PnL tracking per position
+            pos["unrealized_pnl"] = round(pos_pnl, 2)
+            pos["pnl_usd"] = round(pos_pnl, 2)
+            pos_pct = ((price - entry) / entry if entry > 0 else 0.0) if act in ("BUY", "LONG") else ((entry - price) / entry if entry > 0 else 0.0)
+            pos["pnl_pct"] = round(pos_pct * 100, 2)
+            pos["current_price"] = price
+
         # Process liquidations if triggered
         for l_key, l_price in liquidated_keys:
             print(f"[PAPER_BROKER -> LIQUIDATION]: Position {l_key} liquidated at price {l_price}")

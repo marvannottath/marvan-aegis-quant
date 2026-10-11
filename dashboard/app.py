@@ -2202,17 +2202,17 @@ async def deposit_endpoint(data: dict):
 
 @app.get("/api/vault/full-history")
 async def get_vault_full_history(environment: Optional[str] = None, workspace: Optional[str] = None):
-    """Fetch complete historical ledger of all profit sweeps strictly scoped by environment."""
-    env = "AEGIS_QUANT_MASTER"
-    if environment:
-        e_str = str(environment).strip().upper()
-        if e_str == "LIVE":
-            env = "BINANCE_LIVE_REAL"
-        elif e_str in ("DEMO", "PAPER"):
-            env = "AEGIS_QUANT_MASTER"
-        else:
-            env = e_str
-    return JSONResponse({"history": profit_vault.get_full_sweep_history(environment=env)})
+    """Fetch complete historical ledger of all profit sweeps strictly scoped by environment and workspace."""
+    env_str = str(environment or "DEMO").strip().upper()
+    ws_str = str(workspace or "CRYPTO").strip().upper()
+    try:
+        from core.workspace_manager import workspace_manager
+        pool = workspace_manager.get_workspace_pool(ws_str, environment=env_str)
+    except Exception:
+        pool = "BINANCE_TESTNET_DEMO" if env_str in ("DEMO", "PAPER") else "BINANCE_LIVE_REAL"
+
+    history = profit_vault.get_full_sweep_history(environment=pool)
+    return JSONResponse({"history": history, "pool": pool, "environment": env_str, "workspace": ws_str})
 
 @app.post("/api/vault/sweep-to-binance-funding")
 async def sweep_to_binance_funding_endpoint(request: Request):
