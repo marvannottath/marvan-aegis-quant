@@ -136,21 +136,29 @@ export function TradingProvider({ children }: { children: React.ReactNode }) {
     return pathname.startsWith('/demo') ? 'DEMO' : 'LIVE';
   }, [pathname]);
 
-  // 2. Authoritative Workspace state with persistence
+  // 2. Authoritative Workspace state with persistence (Hydration-Safe)
   const [activeWorkspace, setActiveWorkspace] = useState<Workspace>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('aq_active_workspace') as Workspace;
-      if (saved && ['CRYPTO', 'INDIA', 'FOREX_GOLD'].includes(saved)) return saved;
-    }
-    const clean = pathname.replace(/^\/demo/, '');
+    const clean = pathname ? pathname.replace(/^\/demo/, '') : '';
     if (clean.includes('/india')) return 'INDIA';
     if (clean.includes('/forex-gold')) return 'FOREX_GOLD';
     return 'CRYPTO';
   });
 
+  // Client-side hydration of saved workspace preference
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('aq_active_workspace') as Workspace;
+      const clean = pathname ? pathname.replace(/^\/demo/, '') : '';
+      const isPathSpecific = clean.includes('/india') || clean.includes('/forex-gold') || clean.includes('/crypto');
+      if (!isPathSpecific && saved && ['CRYPTO', 'INDIA', 'FOREX_GOLD'].includes(saved)) {
+        setActiveWorkspace(saved);
+      }
+    }
+  }, []);
+
   // Synchronize when URL path indicates a specific market
   useEffect(() => {
-    const clean = pathname.replace(/^\/demo/, '');
+    const clean = pathname ? pathname.replace(/^\/demo/, '') : '';
     if (clean.startsWith('/india')) {
       setActiveWorkspace('INDIA');
       if (typeof window !== 'undefined') localStorage.setItem('aq_active_workspace', 'INDIA');

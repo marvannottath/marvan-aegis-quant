@@ -4,6 +4,9 @@ import './globals.css';
 import { TradingProvider } from '../context/TradingContext';
 import { AppShell } from '../components/layout/AppShell';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export const metadata: Metadata = {
   title: 'AEGIS QUANT — Institutional Trading Platform',
   description: 'High-frequency algorithmic trading terminal and portfolio management engine',
