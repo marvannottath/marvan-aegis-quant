@@ -186,6 +186,60 @@ export function ConnectBrokerModal({
     }
   };
 
+  const handleSwitchActiveBroker = async (broker: any) => {
+    if (!broker) return;
+    try {
+      setIsSaving(true);
+      setSaveResult(null);
+      const poolMap: Record<string, string> = {
+        binance_demo: 'BINANCE_TESTNET_DEMO',
+        binance_live: 'BINANCE_LIVE_REAL',
+        aegis_demo: 'AEGIS_QUANT_MASTER',
+        mt5_demo: 'MT5_DEMO_POOL',
+        mt5_live: 'MT5_LIVE_REAL',
+        kotak_neo_demo: 'KOTAK_NEO_DEMO_POOL',
+        kotak_neo_live: 'KOTAK_NEO_LIVE_POOL',
+        upstox_demo: 'UPSTOX_DEMO_POOL',
+        upstox_live: 'UPSTOX_LIVE_REAL',
+        zerodha_live: 'ZERODHA_LIVE_POOL',
+      };
+      const pool = poolMap[broker.id] || broker.pool_id || broker.id;
+      const res = await fetch('/api/switch-trading-pool', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pool,
+          workspace: broker.venue || workspace,
+          confirm_live_authorization: environment === 'LIVE',
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.status === 'SUCCESS') {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(`aq_active_broker_${environment}`, broker.id);
+        }
+        setSaveResult({
+          status: 'SUCCESS',
+          message: `Active Broker switched to ${broker.name}! Balances & positions updated for ${environment}.`,
+        });
+        await loadBrokers();
+        await refreshData();
+      } else {
+        setSaveResult({
+          status: 'ERROR',
+          message: data.message || 'Server rejected broker switch',
+        });
+      }
+    } catch (err: any) {
+      setSaveResult({
+        status: 'ERROR',
+        message: err.message || 'Failed to switch active broker',
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -266,29 +320,25 @@ export function ConnectBrokerModal({
               ) : (
                 filteredBrokers.map((b) => {
                   const isSelected = selectedBroker?.id === b.id;
-                  const isConnected = b.status === 'CONNECTED' || b.status === 'ACTIVE';
+                  const isConnected = b.status === 'CONNECTED' || b.status === 'ACTIVE' || b.status === 'ONLINE';
 
                   return (
                     <div
                       key={b.id}
                       onClick={() => handleSelectBroker(b)}
-                      className={`p-3 rounded-lg border transition cursor-pointer flex items-center justify-between ${
+                      className={`p-3 rounded-lg border transition cursor-pointer flex flex-col gap-2 ${
                         isSelected
                           ? 'border-brand bg-blue-50/50 shadow-xs ring-1 ring-brand'
                           : 'border-line hover:border-slate-300 bg-white hover:bg-slate-50'
                       }`}
                     >
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-txt-primary">
-                            {b.name}
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-0.5">
+                          <span className="text-xs font-bold text-txt-primary block">{b.name}</span>
+                          <span className="text-[11px] font-mono text-txt-muted block">
+                            Balance: {typeof b.balance === 'number' ? b.balance.toLocaleString('en-US', { minimumFractionDigits: 2 }) : (b.balance || '0.00')} {b.currency || 'USD'}
                           </span>
                         </div>
-                        <p className="text-[11px] text-txt-muted line-clamp-1">
-                          {b.description || b.venue}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
                         <span
                           className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
                             isConnected
@@ -303,7 +353,25 @@ export function ConnectBrokerModal({
                           />
                           {b.status}
                         </span>
-                        <ChevronRight className="h-4 w-4 text-txt-subtle" />
+                      </div>
+
+                      <div className="flex items-center justify-between pt-1 border-t border-line/50">
+                        <span className="text-[10px] text-txt-muted">{b.venue || b.category}</span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSwitchActiveBroker(b);
+                          }}
+                          disabled={isSaving}
+                          className={`px-2 py-1 rounded text-[10px] font-bold font-mono transition shadow-2xs cursor-pointer ${
+                            isConnected
+                              ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                              : 'bg-brand text-white hover:bg-blue-600'
+                          }`}
+                        >
+                          {isConnected ? '✓ Active Broker' : '⚡ Activate Broker'}
+                        </button>
                       </div>
                     </div>
                   );
@@ -327,6 +395,24 @@ export function ConnectBrokerModal({
                     <p className="text-xs text-txt-muted mt-1">
                       {selectedBroker.description}
                     </p>
+                  </div>
+
+                  {/* 1-Click Activate Broker Button */}
+                  <div className="p-3 bg-blue-50/80 rounded-lg border border-blue-200 flex items-center justify-between gap-2">
+                    <div>
+                      <span className="text-xs font-bold text-txt-primary block">{selectedBroker.name}</span>
+                      <span className="text-[11px] font-mono text-txt-muted">
+                        Live Balance: {typeof selectedBroker.balance === 'number' ? selectedBroker.balance.toLocaleString('en-US', { minimumFractionDigits: 2 }) : (selectedBroker.balance || '0.00')} {selectedBroker.currency || 'USD'}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleSwitchActiveBroker(selectedBroker)}
+                      disabled={isSaving}
+                      className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold font-mono transition shadow-xs cursor-pointer flex items-center gap-1"
+                    >
+                      <span>⚡ Set as Active Broker</span>
+                    </button>
                   </div>
 
                   {/* Form fields */}

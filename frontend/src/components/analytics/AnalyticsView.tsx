@@ -38,6 +38,7 @@ interface DayPnl {
   win_rate?: number;
   net_pnl_usd: number;
   status: 'PROFIT' | 'LOSS' | 'NEUTRAL' | 'FUTURE';
+  trades?: any[];
 }
 
 interface CalendarData {
@@ -55,6 +56,7 @@ export function AnalyticsView() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Modals state
+  const [selectedDay, setSelectedDay] = useState<DayPnl | null>(null);
   const [isTaxModalOpen, setIsTaxModalOpen] = useState<boolean>(false);
   const [taxData, setTaxData] = useState<any>(null);
   const [isFactsheetModalOpen, setIsFactsheetModalOpen] = useState<boolean>(false);
@@ -63,6 +65,34 @@ export function AnalyticsView() {
   const [tunerStatus, setTunerStatus] = useState<any>(null);
   const [isTuning, setIsTuning] = useState<boolean>(false);
   const [tuneResult, setTuneResult] = useState<string | null>(null);
+
+  // Month navigation helpers
+  const [yearStr, monthNumStr] = selectedMonth.split('-');
+  const currYear = parseInt(yearStr || '2026', 10);
+  const currMonthNum = parseInt(monthNumStr || '10', 10);
+
+  const handlePrevMonth = () => {
+    let y = currYear;
+    let m = currMonthNum - 1;
+    if (m < 1) {
+      m = 12;
+      y -= 1;
+    }
+    setSelectedMonth(`${y}-${String(m).padStart(2, '0')}`);
+  };
+
+  const handleNextMonth = () => {
+    let y = currYear;
+    let m = currMonthNum + 1;
+    if (m > 12) {
+      m = 1;
+      y += 1;
+    }
+    setSelectedMonth(`${y}-${String(m).padStart(2, '0')}`);
+  };
+
+  // Day of week of 1st day of month: 0=Sun, 1=Mon, ..., 6=Sat
+  const firstDayWeekday = new Date(currYear, currMonthNum - 1, 1).getDay();
 
   const isLive = environment === 'LIVE';
   const isLiveDisconnected = isLive && (!portfolio || portfolio.broker_connected === false || portfolio.total_equity === null);
@@ -189,11 +219,34 @@ export function AnalyticsView() {
       {/* Monthly PnL Calendar Heatmap */}
       <div className="card-panel overflow-hidden">
         <div className="px-5 py-3.5 border-b border-line bg-slate-50/50 dark:bg-panel-light/30 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-brand" />
-            <h3 className="text-xs font-bold uppercase tracking-wider text-txt-primary">
-              Monthly PnL Calendar Heatmap — {selectedMonth}
-            </h3>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-brand" />
+              <h3 className="text-xs font-bold uppercase tracking-wider text-txt-primary">
+                Monthly PnL Calendar Heatmap
+              </h3>
+            </div>
+
+            {/* Interactive Month Switcher Controls */}
+            <div className="flex items-center bg-white dark:bg-panel border border-line rounded-lg p-0.5 shadow-2xs font-mono text-xs">
+              <button
+                onClick={handlePrevMonth}
+                disabled={isLoading}
+                className="p-1 hover:bg-slate-100 dark:hover:bg-panel-light rounded text-txt-muted hover:text-txt-primary transition cursor-pointer"
+                title="Previous Month"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+              </button>
+              <span className="px-2 font-bold text-txt-primary select-none">{selectedMonth}</span>
+              <button
+                onClick={handleNextMonth}
+                disabled={isLoading}
+                className="p-1 hover:bg-slate-100 dark:hover:bg-panel-light rounded text-txt-muted hover:text-txt-primary transition cursor-pointer"
+                title="Next Month"
+              >
+                <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
           </div>
 
           <div className="flex items-center gap-4 text-xs font-mono">
@@ -231,11 +284,13 @@ export function AnalyticsView() {
 
           {/* Days Cells */}
           <div className="grid grid-cols-7 gap-2">
-            {/* Blank leading days padding for October 2026 (Starts on Thursday, so 4 empty days: Sun, Mon, Tue, Wed) */}
-            <div className="h-20 rounded-lg border border-transparent bg-slate-50/30 dark:bg-panel-light/10 opacity-30" />
-            <div className="h-20 rounded-lg border border-transparent bg-slate-50/30 dark:bg-panel-light/10 opacity-30" />
-            <div className="h-20 rounded-lg border border-transparent bg-slate-50/30 dark:bg-panel-light/10 opacity-30" />
-            <div className="h-20 rounded-lg border border-transparent bg-slate-50/30 dark:bg-panel-light/10 opacity-30" />
+            {/* Dynamic blank leading days padding based on first day of month */}
+            {Array.from({ length: firstDayWeekday }).map((_, idx) => (
+              <div
+                key={`blank-${idx}`}
+                className="h-20 rounded-lg border border-transparent bg-slate-50/30 dark:bg-panel-light/10 opacity-30"
+              />
+            ))}
 
             {days.map((day) => {
               const isGreen = day.status === 'PROFIT' || day.net_pnl_usd > 0;
@@ -245,20 +300,25 @@ export function AnalyticsView() {
               return (
                 <div
                   key={day.date}
-                  className={`h-20 p-2 rounded-lg border flex flex-col justify-between font-mono transition ${
+                  onClick={() => {
+                    if (!isFuture) setSelectedDay(day);
+                  }}
+                  className={`h-20 p-2 rounded-lg border flex flex-col justify-between font-mono transition select-none ${
                     isFuture
-                      ? 'border-line/40 bg-slate-50/40 dark:bg-panel/40 opacity-40'
-                      : isGreen
-                      ? 'border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/15 text-profit'
-                      : isRed
-                      ? 'border-red-500/30 bg-red-500/10 hover:bg-red-500/15 text-loss'
-                      : 'border-line bg-panel-light/40 hover:bg-panel-light/60 text-txt-secondary'
+                      ? 'border-line/40 bg-slate-50/40 dark:bg-panel/40 opacity-40 cursor-not-allowed'
+                      : 'cursor-pointer hover:ring-2 hover:ring-brand/50 hover:shadow-sm ' +
+                        (isGreen
+                          ? 'border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/15 text-profit'
+                          : isRed
+                          ? 'border-red-500/30 bg-red-500/10 hover:bg-red-500/15 text-loss'
+                          : 'border-line bg-panel-light/40 hover:bg-panel-light/60 text-txt-secondary')
                   }`}
+                  title={isFuture ? 'Future Date' : `Click to view trades & telemetry for ${day.date}`}
                 >
                   <div className="flex items-center justify-between text-[11px]">
                     <span className="font-bold">{day.day_of_month}</span>
                     {day.trades_count > 0 && (
-                      <span className="text-[10px] px-1 rounded bg-black/10 dark:bg-white/10">
+                      <span className="text-[10px] px-1 rounded bg-black/10 dark:bg-white/10 font-bold">
                         {day.trades_count}t
                       </span>
                     )}
@@ -285,6 +345,127 @@ export function AnalyticsView() {
           </div>
         </div>
       </div>
+
+      {/* Day Performance Detail Modal */}
+      <Modal
+        isOpen={Boolean(selectedDay)}
+        onClose={() => setSelectedDay(null)}
+        title={`Trading Session Detail — ${selectedDay?.date || ''}`}
+        description="Forensic daily execution logs, win-rate breakdown, and filled order audit."
+        footer={
+          <button
+            onClick={() => setSelectedDay(null)}
+            className="px-4 py-2 rounded-lg bg-slate-200 dark:bg-panel-light hover:bg-slate-300 text-xs font-semibold text-txt-primary cursor-pointer"
+          >
+            Close
+          </button>
+        }
+      >
+        {selectedDay && (
+          <div className="space-y-4">
+            {/* Day KPI Cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="card-panel p-3">
+                <span className="text-[10px] uppercase font-mono text-txt-muted block">Session PnL</span>
+                <span
+                  className={`text-base font-bold font-mono ${
+                    selectedDay.net_pnl_usd >= 0 ? 'text-profit' : 'text-loss'
+                  }`}
+                >
+                  {isFinancialMasked
+                    ? '••••••'
+                    : `${selectedDay.net_pnl_usd >= 0 ? '+' : ''}$${selectedDay.net_pnl_usd.toFixed(2)}`}
+                </span>
+              </div>
+
+              <div className="card-panel p-3">
+                <span className="text-[10px] uppercase font-mono text-txt-muted block">Total Trades</span>
+                <span className="text-base font-bold font-mono text-txt-primary">
+                  {selectedDay.trades_count} orders
+                </span>
+              </div>
+
+              <div className="card-panel p-3">
+                <span className="text-[10px] uppercase font-mono text-txt-muted block">Win Rate</span>
+                <span className="text-base font-bold font-mono text-txt-primary">
+                  {selectedDay.trades_count > 0 ? `${selectedDay.win_rate || 100}%` : '—'}
+                </span>
+              </div>
+
+              <div className="card-panel p-3">
+                <span className="text-[10px] uppercase font-mono text-txt-muted block">Status</span>
+                <span
+                  className={`text-xs font-bold font-mono inline-block px-2 py-0.5 rounded mt-1 ${
+                    selectedDay.status === 'PROFIT'
+                      ? 'bg-emerald-500/20 text-profit'
+                      : selectedDay.status === 'LOSS'
+                      ? 'bg-rose-500/20 text-loss'
+                      : 'bg-slate-200 dark:bg-panel-light text-txt-secondary'
+                  }`}
+                >
+                  {selectedDay.status}
+                </span>
+              </div>
+            </div>
+
+            {/* List of Trades on that Day */}
+            <div>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-txt-primary mb-2">
+                Executed Orders ({selectedDay.trades?.length || 0})
+              </h4>
+              {selectedDay.trades && selectedDay.trades.length > 0 ? (
+                <div className="rounded-lg border border-line overflow-hidden max-h-60 overflow-y-auto">
+                  <table className="w-full text-xs font-mono text-left">
+                    <thead className="bg-slate-100 dark:bg-panel-light text-[10px] uppercase text-txt-muted border-b border-line">
+                      <tr>
+                        <th className="p-2">Symbol</th>
+                        <th className="p-2">Side</th>
+                        <th className="p-2">Qty</th>
+                        <th className="p-2">Price</th>
+                        <th className="p-2 text-right">PnL</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-line">
+                      {selectedDay.trades.map((tr: any, idx: number) => {
+                        const trPnl = parseFloat(tr.net_pnl || tr.pnl_usd || 0);
+                        return (
+                          <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-panel-light/40">
+                            <td className="p-2 font-bold">{tr.symbol || tr.asset || 'BTCUSDT'}</td>
+                            <td className="p-2">
+                              <span
+                                className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                                  (tr.side || 'BUY').toUpperCase() === 'BUY'
+                                    ? 'bg-emerald-500/20 text-profit'
+                                    : 'bg-rose-500/20 text-loss'
+                                }`}
+                              >
+                                {tr.side || 'BUY'}
+                              </span>
+                            </td>
+                            <td className="p-2">{tr.qty || tr.quantity || tr.units || '—'}</td>
+                            <td className="p-2">${tr.price || tr.entry_price || '—'}</td>
+                            <td
+                              className={`p-2 text-right font-bold ${
+                                trPnl >= 0 ? 'text-profit' : 'text-loss'
+                              }`}
+                            >
+                              {trPnl >= 0 ? '+' : ''}${trPnl.toFixed(2)}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="p-6 rounded-lg border border-line bg-slate-50 dark:bg-panel-light/30 text-center text-xs text-txt-muted">
+                  No individual order fills recorded for this session.
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </Modal>
 
       {/* Main Performance Curves */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

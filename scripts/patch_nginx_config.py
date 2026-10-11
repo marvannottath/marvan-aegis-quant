@@ -23,6 +23,15 @@ NGINX_DIRS = [
 ]
 
 API_BLOCK = """
+    # Next.js Static Asset High-Speed Cache (Sub-millisecond delivery)
+    location /_next/static/ {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        expires 365d;
+        access_log off;
+    }
+
     # Aegis-Quant Backend APIs
     location /api/ {
         proxy_pass http://127.0.0.1:8888;
