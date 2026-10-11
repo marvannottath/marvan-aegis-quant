@@ -438,6 +438,28 @@ export function ConnectBrokerModal({
                     ))}
                   </div>
 
+                  {/* Binance Live Specific Checklist */}
+                  {selectedBroker.id === 'binance_live' && (
+                    <div className="p-3 bg-blue-50/90 rounded-lg border border-blue-200 text-blue-950 text-[11px] space-y-1.5">
+                      <div className="font-bold flex items-center gap-1.5 text-blue-900">
+                        <Shield className="h-3.5 w-3.5 text-blue-600" />
+                        <span>Binance Live API Checklist:</span>
+                      </div>
+                      <ul className="list-disc list-inside space-y-1 text-slate-700 pl-0.5">
+                        <li>
+                          <strong>IP Access Restriction:</strong> If your Binance key has IP restrictions enabled, whitelist Hostinger VPS IP:{' '}
+                          <code className="bg-blue-100 text-blue-900 px-1.5 py-0.5 rounded font-mono font-bold select-all">187.127.189.139</code>
+                        </li>
+                        <li>
+                          <strong>Permissions:</strong> In Binance API settings, check <em>Enable Reading</em> & <em>Enable Spot & Margin Trading</em>. (Withdrawals must remain OFF).
+                        </li>
+                        <li>
+                          <strong>Key Expiration:</strong> Binance automatically expires unrestricted API keys after 90 days. If your key is older, create a new key on Binance.
+                        </li>
+                      </ul>
+                    </div>
+                  )}
+
                   {/* Zero-Trust Notice */}
                   <div className="p-3 bg-amber-50 rounded-lg border border-amber-200 text-amber-900 text-[11px] flex items-start gap-2">
                     <Shield className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />

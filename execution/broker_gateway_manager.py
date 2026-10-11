@@ -517,10 +517,11 @@ class BrokerGatewayManager:
                     "is_testnet": is_test
                 }
             else:
+                err_msg = res.get("message") or res.get("error") or "Binance authentication failed: Invalid API key or network error."
                 return {
                     "status": "ERROR",
                     "connected": False,
-                    "message": res.get("message", "Binance authentication failed: Invalid API key or network error.")
+                    "message": err_msg
                 }
 
         elif broker_id in ["mt5_live", "mt5_demo"]:
@@ -647,10 +648,16 @@ class BrokerGatewayManager:
         if broker_id in ["binance_live", "binance_demo"]:
             from execution.binance_broker import binance_broker
             is_testnet = (broker_id == "binance_demo")
-            stat = binance_broker.get_authoritative_status()
-            latency = max(8, int((time.time() - t0) * 1000))
+            api_key = str(payload.get("api_key", "")).strip()
+            secret_key = str(payload.get("secret_key", "")).strip()
+
+            if api_key and secret_key and not api_key.startswith("•"):
+                return binance_broker.probe_credentials(api_key, secret_key, is_testnet=is_testnet)
+
+            conn = binance_broker.check_connectivity("BINANCE_TESTNET" if is_testnet else "BINANCE_LIVE")
+            latency = conn.get("latency_ms", max(8, int((time.time() - t0) * 1000)))
             return {
-                "status": "SUCCESS",
+                "status": "SUCCESS" if conn.get("connected") else "ERROR",
                 "message": f"✅ Ping to Binance {'Testnet' if is_testnet else 'Live'} REST API: {latency}ms (Handshake verified)",
                 "ping_ms": f"{latency}ms"
             }
@@ -714,6 +721,19 @@ class BrokerGatewayManager:
             try:
                 from execution.kotak_neo_broker import kotak_neo_broker
                 kotak_neo_broker.disconnect()
+            except Exception:
+                pass
+        elif broker_id in ["binance_live", "binance_demo"]:
+            try:
+                from execution.binance_broker import binance_broker
+                if broker_id == "binance_live":
+                    binance_broker.live_api_key = ""
+                    binance_broker.live_secret_key = ""
+                else:
+                    binance_broker.demo_api_key = ""
+                    binance_broker.demo_secret_key = ""
+                if hasattr(binance_broker, "_account_info_cache"):
+                    binance_broker._account_info_cache.clear()
             except Exception:
                 pass
         if broker_id in self.connections:

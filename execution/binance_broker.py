@@ -146,7 +146,8 @@ class BinanceBroker:
             self.market_type = "SPOT_LIVE"
 
         if self.api_key and self.secret_key:
-            self.verify_connection()
+            self.status = "CONFIGURED"
+            self.account_balance_usd = 0.0
         else:
             self.status = "NOT_CONFIGURED"
             self.account_balance_usd = 0.0
@@ -378,6 +379,93 @@ class BinanceBroker:
         ).hexdigest()
         return signature, {**params, "signature": signature}
 
+    def _format_binance_error(self, raw_text: str, status_code: Optional[int] = None) -> str:
+        """Parse Binance raw JSON error and produce clear actionable guidance."""
+        msg = str(raw_text)
+        code = None
+        try:
+            if "{" in raw_text and "}" in raw_text:
+                json_part = raw_text[raw_text.find("{"):raw_text.rfind("}")+1]
+                data = json.loads(json_part)
+                code = data.get("code")
+                msg = data.get("msg", raw_text)
+        except Exception:
+            pass
+
+        if code == -2015 or "Invalid API-key, IP, or permissions" in msg:
+            return (
+                "Binance Error (-2015): Invalid API-key, IP, or permissions for action. "
+                "1) If IP Restrictions are enabled on Binance, add server IP: 187.127.189.139. "
+                "2) In API settings, ensure 'Enable Reading' and 'Enable Spot & Margin Trading' are checked. "
+                "3) If this is an older key without IP restrictions, Binance auto-expires it after 90 days."
+            )
+        elif code == -1021 or "Timestamp for this request" in msg:
+            return (
+                "Binance Error (-1021): Request timestamp out of sync with Binance server clock. "
+                "Clock offset has been re-synchronized."
+            )
+        elif code == -1022 or "Signature for this request is not valid" in msg:
+            return (
+                "Binance Error (-1022): Secret Key signature mismatch. "
+                "Please re-copy your Binance API Secret Key without extra spaces."
+            )
+        elif code == -2014 or "API-key format invalid" in msg:
+            return (
+                "Binance Error (-2014): API-key format invalid. Please paste the complete 64-character API Key."
+            )
+        elif "Timeout" in msg or "timed out" in msg:
+            return "Binance Network Timeout: Connection to api.binance.com timed out."
+
+        return f"Binance rejected authentication: {msg}"
+
+    def probe_credentials(self, api_key: str, secret_key: str, is_testnet: bool = False) -> Dict[str, Any]:
+        """Test API key and secret against Binance REST without modifying permanent active state."""
+        clean_key = "".join(c for c in str(api_key).strip() if c.isprintable() and not c.isspace())
+        clean_secret = "".join(c for c in str(secret_key).strip() if c.isprintable() and not c.isspace())
+
+        if not clean_key or not clean_secret:
+            return {"status": "ERROR", "message": "API Key and Secret Key are required."}
+
+        base_url = TESTNET_BASE_URL if is_testnet else LIVE_BASE_URL
+        t0 = time.time()
+        try:
+            self._sync_server_time(base_url)
+            st = self._get_server_time_ms(base_url)
+            params = {"timestamp": st, "recvWindow": 60000}
+            sig, signed_params = self._sign_query(clean_secret, params)
+            headers = {"X-MBX-APIKEY": clean_key}
+
+            resp = requests.get(f"{base_url}/api/v3/account", params=signed_params, headers=headers, timeout=8.0)
+            latency = max(5, int((time.time() - t0) * 1000))
+
+            if resp.status_code == 200:
+                data = resp.json()
+                bals = data.get("balances", [])
+                usdt_free = sum(float(b.get("free", 0)) for b in bals if b.get("asset") in ["USDT", "BUSD", "USDC", "FDUSD"])
+                return {
+                    "status": "SUCCESS",
+                    "connected": True,
+                    "message": f"✅ Binance {'Testnet' if is_testnet else 'Live'} verified! Available: ${usdt_free:,.2f} USDT (Latency: {latency}ms)",
+                    "balance_usd": round(usdt_free, 2),
+                    "ping_ms": f"{latency}ms"
+                }
+            else:
+                formatted = self._format_binance_error(resp.text, resp.status_code)
+                return {
+                    "status": "ERROR",
+                    "connected": False,
+                    "message": formatted
+                }
+        except Exception as e:
+            err_msg = str(e)
+            if "Timeout" in err_msg:
+                err_msg = "Connection timed out reaching Binance REST endpoint."
+            return {
+                "status": "ERROR",
+                "connected": False,
+                "message": f"Binance handshake failed: {err_msg}"
+            }
+
     def _sync_server_time(self, base_url: str = "https://api.binance.com") -> int:
         """Synchronize with Binance server clock to eliminate clock drift."""
         try:
@@ -388,7 +476,7 @@ class BinanceBroker:
                 time_url = f"{base_url}/dapi/v1/time"
             else:
                 time_url = f"{base_url}/api/v3/time"
-            resp = requests.get(time_url, timeout=2.5)
+            resp = requests.get(time_url, timeout=6.0)
             t1 = time.time() * 1000
             if resp.status_code == 200:
                 server_time = resp.json().get("serverTime")
@@ -402,12 +490,12 @@ class BinanceBroker:
         return getattr(self, "_time_offset", 0)
 
     def _get_server_time_ms(self, base_url: str = "https://api.binance.com") -> int:
-        """Return safe timestamp synchronized with Binance server clock with 500ms safety backoff."""
+        """Return safe timestamp synchronized with Binance server clock with 1000ms safety backoff."""
         now_ms = int(time.time() * 1000)
         last_sync = getattr(self, "_last_time_sync", 0)
         if time.time() - last_sync > 30:
             self._sync_server_time(base_url)
-        return int(now_ms + getattr(self, "_time_offset", 0)) - 500
+        return int(now_ms + getattr(self, "_time_offset", 0)) - 1000
 
     def check_connectivity(self, environment: str = "BINANCE_TESTNET") -> Dict[str, Any]:
         """Verify network connectivity and time synchronization with Binance."""
@@ -515,12 +603,13 @@ class BinanceBroker:
             return res_not_cfg
 
         try:
-            st = self._get_server_time_ms()
+            self._sync_server_time(base_url)
+            st = self._get_server_time_ms(base_url)
             params = {"timestamp": st, "recvWindow": 60000}
             sig, signed_params = self._sign_query(sec_k, params)
             headers = {"X-MBX-APIKEY": api_k}
 
-            resp = requests.get(f"{base_url}/api/v3/account", params=signed_params, headers=headers, timeout=2.5)
+            resp = requests.get(f"{base_url}/api/v3/account", params=signed_params, headers=headers, timeout=8.0)
             if resp.status_code == 200:
                 data = resp.json()
                 bals = data.get("balances", [])
@@ -585,7 +674,8 @@ class BinanceBroker:
                 self._account_info_cache_ts[cache_key] = now
                 return acc_res
             else:
-                err_status = "AUTHENTICATION_FAILED" if resp.status_code in [401, 403] else "API_UNAVAILABLE"
+                err_status = "AUTHENTICATION_FAILED" if resp.status_code in [400, 401, 403] else "API_UNAVAILABLE"
+                err_formatted = self._format_binance_error(resp.text, resp.status_code)
                 err_res = {
                     "authenticated": False,
                     "account_status": err_status,
@@ -601,12 +691,18 @@ class BinanceBroker:
                     "account_type": "UNKNOWN",
                     "environment": environment,
                     "balances": [],
-                    "error": f"HTTP {resp.status_code}: {resp.text}"
+                    "error": f"HTTP {resp.status_code}: {resp.text}",
+                    "message": err_formatted
                 }
                 self._account_info_cache[cache_key] = err_res
                 self._account_info_err_ts[cache_key] = now
                 return err_res
         except Exception as e:
+            err_msg = str(e)
+            if "Timeout" in err_msg or "timed out" in err_msg:
+                err_msg = "Binance connection timed out (8.0s). Please verify server internet connection to api.binance.com."
+            else:
+                err_msg = f"Binance connection failed: {err_msg}"
             err_res = {
                 "authenticated": False,
                 "account_status": "API_UNAVAILABLE",
@@ -622,7 +718,8 @@ class BinanceBroker:
                 "account_type": "UNKNOWN",
                 "environment": environment,
                 "balances": [],
-                "error": str(e)
+                "error": str(e),
+                "message": err_msg
             }
             self._account_info_cache[cache_key] = err_res
             self._account_info_err_ts[cache_key] = now
@@ -1755,9 +1852,10 @@ class BinanceBroker:
     # Legacy Compatibility Methods (Preserved for existing routes & tests)
     # ------------------------------------------------------------------ #
 
-    def verify_connection(self) -> Dict[str, Any]:
+    def verify_connection(self, force_refresh: bool = False) -> Dict[str, Any]:
         """Legacy compatibility check."""
-        acc = self.get_account_info("BINANCE_TESTNET" if self.testnet else "BINANCE_LIVE")
+        target_env = "BINANCE_TESTNET" if self.testnet else "BINANCE_LIVE"
+        acc = self.get_account_info(target_env, force_refresh=force_refresh)
         if acc.get("status") == "AUTHENTICATED":
             self.account_balance_usd = acc.get("balance_usd", 0.0)
             self.status = "DEMO_AUTHENTICATED" if self.testnet else "LIVE_TRADING_ACTIVE"
@@ -1766,12 +1864,15 @@ class BinanceBroker:
                 "connected": True,
                 "is_testnet": self.testnet,
                 "balance_usd": self.account_balance_usd,
-                "usdt_free": self.account_balance_usd
+                "usdt_free": self.account_balance_usd,
+                "message": f"✅ Binance {'Testnet' if self.testnet else 'Live'} verified! Balance: ${self.account_balance_usd:,.2f}"
             }
+        err_msg = acc.get("message") or acc.get("error") or "Failed connection"
         return {
             "status": "UNAUTHENTICATED",
             "connected": False,
-            "error": acc.get("error", "Failed connection")
+            "error": err_msg,
+            "message": err_msg
         }
 
     def get_connection_status(self) -> Dict[str, Any]:
@@ -2242,8 +2343,16 @@ class BinanceBroker:
         """Save and cryptographically bind Binance API credentials for target environment."""
         if is_testnet is not None:
             testnet = is_testnet
-        clean_key = api_key.strip()
-        clean_secret = secret_key.strip()
+        clean_key = "".join(c for c in str(api_key).strip() if c.isprintable() and not c.isspace())
+        clean_secret = "".join(c for c in str(secret_key).strip() if c.isprintable() and not c.isspace())
+
+        # Clear caches before test so stale failures don't block
+        if hasattr(self, "_account_info_cache"):
+            self._account_info_cache.clear()
+            self._account_info_cache_ts.clear()
+            self._account_info_err_ts.clear()
+        if hasattr(self, "_auth_status_cache"):
+            self._auth_status_cache = None
 
         if testnet:
             self.demo_api_key = clean_key
@@ -2281,7 +2390,8 @@ class BinanceBroker:
         except Exception as e:
             print(f"[BINANCE] Failed to save config file: {e}")
 
-        return self.verify_connection()
+        res = self.verify_connection(force_refresh=True)
+        return res
 
     def transfer_spot_to_funding(self, amount: float, asset: str = "USDT") -> Dict[str, Any]:
         """
