@@ -14,6 +14,7 @@ export function OrdersTable() {
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
 
   const curr = portfolio?.currency_symbol || '$';
+  const isLiveDisconnected = environment === 'LIVE' && (!portfolio || portfolio.broker_connected === false || portfolio.total_equity === null);
 
   const loadOrders = useCallback(async () => {
     try {
@@ -133,12 +134,16 @@ export function OrdersTable() {
           <tbody className="divide-y divide-line">
             {filteredOrders.length === 0 ? (
               <tr>
-                <td colSpan={9} className="py-12 text-center text-txt-muted">
-                  <div className="flex flex-col items-center justify-center gap-1.5">
+                <td colSpan={9} className="py-14 text-center text-txt-muted">
+                  <div className="flex flex-col items-center justify-center gap-2 max-w-sm mx-auto">
                     <Clock className="h-8 w-8 text-txt-subtle stroke-[1.5]" />
-                    <span className="font-medium text-xs">No orders found for filter: {filterStatus}</span>
-                    <span className="text-[11px] text-txt-subtle">
-                      Authoritative order state machine tracks all lifecycle states.
+                    <span className="font-bold text-xs text-txt-primary">
+                      {isLiveDisconnected ? 'Live Broker Not Connected' : `No orders found (${filterStatus})`}
+                    </span>
+                    <span className="text-[11px] text-txt-muted leading-relaxed">
+                      {isLiveDisconnected
+                        ? 'Zero active live orders. Simulated paper orders are strictly isolated from the Live desk. Connect your broker API to stream live orders.'
+                        : 'Authoritative order state machine tracks all lifecycle transitions in real-time.'}
                     </span>
                   </div>
                 </td>

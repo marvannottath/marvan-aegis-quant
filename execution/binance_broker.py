@@ -2238,8 +2238,10 @@ class BinanceBroker:
     def get_live_my_trades(self, symbol: str = "BTCUSDT", limit: int = 50, environment: str = "BINANCE_LIVE") -> List[Dict[str, Any]]:
         return self.get_execution_fills(environment, symbol, limit)
 
-    def save_credentials(self, api_key: str, secret_key: str, testnet: bool = True) -> Dict[str, Any]:
+    def save_credentials(self, api_key: str, secret_key: str, testnet: bool = True, is_testnet: Optional[bool] = None, **kwargs) -> Dict[str, Any]:
         """Save and cryptographically bind Binance API credentials for target environment."""
+        if is_testnet is not None:
+            testnet = is_testnet
         clean_key = api_key.strip()
         clean_secret = secret_key.strip()
 

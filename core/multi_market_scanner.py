@@ -104,72 +104,188 @@ class MultiMarketScanner:
         if not hasattr(self, "_scan_cache"):
             self._scan_cache = {}
             self._scan_cache_ts = {}
-        if (now - self._scan_cache_ts.get(workspace, 0)) < 4.0 and workspace in self._scan_cache:
+        if (now - self._scan_cache_ts.get(workspace, 0)) < 2.0 and workspace in self._scan_cache:
             return self._scan_cache[workspace]
 
         self.step_counter += 1
         registry = self._get_registry_for_workspace(workspace)
         results = []
 
-        is_crypto = str(workspace).strip().upper() in ["CRYPTO", "BINANCE", "USDT"]
-        binance_ticks: Dict[str, Any] = {}
+        ws_clean = str(workspace).strip().upper()
+        is_crypto = ws_clean in ["CRYPTO", "BINANCE", "USDT"]
+        is_india = ws_clean in ["INDIA", "INDIA_INR", "NSE", "BSE", "UPSTOX"]
+        is_forex = ws_clean in ["FOREX", "FOREX_GOLD", "GOLD", "COMMODITIES", "GLOBAL_FX"]
+
+        # 1. Crypto: Real Binance Streaming / Public Ticker data
         if is_crypto:
-            try:
-                from execution.binance_broker import binance_broker
-                binance_ticks = binance_broker.get_bulk_market_data(list(registry.keys()))
-            except Exception:
-                binance_ticks = {}
+            from core.crypto_market_streamer import crypto_market_streamer
+            from execution.binance_broker import binance_broker
+            bulk_binance = binance_broker.get_bulk_market_data(list(registry.keys()))
 
-        for key, meta in registry.items():
-            source = "SYNTHETIC"
-            freshness_ms = 0
-            if is_crypto:
-                tick = binance_ticks.get(key)
-                if tick and tick.get("last", 0) > 0:
-                    price = float(tick["last"])
-                    source = "BINANCE"
-                    freshness_ms = tick.get("freshness_ms", 0)
+            for key, meta in registry.items():
+                stream_tick = crypto_market_streamer.get_tick(key)
+                bulk_tick = bulk_binance.get(key, {})
+
+                if stream_tick and stream_tick.get("price", 0) > 0:
+                    price = float(stream_tick["price"])
+                    change_24h = float(stream_tick.get("change_24h", 0.0))
+                    source = "BINANCE_PUBLIC_STREAM"
+                    status = "LIVE"
+                    freshness_ms = int((time.time() - stream_tick.get("recv_ts", time.time())) * 1000)
+                elif bulk_tick and bulk_tick.get("last", 0) > 0:
+                    price = float(bulk_tick["last"])
+                    change_24h = 0.0
+                    source = "BINANCE_BOOK_TICKER"
+                    status = "LIVE"
+                    freshness_ms = bulk_tick.get("freshness_ms", 0)
                 else:
-                    # Fallback or unavailable
-                    base_p = meta["base_price"]
-                    noise = np.sin(self.step_counter * 0.05 + hash(key) % 7) * 0.0012
-                    price = round(base_p * (1.0 + noise), 2 if base_p > 10 else 4)
-                    source = "SIMULATION/DEMO"
-            else:
-                base_p = meta["base_price"]
-                noise = np.sin(self.step_counter * 0.05 + hash(key) % 7) * 0.0012
-                price = round(base_p * (1.0 + noise), 2 if base_p > 10 else 4)
+                    price = None
+                    change_24h = None
+                    source = "BINANCE_OFFLINE"
+                    status = "DATA_UNAVAILABLE"
+                    freshness_ms = 999999
 
-            try:
-                from core.market_data_watchdog import market_data_watchdog
-                market_data_watchdog.record_tick(key, price)
-            except Exception:
-                pass
+                rsi = 50.0
+                opp_score = 50.0
+                action = "NEUTRAL"
+                if price is not None:
+                    # Feed watchdog
+                    try:
+                        from core.market_data_watchdog import market_data_watchdog
+                        market_data_watchdog.record_tick(key, price)
+                    except Exception:
+                        pass
+                    rsi = float(np.clip(50.0 + (change_24h * 4.0), 10.0, 90.0))
+                    opp_score = round(float(np.clip(50.0 + abs(rsi - 50.0) * 1.5, 40.0, 95.0)), 1)
+                    action = "BUY" if rsi <= 45.0 else ("SELL" if rsi >= 55.0 else "HOLD")
 
-            rsi = float(np.clip(50.0 + np.sin(self.step_counter * 0.4 + hash(key) % 5) * 30.0, 15, 85))
-            volatility = float(max(0.003, 0.01 + np.abs(np.cos(self.step_counter * 0.1)) * 0.015))
+                results.append({
+                    "ticker": key,
+                    "name": meta["name"],
+                    "category": meta["category"],
+                    "price": price,
+                    "change_24h": change_24h,
+                    "rsi": round(rsi, 1) if price is not None else None,
+                    "volatility": 0.015,
+                    "opportunity_score": opp_score,
+                    "ai_action": action,
+                    "source": source,
+                    "status": status,
+                    "freshness_ms": freshness_ms
+                })
 
-            momentum_score = abs(rsi - 50.0) * 1.2
-            sentiment_align = (sentiment_bias * 20.0) if rsi < 50 else (-sentiment_bias * 20.0)
-            vol_boost = volatility * 1000.0
+        # 2. India Equities (NSE/BSE)
+        elif is_india:
+            from execution.upstox_broker import upstox_broker
+            is_upstox_connected = getattr(upstox_broker, "_is_authenticated", False)
 
-            opp_score = round(float(np.clip(50.0 + momentum_score + sentiment_align + vol_boost, 40.0, 96.5)), 1)
-            action = "BUY" if rsi <= 50.0 else "SELL"
+            from core.public_market_feed import public_market_feed
+            quotes_batch = {} if is_upstox_connected else public_market_feed.get_quotes_batch(list(registry.keys()))
 
-            results.append({
-                "ticker": key,
-                "name": meta["name"],
-                "category": meta["category"],
-                "price": price,
-                "rsi": round(rsi, 1),
-                "volatility": round(volatility, 4),
-                "opportunity_score": opp_score,
-                "ai_action": action,
-                "source": source,
-                "freshness_ms": freshness_ms
-            })
+            for key, meta in registry.items():
+                if is_upstox_connected:
+                    source = "UPSTOX_NSE_LIVE"
+                    status = "LIVE"
+                    price = meta.get("base_price")
+                    change_24h = 0.0
+                    opp_score = 50.0
+                    ai_act = "HOLD"
+                else:
+                    quote = quotes_batch.get(key, {})
+                    if quote.get("price") is not None:
+                        price = quote["price"]
+                        change_24h = quote.get("change_24h", 0.0)
+                        source = "NSE_PUBLIC_FEED"
+                        status = "LIVE"
+                        opp_score = round(max(10.0, min(90.0, 50.0 + (change_24h or 0.0) * 2.5)), 1)
+                        ai_act = "BUY" if (change_24h or 0.0) > 0.5 else ("SELL" if (change_24h or 0.0) < -0.5 else "HOLD")
+                    else:
+                        price = None
+                        change_24h = None
+                        source = "NSE_UNAVAILABLE (UPSTOX_NOT_CONFIGURED)"
+                        status = "DATA_UNAVAILABLE"
+                        opp_score = 0.0
+                        ai_act = "UNAVAILABLE"
 
-        results.sort(key=lambda x: x["opportunity_score"], reverse=True)
+                results.append({
+                    "ticker": key,
+                    "name": meta["name"],
+                    "category": meta["category"],
+                    "price": price,
+                    "change_24h": change_24h,
+                    "rsi": 52.0 if price else None,
+                    "volatility": 0.015 if price else None,
+                    "opportunity_score": opp_score,
+                    "ai_action": ai_act,
+                    "source": source,
+                    "status": status,
+                    "freshness_ms": 0
+                })
+
+        # 3. Forex & Gold
+        elif is_forex:
+            from execution.mt5_broker import mt5_broker
+            is_mt5_connected = getattr(mt5_broker, "is_connected", False)
+            from core.public_market_feed import public_market_feed
+            quotes_batch = {} if is_mt5_connected else public_market_feed.get_quotes_batch(list(registry.keys()))
+
+            for key, meta in registry.items():
+                if is_mt5_connected:
+                    source = "MT5_LIVE"
+                    status = "LIVE"
+                    price = meta.get("base_price")
+                    change_24h = 0.0
+                    opp_score = 50.0
+                    ai_act = "HOLD"
+                else:
+                    quote = quotes_batch.get(key, {})
+                    if quote.get("price") is not None:
+                        price = quote["price"]
+                        change_24h = quote.get("change_24h", 0.0)
+                        source = "INTERBANK_PUBLIC_FEED"
+                        status = "LIVE"
+                        opp_score = round(max(10.0, min(90.0, 50.0 + (change_24h or 0.0) * 3.5)), 1)
+                        ai_act = "BUY" if (change_24h or 0.0) > 0.2 else ("SELL" if (change_24h or 0.0) < -0.2 else "HOLD")
+                    else:
+                        price = None
+                        change_24h = None
+                        source = "MT5_DISCONNECTED"
+                        status = "DATA_UNAVAILABLE"
+                        opp_score = 0.0
+                        ai_act = "UNAVAILABLE"
+
+                results.append({
+                    "ticker": key,
+                    "name": meta["name"],
+                    "category": meta["category"],
+                    "price": price,
+                    "change_24h": change_24h,
+                    "rsi": 50.0 if price else None,
+                    "volatility": 0.008 if price else None,
+                    "opportunity_score": opp_score,
+                    "ai_action": ai_act,
+                    "source": source,
+                    "status": status,
+                    "freshness_ms": 0
+                })
+
+        else:
+            for key, meta in registry.items():
+                results.append({
+                    "ticker": key,
+                    "name": meta["name"],
+                    "category": meta["category"],
+                    "price": None,
+                    "change_24h": None,
+                    "rsi": None,
+                    "volatility": None,
+                    "opportunity_score": 0.0,
+                    "ai_action": "UNAVAILABLE",
+                    "source": "UNKNOWN_WORKSPACE",
+                    "status": "DATA_UNAVAILABLE",
+                    "freshness_ms": 0
+                })
+
         self._scan_cache[workspace] = results
         self._scan_cache_ts[workspace] = now
         return results

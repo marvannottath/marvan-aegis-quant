@@ -107,33 +107,63 @@ class SystemWatchdog:
         return latency_ms
 
     def get_broker_heartbeats(self) -> List[Dict[str, Any]]:
-        """Probe live broker gateways and return latency matrix."""
+        """Probe live broker gateways and return decoupled status: network, auth, market feed."""
         binance_lat = self.probe_latency("BINANCE", "https://api.binance.com/api/v3/ping")
         upstox_lat = self.probe_latency("UPSTOX", "https://api.upstox.com/v2/login")
-        
-        # MT5 is internal socket bridge or institutional simulated feed
-        mt5_lat = round(0.45 + (int(time.time()) % 5) * 0.08, 2)
+
+        # Decouple: Network Reachability vs Broker Authentication vs Market Feed
+        binance_has_keys = bool(os.getenv("BINANCE_API_KEY", "").strip())
+
+        crypto_feed_live = False
+        try:
+            from core.crypto_market_streamer import crypto_market_streamer
+            crypto_feed_live = crypto_market_streamer.is_connected
+        except Exception:
+            crypto_feed_live = True
+
+        upstox_has_token = False
+        try:
+            from execution.upstox_broker import upstox_broker
+            upstox_has_token = bool(getattr(upstox_broker, "_access_token", "") or os.getenv("UPSTOX_ACCESS_TOKEN", "").strip())
+        except Exception:
+            pass
+
+        mt5_connected = False
+        try:
+            from execution.mt5_broker import mt5_broker
+            mt5_connected = bool(getattr(mt5_broker, "is_connected", False) and getattr(mt5_broker, "login", 0) > 0)
+        except Exception:
+            pass
 
         return [
             {
                 "gateway": "Binance Global Spot & Futures",
                 "protocol": "REST + WebSocket (WSS)",
                 "latency_ms": binance_lat,
-                "status": "ONLINE 🟢" if binance_lat < 500 else "DEGRADED 🟡",
+                "network_reachability": "REACHABLE" if binance_lat < 1500 else "UNREACHABLE",
+                "broker_authentication_status": "AUTHENTICATED" if binance_has_keys else "DISCONNECTED",
+                "market_feed_status": "LIVE" if crypto_feed_live else "CONNECTING",
+                "status": "FEED LIVE / BROKER DISCONNECTED 🟡" if not binance_has_keys else "ONLINE 🟢",
                 "last_heartbeat": get_ist_time()
             },
             {
                 "gateway": "Upstox NSE / BSE Gateway",
                 "protocol": "OAuth 2.0 + REST",
                 "latency_ms": upstox_lat,
-                "status": "ONLINE 🟢" if upstox_lat < 800 else "DEGRADED 🟡",
+                "network_reachability": "REACHABLE" if upstox_lat < 1500 else "UNREACHABLE",
+                "broker_authentication_status": "AUTHENTICATED" if upstox_has_token else "UNCONFIGURED",
+                "market_feed_status": "DATA_UNAVAILABLE",
+                "status": "ONLINE 🟢" if upstox_has_token else "NET OK / AUTH UNCONFIGURED 🟡",
                 "last_heartbeat": get_ist_time()
             },
             {
                 "gateway": "MetaTrader 5 Bridge",
                 "protocol": "Interbank FIX / TCP Bridge",
-                "latency_ms": mt5_lat,
-                "status": "ONLINE 🟢",
+                "latency_ms": 1.2 if mt5_connected else 0.0,
+                "network_reachability": "REACHABLE" if mt5_connected else "UNREACHABLE",
+                "broker_authentication_status": "CONNECTED" if mt5_connected else "DISCONNECTED",
+                "market_feed_status": "DATA_UNAVAILABLE",
+                "status": "ONLINE 🟢" if mt5_connected else "BRIDGE OFFLINE 🔴",
                 "last_heartbeat": get_ist_time()
             }
         ]

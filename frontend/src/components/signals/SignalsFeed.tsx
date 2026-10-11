@@ -1,36 +1,75 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { useTradingContext } from '../../context/TradingContext';
-import { AISignal } from '../../lib/types';
-import { api } from '../../lib/api';
 import { Badge } from '../common/Badge';
-import { Cpu, RefreshCw, ArrowUpRight, ArrowDownRight, Compass } from 'lucide-react';
+import { Cpu, RefreshCw, Compass, AlertTriangle, Lock, ArrowUpRight, Activity } from 'lucide-react';
+
+interface SignalOpportunity {
+  symbol: string;
+  ticker?: string;
+  action: string;
+  direction?: string;
+  score: number;
+  confidence: number;
+  rr: string;
+  current_price: number;
+  price: number;
+  entry: number;
+  sl: number;
+  tp: number;
+  timestamp: string;
+  risk_state: string;
+  volatility?: string;
+  fresh?: string;
+  sub_agents?: Record<string, number>;
+}
 
 export function SignalsFeed() {
-  const { workspace, portfolio } = useTradingContext();
-  const [signals, setSignals] = useState<AISignal[]>([]);
-  const [aiInfo, setAiInfo] = useState<any>(null);
+  const router = useRouter();
+  const { workspace, environment, portfolio } = useTradingContext();
+  const [opportunities, setOpportunities] = useState<SignalOpportunity[]>([]);
+  const [activeModel, setActiveModel] = useState<string>('7-Agent Quantitative Ensemble');
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [lastUpdated, setLastUpdated] = useState<string>('—');
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const isFirstLoadRef = useRef<boolean>(true);
 
-  const curr = portfolio?.currency_symbol || '$';
+  const curr = portfolio?.currency_symbol || (workspace === 'INDIA' ? '₹' : '$');
+  const isDataUnavailable = opportunities.length === 0 && !isLoading;
 
-  const loadSignals = async () => {
+  const loadSignals = async (showSpinner: boolean = false) => {
     try {
-      setIsLoading(true);
-      const res = await api.getAiStatus();
-      setAiInfo(res);
-      setSignals(res.signals || []);
-    } catch (err) {
-      console.error('Failed to load AI signals:', err);
+      if (showSpinner) setIsLoading(true);
+      setErrorMsg(null);
+      const res = await fetch(`/api/state?workspace=${workspace}&environment=${environment}`);
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: Failed to load state telemetry`);
+      }
+      const data = await res.json();
+      const opps: SignalOpportunity[] = data.ai_opportunities || [];
+      setOpportunities(opps);
+      setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }));
+      if (data.risk_profile?.profile_name) {
+        setActiveModel(`7-Agent Ensemble (${data.risk_profile.profile_name})`);
+      }
+    } catch (err: any) {
+      console.error('Failed to load signals:', err);
+      setErrorMsg(err?.message || 'Error querying signal pipeline');
     } finally {
       setIsLoading(false);
+      isFirstLoadRef.current = false;
     }
   };
 
   useEffect(() => {
-    loadSignals();
-  }, [workspace]);
+    loadSignals(true);
+    const interval = setInterval(() => {
+      loadSignals(false);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [workspace, environment]);
 
   return (
     <div className="space-y-6">
@@ -48,19 +87,47 @@ export function SignalsFeed() {
               <Badge variant="info">Ensemble v4.2</Badge>
             </div>
             <p className="text-xs text-txt-muted mt-0.5">
-              Active Model: <span className="font-semibold text-txt-primary">{aiInfo?.active_model || 'Deep Ensemble Transformer'}</span> • Confidence Threshold: 70%
+              Active Model: <span className="font-semibold text-txt-primary">{activeModel}</span> • Min Confidence: 70%
             </p>
           </div>
         </div>
 
-        <button
-          onClick={loadSignals}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-line bg-slate-50 hover:bg-slate-100 text-xs font-semibold text-txt-secondary transition"
-        >
-          <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-          <span>Refresh Signals</span>
-        </button>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-emerald-50 border border-emerald-200 text-[11px] font-mono text-emerald-800">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span className="font-bold">LIVE STREAMING (3s Auto-Update)</span>
+            <span className="text-txt-muted text-[10px] hidden sm:inline">• {lastUpdated}</span>
+          </div>
+
+          <button
+            onClick={() => loadSignals(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-line bg-slate-50 hover:bg-slate-100 text-xs font-semibold text-txt-secondary transition"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+            <span>Refresh Now</span>
+          </button>
+        </div>
       </div>
+
+      {/* Notice if no signals available */}
+      {isDataUnavailable && (
+        <div className="p-3.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-start gap-2.5">
+          <Lock className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
+          <div className="space-y-0.5">
+            <span className="font-bold block">{workspace} Signal Evaluation Inactive</span>
+            <span className="text-[11px] text-amber-700 block">
+              No quantitative opportunities currently evaluated for {workspace}. Signals require an active market feed and risk approval.
+            </span>
+          </div>
+        </div>
+      )}
+
+      {errorMsg && (
+        <div className="p-3.5 rounded-lg bg-red-50 border border-red-200 text-loss text-xs flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <span>{errorMsg}</span>
+        </div>
+      )}
 
       {/* Signals Data Grid */}
       <div className="card-panel overflow-hidden">
@@ -68,83 +135,109 @@ export function SignalsFeed() {
           <div className="flex items-center gap-2">
             <Compass className="h-4 w-4 text-brand" />
             <h3 className="text-xs font-bold uppercase tracking-wider text-txt-primary">
-              Live Signal Pipeline
+              Live Signal Pipeline ({workspace} • {environment})
             </h3>
           </div>
           <span className="text-[11px] text-txt-muted font-mono">
-            {signals.length} Signals Evaluated
+            {opportunities.length} Assets Tracked
           </span>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
+          <table className="w-full text-left text-xs font-mono">
             <thead>
-              <tr className="border-b border-line bg-slate-50 text-txt-muted text-[11px] font-semibold uppercase tracking-wider">
+              <tr className="border-b border-line bg-slate-50 text-txt-muted text-[10px] font-semibold uppercase tracking-wider">
                 <th className="py-2.5 px-3">Symbol</th>
                 <th className="py-2.5 px-3">Action</th>
                 <th className="py-2.5 px-3 text-right">Confidence</th>
-                <th className="py-2.5 px-3">Model Engine</th>
-                <th className="py-2.5 px-3">Market Regime</th>
+                <th className="py-2.5 px-3 text-right">Price</th>
                 <th className="py-2.5 px-3 text-right">Entry Target</th>
                 <th className="py-2.5 px-3 text-right">Stop Loss</th>
                 <th className="py-2.5 px-3 text-right">Take Profit</th>
                 <th className="py-2.5 px-3 text-center">R:R Ratio</th>
-                <th className="py-2.5 px-3 text-center">Status</th>
+                <th className="py-2.5 px-3 text-center">Risk Gate</th>
+                <th className="py-2.5 px-3 text-right">Execute / Chart</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-line">
-              {signals.length === 0 ? (
+            <tbody className="divide-y divide-line text-[11px]">
+              {opportunities.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-12 text-center text-txt-muted">
-                    <div className="flex flex-col items-center justify-center gap-1.5">
-                      <Cpu className="h-8 w-8 text-txt-subtle stroke-[1.5]" />
-                      <span className="font-medium text-xs">No active signals meeting confidence threshold</span>
-                      <span className="text-[11px] text-txt-subtle">
-                        High-conviction algorithmic setups appear here as market conditions align.
-                      </span>
-                    </div>
+                  <td colSpan={10} className="py-12 text-center text-txt-muted font-sans">
+                    {isLoading ? 'Evaluating ensemble signals...' : `No signals evaluated for ${workspace}.`}
                   </td>
                 </tr>
               ) : (
-                signals.map((sig) => {
-                  const isBuy = sig.action === 'BUY';
+                opportunities.map((opp, idx) => {
+                  const isActionBuy = opp.action === 'BUY';
+                  const isActionSell = opp.action === 'SELL';
+                  const isDisabled = opp.action === 'DISABLED' || opp.risk_state === 'BLOCKED';
+                  const targetWorkspaceRoute = workspace === 'FOREX_GOLD' ? '/forex-gold' : workspace === 'INDIA' ? '/india' : '/crypto';
+
                   return (
-                    <tr key={sig.signal_id} className="table-row-hover">
-                      <td className="py-2.5 px-3 font-mono font-semibold text-txt-primary">
-                        {sig.symbol}
+                    <tr key={`${opp.symbol}-${idx}`} className="table-row-hover">
+                      <td className="py-2.5 px-3 font-bold text-txt-primary">
+                        {opp.symbol}
                       </td>
                       <td className="py-2.5 px-3">
-                        <Badge variant={isBuy ? 'success' : 'danger'} size="sm">
-                          {sig.action}
-                        </Badge>
+                        <span
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            isDisabled
+                              ? 'bg-slate-100 text-txt-muted'
+                              : isActionBuy
+                              ? 'bg-emerald-50 text-profit border border-emerald-200'
+                              : isActionSell
+                              ? 'bg-red-50 text-loss border border-red-200'
+                              : 'bg-slate-100 text-txt-secondary'
+                          }`}
+                        >
+                          {opp.action}
+                        </span>
                       </td>
-                      <td className="py-2.5 px-3 text-right font-mono font-semibold text-txt-primary">
-                        {(sig.confidence * 100).toFixed(1)}%
+                      <td className="py-2.5 px-3 text-right">
+                        {isDisabled ? (
+                          <span className="text-txt-muted">—</span>
+                        ) : (
+                          <span className="font-bold text-txt-primary">{Number(opp.confidence || opp.score).toFixed(1)}%</span>
+                        )}
                       </td>
-                      <td className="py-2.5 px-3 text-txt-secondary font-medium">
-                        {sig.model || 'Ensemble'}
+                      <td className="py-2.5 px-3 text-right text-txt-primary">
+                        {isDisabled || (opp.price == null && opp.current_price == null) ? (
+                          <span className="text-txt-muted">—</span>
+                        ) : (
+                          `${curr}${Number(opp.price ?? opp.current_price).toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+                        )}
                       </td>
-                      <td className="py-2.5 px-3">
-                        <Badge variant="neutral" size="sm">
-                          {sig.market_regime || 'TRENDING'}
-                        </Badge>
+                      <td className="py-2.5 px-3 text-right text-txt-secondary">
+                        {isDisabled || opp.entry == null ? '—' : `${curr}${Number(opp.entry).toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
                       </td>
-                      <td className="py-2.5 px-3 text-right font-mono tabular-nums text-txt-secondary">
-                        {curr}{Number(sig.entry_price).toFixed(2)}
+                      <td className="py-2.5 px-3 text-right text-loss">
+                        {isDisabled || opp.sl == null ? '—' : `${curr}${Number(opp.sl).toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
                       </td>
-                      <td className="py-2.5 px-3 text-right font-mono tabular-nums text-loss font-semibold">
-                        {curr}{Number(sig.stop_loss).toFixed(2)}
-                      </td>
-                      <td className="py-2.5 px-3 text-right font-mono tabular-nums text-profit font-semibold">
-                        {curr}{Number(sig.take_profit).toFixed(2)}
-                      </td>
-                      <td className="py-2.5 px-3 text-center font-mono font-semibold text-txt-primary">
-                        {sig.risk_reward_ratio ? `1:${sig.risk_reward_ratio.toFixed(1)}` : '1:2.5'}
+                      <td className="py-2.5 px-3 text-right text-profit">
+                        {isDisabled || opp.tp == null ? '—' : `${curr}${Number(opp.tp).toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
                       </td>
                       <td className="py-2.5 px-3 text-center">
-                        <Badge variant="info" size="sm">
-                          {sig.status || 'ACTIVE'}
-                        </Badge>
+                        {isDisabled ? '—' : opp.rr || '2.33'}
+                      </td>
+                      <td className="py-2.5 px-3 text-center">
+                        <span
+                          className={`px-1.5 py-0.5 rounded text-[9px] font-black ${
+                            opp.risk_state === 'APPROVED'
+                              ? 'bg-emerald-50 text-profit'
+                              : 'bg-amber-50 text-amber-700'
+                          }`}
+                        >
+                          {opp.risk_state}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 text-right">
+                        <button
+                          onClick={() => router.push(targetWorkspaceRoute)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-accent-blue/10 text-accent-blue hover:bg-accent-blue/20 font-bold transition-colors text-[10px]"
+                          title={`View ${opp.symbol} chart & trade console`}
+                        >
+                          Trade / Chart &rarr;
+                        </button>
                       </td>
                     </tr>
                   );

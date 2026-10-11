@@ -7,6 +7,7 @@ PaperBroker with Strict 3-Environment Partitioned Namespace Isolation:
 NO static vault_reserve. NO shared ledger leakage. NO ungrounded numbers.
 """
 
+import os
 import json
 import time
 from pathlib import Path
@@ -743,6 +744,7 @@ class PaperBroker:
         # Routing closing order:
         # If USDT_M_FUTURES: call binance futures close if LIVE/TESTNET
         # If SPOT: route spot order
+        is_crypto_asset = any(c in str(asset).upper() for c in ["USDT", "BTC", "ETH", "SOL", "BNB", "XRP"]) or "BINANCE" in self.active_pool_name
         if prod == "USDT_M_FUTURES":
             try:
                 from execution.binance_broker import binance_broker
@@ -939,6 +941,36 @@ class PaperBroker:
         trading_equity = round(self.virtual_cash + used_margin + unrealized_pnl, 2)
         total_platform_assets = round(trading_equity + vault_reserve, 2)
 
+        # Separate: internal ledger mathematical integrity vs external broker reconciliation
+        is_live_pool = "LIVE" in self.active_pool_name.upper() or self.active_pool_name == "BINANCE_LIVE_REAL"
+        broker_auth_connected = False
+        if is_live_pool:
+            if "BINANCE" in self.active_pool_name:
+                binance_has_keys = bool(os.getenv("BINANCE_API_KEY", "").strip())
+                broker_auth_connected = binance_has_keys
+            elif "UPSTOX" in self.active_pool_name or "INDIA" in self.active_pool_name:
+                broker_auth_connected = bool(os.getenv("UPSTOX_ACCESS_TOKEN", "").strip())
+            elif "MT5" in self.active_pool_name:
+                broker_auth_connected = False
+        else:
+            # Paper / demo environments: internal virtual broker is authoritative
+            broker_auth_connected = True
+
+        if is_live_pool and not broker_auth_connected:
+            status = "BROKER_DISCONNECTED"
+            ledger_status = "LEDGER_BALANCED"
+            broker_recon = "BROKER_DISCONNECTED"
+            reported_eq = None
+            delta = None
+            model_exp = "Internal double-entry ledger is mathematically balanced. External broker reconciliation is DISCONNECTED (credentials unconfigured)."
+        else:
+            status = "RECONCILIATION_OK"
+            ledger_status = "LEDGER_BALANCED"
+            broker_recon = "RECONCILIATION_OK"
+            reported_eq = total_platform_assets
+            delta = 0.00
+            model_exp = "Trading Account Equity = Cash + Margin + FloatingPnL | Total Platform Assets = Trading Equity + Secured Vault Reserve"
+
         return {
             "environment": self.active_pool_name,
             "cash": round(self.virtual_cash, 2),
@@ -949,10 +981,12 @@ class PaperBroker:
             "vault_reserve": vault_reserve,
             "total_platform_assets": total_platform_assets,
             "computed_equity": total_platform_assets,
-            "reported_equity": total_platform_assets,
-            "delta": 0.00,
-            "status": "RECONCILIATION_OK",
-            "model_explanation": "Trading Account Equity = Cash + Margin + FloatingPnL | Total Platform Assets = Trading Equity + Secured Vault Reserve"
+            "reported_equity": reported_eq,
+            "delta": delta,
+            "ledger_status": ledger_status,
+            "broker_reconciliation_status": broker_recon,
+            "status": status,
+            "model_explanation": model_exp
         }
 
     def get_account_summary(self) -> Dict[str, Any]:

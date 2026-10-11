@@ -1,5 +1,6 @@
 import React from 'react';
 import { ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react';
+import { useTradingContext } from '../../context/TradingContext';
 
 interface KpiCardProps {
   label: string;
@@ -24,14 +25,20 @@ export function KpiCard({
   tooltip,
   highlight = false,
 }: KpiCardProps) {
+  const { isFinancialMasked } = useTradingContext();
+
   // Format numeric values
   const isDisconnected = value === 'DISCONNECTED' || value === 'UNAVAILABLE';
   const displayValue =
-    typeof value === 'number'
+    isFinancialMasked && typeof value === 'number'
+      ? '••••••'
+      : typeof value === 'number'
       ? value.toLocaleString('en-US', {
           minimumFractionDigits: 2,
           maximumFractionDigits: 2,
         })
+      : isDisconnected
+      ? '—'
       : value ?? '—';
 
   const derivedTrend =
@@ -47,26 +54,28 @@ export function KpiCard({
   return (
     <div
       title={tooltip}
-      className={`card-panel card-panel-hover p-4 flex flex-col justify-between ${
+      className={`card-panel card-panel-hover p-3.5 sm:p-4 flex flex-col justify-between overflow-hidden ${
         highlight ? 'ring-1 ring-brand/30 bg-blue-50/20' : ''
       }`}
     >
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-[12px] font-medium uppercase tracking-wider text-txt-muted">
+      <div className="flex items-center justify-between gap-1.5 min-w-0">
+        <span className="text-[11px] font-bold uppercase tracking-wider text-txt-muted truncate min-w-0">
           {label}
         </span>
         {context && (
-          <span className="text-[11px] font-mono font-medium text-txt-subtle px-1.5 py-0.5 bg-slate-100 rounded">
+          <span className="text-[10px] font-mono font-semibold text-txt-subtle px-1.5 py-0.5 bg-slate-100 dark:bg-panel-light rounded shrink-0 whitespace-nowrap">
             {context}
           </span>
         )}
       </div>
 
-      <div className="mt-2 flex items-baseline gap-1.5">
-        {currency && (
-          <span className="text-sm font-semibold text-txt-muted">{currency}</span>
+      <div className="mt-2 flex items-baseline gap-1 min-w-0">
+        {currency && !isDisconnected && displayValue !== '—' && (
+          <span className="text-xs font-semibold text-txt-muted shrink-0">{currency}</span>
         )}
-        <span className="text-2xl font-bold tracking-tight text-txt-primary tabular-nums">
+        <span className={`font-bold tracking-tight tabular-nums truncate ${
+          isDisconnected ? 'text-txt-muted text-base tracking-normal font-mono' : 'text-xl sm:text-2xl text-txt-primary'
+        }`}>
           {displayValue}
         </span>
       </div>

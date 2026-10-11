@@ -43,6 +43,8 @@ export function PositionsTable({
     }
   };
 
+  const isLiveDisconnected = environment === 'LIVE' && (portfolio === null || portfolio.broker_connected === false || portfolio.total_equity === null || portfolio.status === 'DISCONNECTED');
+
   return (
     <div className="card-panel overflow-hidden flex flex-col">
       {/* Header */}
@@ -52,8 +54,8 @@ export function PositionsTable({
           <h3 className="text-xs font-bold uppercase tracking-wider text-txt-primary">
             Active Broker Positions
           </h3>
-          <Badge variant="neutral" size="sm">
-            {positions.length} Open
+          <Badge variant={isLiveDisconnected ? 'warning' : 'neutral'} size="sm">
+            {isLiveDisconnected ? 'UNAVAILABLE' : `${positions.length} Open`}
           </Badge>
         </div>
 
@@ -87,7 +89,24 @@ export function PositionsTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
-            {positions.length === 0 ? (
+            {isLiveDisconnected ? (
+              <tr>
+                <td
+                  colSpan={showCloseAction ? 11 : 10}
+                  className="py-12 text-center text-txt-muted bg-amber-50/20"
+                >
+                  <div className="flex flex-col items-center justify-center gap-1.5">
+                    <Layers className="h-8 w-8 text-amber-500 stroke-[1.5]" />
+                    <span className="font-semibold text-xs text-amber-900">
+                      Broker Disconnected — Positions Unavailable
+                    </span>
+                    <span className="text-[11px] text-amber-700 max-w-md">
+                      Live broker connection is not authenticated. Open positions cannot be verified until valid broker credentials are configured.
+                    </span>
+                  </div>
+                </td>
+              </tr>
+            ) : positions.length === 0 ? (
               <tr>
                 <td
                   colSpan={showCloseAction ? 11 : 10}
@@ -216,7 +235,7 @@ export function PositionsTable({
                                 Execution Exchange
                               </span>
                               <span className="font-semibold text-txt-primary">
-                                {pos.exchange || 'BINANCE'}
+                                {pos.exchange || (workspace === 'INDIA' ? 'NSE' : workspace === 'FOREX_GOLD' ? 'MT5' : 'BINANCE')}
                               </span>
                             </div>
                             <div>

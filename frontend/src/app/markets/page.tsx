@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTradingContext } from '../../context/TradingContext';
 import { MarketWatchList } from '../../components/overview/MarketWatchList';
 import { CandlestickChart } from '../../components/chart/CandlestickChart';
@@ -8,16 +8,22 @@ import { Badge } from '../../components/common/Badge';
 
 export default function MarketsPage() {
   const { workspace, environment } = useTradingContext();
+  const defaultSym = workspace === 'INDIA' ? 'RELIANCE' : workspace === 'FOREX_GOLD' ? 'XAUUSD' : 'BTCUSDT';
+  const [selectedSymbol, setSelectedSymbol] = useState<string>(defaultSym);
+
+  useEffect(() => {
+    setSelectedSymbol(workspace === 'INDIA' ? 'RELIANCE' : workspace === 'FOREX_GOLD' ? 'XAUUSD' : 'BTCUSDT');
+  }, [workspace]);
 
   const workspaceLabels = {
     CRYPTO: {
       title: 'Crypto Markets',
-      desc: 'Binance Spot Execution Venue • BTC, ETH, SOL, BNB',
+      desc: 'Binance Spot Execution Venue • BTC, ETH, SOL, BNB, XRP, DOGE',
       tag: 'Binance Spot',
     },
     INDIA: {
       title: 'India Equities & Indices',
-      desc: 'NSE / BSE Cash Market & Index Derivatives • RELIANCE, TCS, HDFC, INFY',
+      desc: 'NSE / BSE Cash Market & Index Derivatives • RELIANCE, TCS, HDFC, INFY, NIFTY 50',
       tag: 'NSE Cash',
     },
     FOREX_GOLD: {
@@ -43,12 +49,15 @@ export default function MarketsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <CandlestickChart />
+      <div className="space-y-6">
+        {/* Full-Width Expansive Candlestick Trading Chart */}
+        <div className="w-full">
+          <CandlestickChart initialSymbol={selectedSymbol} onSymbolChange={setSelectedSymbol} />
         </div>
-        <div className="lg:col-span-1">
-          <MarketWatchList />
+
+        {/* Full-Width Live Market Watch List Below Chart */}
+        <div className="w-full">
+          <MarketWatchList onSelectSymbol={setSelectedSymbol} selectedSymbol={selectedSymbol} />
         </div>
       </div>
     </div>

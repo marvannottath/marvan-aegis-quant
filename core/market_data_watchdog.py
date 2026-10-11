@@ -59,7 +59,7 @@ class MarketDataWatchdog:
         violations = []
 
         # Validate price
-        if price <= 0:
+        if price is None or price <= 0:
             violations.append("INVALID_PRICE: zero or negative")
             self._violations[symbol] = self._violations.get(symbol, 0) + 1
 
@@ -82,7 +82,7 @@ class MarketDataWatchdog:
             "processing_time": datetime.fromtimestamp(t_proc, tz=IST_TZ).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3] + " IST",
             "display_time": datetime.fromtimestamp(t_disp, tz=IST_TZ).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3] + " IST",
         }
-        if price > 0:
+        if price is not None and price > 0:
             self._last_price[symbol] = price
 
         return {

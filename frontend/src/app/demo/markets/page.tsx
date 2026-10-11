@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTradingContext } from '../../../context/TradingContext';
 import { MarketWatchList } from '../../../components/overview/MarketWatchList';
 import { CandlestickChart } from '../../../components/chart/CandlestickChart';
@@ -8,6 +8,12 @@ import { Badge } from '../../../components/common/Badge';
 
 export default function DemoMarketsPage() {
   const { workspace, environment } = useTradingContext();
+  const defaultSym = workspace === 'INDIA' ? 'RELIANCE' : workspace === 'FOREX_GOLD' ? 'XAUUSD' : 'BTCUSDT';
+  const [selectedSymbol, setSelectedSymbol] = useState<string>(defaultSym);
+
+  useEffect(() => {
+    setSelectedSymbol(workspace === 'INDIA' ? 'RELIANCE' : workspace === 'FOREX_GOLD' ? 'XAUUSD' : 'BTCUSDT');
+  }, [workspace]);
 
   const workspaceLabels = {
     CRYPTO: {
@@ -43,12 +49,15 @@ export default function DemoMarketsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <CandlestickChart />
+      <div className="space-y-6">
+        {/* Full-Width Expansive Candlestick Trading Chart */}
+        <div className="w-full">
+          <CandlestickChart initialSymbol={selectedSymbol} onSymbolChange={setSelectedSymbol} />
         </div>
-        <div className="lg:col-span-1">
-          <MarketWatchList />
+
+        {/* Full-Width Live Market Watch List Below Chart */}
+        <div className="w-full">
+          <MarketWatchList onSelectSymbol={setSelectedSymbol} selectedSymbol={selectedSymbol} />
         </div>
       </div>
     </div>

@@ -9,26 +9,84 @@ export function KpiHeaderRow() {
 
   const curr = portfolio?.currency_symbol || (workspace === 'INDIA' ? '₹' : '$');
 
-  const isLiveDisconnected = environment === 'LIVE' && (portfolio?.broker_connected === false || portfolio?.total_equity === null);
-  const totalEquity = isLiveDisconnected ? 'DISCONNECTED' : (portfolio?.total_equity ?? capital?.total_equity ?? 0);
-  const availableCash = isLiveDisconnected ? 'DISCONNECTED' : (portfolio?.free_cash ?? capital?.available_cash ?? 0);
-  const tradeableCapital = isLiveDisconnected ? 'DISCONNECTED' : (capital?.tradeable_capital ?? (typeof availableCash === 'number' ? availableCash : 0));
-  const todayPnL = portfolio?.realized_pnl ?? 0;
-  const unrealizedPnL = portfolio?.unrealized_pnl ?? 0;
-  const openPositions = isLiveDisconnected ? 0 : (portfolio?.open_positions_count ?? portfolio?.snapshot?.positions?.length ?? 0);
-  const exposure = isLiveDisconnected ? 0 : (portfolio?.total_exposure ?? portfolio?.used_margin ?? 0);
-  const drawdown = portfolio?.drawdown_pct ?? 0;
+  const isLive = environment === 'LIVE';
+  const isLiveDisconnected = isLive && (portfolio === null || portfolio.broker_connected === false || portfolio.total_equity === null || portfolio.status === 'DISCONNECTED');
+  const isLoading = portfolio === null;
+
+  const totalEquity = isLiveDisconnected
+    ? 'DISCONNECTED'
+    : isLoading
+    ? '—'
+    : portfolio.total_equity !== null && portfolio.total_equity !== undefined
+    ? portfolio.total_equity
+    : 'UNAVAILABLE';
+
+  const availableCash = isLiveDisconnected
+    ? 'DISCONNECTED'
+    : isLoading
+    ? '—'
+    : portfolio.free_cash !== null && portfolio.free_cash !== undefined
+    ? portfolio.free_cash
+    : 'UNAVAILABLE';
+
+  const tradeableCapital = isLiveDisconnected
+    ? 'DISCONNECTED'
+    : isLoading
+    ? '—'
+    : capital?.tradeable_capital !== null && capital?.tradeable_capital !== undefined
+    ? capital.tradeable_capital
+    : typeof availableCash === 'number'
+    ? availableCash
+    : 'UNAVAILABLE';
+
+  const unrealizedPnL = isLiveDisconnected
+    ? 'UNAVAILABLE'
+    : isLoading
+    ? '—'
+    : portfolio.unrealized_pnl !== null && portfolio.unrealized_pnl !== undefined
+    ? portfolio.unrealized_pnl
+    : 'UNAVAILABLE';
+
+  const openPositions = isLiveDisconnected
+    ? 'UNAVAILABLE'
+    : isLoading
+    ? '—'
+    : portfolio.open_positions_count !== null && portfolio.open_positions_count !== undefined
+    ? portfolio.open_positions_count
+    : portfolio.snapshot?.positions
+    ? portfolio.snapshot.positions.length
+    : 'UNAVAILABLE';
+
+  const exposure = isLiveDisconnected
+    ? 'UNAVAILABLE'
+    : isLoading
+    ? '—'
+    : portfolio.total_exposure !== null && portfolio.total_exposure !== undefined
+    ? portfolio.total_exposure
+    : portfolio.used_margin !== null && portfolio.used_margin !== undefined
+    ? portfolio.used_margin
+    : 'UNAVAILABLE';
+
+  const drawdown = isLiveDisconnected
+    ? 'UNAVAILABLE'
+    : isLoading
+    ? '—'
+    : portfolio.drawdown_pct !== null && portfolio.drawdown_pct !== undefined
+    ? `${portfolio.drawdown_pct.toFixed(2)}%`
+    : 'UNAVAILABLE';
 
   const numEquity = typeof totalEquity === 'number' ? totalEquity : 0;
+  const numPnL = typeof unrealizedPnL === 'number' ? unrealizedPnL : 0;
+  const numExposure = typeof exposure === 'number' ? exposure : 0;
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-7 gap-3 sm:gap-4">
       {/* 1. Total Equity */}
       <KpiCard
         label="Total Equity"
         value={totalEquity}
         currency={isLiveDisconnected ? undefined : curr}
-        context={isLiveDisconnected ? 'UNAUTHENTICATED' : environment === 'DEMO' ? 'SIMULATED PAPER' : 'LIVE BROKER'}
+        context={isLiveDisconnected ? 'Offline' : environment === 'DEMO' ? 'Paper' : 'Live'}
         tooltip={isLiveDisconnected ? 'Live broker unauthenticated. Real live credentials required; simulation paper fallback strictly blocked.' : 'Authoritative net equity'}
         highlight={true}
       />
@@ -38,7 +96,7 @@ export function KpiHeaderRow() {
         label="Available Cash"
         value={availableCash}
         currency={isLiveDisconnected ? undefined : curr}
-        context={isLiveDisconnected ? 'UNAVAILABLE' : environment === 'DEMO' ? 'SIMULATED' : 'SETTLED'}
+        context={isLiveDisconnected ? undefined : environment === 'DEMO' ? 'Cash' : 'Settled'}
         tooltip={isLiveDisconnected ? 'Live cash unavailable while broker is disconnected' : 'Free unencumbered liquid cash balance'}
       />
 
@@ -47,46 +105,47 @@ export function KpiHeaderRow() {
         label="Tradeable Capital"
         value={tradeableCapital}
         currency={isLiveDisconnected ? undefined : curr}
-        context={isLiveDisconnected ? 'LOCKED' : 'NET BUFFER'}
+        context={isLiveDisconnected ? undefined : 'Net'}
         tooltip={isLiveDisconnected ? 'Trading locked while broker is disconnected' : 'Deployable tradeable capital strictly subtracting margins, reserves, and safety buffer'}
       />
 
       {/* 4. Unrealized / Today PnL */}
       <KpiCard
         label="Floating PnL"
-        value={isLiveDisconnected ? 0 : unrealizedPnL}
-        currency={curr}
-        trend={unrealizedPnL > 0 ? 'up' : unrealizedPnL < 0 ? 'down' : 'neutral'}
-        change={numEquity > 0 ? (unrealizedPnL / numEquity) * 100 : 0}
+        value={unrealizedPnL}
+        currency={isLiveDisconnected ? undefined : curr}
+        context={undefined}
+        trend={!isLiveDisconnected && numPnL > 0 ? 'up' : !isLiveDisconnected && numPnL < 0 ? 'down' : 'neutral'}
+        change={!isLiveDisconnected && numEquity > 0 ? (numPnL / numEquity) * 100 : undefined}
         changePeriod="equity"
-        tooltip="Real-time floating unrealized mark-to-market PnL"
+        tooltip={isLiveDisconnected ? 'Floating PnL unavailable while broker is disconnected' : 'Real-time floating unrealized mark-to-market PnL'}
       />
 
       {/* 5. Open Positions */}
       <KpiCard
         label="Open Positions"
         value={openPositions}
-        context={workspace}
-        tooltip="Count of active broker open positions"
+        context={isLiveDisconnected ? undefined : workspace}
+        tooltip={isLiveDisconnected ? 'Positions unavailable while broker is disconnected' : 'Count of active broker open positions'}
       />
 
       {/* 6. Total Exposure */}
       <KpiCard
         label="Exposure"
         value={exposure}
-        currency={curr}
-        change={numEquity > 0 ? (exposure / numEquity) * 100 : 0}
+        currency={isLiveDisconnected ? undefined : curr}
+        context={undefined}
+        change={!isLiveDisconnected && numEquity > 0 ? (numExposure / numEquity) * 100 : undefined}
         changePeriod="leverage"
-        tooltip="Gross notional capital exposed in open positions"
+        tooltip={isLiveDisconnected ? 'Exposure unavailable while broker is disconnected' : 'Gross notional capital exposed in open positions'}
       />
 
       {/* 7. Drawdown */}
       <KpiCard
         label="Max Drawdown"
-        value={`${drawdown.toFixed(2)}%`}
-        trend={drawdown > 5 ? 'down' : 'neutral'}
-        context="Peak"
-        tooltip="Peak-to-trough equity drawdown percentage"
+        value={drawdown}
+        context={isLiveDisconnected ? undefined : 'Peak'}
+        tooltip={isLiveDisconnected ? 'Drawdown unavailable while broker is disconnected' : 'Peak-to-trough equity drawdown percentage'}
       />
     </div>
   );

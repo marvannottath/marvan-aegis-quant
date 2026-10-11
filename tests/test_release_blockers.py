@@ -146,7 +146,7 @@ class TestReleaseBlockers(unittest.TestCase):
         self.assertIsNone(d_live.get("free_cash"))
         self.assertFalse(d_live.get("broker_connected"))
         self.assertEqual(d_live.get("data_source"), "DISCONNECTED")
-        self.assertEqual(d_live.get("open_positions_count"), 0)
+        self.assertIsNone(d_live.get("open_positions_count"))
 
     def test_blocker2_capital_breakdown_handles_disconnected_live_broker(self):
         """Verify /api/capital/breakdown gracefully handles disconnected live broker without crashing."""
@@ -403,16 +403,28 @@ class TestReleaseBlockers(unittest.TestCase):
         async def _test():
             # DEMO connection
             async with websockets.connect(f"ws://127.0.0.1:8888/ws?workspace=CRYPTO&environment=DEMO") as ws_demo:
-                msg = await asyncio.wait_for(ws_demo.recv(), timeout=5.0)
-                data = json.loads(msg)
+                data = None
+                for _ in range(10):
+                    msg = await asyncio.wait_for(ws_demo.recv(), timeout=5.0)
+                    parsed = json.loads(msg)
+                    if parsed.get("event_type") == "ENGINE_HEARTBEAT":
+                        data = parsed
+                        break
+                self.assertIsNotNone(data, "Did not receive ENGINE_HEARTBEAT frame")
                 self.assertEqual(data.get("environment"), "DEMO")
                 self.assertEqual(data.get("event_type"), "ENGINE_HEARTBEAT")
                 self.assertIsNotNone(data.get("portfolio_equity"))
 
             # LIVE connection
             async with websockets.connect(f"ws://127.0.0.1:8888/ws?workspace=CRYPTO&environment=LIVE") as ws_live:
-                msg = await asyncio.wait_for(ws_live.recv(), timeout=5.0)
-                data = json.loads(msg)
+                data = None
+                for _ in range(10):
+                    msg = await asyncio.wait_for(ws_live.recv(), timeout=5.0)
+                    parsed = json.loads(msg)
+                    if parsed.get("event_type") == "ENGINE_HEARTBEAT":
+                        data = parsed
+                        break
+                self.assertIsNotNone(data, "Did not receive ENGINE_HEARTBEAT frame")
                 self.assertEqual(data.get("environment"), "LIVE")
                 self.assertEqual(data.get("event_type"), "ENGINE_HEARTBEAT")
                 # When unauthenticated live broker, equity must be None (no paper leak)

@@ -271,6 +271,19 @@ class UpstoxBrokerAdapter(BrokerAdapter):
             "message": "Set UPSTOX_API_KEY, UPSTOX_API_SECRET, and UPSTOX_ACCESS_TOKEN in environment."
         }
 
+    def get_account(self) -> Dict[str, Any]:
+        """Fetch authoritative account details."""
+        return self.get_profile()
+
+    def get_balance(self) -> Dict[str, Any]:
+        """Fetch full balance snapshot."""
+        return self.get_funds()
+
+    def get_available_balance(self) -> float:
+        """Fetch deployable cash/margin balance."""
+        funds = self.get_funds()
+        return float(funds.get("available_margin", 0.0) or funds.get("cash", 0.0))
+
     def get_profile(self) -> Dict[str, Any]:
         """Fetch Upstox user profile. Endpoint: GET /v2/user/profile."""
         if not self._access_token:

@@ -123,9 +123,9 @@ class AITradingController:
         except Exception:
             pass  # Load failure keeps defaults
         
-        # Ensure CRYPTO and FOREX_GOLD default to RUNNING if not explicitly STOPPED
+        # Ensure CRYPTO and FOREX_GOLD default to RUNNING only if not persisted
         for auto_ws in ["CRYPTO", "FOREX_GOLD"]:
-            if self._states.get(auto_ws, {}).get("state") != "STOPPED":
+            if auto_ws not in self._states or not self._states.get(auto_ws, {}).get("state"):
                 self._states.setdefault(auto_ws, {})["state"] = RUNNING
                 self._states[auto_ws]["reason"] = f"Autonomous 24/5 {auto_ws} Cloud Engine Active"
                 self._states[auto_ws]["user"] = "SYSTEM"

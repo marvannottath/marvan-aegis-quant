@@ -115,6 +115,10 @@ class RiskEngine:
                         for ws in self.WORKSPACE_DAILY_LOSS_LIMITS
                     }
                     self._last_reset_date = data.get("last_reset_date", "")
+                    if "active_profile_overrides" in data:
+                        base = dict(PROFILES.get(self.active_profile_name, PROFILES["CONSERVATIVE"]))
+                        base.update(data["active_profile_overrides"])
+                        self.active_profile = base
             except Exception as e:
                 print(f"[RISK ENGINE] Load state notice: {e}")
         self._maybe_reset_daily_loss()
@@ -125,6 +129,7 @@ class RiskEngine:
             with open(RISK_STATE_FILE, "w") as f:
                 json.dump({
                     "active_profile_name": self.active_profile_name,
+                    "active_profile_overrides": getattr(self, "active_profile", {}),
                     "custom_trade_cap_usd": self.custom_trade_cap_usd,
                     "daily_realized_loss": self.daily_realized_loss,
                     "daily_loss_limit_usd": self.daily_loss_limit_usd,
@@ -182,11 +187,16 @@ class RiskEngine:
                 if ws == "CRYPTO":
                     position_snapshot_service.recalibrate_peak_equity("BINANCE_LIVE_REAL", cur_eq)
                     position_snapshot_service.recalibrate_peak_equity("BINANCE_SPOT_REAL", cur_eq)
+                    position_snapshot_service.recalibrate_peak_equity("BINANCE_TESTNET_DEMO", cur_eq)
+                    position_snapshot_service.recalibrate_peak_equity("AEGIS_QUANT_MASTER", cur_eq)
                 elif ws == "INDIA":
                     position_snapshot_service.recalibrate_peak_equity("AEGIS_INDIA_INR", cur_eq)
                     position_snapshot_service.recalibrate_peak_equity("UPSTOX_LIVE", cur_eq)
+                    position_snapshot_service.recalibrate_peak_equity("UPSTOX_DEMO", cur_eq)
                 elif ws == "FOREX_GOLD":
                     position_snapshot_service.recalibrate_peak_equity("MT5_LIVE_REAL", cur_eq)
+                    position_snapshot_service.recalibrate_peak_equity("MT5_DEMO", cur_eq)
+                    position_snapshot_service.recalibrate_peak_equity("FOREX_GOLD", cur_eq)
         except Exception as e:
             print(f"[RISK ENGINE] Peak recalibration notice: {e}")
 
@@ -201,6 +211,34 @@ class RiskEngine:
         self.custom_trade_cap_usd = max(1.0, float(cap_usd))
         self._save_state()
         return self.custom_trade_cap_usd
+
+    def update_risk_limits(
+        self,
+        max_leverage: Optional[float] = None,
+        stop_loss_pct: Optional[float] = None,
+        max_open_positions: Optional[int] = None,
+        daily_loss_limit_usd: Optional[float] = None,
+        custom_trade_cap_usd: Optional[float] = None,
+        circuit_breaker_drawdown_pct: Optional[float] = None
+    ) -> Dict[str, Any]:
+        """Update active risk profile limits or custom bounds manually."""
+        self.active_profile = dict(self.active_profile)
+        if max_leverage is not None and float(max_leverage) > 0:
+            self.active_profile["max_leverage"] = float(max_leverage)
+            self.active_profile["default_leverage"] = float(max_leverage)
+        if stop_loss_pct is not None and float(stop_loss_pct) > 0:
+            self.active_profile["stop_loss_pct"] = float(stop_loss_pct)
+        if max_open_positions is not None and int(max_open_positions) > 0:
+            self.active_profile["max_open_positions"] = int(max_open_positions)
+        if daily_loss_limit_usd is not None and float(daily_loss_limit_usd) > 0:
+            self.daily_loss_limit_usd = float(daily_loss_limit_usd)
+        if custom_trade_cap_usd is not None and float(custom_trade_cap_usd) > 0:
+            self.custom_trade_cap_usd = float(custom_trade_cap_usd)
+        if circuit_breaker_drawdown_pct is not None and float(circuit_breaker_drawdown_pct) > 0:
+            self.max_drawdown_pct = float(circuit_breaker_drawdown_pct)
+            self.active_profile["circuit_breaker_drawdown_pct"] = float(circuit_breaker_drawdown_pct)
+        self._save_state()
+        return self.get_profile_summary()
 
     def get_profile_summary(self) -> Dict[str, Any]:
         return {
@@ -475,6 +513,8 @@ class RiskEngine:
 
         return {
             "active_profile": self.active_profile_name,
+            "active_profile_name": self.active_profile_name,
+            "max_drawdown_pct": self.max_drawdown_pct,
             "profile_details": self.active_profile,
             "workspace": ws_key,
             "currency": currency,
