@@ -264,6 +264,8 @@ export function TradingProvider({ children }: { children: React.ReactNode }) {
     if (isOverview) {
       const nextPath = isDemo ? `/demo/${wsSlug}` : `/${wsSlug}`;
       router.push(nextPath);
+    } else {
+      router.replace(`${pathname}?workspace=${wsSlug}`);
     }
   }, [environment, pathname, router]);
 

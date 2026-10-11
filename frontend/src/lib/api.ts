@@ -158,9 +158,30 @@ export const api = {
     return fetchJson('/api/kill-switch/status');
   },
 
-  // AI & Signals
-  async getAiStatus(): Promise<{ status: string; signals?: AISignal[]; active_model?: string; confidence_threshold?: number }> {
+  // AI & Autonomous Trading Controller
+  async getAiStatus(): Promise<{ status: string; ai_states?: Record<string, { state: string; reason: string; user?: string; timestamp?: string; is_execution_allowed: boolean }> }> {
     return fetchJson('/api/ai/status');
+  },
+
+  async pauseAiTrading(workspace: Workspace): Promise<any> {
+    return fetchJson('/api/ai/pause', {
+      method: 'POST',
+      body: JSON.stringify({ workspace, reason: 'MANUAL_PAUSE', user: 'OPERATOR' }),
+    });
+  },
+
+  async resumeAiTrading(workspace: Workspace): Promise<any> {
+    return fetchJson('/api/ai/resume', {
+      method: 'POST',
+      body: JSON.stringify({ workspace, user: 'OPERATOR' }),
+    });
+  },
+
+  async triggerEmergencyKillSwitch(): Promise<any> {
+    return fetchJson('/api/emergency-kill-switch/toggle', {
+      method: 'POST',
+      body: JSON.stringify({ confirmation_token: 'CONFIRM_KILL', action: 'ENGAGE' }),
+    });
   },
 
   // Markets

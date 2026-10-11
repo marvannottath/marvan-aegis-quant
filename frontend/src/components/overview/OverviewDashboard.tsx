@@ -7,6 +7,7 @@ import { PerformanceCurveChart } from '../chart/PerformanceCurveChart';
 import { PositionsTable } from '../positions/PositionsTable';
 import { MarketWatchList } from './MarketWatchList';
 import { OrdersTable } from '../orders/OrdersTable';
+import { AIAutoTradeControl } from '../common/AIAutoTradeControl';
 import { useTradingContext } from '../../context/TradingContext';
 
 export function OverviewDashboard() {
@@ -23,7 +24,10 @@ export function OverviewDashboard() {
       {/* 1. Top KPI Row */}
       <KpiHeaderRow />
 
-      {/* 2. Primary Candlestick Chart (Full-Width, expansive institutional view) */}
+      {/* 2. AI Autonomous Trading Control Strip */}
+      <AIAutoTradeControl variant="banner" />
+
+      {/* 3. Primary Candlestick Chart (Full-Width, expansive institutional view) */}
       <div className="w-full">
         <CandlestickChart initialSymbol={selectedSymbol} onSymbolChange={setSelectedSymbol} />
       </div>

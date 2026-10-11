@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { Workspace } from '../../lib/types';
 import { ConnectBrokerModal } from '../common/ConnectBrokerModal';
+import { AIAutoTradeControl } from '../common/AIAutoTradeControl';
 
 export function TopHeader() {
   const {
@@ -153,6 +154,9 @@ export function TopHeader() {
 
         {/* Right: Clean, Unified Tools Bar */}
         <div className="flex items-center gap-2 md:gap-3">
+          {/* AI Autonomous Trading Engine Pill & Action Toggle */}
+          <AIAutoTradeControl variant="compact" />
+
           {/* Subtle Broker Connection Status (Only shows clean Connect Broker pill when disconnected) */}
           {isLiveDisconnected ? (
             <button
