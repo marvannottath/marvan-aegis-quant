@@ -161,7 +161,7 @@ export function PerformanceCurveChart({
   const ranges: Array<'1D' | '1W' | '1M' | '3M' | 'ALL'> = ['1D', '1W', '1M', '3M', 'ALL'];
 
   return (
-    <div className="card-panel flex flex-col overflow-hidden">
+    <div id="performance-section" className="card-panel flex flex-col overflow-hidden scroll-mt-20">
       <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-line bg-slate-50/50">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">

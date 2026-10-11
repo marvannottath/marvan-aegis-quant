@@ -246,6 +246,15 @@ class AutonomousTrader:
                             else:
                                 current_cash = float(self.broker.pools.get(pool, {}).get("virtual_cash", self.broker.virtual_cash))
 
+                            # Quarantined Profit Vault Invariant:
+                            # Autonomous AI trader sizes trades strictly using active working capital, NEVER touching quarantined vault profits.
+                            try:
+                                from execution.profit_vault import profit_vault
+                                vault_locked = float(profit_vault.get_vault_balance(pool))
+                            except Exception:
+                                vault_locked = 0.0
+                            working_cash = max(0.0, round(current_cash - vault_locked, 2))
+
                             calc_leverage = base_lev
                             if pool in ["AEGIS_INDIA_INR", "UPSTOX_DEMO", "UPSTOX_LIVE"] or _active_ws == "INDIA":
                                 calc_leverage = min(5.0, calc_leverage)
@@ -253,15 +262,21 @@ class AutonomousTrader:
                             # Dynamic position sizing within risk engine limits
                             max_cap = float(getattr(self.risk_engine, "custom_trade_cap_usd", 4000.0))
                             if pool == "BINANCE_LIVE_REAL":
-                                if current_cash < 5.0:
+                                if working_cash < 5.0:
                                     continue
-                                size_usd = min(current_cash * 0.4, 6.00) if current_cash < 50.0 else min(max_cap * 0.75, self.risk_engine.calculate_position_size(current_cash, volatility, opp_score))
+                                size_usd = min(working_cash * 0.4, 6.00) if working_cash < 50.0 else min(max_cap * 0.75, self.risk_engine.calculate_position_size(working_cash, volatility, opp_score))
                             elif pool in ["BINANCE_TESTNET_DEMO", "BINANCE_DEMO"] or _active_ws == "CRYPTO":
-                                size_usd = min(max_cap * 0.75, max(50.0, round(current_cash * 0.005, 2)))
+                                if working_cash < 10.0:
+                                    continue
+                                size_usd = min(max_cap * 0.75, max(50.0, round(working_cash * 0.005, 2)))
                             elif pool in ["MT5_LIVE_REAL", "MT5_DEMO"] or _active_ws == "FOREX_GOLD":
-                                size_usd = min(max_cap * 0.75, max(100.0, round(current_cash * 0.005, 2)))
+                                if working_cash < 20.0:
+                                    continue
+                                size_usd = min(max_cap * 0.75, max(100.0, round(working_cash * 0.005, 2)))
                             else:
-                                size_usd = min(max_cap * 0.75, self.risk_engine.calculate_position_size(current_cash, volatility, opp_score))
+                                if working_cash < 10.0:
+                                    continue
+                                size_usd = min(max_cap * 0.75, self.risk_engine.calculate_position_size(working_cash, volatility, opp_score))
 
                             is_risk_valid, _ = self.risk_engine.validate_order(size_usd, calc_leverage, len(self.broker.positions))
                             if is_risk_valid and size_usd >= 5.0:

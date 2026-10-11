@@ -6176,11 +6176,36 @@ async def get_orders_list(environment: Optional[str] = None, env: Optional[str] 
                 b_stat = binance_broker.get_authoritative_status() or {}
                 if not b_stat.get("is_authenticated", False):
                     return JSONResponse({"status": "SUCCESS", "orders": [], "count": 0})
-            target_env = "PAPER" if e_str in ("DEMO", "TESTNET", "SANDBOX") else e_str
-            orders = [o for o in orders if o.get("environment", "").upper() in (target_env, e_str)]
+                orders = [o for o in orders if any(k in o.get("environment", "").upper() for k in ("LIVE", "REAL"))]
+            elif e_str in ("DEMO", "TESTNET", "SANDBOX", "PAPER"):
+                orders = [o for o in orders if any(k in o.get("environment", "").upper() for k in ("DEMO", "TESTNET", "PAPER", "SANDBOX"))]
+            else:
+                orders = [o for o in orders if e_str in o.get("environment", "").upper()]
+
         if workspace:
             norm_ws = "FOREX_GOLD" if str(workspace).upper() in ["FOREX", "FOREX_GOLD"] else str(workspace).upper()
-            orders = [o for o in orders if o.get("workspace", o.get("metadata", {}).get("workspace", "")).upper() in (norm_ws, "")]
+            filtered = []
+            for o in orders:
+                o_ws = str(o.get("workspace") or o.get("metadata", {}).get("workspace", "")).upper()
+                if o_ws == norm_ws:
+                    filtered.append(o)
+                    continue
+                sym = str(o.get("symbol", "")).upper()
+                if norm_ws in ("CRYPTO", "CRYPTO_BINANCE"):
+                    if sym.endswith("USDT") or any(c in sym for c in ["BTC", "ETH", "SOL", "BNB", "XRP", "DOGE"]):
+                        filtered.append(o)
+                elif norm_ws in ("INDIA", "INDIAN_EQUITY_OPTIONS"):
+                    if sym.endswith(".NS") or sym.endswith(".BO") or sym in ["NIFTY", "BANKNIFTY", "RELIANCE", "TCS", "INFY", "HDFCBANK", "ICICIBANK", "TATAMOTORS"]:
+                        filtered.append(o)
+                elif norm_ws in ("FOREX", "FOREX_GOLD"):
+                    if any(sym.startswith(c) for c in ["EUR", "GBP", "USD", "AUD", "NZD", "XAU"]):
+                        filtered.append(o)
+                elif not o_ws:
+                    filtered.append(o)
+            orders = filtered
+
+        # Sort descending by timestamp so newest orders appear first
+        orders = sorted(orders, key=lambda x: str(x.get("created_at") or x.get("submitted_at") or ""), reverse=True)
         return JSONResponse({"status": "SUCCESS", "orders": orders, "count": len(orders)})
     except Exception as e:
         return JSONResponse({"status": "ERROR", "message": str(e), "orders": [], "count": 0}, status_code=500)

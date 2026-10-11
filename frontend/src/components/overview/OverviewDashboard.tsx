@@ -8,6 +8,7 @@ import { PositionsTable } from '../positions/PositionsTable';
 import { MarketWatchList } from './MarketWatchList';
 import { OrdersTable } from '../orders/OrdersTable';
 import { AIAutoTradeControl } from '../common/AIAutoTradeControl';
+import { ProfitVaultOverviewCard } from './ProfitVaultOverviewCard';
 import { useTradingContext } from '../../context/TradingContext';
 
 export function OverviewDashboard() {
@@ -27,7 +28,10 @@ export function OverviewDashboard() {
       {/* 2. AI Autonomous Trading Control Strip */}
       <AIAutoTradeControl variant="banner" />
 
-      {/* 3. Primary Candlestick Chart (Full-Width, expansive institutional view) */}
+      {/* 3. Secured Profit Vault & Capital Quarantine Reserve */}
+      <ProfitVaultOverviewCard />
+
+      {/* 4. Primary Candlestick Chart (Full-Width, expansive institutional view) */}
       <div className="w-full">
         <CandlestickChart initialSymbol={selectedSymbol} onSymbolChange={setSelectedSymbol} />
       </div>

@@ -46,7 +46,7 @@ export function PositionsTable({
   const isLiveDisconnected = environment === 'LIVE' && (portfolio === null || portfolio.broker_connected === false || portfolio.total_equity === null || portfolio.status === 'DISCONNECTED');
 
   return (
-    <div className="card-panel overflow-hidden flex flex-col">
+    <div id="positions-section" className="card-panel overflow-hidden flex flex-col scroll-mt-20">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-line bg-slate-50/50">
         <div className="flex items-center gap-2">

@@ -12,6 +12,7 @@ interface KpiCardProps {
   trend?: 'up' | 'down' | 'neutral';
   tooltip?: string;
   highlight?: boolean;
+  onClick?: () => void;
 }
 
 export function KpiCard({
@@ -24,6 +25,7 @@ export function KpiCard({
   trend,
   tooltip,
   highlight = false,
+  onClick,
 }: KpiCardProps) {
   const { isFinancialMasked } = useTradingContext();
 
@@ -53,20 +55,34 @@ export function KpiCard({
 
   return (
     <div
-      title={tooltip}
-      className={`card-panel card-panel-hover p-3.5 sm:p-4 flex flex-col justify-between overflow-hidden ${
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      title={tooltip ? `${tooltip}${onClick ? ' (Click to navigate)' : ''}` : onClick ? 'Click to navigate' : undefined}
+      className={`card-panel card-panel-hover p-3.5 sm:p-4 flex flex-col justify-between overflow-hidden transition-all duration-150 ${
+        onClick ? 'cursor-pointer hover:border-brand/60 hover:shadow-md active:scale-[0.985] group select-none' : ''
+      } ${
         highlight ? 'ring-1 ring-brand/30 bg-blue-50/20' : ''
       }`}
     >
       <div className="flex items-center justify-between gap-1.5 min-w-0">
-        <span className="text-[11px] font-bold uppercase tracking-wider text-txt-muted truncate min-w-0">
+        <span className={`text-[11px] font-bold uppercase tracking-wider truncate min-w-0 ${
+          onClick ? 'text-txt-muted group-hover:text-brand transition-colors' : 'text-txt-muted'
+        }`}>
           {label}
         </span>
-        {context && (
-          <span className="text-[10px] font-mono font-semibold text-txt-subtle px-1.5 py-0.5 bg-slate-100 dark:bg-panel-light rounded shrink-0 whitespace-nowrap">
-            {context}
-          </span>
-        )}
+        <div className="flex items-center gap-1 shrink-0">
+          {context && (
+            <span className="text-[10px] font-mono font-semibold text-txt-subtle px-1.5 py-0.5 bg-slate-100 dark:bg-panel-light rounded shrink-0 whitespace-nowrap">
+              {context}
+            </span>
+          )}
+          {onClick && (
+            <span className="text-[10px] font-mono text-txt-subtle opacity-0 group-hover:opacity-100 transition-opacity">
+              ↗
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="mt-2 flex items-baseline gap-1 min-w-0">

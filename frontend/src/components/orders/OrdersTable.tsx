@@ -19,14 +19,14 @@ export function OrdersTable() {
   const loadOrders = useCallback(async () => {
     try {
       setIsLoading(true);
-      const data = await api.getOrders(environment);
+      const data = await api.getOrders(environment, workspace);
       setOrders(data);
     } catch (err) {
       console.error('Failed to load orders:', err);
     } finally {
       setIsLoading(false);
     }
-  }, [environment]);
+  }, [environment, workspace]);
 
   useEffect(() => {
     loadOrders();
@@ -75,16 +75,16 @@ export function OrdersTable() {
   };
 
   return (
-    <div className="card-panel overflow-hidden flex flex-col">
+    <div id="orders-section" className="card-panel overflow-hidden flex flex-col scroll-mt-20">
       {/* Header & Status Filter Tabs */}
       <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-line bg-slate-50/50">
         <div className="flex items-center gap-2">
           <BarChart3 className="h-4 w-4 text-brand" />
-          <h3 className="text-xs font-bold uppercase tracking-wider text-txt-primary">
-            Orders Terminal
+          <h3 className="text-xs font-bold uppercase tracking-wider text-txt-primary" title="Immutable audit log of all market executions, broker transitions, and order lifecycle events">
+            Order Execution History & Terminal
           </h3>
-          <span className="text-xs font-mono text-txt-muted">
-            ({orders.length} total)
+          <span className="text-xs font-mono font-semibold text-brand px-1.5 py-0.5 bg-blue-50 border border-brand/20 rounded">
+            {orders.length} Audited
           </span>
         </div>
 

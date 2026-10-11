@@ -190,9 +190,10 @@ export const api = {
   },
 
   // Orders & Execution
-  async getOrders(env: Environment): Promise<OrderRecord[]> {
+  async getOrders(env: Environment, ws?: Workspace): Promise<OrderRecord[]> {
     try {
-      const res = await fetchJson<{ orders?: OrderRecord[] }>(`/api/orders?environment=${env}`);
+      const wsParam = ws ? `&workspace=${ws}` : '';
+      const res = await fetchJson<{ orders?: OrderRecord[] }>(`/api/orders?environment=${env}${wsParam}`);
       return res.orders || [];
     } catch {
       return [];
