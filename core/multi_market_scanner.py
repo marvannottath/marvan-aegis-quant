@@ -120,22 +120,37 @@ class MultiMarketScanner:
         if is_crypto:
             from core.crypto_market_streamer import crypto_market_streamer
             from execution.binance_broker import binance_broker
-            bulk_binance = binance_broker.get_bulk_market_data(list(registry.keys()))
-
-            # Fetch 24hr stats from Binance REST API if available
+            
+            # Rely primarily on real-time WebSocket stream (0 REST request weight)
             binance_24h_stats = {}
-            try:
-                import requests
-                symbols_param = '["' + '","'.join(registry.keys()) + '"]'
-                r_24h = requests.get('https://api.binance.com/api/v3/ticker/24hr', params={'symbols': symbols_param}, timeout=2.0)
-                if r_24h.status_code == 200:
-                    for item in r_24h.json():
-                        binance_24h_stats[item.get("symbol", "").upper()] = {
-                            "last": float(item.get("lastPrice", 0.0)),
-                            "change_24h": float(item.get("priceChangePercent", 0.0))
-                        }
-            except Exception:
-                pass
+            bulk_binance = {}
+
+            # Check if any symbols are completely missing from WebSocket stream before attempting REST
+            now = time.time()
+            if not hasattr(self, "_binance_24h_cache"):
+                self._binance_24h_cache = {}
+                self._binance_24h_cache_ts = 0.0
+
+            missing_stream = [k for k in registry.keys() if not crypto_market_streamer.get_tick(k)]
+            if missing_stream and (now - self._binance_24h_cache_ts) > 60.0 and not binance_broker.is_rate_limited():
+                try:
+                    import requests
+                    symbols_param = '["' + '","'.join(missing_stream) + '"]'
+                    r_24h = requests.get('https://api.binance.com/api/v3/ticker/24hr', params={'symbols': symbols_param}, timeout=2.0)
+                    if r_24h.status_code == 200:
+                        for item in r_24h.json():
+                            self._binance_24h_cache[item.get("symbol", "").upper()] = {
+                                "last": float(item.get("lastPrice", 0.0)),
+                                "change_24h": float(item.get("priceChangePercent", 0.0))
+                            }
+                        self._binance_24h_cache_ts = now
+                    elif r_24h.status_code in (418, 429):
+                        binance_broker._handle_rate_limit_response(r_24h)
+                        self._binance_24h_cache_ts = now + 300.0
+                except Exception:
+                    self._binance_24h_cache_ts = now + 60.0
+
+            binance_24h_stats = getattr(self, "_binance_24h_cache", {})
 
             for key, meta in registry.items():
                 stream_tick = crypto_market_streamer.get_tick(key)

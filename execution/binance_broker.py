@@ -73,8 +73,28 @@ class BinanceBroker:
         self._exchange_info_cache: Dict[str, Any] = {}
         self._exchange_info_cache_ts: float = 0.0
         self._entry_price_cache: Dict[str, float] = {}
+        self._ip_banned_until: float = 0.0
 
         self._load_config()
+
+    def is_rate_limited(self) -> bool:
+        """Check if Binance has placed a temporary IP rate limit on this server."""
+        return time.time() < getattr(self, "_ip_banned_until", 0.0)
+
+    def _handle_rate_limit_response(self, resp_or_json: Any):
+        """Parse Binance -1003 / HTTP 429 response and enter safe backoff."""
+        try:
+            data = resp_or_json.json() if hasattr(resp_or_json, "json") else (resp_or_json if isinstance(resp_or_json, dict) else {})
+            msg = str(data.get("msg", ""))
+            if "IP banned until" in msg:
+                import re
+                match = re.search(r"IP banned until (\d+)", msg)
+                if match:
+                    self._ip_banned_until = int(match.group(1)) / 1000.0
+                    return
+            self._ip_banned_until = time.time() + 300.0
+        except Exception:
+            self._ip_banned_until = time.time() + 300.0
 
     # ------------------------------------------------------------------ #
     # Credential Resolution & Safe Loading
@@ -414,6 +434,11 @@ class BinanceBroker:
             return (
                 "Binance Error (-2014): API-key format invalid. Please paste the complete 64-character API Key."
             )
+        elif code == -1003 or "Way too much request weight" in msg or "IP banned" in msg:
+            self._handle_rate_limit_response({"msg": msg})
+            rem_sec = max(0, int(getattr(self, "_ip_banned_until", time.time()) - time.time()))
+            dt_str = datetime.fromtimestamp(self._ip_banned_until, tz=IST_TZ).strftime("%H:%M:%S IST")
+            return f"Binance REST Rate Limit (-1003): IP is temporarily restricted until {dt_str} (~{rem_sec // 60}m {rem_sec % 60}s remaining). Outbound requests are paused to allow the ban to expire."
         elif "Timeout" in msg or "timed out" in msg:
             return "Binance Network Timeout: Connection to api.binance.com timed out."
 
@@ -426,6 +451,14 @@ class BinanceBroker:
 
         if not clean_key or not clean_secret:
             return {"status": "ERROR", "message": "API Key and Secret Key are required."}
+
+        if not is_testnet and self.is_rate_limited():
+            rem_sec = max(0, int(self._ip_banned_until - time.time()))
+            dt_str = datetime.fromtimestamp(self._ip_banned_until, tz=IST_TZ).strftime("%H:%M:%S IST")
+            return {
+                "status": "ERROR",
+                "message": f"Binance REST IP rate limit is currently active. The restriction will automatically lift at {dt_str} (~{rem_sec // 60}m {rem_sec % 60}s remaining). Please wait until then."
+            }
 
         base_url = TESTNET_BASE_URL if is_testnet else LIVE_BASE_URL
         t0 = time.time()
@@ -581,6 +614,31 @@ class BinanceBroker:
                         return cached
 
         api_k, sec_k, base_url, is_testnet = self._get_credentials_for_env(environment)
+        if not is_testnet and self.is_rate_limited():
+            cached = self._account_info_cache.get(cache_key)
+            if cached and cached.get("authenticated"):
+                res_copy = dict(cached)
+                res_copy["data_source"] = "CACHED_LAST_KNOWN"
+                return res_copy
+            rem_sec = max(0, int(self._ip_banned_until - time.time()))
+            dt_str = datetime.fromtimestamp(self._ip_banned_until, tz=IST_TZ).strftime("%H:%M:%S IST")
+            return {
+                "authenticated": False,
+                "account_status": "IP_RATE_LIMITED",
+                "status": "IP_RATE_LIMITED",
+                "data_source": "RATE_LIMITED",
+                "available_balance": 0.0,
+                "locked_balance": 0.0,
+                "balance_usd": 0.0,
+                "total_equity": 0.0,
+                "permissions": [],
+                "server_timestamp": now_ms,
+                "environment": environment,
+                "balances": [],
+                "error": "HTTP 429: Too much request weight used",
+                "message": f"Binance REST rate limit active. Outbound requests paused. Ban automatically lifts at {dt_str} (~{rem_sec // 60}m {rem_sec % 60}s remaining)."
+            }
+
         if not api_k or not sec_k:
             res_not_cfg = {
                 "authenticated": False,
@@ -1346,6 +1404,12 @@ class BinanceBroker:
                 target_set = set(s.upper() for s in symbols)
                 return {k: v for k, v in self._bulk_ticker_cache.items() if k in target_set}
             return self._bulk_ticker_cache
+
+        if self.is_rate_limited():
+            if symbols and self._bulk_ticker_cache:
+                target_set = set(s.upper() for s in symbols)
+                return {k: v for k, v in self._bulk_ticker_cache.items() if k in target_set}
+            return self._bulk_ticker_cache or {}
 
         t_recv = time.time()
         t_recv_ms = int(t_recv * 1000)
