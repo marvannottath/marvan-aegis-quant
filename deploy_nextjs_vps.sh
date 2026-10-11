@@ -108,61 +108,11 @@ systemctl restart aegis-frontend.service
 echo "✓ aegis-frontend.service (Next.js port 3000) restarted."
 
 # Step 6: Configure Nginx to reverse proxy Next.js (port 3000) and API (port 8888)
-echo "[6/6] Updating Nginx reverse proxy configuration..."
-NGINX_CONF="/etc/nginx/sites-available/aegis-quant"
+echo "[6/6] Updating Nginx reverse proxy configuration across all ports (80 & 443 SSL)..."
 
-# Create or update Nginx configuration
-cat << 'EOF' > "$NGINX_CONF"
-server {
-    listen 80;
-    server_name srv1799665.hstgr.cloud 187.127.189.139;
-
-    # Backend API endpoints
-    location /api/ {
-        proxy_pass http://127.0.0.1:8888;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_read_timeout 300s;
-        proxy_connect_timeout 75s;
-    }
-
-    # WebSocket streams
-    location /ws {
-        proxy_pass http://127.0.0.1:8888;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_read_timeout 3600s;
-    }
-
-    # Next.js Frontend (port 3000)
-    location / {
-        proxy_pass http://127.0.0.1:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_read_timeout 120s;
-    }
-}
-EOF
-
-ln -sf "$NGINX_CONF" /etc/nginx/sites-enabled/aegis-quant || true
-
-# Test Nginx and reload
-if nginx -t >/dev/null 2>&1; then
-    systemctl reload nginx
-    echo "✓ Nginx reloaded successfully!"
-else
-    echo "⚠️ Nginx test returned an issue, keeping existing config or check with 'nginx -t'."
-fi
+# Run authoritative Python patcher to update all active Nginx files (including SSL 443)
+cd "$APP_DIR"
+python3 scripts/patch_nginx_config.py
 
 echo "===================================================================="
 echo "🎉 DEPLOYMENT COMPLETE!"
