@@ -195,12 +195,12 @@ export function ConnectBrokerModal({
         binance_demo: 'BINANCE_TESTNET_DEMO',
         binance_live: 'BINANCE_LIVE_REAL',
         aegis_demo: 'AEGIS_QUANT_MASTER',
-        mt5_demo: 'MT5_DEMO_POOL',
+        mt5_demo: 'MT5_DEMO',
         mt5_live: 'MT5_LIVE_REAL',
         kotak_neo_demo: 'KOTAK_NEO_DEMO_POOL',
         kotak_neo_live: 'KOTAK_NEO_LIVE_POOL',
-        upstox_demo: 'UPSTOX_DEMO_POOL',
-        upstox_live: 'UPSTOX_LIVE_REAL',
+        upstox_demo: 'UPSTOX_DEMO',
+        upstox_live: 'UPSTOX_LIVE',
         zerodha_live: 'ZERODHA_LIVE_POOL',
       };
       const pool = poolMap[broker.id] || broker.pool_id || broker.id;
@@ -223,7 +223,13 @@ export function ConnectBrokerModal({
           message: `Active Broker switched to ${broker.name}! Balances & positions updated for ${environment}.`,
         });
         await loadBrokers();
-        await refreshData();
+        if (refreshData) {
+          try {
+            await refreshData();
+          } catch (e) {
+            console.error('refreshData notice:', e);
+          }
+        }
       } else {
         setSaveResult({
           status: 'ERROR',

@@ -372,7 +372,18 @@ class PaperBroker:
             real_b = binance_broker.get_live_spot_balance("USDT")
             cap = capital or (real_b if real_b > 0 else 14.70)
         else:
-            cap = capital or (19950.55 if target_name == "BINANCE_TESTNET_DEMO" else 100000.0)
+            conn_bal = 0.0
+            try:
+                from execution.broker_gateway_manager import broker_gateway_manager
+                if target_name in ["BINANCE_TESTNET_DEMO", "BINANCE_DEMO"]:
+                    conn_bal = float(broker_gateway_manager.connections.get("binance_demo", {}).get("balance", 0.0))
+                elif target_name == "MT5_DEMO":
+                    conn_bal = float(broker_gateway_manager.connections.get("mt5_demo", {}).get("balance", 0.0))
+                elif target_name in ["UPSTOX_DEMO", "AEGIS_INDIA_INR"]:
+                    conn_bal = float(broker_gateway_manager.connections.get("upstox_demo", {}).get("balance", 0.0))
+            except Exception:
+                pass
+            cap = capital or (conn_bal if conn_bal > 0 else (19950.55 if target_name == "BINANCE_TESTNET_DEMO" else 100000.0))
 
         self.pools[target_name] = {
             "initial_capital": cap,

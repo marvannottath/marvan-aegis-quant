@@ -91,81 +91,37 @@ class AutonomousTrader:
                 time.sleep(2.5)  # Fast 2.5-second institutional tick cycle
                 step_counter += 1
 
-                # ── Phase 5C Gate A: AI Trading Controller Check ──────────────
-                # Must be checked FIRST — server-side enforcement.
+                # ── Phase 5C Gate A: AI Trading Controller & Multi-Workspace Check ───
                 from core.workspace_manager import workspace_manager as _wsm
                 from core.ai_trading_controller import ai_trading_controller as _aic
-                _active_ws = _wsm.get_active_workspace()
-                if _active_ws not in ("CRYPTO", "FOREX_GOLD", "INDIA"):
-                    _active_ws = "FOREX_GOLD"
-                _ai_state = _aic.get_state(_active_ws)
-                if _ai_state != "RUNNING" and _ai_state != "STOPPED":
-                    _aic.set_state(_active_ws, "RUNNING", user="SYSTEM", reason="Auto-Active for MT5/Forex")
-                    _ai_state = "RUNNING"
-
-                if _ai_state not in ("RUNNING",):
-                    # Signal may be computed for analytics but NEVER executed
-                    if step_counter % 8 == 0:  # Log every ~20s to avoid spam
-                        self._log_action(
-                            asset="AI_CONTROLLER",
-                            action="BLOCKED",
-                            price=0.0,
-                            amount_usd=0.0,
-                            reasoning=f"SIGNAL GENERATED — EXECUTION BLOCKED — Reason: AI {_ai_state} for {_active_ws}"
-                        )
-                    continue
-
-                # ── Phase 5C Gate B: Market Session Check ─────────────────────
                 from core.market_session_engine import market_session_engine as _mse
-                _session_state = _mse.get_state(_active_ws)
-
-                if _session_state in ("CLOSED", "HALTED", "HOLIDAY"):
-                    # Auto-block AI if market closed and AI is still RUNNING
-                    if _ai_state == "RUNNING":
-                        _aic.auto_block_for_market_close(_active_ws)
-                    if step_counter % 8 == 0:
-                        self._log_action(
-                            asset="MARKET_SESSION",
-                            action="BLOCKED",
-                            price=0.0,
-                            amount_usd=0.0,
-                            reasoning=f"SIGNAL GENERATED — EXECUTION BLOCKED — Reason: MARKET {_session_state}"
-                        )
-                    continue
-                elif _session_state == "CLOSING_SOON":
-                    # Warn but continue (existing orders can complete, new entries still blocked via Gate 22)
-                    if step_counter % 4 == 0:
-                        self._log_action(
-                            asset="MARKET_SESSION",
-                            action="CLOSING_SOON",
-                            price=0.0,
-                            amount_usd=0.0,
-                            reasoning=f"CLOSING_SOON — {_active_ws} session ending in <5 minutes — new entries blocked at Gate 22"
-                        )
-                    # For CLOSING_SOON: don't initiate new entries in this tick
-                    continue
-
-                # ── Phase 5C Gate C: Drawdown Circuit Breaker Check ──────────
                 from core.risk_engine import risk_engine as _re
-                _dd_ok, _dd_val, _dd_reason = _re.evaluate_drawdown(_active_ws)
-                if not _dd_ok or _re.circuit_tripped:
-                    if _ai_state == "RUNNING":
-                        _aic.auto_block_for_drawdown(_active_ws, _dd_val, _re.max_drawdown_pct)
-                    if step_counter % 8 == 0:
-                        self._log_action(
-                            asset="CIRCUIT_BREAKER",
-                            action="BLOCKED",
-                            price=0.0,
-                            amount_usd=0.0,
-                            reasoning=f"SIGNAL GENERATED — EXECUTION BLOCKED — Reason: {_dd_reason}"
-                        )
-                    continue
+                from core.environment_gate import environment_gate
+
+                # Determine all workspaces currently enabled for AI trading
+                candidate_ws_list = ["CRYPTO", "FOREX_GOLD", "INDIA"]
+                running_workspaces = [w for w in candidate_ws_list if _aic.get_state(w) == "RUNNING"]
+                if not running_workspaces:
+                    _cur = _wsm.get_active_workspace()
+                    if _aic.get_state(_cur) not in ("STOPPED", "PAUSED"):
+                        _aic.set_state(_cur, "RUNNING", user="SYSTEM", reason="Autonomous Trading Loop Active")
+                        running_workspaces = [_cur]
+                    else:
+                        if step_counter % 12 == 0:
+                            self._log_action(
+                                asset="AI_CONTROLLER",
+                                action="PAUSED",
+                                price=0.0,
+                                amount_usd=0.0,
+                                reasoning="Autonomous trading paused — resume via header AI toggle"
+                            )
+                        continue
 
                 # 0. US Macro News Lockout Halt Check
                 is_news_locked, lock_reason = economic_filter.is_news_lockout_active()
                 if is_news_locked:
                     self.broker.ai_active = False
-                    if step_counter % 4 == 0:
+                    if step_counter % 8 == 0:
                         self._log_action(
                             asset="MACRO_NEWS",
                             action="PAUSED",
@@ -173,226 +129,226 @@ class AutonomousTrader:
                             amount_usd=0.0,
                             reasoning=f"AUTO-PAUSED: {lock_reason}"
                         )
-                    continue  # Strict halt: no trading ticks during news lockout
+                    continue
                 else:
                     self.broker.ai_active = True
-                step_counter += 1
+
                 sentiment_score = daily_sync.current_alignment_score
 
+                # Process opportunities for each active workspace
+                for _active_ws in running_workspaces:
+                    # ── Gate B: Market Session Check ─────────────────────────────
+                    _session_state = _mse.get_state(_active_ws)
+                    if _session_state in ("CLOSED", "HALTED", "HOLIDAY"):
+                        if step_counter % 12 == 0:
+                            self._log_action(
+                                asset="MARKET_SESSION",
+                                action="BLOCKED",
+                                price=0.0,
+                                amount_usd=0.0,
+                                reasoning=f"MARKET {_session_state} for {_active_ws} — waiting for open"
+                            )
+                        continue
+                    elif _session_state == "CLOSING_SOON":
+                        continue
 
-                # 1. Scan Cross-Market Opportunities across all 12 global assets
-                scanned_assets = multi_scanner.scan_all_opportunities(sentiment_score)
+                    # ── Gate C: Drawdown Circuit Breaker Check ───────────────────
+                    _dd_ok, _dd_val, _dd_reason = _re.evaluate_drawdown(_active_ws)
+                    if not _dd_ok or _re.circuit_tripped:
+                        if step_counter % 8 == 0:
+                            self._log_action(
+                                asset="CIRCUIT_BREAKER",
+                                action="BLOCKED",
+                                price=0.0,
+                                amount_usd=0.0,
+                                reasoning=f"DRAWDOWN BREAKER: {_dd_reason}"
+                            )
+                        continue
 
-                # Log live tick scan into stream and record watchdog freshness
-                if scanned_assets:
-                    for s_asset in scanned_assets:
+                    # 1. Determine active pool for this workspace
+                    pool = _wsm.get_workspace_pool(_active_ws)
+                    is_live_pool = pool in ["BINANCE_LIVE_REAL", "MT5_LIVE_REAL", "UPSTOX_LIVE"] or "LIVE" in pool.upper()
+
+                    # Safety invariant: if live trading is locked by server policy, route to testnet/demo pool
+                    if is_live_pool and not environment_gate.LIVE_TRADING_ENABLED:
+                        if _active_ws == "CRYPTO":
+                            pool = "BINANCE_TESTNET_DEMO"
+                        elif _active_ws == "FOREX_GOLD":
+                            pool = "MT5_DEMO"
+                        elif _active_ws == "INDIA":
+                            pool = "UPSTOX_DEMO"
+
+                    self.broker.switch_pool(pool)
+
+                    # Sync connected Binance Testnet balance if present
+                    if pool == "BINANCE_TESTNET_DEMO":
                         try:
-                            from core.market_data_watchdog import market_data_watchdog
-                            market_data_watchdog.record_tick(s_asset["ticker"], s_asset["price"])
+                            from execution.broker_gateway_manager import broker_gateway_manager
+                            conn_bal = float(broker_gateway_manager.connections.get("binance_demo", {}).get("balance", 0.0))
+                            cur_p_cash = float(self.broker.pools.get("BINANCE_TESTNET_DEMO", {}).get("virtual_cash", 0.0))
+                            if conn_bal > 0 and (cur_p_cash <= 20000.0 or cur_p_cash == 19950.55):
+                                self.broker.pools.setdefault("BINANCE_TESTNET_DEMO", {})["virtual_cash"] = conn_bal
+                                self.broker.pools.setdefault("BINANCE_TESTNET_DEMO", {})["equity"] = conn_bal
+                                self.broker.virtual_cash = conn_bal
+                                self.broker.equity = conn_bal
                         except Exception:
                             pass
-                    top = scanned_assets[step_counter % len(scanned_assets)]
-                    self._log_action(
-                        asset=top["ticker"],
-                        action="SCAN",
-                        price=top["price"],
-                        amount_usd=0.0,
-                        reasoning=f"Scanning Live Ticks: {top['category']} Opp Score {top['opportunity_score']}% ({top['ai_action']})"
-                    )
 
-                # 2. Determine target capacity and leverage based on active risk profile
-                profile_name = self.risk_engine.active_profile.get("name", "CONSERVATIVE")
-                target_capacity = int(self.risk_engine.active_profile.get("max_open_positions", 4))
-                if _active_ws == "CRYPTO":
-                    target_capacity = max(2, target_capacity)
-                base_lev = float(self.risk_engine.active_profile.get("default_leverage", 2.0))
+                    # 2. Risk profile & Capacity
+                    profile_name = self.risk_engine.active_profile.get("name", "CONSERVATIVE")
+                    target_capacity = int(self.risk_engine.active_profile.get("max_open_positions", 4))
+                    if _active_ws == "CRYPTO":
+                        target_capacity = max(3, target_capacity)
+                    base_lev = float(self.risk_engine.active_profile.get("default_leverage", 2.0))
 
-                # 3. New Position Entry Evaluation (Pool-Aware Asset Filtering)
-                from core.workspace_manager import workspace_manager
-                active_ws = _active_ws
-                pool = workspace_manager.get_workspace_pool(active_ws)
-                self.broker.switch_pool(pool)
-                filtered_scanned = multi_scanner.scan_workspace(active_ws, sentiment_score)
+                    # 3. Scan workspace opportunities
+                    filtered_scanned = multi_scanner.scan_workspace(_active_ws, sentiment_score)
 
-                if len(self.broker.positions) < target_capacity and filtered_scanned:
-                    for item in filtered_scanned:
-                        ticker = item["ticker"]
-                        if ticker in self.broker.positions:
-                            continue
-                        if len(self.broker.positions) >= target_capacity:
-                            break
-
-                        current_price = item["price"]
-                        rsi = item["rsi"]
-                        volatility = item["volatility"]
-                        action_signal = item["ai_action"]
-                        opp_score = item["opportunity_score"]
-
-                        # Fast Micro-Scalping Opportunity Gate: Fee-Aware Fast Entry
-                        profile_name = self.risk_engine.active_profile_name
-                        # For CRYPTO / Binance Live: 75% threshold (90% was too strict — no trades ever placed)
-                        if pool == "BINANCE_LIVE_REAL" or active_ws == "CRYPTO":
-                            min_opp_threshold = 75.0
-                        else:
-                            min_opp_threshold = 70.0
-
-                        if opp_score < min_opp_threshold:
-                            continue
-
-                        # Spot Market Rule: New entry must always be BUY (cannot short sell unowned coins on Spot)
-                        if pool == "BINANCE_LIVE_REAL" or active_ws == "CRYPTO":
-                            if action_signal == "SELL":
+                    if len(self.broker.positions) < target_capacity and filtered_scanned:
+                        for item in filtered_scanned:
+                            ticker = item["ticker"]
+                            if ticker in self.broker.positions:
                                 continue
-                            act = "BUY"
-                        else:
-                            act = "BUY" if action_signal != "SELL" else "SELL"
+                            if len(self.broker.positions) >= target_capacity:
+                                break
 
-                        # ── MULTI-TIMEFRAME (MTF) CONFLUENCE FILTER ────────
-                        try:
-                            from core.mtf_confluence import mtf_confluence_engine
-                            mtf_check = mtf_confluence_engine.analyze_structure(
-                                symbol=ticker,
-                                current_price=current_price,
-                                action=act,
-                                micro_rsi=rsi,
-                                volatility=volatility
-                            )
-                            if not mtf_check.get("is_approved", True):
-                                self._log_action(ticker, "FAKEOUT_FILTERED", current_price, 0.0, f"MTF Confluence: {mtf_check.get('rejection_reason', 'Rejected')}")
+                            current_price = item["price"]
+                            if not current_price or current_price <= 0:
                                 continue
-                        except Exception as mtf_err:
-                            print(f"[MTF CONFLUENCE] Validation bypass notice: {mtf_err}")
 
-                        calc_leverage = base_lev
-                        if pool in ["AEGIS_INDIA_INR", "UPSTOX_DEMO", "UPSTOX_LIVE"] or active_ws == "INDIA":
-                            calc_leverage = min(5.0, calc_leverage)
+                            rsi = item["rsi"] or 50.0
+                            volatility = item["volatility"] or 0.015
+                            action_signal = item["ai_action"]
+                            opp_score = item["opportunity_score"]
 
-                        # Available cash resolution: query live Binance balance if trading live Crypto
-                        if pool == "BINANCE_LIVE_REAL" or active_ws == "CRYPTO":
-                            try:
-                                from execution.binance_broker import binance_broker
-                                real_live_cash = binance_broker.get_live_spot_balance("USDT")
-                                if real_live_cash > 0:
-                                    self.broker.pools.setdefault("BINANCE_LIVE_REAL", {})["virtual_cash"] = real_live_cash
-                                    self.broker.virtual_cash = real_live_cash
-                            except Exception:
-                                pass
-                            current_cash = float(self.broker.pools.get("BINANCE_LIVE_REAL", {}).get("virtual_cash", self.broker.virtual_cash))
-                        else:
-                            current_cash = self.broker.virtual_cash
-
-                        # Micro-Account Two-Trade Sizing ($6.00 for Crypto, $100.00 for MT5):
-                        if (pool == "BINANCE_LIVE_REAL" or active_ws == "CRYPTO"):
-                            if current_cash < 5.0:
-                                if step_counter % 8 == 0:
-                                    self._log_action(
-                                        asset=ticker,
-                                        action="MARGIN_GATE",
-                                        price=current_price,
-                                        amount_usd=current_cash,
-                                        reasoning=f"INSUFFICIENT MARGIN: Available free cash is ${current_cash:.2f} USDT (Binance min order is 5.00 USDT). Need >= 5.00 USDT to open new trade."
-                                    )
+                            min_opp_threshold = 72.0 if (_active_ws == "CRYPTO" or pool == "BINANCE_LIVE_REAL") else 70.0
+                            if opp_score < min_opp_threshold:
                                 continue
-                            size_usd = min(current_cash, 6.00) if current_cash >= 5.50 else current_cash
-                        elif pool in ["MT5_LIVE_REAL", "MT5_DEMO"] or active_ws == "FOREX_GOLD":
-                            size_usd = 100.0  # Micro-lot position ($100 margin on MT5)
-                        else:
-                            size_usd = self.risk_engine.calculate_position_size(current_cash, volatility, opp_score)
 
-                        is_risk_valid, _ = self.risk_engine.validate_order(size_usd, calc_leverage, len(self.broker.positions))
-                        if is_risk_valid and size_usd >= 5.0:
-                            # ── ROUTE ORDER: BINANCE LIVE REAL → Real Binance API ──────────────
-                            live_order_placed = False
-                            if pool == "BINANCE_LIVE_REAL" or active_ws == "CRYPTO":
+                            if _active_ws == "CRYPTO" or pool == "BINANCE_LIVE_REAL":
+                                if action_signal == "SELL":
+                                    continue
+                                act = "BUY"
+                            else:
+                                act = "BUY" if action_signal != "SELL" else "SELL"
+
+                            # Available cash resolution
+                            if pool == "BINANCE_LIVE_REAL":
                                 try:
                                     from execution.binance_broker import binance_broker
-                                    from core.environment_gate import environment_gate
-                                    gate_ok, gate_msg = environment_gate.check_order_allowed("LIVE", 0.0)
-                                    if gate_ok:
-                                        qty = round(size_usd / max(0.01, current_price), 6)
-                                        live_result = binance_broker.place_order(
-                                            symbol=ticker,
-                                            side="BUY",
-                                            order_type="MARKET",
-                                            quantity=qty,
-                                            environment="BINANCE_LIVE_REAL"
-                                        )
-                                        if live_result and live_result.get("status") not in ("ERROR", "REJECTED", "GATE_BLOCKED"):
-                                            live_order_placed = True
-                                            # Ensure asset is removed from dismissed spot sets
-                                            binance_broker.undismiss_spot_position(ticker)
-                                            # Record newly opened live position into broker tracking
-                                            pos_record = {
-                                                "trade_id": f"TRD-BINA-{ticker}-{int(time.time()*1000)}",
-                                                "asset": ticker,
-                                                "symbol": ticker,
-                                                "action": act,
-                                                "side": act,
-                                                "units": qty,
-                                                "quantity": qty,
-                                                "entry_price": current_price,
-                                                "last_price": current_price,
-                                                "capital_allocated": size_usd,
-                                                "margin": size_usd,
-                                                "leverage": 1.0,
-                                                "market_value": size_usd,
-                                                "pnl_usd": 0.0,
-                                                "pnl_pct": 0.0,
-                                                "unrealized_pnl": 0.0,
-                                                "product": "SPOT",
-                                                "status": "ACTIVE",
-                                                "environment": "BINANCE_LIVE",
-                                                "source": "BINANCE_SPOT_LIVE",
-                                                "timestamp": datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S")
-                                            }
-                                            self.broker.positions[ticker] = pos_record
-                                            self.broker.pools.setdefault("BINANCE_LIVE_REAL", {}).setdefault("positions", {})[ticker] = pos_record
-                                            # Deduct used spot cash from virtual_cash pool
-                                            cur_pool_cash = float(self.broker.pools.get("BINANCE_LIVE_REAL", {}).get("virtual_cash", self.broker.virtual_cash))
-                                            new_pool_cash = max(0.0, round(cur_pool_cash - size_usd, 2))
-                                            self.broker.pools.setdefault("BINANCE_LIVE_REAL", {})["virtual_cash"] = new_pool_cash
-                                            self.broker.virtual_cash = new_pool_cash
-                                            self.broker._save_state()
-                                            self._log_action(ticker, act, current_price, size_usd, f"BINANCE LIVE ORDER PLACED: {live_result.get('orderId', live_result.get('order_id', 'PLACED'))} | Opp {opp_score:.0f}%")
-                                        else:
-                                            # Gate blocked or error — log and fall through to paper
-                                            self._log_action(ticker, "LIVE_GATE_BLOCKED", current_price, size_usd, f"Live order blocked: {live_result.get('reason', gate_msg)}")
-                                    else:
-                                        # LIVE_TRADING_ENABLED=false — log clearly and continue without paper trade
-                                        self._log_action(ticker, "LIVE_GATE_BLOCKED", current_price, size_usd, f"Live trading disabled: {gate_msg}")
-                                        continue  # Don't paper-trade when in CRYPTO live mode
-                                except Exception as live_err:
-                                    self._log_action(ticker, "LIVE_ORDER_ERROR", current_price, size_usd, f"Live order error: {live_err}")
-
-                            if not live_order_placed:
-                                # Paper trade fallback (non-CRYPTO workspaces OR live order failed)
-                                order = self._execute_and_profile_order(
-                                    ticker=ticker,
-                                    action=act,
-                                    size_usd=size_usd,
-                                    current_price=current_price,
-                                    indicators={"RSI": rsi, "Volatility": volatility},
-                                    sentiment_score=sentiment_score,
-                                    leverage=calc_leverage,
-                                    opp_score=opp_score
-                                )
-                                if order:
-                                    self.position_age[ticker] = 0
-                                    self._log_action(ticker, act, current_price, size_usd, f"Risk-Approved AI Execution ({calc_leverage:.0f}x Lev, Opp {opp_score:.0f}%)")
+                                    real_live_cash = binance_broker.get_live_spot_balance("USDT")
+                                    if real_live_cash > 0:
+                                        self.broker.pools.setdefault("BINANCE_LIVE_REAL", {})["virtual_cash"] = real_live_cash
+                                        self.broker.virtual_cash = real_live_cash
+                                except Exception:
+                                    pass
+                                current_cash = float(self.broker.pools.get("BINANCE_LIVE_REAL", {}).get("virtual_cash", self.broker.virtual_cash))
                             else:
-                                self.position_age[ticker] = 0
-                            try:
-                                from core.notification_engine import notification_engine
-                                notification_engine.notify_trade_opened(
-                                    asset=ticker,
-                                    action=act,
-                                    size_usd=size_usd,
-                                    leverage=calc_leverage,
-                                    price=current_price,
-                                    opp_score=opp_score
-                                )
-                            except Exception:
-                                pass
+                                current_cash = float(self.broker.pools.get(pool, {}).get("virtual_cash", self.broker.virtual_cash))
+
+                            calc_leverage = base_lev
+                            if pool in ["AEGIS_INDIA_INR", "UPSTOX_DEMO", "UPSTOX_LIVE"] or _active_ws == "INDIA":
+                                calc_leverage = min(5.0, calc_leverage)
+
+                            # Dynamic position sizing within risk engine limits
+                            max_cap = float(getattr(self.risk_engine, "custom_trade_cap_usd", 4000.0))
+                            if pool == "BINANCE_LIVE_REAL":
+                                if current_cash < 5.0:
+                                    continue
+                                size_usd = min(current_cash * 0.4, 6.00) if current_cash < 50.0 else min(max_cap * 0.75, self.risk_engine.calculate_position_size(current_cash, volatility, opp_score))
+                            elif pool in ["BINANCE_TESTNET_DEMO", "BINANCE_DEMO"] or _active_ws == "CRYPTO":
+                                size_usd = min(max_cap * 0.75, max(50.0, round(current_cash * 0.005, 2)))
+                            elif pool in ["MT5_LIVE_REAL", "MT5_DEMO"] or _active_ws == "FOREX_GOLD":
+                                size_usd = min(max_cap * 0.75, max(100.0, round(current_cash * 0.005, 2)))
+                            else:
+                                size_usd = min(max_cap * 0.75, self.risk_engine.calculate_position_size(current_cash, volatility, opp_score))
+
+                            is_risk_valid, _ = self.risk_engine.validate_order(size_usd, calc_leverage, len(self.broker.positions))
+                            if is_risk_valid and size_usd >= 5.0:
+                                live_order_placed = False
+
+                                if pool == "BINANCE_LIVE_REAL":
+                                    try:
+                                        from execution.binance_broker import binance_broker
+                                        gate_ok, gate_msg = environment_gate.check_order_allowed("LIVE", 0.0)
+                                        if gate_ok:
+                                            qty = round(size_usd / max(0.01, current_price), 6)
+                                            live_result = binance_broker.place_order(
+                                                symbol=ticker, side="BUY", order_type="MARKET",
+                                                quantity=qty, environment="BINANCE_LIVE_REAL"
+                                            )
+                                            if live_result and live_result.get("status") not in ("ERROR", "REJECTED", "GATE_BLOCKED"):
+                                                live_order_placed = True
+                                                binance_broker.undismiss_spot_position(ticker)
+                                                pos_record = {
+                                                    "trade_id": f"TRD-BINA-{ticker}-{int(time.time()*1000)}",
+                                                    "asset": ticker, "symbol": ticker, "action": act, "side": act,
+                                                    "units": qty, "quantity": qty, "entry_price": current_price,
+                                                    "last_price": current_price, "capital_allocated": size_usd,
+                                                    "margin": size_usd, "leverage": 1.0, "market_value": size_usd,
+                                                    "pnl_usd": 0.0, "pnl_pct": 0.0, "unrealized_pnl": 0.0,
+                                                    "product": "SPOT", "status": "ACTIVE", "environment": "BINANCE_LIVE",
+                                                    "source": "BINANCE_SPOT_LIVE",
+                                                    "timestamp": datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S")
+                                                }
+                                                self.broker.positions[ticker] = pos_record
+                                                self.broker.pools.setdefault("BINANCE_LIVE_REAL", {}).setdefault("positions", {})[ticker] = pos_record
+                                                cur_pool_cash = float(self.broker.pools.get("BINANCE_LIVE_REAL", {}).get("virtual_cash", self.broker.virtual_cash))
+                                                new_pool_cash = max(0.0, round(cur_pool_cash - size_usd, 2))
+                                                self.broker.pools.setdefault("BINANCE_LIVE_REAL", {})["virtual_cash"] = new_pool_cash
+                                                self.broker.virtual_cash = new_pool_cash
+                                                self.broker._save_state()
+                                                self._log_action(ticker, act, current_price, size_usd, f"BINANCE LIVE ORDER PLACED: {live_result.get('orderId', 'PLACED')} | Opp {opp_score:.0f}%")
+                                            else:
+                                                self._log_action(ticker, "LIVE_GATE_BLOCKED", current_price, size_usd, f"Live order blocked: {live_result.get('reason', gate_msg)}")
+                                        else:
+                                            self._log_action(ticker, "LIVE_GATE_BLOCKED", current_price, size_usd, f"Live trading disabled: {gate_msg}")
+                                            continue
+                                    except Exception as live_err:
+                                        self._log_action(ticker, "LIVE_ORDER_ERROR", current_price, size_usd, f"Live order error: {live_err}")
+
+                                elif pool == "BINANCE_TESTNET_DEMO":
+                                    try:
+                                        from execution.binance_broker import binance_broker
+                                        qty = round(size_usd / max(0.01, current_price), 6)
+                                        testnet_res = binance_broker.place_order(
+                                            symbol=ticker, side="BUY", order_type="MARKET",
+                                            quantity=qty, environment="BINANCE_TESTNET"
+                                        )
+                                        if testnet_res and testnet_res.get("status") in ("SUCCESS", "FILLED", "PLACED"):
+                                            self._log_action(ticker, act, current_price, size_usd, f"BINANCE TESTNET API ORDER: {testnet_res.get('orderId', 'FILLED')} | Opp {opp_score:.0f}%")
+                                    except Exception:
+                                        pass
+
+                                if not live_order_placed:
+                                    order = self._execute_and_profile_order(
+                                        ticker=ticker,
+                                        action=act,
+                                        size_usd=size_usd,
+                                        current_price=current_price,
+                                        indicators={"RSI": rsi, "Volatility": volatility},
+                                        sentiment_score=sentiment_score,
+                                        leverage=calc_leverage,
+                                        opp_score=opp_score
+                                    )
+                                    if order:
+                                        self.position_age[ticker] = 0
+                                        self._log_action(ticker, act, current_price, size_usd, f"Risk-Approved AI Execution ({calc_leverage:.0f}x Lev, Opp {opp_score:.0f}%)")
+                                else:
+                                    self.position_age[ticker] = 0
+
+                                try:
+                                    from core.notification_engine import notification_engine
+                                    notification_engine.notify_trade_opened(
+                                        asset=ticker,
+                                        action=act,
+                                        size_usd=size_usd,
+                                        leverage=calc_leverage,
+                                        price=current_price,
+                                        opp_score=opp_score
+                                    )
+                                except Exception:
+                                    pass
 
 
                 # 4. 1000-Shield Quantum Guardian Alpha Harvesting Loop
@@ -488,7 +444,7 @@ class AutonomousTrader:
                             close_reason = "STOP_LOSS_EXIT"
                         
                         # CRITICAL: For live Binance Spot trading, execute real MARKET SELL on Binance!
-                        if pool == "BINANCE_LIVE_REAL" or active_ws == "CRYPTO":
+                        if pool == "BINANCE_LIVE_REAL":
                             try:
                                 from execution.binance_broker import binance_broker
                                 live_sell_res = binance_broker.close_spot_position(pos_asset, environment="BINANCE_LIVE")
@@ -506,6 +462,12 @@ class AutonomousTrader:
                                     continue
                             except Exception as live_close_err:
                                 print(f"[AUTONOMOUS TRADER] Live close error for {pos_asset}: {live_close_err}")
+                        elif pool == "BINANCE_TESTNET_DEMO":
+                            try:
+                                from execution.binance_broker import binance_broker
+                                binance_broker.close_spot_position(pos_asset, environment="BINANCE_TESTNET")
+                            except Exception:
+                                pass
 
                         self.broker.close_position(
                             asset=pos_asset,

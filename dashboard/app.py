@@ -1199,7 +1199,7 @@ async def get_state(workspace: Optional[str] = None, request_id: Optional[str] =
     IST_TZ = timezone(timedelta(hours=5, minutes=30))
     now_str = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S IST")
 
-    if active_pool == "BINANCE_LIVE_REAL" or ws == "CRYPTO":
+    if active_pool == "BINANCE_LIVE_REAL" and environment != "DEMO":
         try:
             live_binance_orders = await asyncio.to_thread(binance_broker.get_all_open_orders, "BINANCE_LIVE")
             raw_orders = [o for o in (live_binance_orders or []) if workspace_manager.is_symbol_allowed(o.get("symbol", o.get("asset", "")), "CRYPTO")]
@@ -2525,6 +2525,17 @@ async def switch_trading_pool_endpoint(request: Request):
         else:
             binance_broker.api_key = binance_broker.live_api_key
             binance_broker.secret_key = binance_broker.live_secret_key
+
+        try:
+            from core.position_snapshot_service import position_snapshot_service
+            if hasattr(position_snapshot_service, "_agg_cache"):
+                position_snapshot_service._agg_cache.clear()
+                position_snapshot_service._agg_cache_ts.clear()
+            if hasattr(position_snapshot_service, "_snapshot_cache"):
+                position_snapshot_service._snapshot_cache.clear()
+                position_snapshot_service._snapshot_cache_ts.clear()
+        except Exception:
+            pass
 
         resp = JSONResponse({
             "status": "SUCCESS",

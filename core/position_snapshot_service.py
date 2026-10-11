@@ -555,22 +555,65 @@ class PositionSnapshotService:
                 used_margin = 0.0
                 unrealized_pnl = 0.0
         elif is_testnet_crypto:
-            data_source = "SIMULATION_PAPER"
-            broker_connected = True
+            conn_balance = 0.0
+            try:
+                from execution.broker_gateway_manager import broker_gateway_manager
+                b_conn = broker_gateway_manager.connections.get("binance_demo", {})
+                conn_balance = float(b_conn.get("balance", 0.0))
+            except Exception:
+                pass
+
             vault_balance = round(float(profit_vault.get_vault_balance(pool_name)), 2)
-            free_cash = round(float(pool.get("virtual_cash", initial_cap)), 2)
-            total_equity = round(free_cash + used_margin + unrealized_pnl + vault_balance, 2)
+            if conn_balance > 0:
+                data_source = "AUTHENTICATED_TESTNET"
+                broker_connected = True
+                current_p_cash = float(pool.get("virtual_cash", 0.0))
+                if current_p_cash <= 20000.0 or current_p_cash == 19950.55:
+                    free_cash = round(conn_balance - used_margin, 2)
+                    pool["virtual_cash"] = free_cash
+                    pool["equity"] = round(conn_balance + unrealized_pnl + vault_balance, 2)
+                else:
+                    free_cash = round(current_p_cash, 2)
+                total_equity = round(free_cash + used_margin + unrealized_pnl + vault_balance, 2)
+                initial_cap = self.get_and_update_peak_equity(pool_name, max(total_equity, 1.0))
+            else:
+                data_source = "SIMULATION_PAPER"
+                broker_connected = True
+                free_cash = round(float(pool.get("virtual_cash", initial_cap)), 2)
+                total_equity = round(free_cash + used_margin + unrealized_pnl + vault_balance, 2)
         elif pool_name in ["AEGIS_INDIA_INR", "UPSTOX_DEMO"] or (target_ws == "INDIA" and pool_name != "UPSTOX_LIVE"):
+            conn_balance = 0.0
+            try:
+                from execution.broker_gateway_manager import broker_gateway_manager
+                u_conn = broker_gateway_manager.connections.get("upstox_demo", {})
+                conn_balance = float(u_conn.get("balance", 0.0))
+            except Exception:
+                pass
+            vault_balance = round(float(profit_vault.get_vault_balance(pool_name)), 2)
+            if conn_balance > 0 and pool.get("virtual_cash", 0.0) == 100000.0:
+                free_cash = round(conn_balance, 2)
+                pool["virtual_cash"] = free_cash
+            else:
+                free_cash = round(float(pool.get("virtual_cash", initial_cap)), 2)
             data_source = "SIMULATION_PAPER"
             broker_connected = True
-            vault_balance = round(float(profit_vault.get_vault_balance(pool_name)), 2)
-            free_cash = round(float(pool.get("virtual_cash", initial_cap)), 2)
             total_equity = round(free_cash + used_margin + unrealized_pnl + vault_balance, 2)
         else:
+            conn_balance = 0.0
+            try:
+                from execution.broker_gateway_manager import broker_gateway_manager
+                m_conn = broker_gateway_manager.connections.get("mt5_demo", {})
+                conn_balance = float(m_conn.get("balance", 0.0))
+            except Exception:
+                pass
+            vault_balance = round(float(profit_vault.get_vault_balance(pool_name)), 2)
+            if conn_balance > 0 and pool.get("virtual_cash", 0.0) == 10000.0:
+                free_cash = round(conn_balance, 2)
+                pool["virtual_cash"] = free_cash
+            else:
+                free_cash = round(float(pool.get("virtual_cash", initial_cap)), 2)
             data_source = "SIMULATION_PAPER"
             broker_connected = True
-            free_cash = round(float(pool.get("virtual_cash", initial_cap)), 2)
-            vault_balance = round(float(profit_vault.get_vault_balance(pool_name)), 2)
             total_equity = round(free_cash + used_margin + unrealized_pnl + vault_balance, 2)
 
         # Realized PnL from ledger
