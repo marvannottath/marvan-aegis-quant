@@ -450,6 +450,20 @@ export const api = {
     });
   },
 
+  async resetTotp(username: string): Promise<any> {
+    return fetchJson('/api/auth/totp-reset', {
+      method: 'POST',
+      body: JSON.stringify({ username }),
+    });
+  },
+
+  async resetPasswordDirect(username: string, newPassword: string): Promise<any> {
+    return fetchJson('/api/auth/reset-password-direct', {
+      method: 'POST',
+      body: JSON.stringify({ username, new_password: newPassword }),
+    });
+  },
+
   async changePassword(token: string, oldPassword: string, newPassword: string): Promise<any> {
     return fetchJson('/api/auth/change-password', {
       method: 'POST',

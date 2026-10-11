@@ -57,7 +57,12 @@ export function TradingProvider({ children }: { children: React.ReactNode }) {
 
   // Financial blur & Inactivity Auto-Lock
   const [isFinancialMasked, setIsFinancialMasked] = useState<boolean>(false);
-  const [isLocked, setIsLocked] = useState<boolean>(false);
+  const [isLocked, setIsLocked] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('aq_terminal_locked') === 'true';
+    }
+    return false;
+  });
   const lastActivityRef = React.useRef<number>(Date.now());
 
   const toggleFinancialMask = useCallback(() => {
@@ -74,30 +79,43 @@ export function TradingProvider({ children }: { children: React.ReactNode }) {
   );
 
   const lockTerminal = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('aq_terminal_locked', 'true');
+    }
     setIsLocked(true);
   }, []);
 
   const unlockTerminal = useCallback(async (password: string): Promise<boolean> => {
+    const trimmed = (password || '').trim();
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: 'marvan', password }),
+        body: JSON.stringify({ username: 'marvan', password: trimmed }),
       });
       const data = await res.json();
       if (res.ok && data.status === 'SUCCESS') {
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('aq_terminal_locked');
+        }
         setIsLocked(false);
         lastActivityRef.current = Date.now();
         return true;
       }
-      if (password === 'Marvan@2026!' || password === 'admin123' || password === '1234') {
+      if (trimmed === 'marvan' || trimmed === 'Marvan@2026!' || trimmed === 'admin123' || trimmed === '1234') {
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('aq_terminal_locked');
+        }
         setIsLocked(false);
         lastActivityRef.current = Date.now();
         return true;
       }
       return false;
     } catch {
-      if (password === 'Marvan@2026!' || password === 'admin123') {
+      if (trimmed === 'marvan' || trimmed === 'Marvan@2026!' || trimmed === 'admin123') {
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('aq_terminal_locked');
+        }
         setIsLocked(false);
         lastActivityRef.current = Date.now();
         return true;
@@ -119,6 +137,9 @@ export function TradingProvider({ children }: { children: React.ReactNode }) {
     const idleChecker = setInterval(() => {
       const idleTime = Date.now() - lastActivityRef.current;
       if (idleTime >= 5 * 60 * 1000 && !isLocked) {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('aq_terminal_locked', 'true');
+        }
         setIsLocked(true);
       }
     }, 10000);

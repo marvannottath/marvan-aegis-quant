@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { api } from '../../lib/api';
+import { useTradingContext } from '../../context/TradingContext';
 import { Badge } from '../../components/common/Badge';
 import { Modal } from '../../components/common/Modal';
 import {
@@ -21,10 +22,12 @@ import {
   Fingerprint,
   ExternalLink,
   ArrowRight,
-  ShieldAlert
+  ShieldAlert,
+  QrCode,
 } from 'lucide-react';
 
 export default function SecurityPage() {
+  const { lockTerminal } = useTradingContext();
   const [username, setUsername] = useState<string>('marvan');
   const [totpEnabled, setTotpEnabled] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -35,25 +38,26 @@ export default function SecurityPage() {
     qr_image_url?: string;
     secret?: string;
     otpauth_url?: string;
+    totp_enabled?: boolean;
   } | null>(null);
   const [verifyCode, setVerifyCode] = useState<string>('');
   const [isActivatingTotp, setIsActivatingTotp] = useState<boolean>(false);
+  const [isResettingTotp, setIsResettingTotp] = useState<boolean>(false);
+  const [isDeactivatingTotp, setIsDeactivatingTotp] = useState<boolean>(false);
   const [totpFeedback, setTotpFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [copiedSecret, setCopiedSecret] = useState<boolean>(false);
 
   // Password Change
-  const [currentPassword, setCurrentPassword] = useState<string>('');
+  const [currentPassword, setCurrentPassword] = useState<string>('marvan');
   const [newPassword, setNewPassword] = useState<string>('');
   const [confirmPassword, setConfirmPassword] = useState<string>('');
   const [isChangingPassword, setIsChangingPassword] = useState<boolean>(false);
+  const [isDirectResetting, setIsDirectResetting] = useState<boolean>(false);
   const [passwordFeedback, setPasswordFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Reset Link to Admin Email
   const [isSendingResetEmail, setIsSendingResetEmail] = useState<boolean>(false);
   const [resetEmailFeedback, setResetEmailFeedback] = useState<{ type: 'success' | 'error'; message: string; link?: string } | null>(null);
-
-  // Biometrics
-  const [biometricFeedback, setBiometricFeedback] = useState<string | null>(null);
 
   // Load user security status
   useEffect(() => {
@@ -64,8 +68,9 @@ export default function SecurityPage() {
     setIsLoading(true);
     try {
       const res = await api.getTotpSetup(username);
-      if (res.status === 'SUCCESS') {
+      if (res && (res.status === 'SUCCESS' || res.secret)) {
         setTotpEnabled(Boolean(res.totp_enabled));
+        setTotpSetupData(res);
       }
     } catch (e) {
       console.error('Failed to fetch security status:', e);
@@ -79,12 +84,33 @@ export default function SecurityPage() {
     setVerifyCode('');
     try {
       const res = await api.getTotpSetup(username);
-      if (res.status === 'SUCCESS') {
+      if (res && (res.status === 'SUCCESS' || res.secret)) {
         setTotpSetupData(res);
         setIsTotpModalOpen(true);
       }
     } catch (e: any) {
       setTotpFeedback({ type: 'error', message: e?.message || 'Failed to generate 2FA QR code' });
+    }
+  };
+
+  const handleResetTotp = async () => {
+    if (!confirm('This will generate a brand new 2FA Secret Key and QR Code. You will need to scan it into Google Authenticator or Authy. Proceed?')) {
+      return;
+    }
+    setIsResettingTotp(true);
+    setTotpFeedback(null);
+    try {
+      const res = await api.resetTotp(username);
+      if (res && (res.status === 'SUCCESS' || res.secret)) {
+        setTotpSetupData(res);
+        setTotpEnabled(false);
+        setIsTotpModalOpen(true);
+        setTotpFeedback({ type: 'success', message: 'New 2FA Secret Key generated! Please scan the QR code to pair your device.' });
+      }
+    } catch (e: any) {
+      setTotpFeedback({ type: 'error', message: e?.message || 'Failed to reset 2FA secret' });
+    } finally {
+      setIsResettingTotp(false);
     }
   };
 
@@ -117,14 +143,26 @@ export default function SecurityPage() {
   };
 
   const handleDeactivateTotp = async () => {
+    if (!confirm('Are you sure you want to disable 2FA? High-value transactions will only require your master password.')) {
+      return;
+    }
+    setIsDeactivatingTotp(true);
+    setTotpFeedback(null);
     const adminToken = localStorage.getItem('aq_admin_token') || 'MASTER_SESSION';
     try {
       const res = await api.deactivateTotp(adminToken, username);
       if (res.status === 'SUCCESS') {
         setTotpEnabled(false);
+        setTotpFeedback({ type: 'success', message: 'Google Authenticator 2FA requirement disabled successfully!' });
+        setTimeout(() => setTotpFeedback(null), 4000);
+      } else {
+        setTotpFeedback({ type: 'error', message: res.message || 'Failed to disable 2FA' });
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('Deactivation error:', e);
+      setTotpFeedback({ type: 'error', message: e?.message || 'Failed to disable 2FA' });
+    } finally {
+      setIsDeactivatingTotp(false);
     }
   };
 
@@ -147,11 +185,11 @@ export default function SecurityPage() {
     setPasswordFeedback(null);
 
     try {
-      const token = localStorage.getItem('aq_admin_token') || '';
+      const token = localStorage.getItem('aq_admin_token') || 'MASTER_SESSION';
       const res = await api.changePassword(token, currentPassword, newPassword);
       if (res.status === 'SUCCESS') {
         setPasswordFeedback({ type: 'success', message: 'Password updated successfully and secured with PBKDF2!' });
-        setCurrentPassword('');
+        setCurrentPassword(newPassword);
         setNewPassword('');
         setConfirmPassword('');
       } else {
@@ -161,6 +199,34 @@ export default function SecurityPage() {
       setPasswordFeedback({ type: 'error', message: e?.message || 'Network error occurred.' });
     } finally {
       setIsChangingPassword(false);
+    }
+  };
+
+  const handleDirectPasswordReset = async () => {
+    if (!newPassword || newPassword.length < 6) {
+      setPasswordFeedback({ type: 'error', message: 'Please enter at least 6 characters in New Password field first.' });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordFeedback({ type: 'error', message: 'New password and Confirm password do not match.' });
+      return;
+    }
+    setIsDirectResetting(true);
+    setPasswordFeedback(null);
+    try {
+      const res = await api.resetPasswordDirect(username, newPassword);
+      if (res.status === 'SUCCESS') {
+        setPasswordFeedback({ type: 'success', message: `Password for '${username}' has been updated directly!` });
+        setCurrentPassword(newPassword);
+        setNewPassword('');
+        setConfirmPassword('');
+      } else {
+        setPasswordFeedback({ type: 'error', message: res.message || 'Direct reset failed' });
+      }
+    } catch (e: any) {
+      setPasswordFeedback({ type: 'error', message: e?.message || 'Network error' });
+    } finally {
+      setIsDirectResetting(false);
     }
   };
 
@@ -186,9 +252,10 @@ export default function SecurityPage() {
     }
   };
 
-  const handleCopySecret = () => {
-    if (totpSetupData?.secret) {
-      navigator.clipboard.writeText(totpSetupData.secret);
+  const handleCopySecret = (sec?: string) => {
+    const textToCopy = sec || totpSetupData?.secret;
+    if (textToCopy) {
+      navigator.clipboard.writeText(textToCopy);
       setCopiedSecret(true);
       setTimeout(() => setCopiedSecret(false), 2000);
     }
@@ -239,10 +306,10 @@ export default function SecurityPage() {
               className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
                 totpEnabled
                   ? 'bg-emerald-500/10 border-emerald-500/20 text-profit'
-                  : 'bg-amber-500/10 border-amber-500/20 text-amber-500'
+                  : 'bg-slate-100 border-slate-300 text-txt-muted'
               }`}
             >
-              {totpEnabled ? 'ACTIVE 🟢' : 'DISABLED ⚠️'}
+              {totpEnabled ? 'ACTIVE 🟢' : 'DISABLED ⚪'}
             </span>
           </div>
 
@@ -251,36 +318,67 @@ export default function SecurityPage() {
               Require a 6-digit dynamic passcode generated by your smartphone app for high-value actions, administrative sessions, and sensitive parameter updates.
             </p>
 
-            <div className="p-3 bg-slate-50 dark:bg-panel-light rounded-lg border border-line space-y-1.5 font-mono text-[11px]">
-              <div className="flex justify-between">
-                <span className="text-txt-muted">Algorithm:</span>
-                <span className="font-bold text-txt-primary">HMAC-SHA1 (RFC 6238)</span>
+            {/* Secret Key Display Box */}
+            {totpSetupData?.secret && (
+              <div className="p-3 bg-slate-50 dark:bg-panel-light rounded-lg border border-line space-y-1.5">
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="font-semibold text-txt-muted">Current Secret Key:</span>
+                  <button
+                    onClick={() => handleCopySecret(totpSetupData.secret)}
+                    className="flex items-center gap-1 text-brand font-semibold hover:underline"
+                  >
+                    {copiedSecret ? <Check className="w-3 h-3 text-profit" /> : <Copy className="w-3 h-3" />}
+                    <span>{copiedSecret ? 'Copied' : 'Copy Key'}</span>
+                  </button>
+                </div>
+                <div className="p-2 bg-white dark:bg-panel rounded border border-line font-mono text-xs font-bold text-txt-primary tracking-wider break-all select-all">
+                  {totpSetupData.secret}
+                </div>
+                <p className="text-[10px] text-txt-subtle">
+                  Manually enter this key in Google Authenticator or Authy if your camera is unavailable.
+                </p>
               </div>
-              <div className="flex justify-between">
-                <span className="text-txt-muted">Time-Step Drift:</span>
-                <span className="font-bold text-txt-primary">±30 Seconds Tolerance</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-txt-muted">Replay Guard:</span>
-                <span className="font-bold text-profit">SQLite Atomic Step Lock</span>
-              </div>
-            </div>
+            )}
 
-            <div className="pt-2 flex items-center gap-2">
-              {!totpEnabled ? (
-                <button
-                  onClick={handleOpenTotpSetup}
-                  className="px-4 py-2 rounded-lg bg-brand hover:bg-brand/90 text-white font-bold text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer"
-                >
-                  <KeyRound className="w-3.5 h-3.5" />
-                  <span>Configure Google Authenticator</span>
-                </button>
-              ) : (
+            {totpFeedback && (
+              <div
+                className={`p-2.5 rounded-lg text-xs font-medium border ${
+                  totpFeedback.type === 'success'
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                    : 'bg-red-50 text-red-800 border-red-200'
+                }`}
+              >
+                {totpFeedback.message}
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="pt-2 flex flex-wrap items-center gap-2">
+              <button
+                onClick={handleOpenTotpSetup}
+                className="px-3.5 py-2 rounded-lg bg-brand hover:bg-brand/90 text-white font-bold text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+              >
+                <QrCode className="w-3.5 h-3.5" />
+                <span>{totpEnabled ? 'View / Re-scan QR Code' : 'Setup 2FA (Scan QR)'}</span>
+              </button>
+
+              <button
+                onClick={handleResetTotp}
+                disabled={isResettingTotp}
+                className="px-3 py-2 rounded-lg border border-line bg-panel hover:bg-panel-light text-txt-primary font-semibold text-xs transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                title="Generate a brand new Secret Key and QR Code"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isResettingTotp ? 'animate-spin' : ''}`} />
+                <span>Reset 2FA Secret</span>
+              </button>
+
+              {totpEnabled && (
                 <button
                   onClick={handleDeactivateTotp}
-                  className="px-3.5 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 text-xs font-semibold transition cursor-pointer"
+                  disabled={isDeactivatingTotp}
+                  className="px-3 py-2 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 text-xs font-semibold transition cursor-pointer disabled:opacity-50"
                 >
-                  Disable 2FA Requirement
+                  {isDeactivatingTotp ? 'Disabling...' : 'Disable 2FA Requirement'}
                 </button>
               )}
             </div>
@@ -289,13 +387,30 @@ export default function SecurityPage() {
 
         {/* SECTION 2: PASSWORD CHANGE & SECURITY */}
         <div className="card-panel p-5 space-y-4">
-          <div className="flex items-center gap-2 pb-3 border-b border-line">
-            <Lock className="h-5 w-5 text-brand" />
-            <div>
-              <h3 className="text-xs font-bold uppercase tracking-wider text-txt-primary">
-                Account Password Hardening
-              </h3>
-              <p className="text-[11px] text-txt-muted">PBKDF2-HMAC-SHA256 (100,000 Iterations)</p>
+          <div className="flex items-center justify-between pb-3 border-b border-line">
+            <div className="flex items-center gap-2">
+              <Lock className="h-5 w-5 text-brand" />
+              <div>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-txt-primary">
+                  Account Password Hardening
+                </h3>
+                <p className="text-[11px] text-txt-muted">PBKDF2-HMAC-SHA256 (100,000 Iterations)</p>
+              </div>
+            </div>
+            <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-blue-50 text-brand border border-brand/20">
+              Default: marvan
+            </span>
+          </div>
+
+          {/* Quick Notice about default password */}
+          <div className="p-2.5 rounded-lg bg-blue-50/60 border border-blue-200/60 text-xs text-blue-900 flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 text-brand shrink-0 mt-0.5" />
+            <div className="space-y-0.5">
+              <span className="font-bold">Your Default Password is: </span>
+              <code className="px-1.5 py-0.5 rounded bg-white font-mono font-bold text-brand border border-blue-300">marvan</code>
+              <p className="text-[11px] text-blue-700 mt-1">
+                You can change it below, or use the Instant Reset button if you forgot your old password.
+              </p>
             </div>
           </div>
 
@@ -307,7 +422,7 @@ export default function SecurityPage() {
                 required
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
-                placeholder="••••••••••••"
+                placeholder="Current password (default: marvan)"
                 className="w-full px-3 py-1.5 text-xs rounded-lg border border-line bg-panel-light text-txt-primary font-mono focus:outline-none focus:ring-2 focus:ring-brand"
               />
             </div>
@@ -349,13 +464,25 @@ export default function SecurityPage() {
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={isChangingPassword}
-              className="px-4 py-2 rounded-lg bg-panel hover:bg-panel-light border border-line text-txt-primary font-bold text-xs shadow-2xs transition disabled:opacity-50 cursor-pointer"
-            >
-              {isChangingPassword ? 'Updating...' : 'Update Password'}
-            </button>
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                type="submit"
+                disabled={isChangingPassword}
+                className="px-4 py-2 rounded-lg bg-brand hover:bg-brand/90 text-white font-bold text-xs shadow-xs transition disabled:opacity-50 cursor-pointer"
+              >
+                {isChangingPassword ? 'Updating...' : 'Update Password'}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDirectPasswordReset}
+                disabled={isDirectResetting}
+                className="px-3 py-2 rounded-lg border border-line bg-panel hover:bg-panel-light text-txt-secondary font-semibold text-xs transition disabled:opacity-50 cursor-pointer"
+                title="Reset password directly without verifying current password"
+              >
+                {isDirectResetting ? 'Resetting...' : 'Instant Reset Password'}
+              </button>
+            </div>
           </form>
         </div>
       </div>
@@ -450,18 +577,27 @@ export default function SecurityPage() {
           </p>
         </div>
 
-        {/* 5-Min Auto-Lock */}
+        {/* 5-Min Auto-Lock with Manual Lock Button */}
         <div className="card-panel p-4 space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase font-mono flex items-center gap-1.5 text-txt-primary">
               <Lock className="w-4 h-4 text-brand" />
               5-Min Inactivity Sentinel
             </span>
-            <span className="text-[10px] font-mono font-bold text-profit">MONITORING</span>
+            <span className="text-[10px] font-mono font-bold text-profit">PERSISTENT</span>
           </div>
           <p className="text-[11px] text-txt-muted">
-            Cryptographic screen lock engages after 300 seconds of desk idle time.
+            Screen lock persists across browser reloads until master password ('marvan') is entered.
           </p>
+          <div className="pt-1">
+            <button
+              onClick={lockTerminal}
+              className="w-full py-1.5 px-3 rounded bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer transition active:scale-98"
+            >
+              <Lock className="w-3.5 h-3.5" />
+              <span>Lock Terminal Screen Now</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -478,14 +614,14 @@ export default function SecurityPage() {
               <img
                 src={totpSetupData.qr_image_url}
                 alt="Google Authenticator QR Code"
-                className="w-44 h-44 object-contain"
+                className="w-48 h-48 object-contain"
               />
             ) : (
-              <div className="w-44 h-44 flex items-center justify-center text-txt-muted">
+              <div className="w-48 h-48 flex items-center justify-center text-txt-muted font-mono">
                 Generating QR...
               </div>
             )}
-            <p className="text-[10px] text-txt-muted mt-2 text-center">
+            <p className="text-[11px] font-semibold text-txt-primary mt-2 text-center">
               Scan with Google Authenticator, Microsoft Authenticator, or Authy
             </p>
           </div>
@@ -499,13 +635,13 @@ export default function SecurityPage() {
               <input
                 type="text"
                 readOnly
-                value={totpSetupData?.secret || ''}
-                className="w-full px-3 py-1.5 text-xs rounded-lg border border-line bg-panel-light font-mono text-txt-primary select-all"
+                value={totpSetupData?.secret || 'Generating...'}
+                className="w-full px-3 py-1.5 text-xs font-mono font-bold rounded-lg border border-line bg-slate-50 dark:bg-panel-light text-txt-primary select-all"
               />
               <button
                 type="button"
-                onClick={handleCopySecret}
-                className="px-3 py-1.5 rounded-lg border border-line bg-panel hover:bg-panel-light text-txt-secondary font-semibold flex items-center gap-1 transition cursor-pointer"
+                onClick={() => handleCopySecret()}
+                className="px-3 py-1.5 rounded-lg border border-line bg-panel hover:bg-panel-light text-txt-secondary font-semibold text-xs shrink-0 flex items-center gap-1 cursor-pointer"
               >
                 {copiedSecret ? <Check className="w-3.5 h-3.5 text-profit" /> : <Copy className="w-3.5 h-3.5" />}
                 <span>{copiedSecret ? 'Copied' : 'Copy'}</span>
@@ -513,26 +649,26 @@ export default function SecurityPage() {
             </div>
           </div>
 
-          {/* Verification Code Input */}
+          {/* Verification Code Form */}
           <form onSubmit={handleActivateTotp} className="space-y-3 pt-2 border-t border-line">
             <div>
-              <label className="block text-xs font-semibold text-txt-primary mb-1">
-                Enter the 6-Digit Code from App to Verify:
+              <label className="block text-[11px] font-semibold text-txt-primary mb-1">
+                Enter 6-Digit Code from App to Verify & Activate:
               </label>
               <input
                 type="text"
                 maxLength={6}
-                required
-                placeholder="000000"
                 value={verifyCode}
-                onChange={(e) => setVerifyCode(e.target.value)}
-                className="w-full px-3 py-2 text-center text-lg tracking-widest font-mono font-bold rounded-lg border border-line bg-panel-light text-txt-primary focus:outline-none focus:ring-2 focus:ring-brand"
+                onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, ''))}
+                placeholder="123456"
+                autoFocus
+                className="w-full px-3 py-2 text-center text-lg font-mono tracking-widest font-bold rounded-lg border border-line bg-panel-light text-txt-primary focus:outline-none focus:ring-2 focus:ring-brand"
               />
             </div>
 
             {totpFeedback && (
               <div
-                className={`p-2.5 rounded-lg font-mono text-[11px] border ${
+                className={`p-2 rounded-lg font-mono text-[11px] border ${
                   totpFeedback.type === 'success'
                     ? 'bg-emerald-500/10 border-emerald-500/20 text-profit'
                     : 'bg-red-500/10 border-red-500/20 text-red-500'
@@ -542,18 +678,18 @@ export default function SecurityPage() {
               </div>
             )}
 
-            <div className="flex items-center justify-end gap-2 pt-1">
+            <div className="flex items-center justify-end gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => setIsTotpModalOpen(false)}
-                className="px-3 py-1.5 rounded-md border border-line bg-panel hover:bg-panel-light text-txt-secondary"
+                className="px-3.5 py-1.5 rounded-lg border border-line text-txt-secondary hover:bg-slate-100 text-xs font-semibold cursor-pointer"
               >
-                Cancel
+                Close
               </button>
               <button
                 type="submit"
-                disabled={isActivatingTotp}
-                className="px-4 py-1.5 rounded-md bg-brand hover:bg-brand/90 text-white font-bold transition disabled:opacity-50 cursor-pointer"
+                disabled={isActivatingTotp || verifyCode.length !== 6}
+                className="px-4 py-1.5 rounded-lg bg-brand hover:bg-brand/90 text-white font-bold text-xs shadow-xs transition disabled:opacity-50 cursor-pointer"
               >
                 {isActivatingTotp ? 'Verifying...' : 'Verify & Enable 2FA'}
               </button>

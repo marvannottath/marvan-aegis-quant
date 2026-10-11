@@ -542,7 +542,7 @@ export function TopHeader() {
                 const ok = await unlockTerminal(unlockPassword);
                 setIsUnlocking(false);
                 if (!ok) {
-                  setUnlockError('Invalid password. Default: Marvan@2026!');
+                  setUnlockError('Invalid password. Default password is: marvan');
                 } else {
                   setUnlockPassword('');
                 }
@@ -551,15 +551,15 @@ export function TopHeader() {
             >
               <div>
                 <label className="block text-xs font-semibold text-txt-secondary mb-1">
-                  Master Trader Password
+                  Master Trader Password <span className="font-normal text-txt-muted font-mono">(Default: marvan)</span>
                 </label>
                 <input
                   type="password"
                   value={unlockPassword}
                   onChange={(e) => setUnlockPassword(e.target.value)}
-                  placeholder="Enter terminal password"
+                  placeholder="Enter terminal password (e.g. marvan)"
                   autoFocus
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-line bg-panel-light text-txt-primary focus:outline-none focus:ring-2 focus:ring-brand"
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-line bg-panel-light text-txt-primary focus:outline-none focus:ring-2 focus:ring-brand font-mono"
                 />
                 {unlockError && (
                   <p className="text-xs text-red-500 font-semibold mt-1">{unlockError}</p>
@@ -596,7 +596,7 @@ export function TopHeader() {
                           console.log('Biometric enclave notice:', biometricErr);
                         }
                       }
-                      const ok = await unlockTerminal('Marvan@2026!');
+                      const ok = await unlockTerminal('marvan');
                       if (!ok) {
                         setUnlockError('Biometric verification failed');
                       }
