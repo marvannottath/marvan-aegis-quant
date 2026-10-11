@@ -111,12 +111,12 @@ export function Sidebar() {
     <>
       {/* 1. Desktop & Tablet Sidebar (Hidden on mobile < md) */}
       <aside
-        className={`hidden md:flex relative z-30 flex-col border-r border-line bg-panel transition-all duration-200 select-none ${
+        className={`hidden md:flex relative z-30 flex-col h-full shrink-0 border-r border-line bg-panel transition-all duration-200 select-none ${
           isCollapsed ? 'w-14' : 'w-56'
         }`}
       >
-        {/* Primary Navigation Section */}
-        <div className="flex-1 py-3 px-2 overflow-y-auto space-y-6">
+        {/* Primary Navigation Section (scrolls internally if needed) */}
+        <div className="flex-1 min-h-0 py-3 px-2 overflow-y-auto space-y-6">
           <div>
             {!isCollapsed && (
               <div className="px-2.5 pb-2 text-[10px] font-bold uppercase tracking-wider text-txt-subtle">
@@ -147,11 +147,11 @@ export function Sidebar() {
           </div>
         </div>
 
-        {/* Collapse/Expand Toggle Footer */}
-        <div className="p-2 border-t border-line bg-slate-50 dark:bg-panel-light/30 flex items-center justify-between">
+        {/* Collapse/Expand Toggle Footer (Always pinned at the bottom) */}
+        <div className="shrink-0 p-2 border-t border-line bg-slate-50 dark:bg-panel-light/30 flex items-center justify-between">
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className="w-full flex items-center justify-center p-1 rounded-md text-txt-muted hover:bg-slate-200 dark:hover:bg-panel-light hover:text-txt-primary transition text-xs gap-1 font-medium"
+            className="w-full flex items-center justify-center p-1.5 rounded-md text-txt-muted hover:bg-slate-200 dark:hover:bg-panel-light hover:text-txt-primary transition text-xs gap-1 font-medium cursor-pointer"
             title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             {isCollapsed ? (

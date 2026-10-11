@@ -20,17 +20,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-canvas text-txt-primary">
+    <div className="flex flex-col h-screen max-h-screen overflow-hidden bg-canvas text-txt-primary">
       {/* Top Fixed Header */}
       <TopHeader />
 
-      {/* Main Body */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Institutional Sidebar */}
+      {/* Main Body with Fixed Left Sidebar and Scrolling Right Main Viewport */}
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+        {/* Institutional Sidebar (Fixed Left, Collapse button always visible) */}
         <Sidebar />
 
-        {/* Dynamic Page Content Viewport */}
-        <main className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 bg-canvas pb-20 md:pb-6">
+        {/* Dynamic Page Content Viewport (Scrolls independently) */}
+        <main className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 md:p-6 bg-canvas pb-20 md:pb-6">
           <div className="max-w-[1680px] mx-auto space-y-4 md:space-y-6">
             {children}
           </div>
