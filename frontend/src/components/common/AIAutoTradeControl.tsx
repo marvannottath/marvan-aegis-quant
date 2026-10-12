@@ -20,11 +20,30 @@ const ALL_ENGINES: { workspace: Workspace; environment: 'DEMO' | 'LIVE'; label: 
 ];
 
 export function AIAutoTradeControl({ variant = 'banner' }: AIAutoTradeControlProps) {
-  const { workspace, environment } = useTradingContext();
+  const { workspace, environment, portfolio, refreshData } = useTradingContext();
+  const positions = portfolio?.snapshot?.positions || [];
   const [allStates, setAllStates] = useState<Record<string, any>>({});
   const [showMatrix, setShowMatrix] = useState<boolean>(variant === 'matrix');
   const [loadingKey, setLoadingKey] = useState<string | null>(null);
+  const [isClosingAll, setIsClosingAll] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+
+  const handleCloseAll = async () => {
+    if (!window.confirm(`Are you sure you want to CLOSE ALL ${positions.length} open positions for ${workspace} (${environment})? All active trades will be liquidated immediately.`)) {
+      return;
+    }
+    setIsClosingAll(true);
+    try {
+      const res = await api.closeAllPositions(workspace, environment);
+      setMessage({ text: `✅ Liquidated all positions (${res?.closed_count ?? positions.length} closed). Margin returned to cash.`, type: 'success' });
+      await refreshData();
+      await fetchStatus();
+    } catch (err: any) {
+      setMessage({ text: err.message || `Failed to close all positions`, type: 'error' });
+    } finally {
+      setIsClosingAll(false);
+    }
+  };
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -175,6 +194,23 @@ export function AIAutoTradeControl({ variant = 'banner' }: AIAutoTradeControlPro
             )}
             <span>{isCurrentRunning ? `Pause ${environment}` : `Start ${environment}`}</span>
           </button>
+
+          {/* Close All Open Positions (Emergency / Flat Out) */}
+          {positions && positions.length > 0 && (
+            <button
+              onClick={handleCloseAll}
+              disabled={isClosingAll}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border border-rose-300 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/60 transition shadow-xs cursor-pointer"
+              title="Immediately close all open positions and return margin to cash"
+            >
+              {isClosingAll ? (
+                <RefreshCw className="h-3 w-3 animate-spin" />
+              ) : (
+                <AlertOctagon className="h-3 w-3" />
+              )}
+              <span>Close All ({positions.length})</span>
+            </button>
+          )}
 
           {/* Toggle All 6 Engines Matrix */}
           <button

@@ -5,7 +5,7 @@ import { useTradingContext } from '../../context/TradingContext';
 import { PortfolioPosition } from '../../lib/types';
 import { api } from '../../lib/api';
 import { Badge } from '../common/Badge';
-import { ChevronDown, ChevronRight, XCircle, ArrowUpRight, ArrowDownRight, Layers } from 'lucide-react';
+import { ChevronDown, ChevronRight, XCircle, ArrowUpRight, ArrowDownRight, Layers, AlertOctagon, RefreshCw } from 'lucide-react';
 
 interface PositionsTableProps {
   positions?: PortfolioPosition[];
@@ -19,10 +19,26 @@ export function PositionsTable({
   const { portfolio, environment, workspace, refreshData } = useTradingContext();
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [closingSymbol, setClosingSymbol] = useState<string | null>(null);
+  const [isClosingAll, setIsClosingAll] = useState(false);
   const [actionMessage, setActionMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   const positions = customPositions || portfolio?.snapshot?.positions || [];
   const curr = portfolio?.currency_symbol || (workspace === 'INDIA' ? '₹' : '$');
+
+  const handleCloseAll = async () => {
+    if (!confirm(`Are you sure you want to CLOSE ALL ${positions.length} open positions for ${workspace} (${environment})? All active trades will be liquidated immediately.`)) return;
+    try {
+      setIsClosingAll(true);
+      setActionMessage(null);
+      const res = await api.closeAllPositions(workspace, environment);
+      setActionMessage({ text: `All ${res?.closed_count ?? positions.length} positions liquidated. Margin returned to cash.`, type: 'success' });
+      await refreshData();
+    } catch (err: any) {
+      setActionMessage({ text: err?.message || `Failed to close all positions`, type: 'error' });
+    } finally {
+      setIsClosingAll(false);
+    }
+  };
 
   const toggleRow = (symbol: string) => {
     setExpandedRow(expandedRow === symbol ? null : symbol);
@@ -59,15 +75,33 @@ export function PositionsTable({
           </Badge>
         </div>
 
-        {actionMessage && (
-          <span
-            className={`text-xs font-medium px-2 py-0.5 rounded ${
-              actionMessage.type === 'success' ? 'bg-emerald-50 text-profit' : 'bg-red-50 text-loss'
-            }`}
-          >
-            {actionMessage.text}
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {actionMessage && (
+            <span
+              className={`text-xs font-medium px-2 py-0.5 rounded ${
+                actionMessage.type === 'success' ? 'bg-emerald-50 text-profit' : 'bg-red-50 text-loss'
+              }`}
+            >
+              {actionMessage.text}
+            </span>
+          )}
+
+          {showCloseAction && positions.length > 0 && (
+            <button
+              onClick={handleCloseAll}
+              disabled={isClosingAll}
+              className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-lg border border-rose-300 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/60 transition shadow-xs cursor-pointer"
+              title="Close and liquidate all open positions immediately"
+            >
+              {isClosingAll ? (
+                <RefreshCw className="h-3 w-3 animate-spin" />
+              ) : (
+                <AlertOctagon className="h-3 w-3" />
+              )}
+              <span>Close All ({positions.length})</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Table Container */}

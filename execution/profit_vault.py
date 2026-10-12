@@ -114,14 +114,37 @@ class ProfitVault:
                 print(f"[PROFIT VAULT] Load notice: {e}")
 
     def _sanitize_live_stores(self):
-        """Ensure live broker stores (e.g. BINANCE_LIVE_REAL) have ZERO synthetic seed base balance."""
+        """Ensure live broker stores (e.g. BINANCE_LIVE_REAL) have ZERO synthetic seed base balance or orphaned mock sweeps."""
         modified = False
-        for env_key in list(self.vault_stores.keys()):
-            if "LIVE" in env_key.upper() or "REAL" in env_key.upper():
-                store = self.vault_stores[env_key]
-                if store.get("base_balance", 0.0) != 0.0:
-                    store["base_balance"] = 0.0
-                    modified = True
+        try:
+            # Check paper broker state file directly to avoid circular imports
+            broker_file = Path(__file__).resolve().parent.parent / "data" / "paper_broker_state.json"
+            broker_pools = {}
+            if broker_file.exists():
+                try:
+                    with open(broker_file, "r") as bf:
+                        broker_pools = json.load(bf).get("pools", {})
+                except Exception:
+                    pass
+
+            for env_key in list(self.vault_stores.keys()):
+                if "LIVE" in env_key.upper() or "REAL" in env_key.upper():
+                    store = self.vault_stores[env_key]
+                    if store.get("base_balance", 0.0) != 0.0:
+                        store["base_balance"] = 0.0
+                        modified = True
+
+                    # Verify against genuine live trade history in broker pools
+                    live_pool_hist = broker_pools.get(env_key, {}).get("trade_history", [])
+                    if not live_pool_hist and store.get("transactions"):
+                        # No live trades were ever completed — purge mock/test sweeps completely
+                        store["transactions"] = []
+                        store["withdrawals"] = []
+                        store["transfers"] = []
+                        modified = True
+        except Exception as e:
+            print(f"[PROFIT VAULT] Sanitize notice: {e}")
+
         if modified:
             self._save_state()
 

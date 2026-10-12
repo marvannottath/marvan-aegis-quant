@@ -228,6 +228,23 @@ export const api = {
     });
   },
 
+  async closeAllPositions(ws: Workspace, env: Environment): Promise<any> {
+    return fetchJson('/api/positions/close-all', {
+      method: 'POST',
+      body: JSON.stringify({
+        workspace: ws,
+        environment: env,
+      }),
+    });
+  },
+
+  async resetVault(poolName: string): Promise<any> {
+    return fetchJson('/api/vault/reset', {
+      method: 'POST',
+      body: JSON.stringify({ pool_name: poolName }),
+    });
+  },
+
   // Vault & Ledger
   async getVaultHistory(env: Environment, ws?: Workspace): Promise<any> {
     const wsParam = ws ? `&workspace=${ws}` : '';

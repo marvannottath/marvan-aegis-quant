@@ -1960,6 +1960,100 @@ async def close_position_endpoint(request: Request):
         return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=400)
 
 
+@app.post("/api/positions/close-all")
+async def close_all_positions_endpoint(request: Request):
+    """
+    Emergency or operator manual close of ALL active positions for a workspace & environment.
+    Immediately liquidates positions, returns allocated margins to cash, and zeroes open positions.
+    """
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    workspace = body.get("workspace", "CRYPTO")
+    environment = body.get("environment", "DEMO")
+
+    from core.position_snapshot_service import position_snapshot_service
+    from execution.paper_broker import paper_broker
+
+    snap = position_snapshot_service.get_snapshot(workspace, force_refresh=True, environment=environment)
+    positions = snap.get("positions", [])
+    closed_list = []
+    errors = []
+
+    for p in positions:
+        sym = p.get("symbol") or p.get("asset")
+        if sym:
+            try:
+                c_res = await close_position_endpoint({"asset": sym, "workspace": workspace})
+                closed_list.append(sym)
+            except Exception as e:
+                errors.append(f"{sym}: {str(e)}")
+
+    # Check broker pool directly for any positions that might not be in snapshot cache
+    pool_mapping = {
+        ("CRYPTO", "DEMO"): "BINANCE_SPOT_DEMO",
+        ("CRYPTO", "LIVE"): "BINANCE_LIVE_REAL",
+        ("INDIA", "DEMO"): "AEGIS_INDIA_INR",
+        ("INDIA", "LIVE"): "UPSTOX_LIVE",
+        ("FOREX_GOLD", "DEMO"): "MT5_DEMO",
+        ("FOREX_GOLD", "LIVE"): "MT5_LIVE_REAL",
+    }
+    target_pool = pool_mapping.get((workspace.upper(), environment.upper()))
+    if target_pool and target_pool in paper_broker.pools:
+        paper_broker.switch_pool(target_pool)
+        for sym in list(paper_broker.positions.keys()):
+            if sym not in closed_list:
+                try:
+                    await close_position_endpoint({"asset": sym, "workspace": workspace})
+                    closed_list.append(sym)
+                except Exception as e:
+                    errors.append(f"{sym}: {str(e)}")
+        # If any remain lingering, clear pool positions map and restore virtual cash
+        for sym, pos_data in list(paper_broker.positions.items()):
+            cap_alloc = float(pos_data.get("capital_allocated", 0.0))
+            paper_broker.virtual_cash += cap_alloc
+        paper_broker.positions.clear()
+        if target_pool in paper_broker.pools and "positions" in paper_broker.pools[target_pool]:
+            paper_broker.pools[target_pool]["positions"].clear()
+
+    # Force clear snapshot cache so UI reflects 0 open positions instantly
+    position_snapshot_service.clear_injected_delta()
+    if hasattr(position_snapshot_service, "_snapshot_cache"):
+        position_snapshot_service._snapshot_cache.clear()
+        position_snapshot_service._snapshot_cache_ts.clear()
+    if hasattr(position_snapshot_service, "_agg_cache"):
+        position_snapshot_service._agg_cache.clear()
+        position_snapshot_service._agg_cache_ts.clear()
+    paper_broker._update_equity()
+    paper_broker._save_state()
+
+    return JSONResponse({
+        "status": "SUCCESS",
+        "message": f"Successfully closed all {len(closed_list)} positions for {workspace} ({environment})",
+        "closed_count": len(closed_list),
+        "closed_symbols": closed_list,
+        "errors": errors
+    })
+
+
+@app.post("/api/vault/reset")
+async def reset_vault_endpoint(request: Request):
+    """Reset profit vault for an environment to 0.0 (purges mock/test sweeps)."""
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    pool_name = body.get("pool_name") or body.get("environment") or "BINANCE_LIVE_REAL"
+    from execution.profit_vault import profit_vault
+    profit_vault.reset_vault(pool_name)
+    return JSONResponse({
+        "status": "SUCCESS",
+        "message": f"Profit vault for {pool_name} reset to 0.0",
+        "vault_balance": 0.0
+    })
+
+
 
 @app.post("/api/reconcile-trade-history")
 async def reconcile_trade_history():
