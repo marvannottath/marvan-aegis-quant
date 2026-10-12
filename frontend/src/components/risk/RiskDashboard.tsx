@@ -8,7 +8,7 @@ import { Badge } from '../common/Badge';
 import { ShieldAlert, AlertTriangle, CheckCircle2, Lock, Sliders, RefreshCw, Gauge, Save, RotateCcw } from 'lucide-react';
 
 export function RiskDashboard() {
-  const { workspace, portfolio } = useTradingContext();
+  const { workspace, environment, portfolio } = useTradingContext();
   const [riskData, setRiskData] = useState<RiskStatus | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isUpdating, setIsUpdating] = useState<boolean>(false);
@@ -27,7 +27,7 @@ export function RiskDashboard() {
   const loadRisk = async () => {
     try {
       setIsLoading(true);
-      const res = await api.getRiskStatus(workspace);
+      const res = await api.getRiskStatus(workspace, environment);
       setRiskData(res);
       if (res) {
         setManualLeverage(String(res.max_leverage ?? 2));
@@ -46,7 +46,7 @@ export function RiskDashboard() {
 
   useEffect(() => {
     loadRisk();
-  }, [workspace]);
+  }, [workspace, environment]);
 
   const handleSelectPreset = async (profile: 'CONSERVATIVE' | 'MODERATE' | 'AGGRESSIVE') => {
     try {
@@ -58,15 +58,15 @@ export function RiskDashboard() {
         active_profile_name: profile,
         active_profile: profile,
       }));
-      await api.setRiskProfile(profile);
+      await api.setRiskProfile(profile, workspace, environment);
       setFeedbackMsg({
-        text: `Risk Profile successfully switched to ${profile}!`,
+        text: `Risk Profile for ${workspace} (${environment}) successfully switched to ${profile}!`,
         success: true,
       });
       await loadRisk();
     } catch (err: any) {
       setFeedbackMsg({
-        text: err?.message || `Failed to switch to ${profile} risk profile.`,
+        text: err?.message || `Failed to switch to ${profile} risk profile for ${workspace} (${environment}).`,
         success: false,
       });
       await loadRisk();
@@ -87,9 +87,11 @@ export function RiskDashboard() {
         daily_loss_limit_usd: parseFloat(manualDailyLoss),
         custom_trade_cap_usd: parseFloat(manualTradeCap),
         circuit_breaker_drawdown_pct: parseFloat(manualDrawdownLimit),
+        workspace,
+        environment,
       });
       setFeedbackMsg({
-        text: 'Custom risk parameters applied and strictly enforced on server execution gate.',
+        text: `Custom risk parameters applied for ${workspace} (${environment}) and strictly enforced on server execution gate.`,
         success: true,
       });
       await loadRisk();
@@ -153,9 +155,15 @@ export function RiskDashboard() {
                 {riskData?.circuit_tripped ? 'CIRCUIT TRIPPED' : 'CIRCUIT NORMAL'}
               </Badge>
             </div>
-            <p className="text-xs text-txt-muted mt-0.5">
-              Active Profile: <span className="font-semibold text-txt-primary">{activeProfile}</span> • Fail-closed order execution gates
-            </p>
+            <div className="flex flex-wrap items-center gap-2 mt-1">
+              <span className="text-xs text-txt-muted">Target Venue:</span>
+              <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-slate-900 border border-slate-700 text-amber-400">
+                {workspace} ({environment})
+              </span>
+              <span className="text-xs text-txt-muted">
+                • Active Profile: <span className="font-semibold text-txt-primary">{activeProfile}</span> • Isolated Risk Gates
+              </span>
+            </div>
           </div>
         </div>
 

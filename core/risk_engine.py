@@ -99,9 +99,44 @@ class RiskEngine:
             "FOREX_GOLD": 0.0
         }
         self._last_reset_date: str = ""
+        # Multi-venue isolated risk profiles: key = "{WORKSPACE}:{ENVIRONMENT}"
+        self.profiles_by_venue: Dict[str, Dict[str, Any]] = {}
+        for ws in ["CRYPTO", "FOREX_GOLD", "INDIA"]:
+            for env in ["DEMO", "LIVE"]:
+                k = f"{ws}:{env}"
+                self.profiles_by_venue[k] = {
+                    "active_profile_name": "CONSERVATIVE",
+                    "profile": dict(PROFILES["CONSERVATIVE"]),
+                    "custom_trade_cap_usd": 5000.0,
+                    "daily_loss_limit_usd": 2000.0
+                }
         self._load_state()
         self.active_profile = PROFILES.get(self.active_profile_name, PROFILES["CONSERVATIVE"])
         self.max_drawdown_pct = self.active_profile["circuit_breaker_drawdown_pct"]
+
+    def _venue_key(self, workspace: Optional[str] = None, environment: Optional[str] = None) -> str:
+        ws = (workspace or "CRYPTO").upper()
+        if ws not in ["CRYPTO", "FOREX_GOLD", "INDIA"]:
+            ws = "CRYPTO"
+        env = (environment or "DEMO").upper()
+        if env not in ["DEMO", "LIVE"]:
+            env = "DEMO"
+        return f"{ws}:{env}"
+
+    def get_venue_config(self, workspace: Optional[str] = None, environment: Optional[str] = None) -> Dict[str, Any]:
+        key = self._venue_key(workspace, environment)
+        if key not in self.profiles_by_venue:
+            self.profiles_by_venue[key] = {
+                "active_profile_name": self.active_profile_name,
+                "profile": dict(self.active_profile),
+                "custom_trade_cap_usd": self.custom_trade_cap_usd,
+                "daily_loss_limit_usd": self.daily_loss_limit_usd
+            }
+        return self.profiles_by_venue[key]
+
+    def get_profile(self, workspace: Optional[str] = None, environment: Optional[str] = None) -> Dict[str, Any]:
+        cfg = self.get_venue_config(workspace, environment)
+        return cfg.get("profile", self.active_profile)
 
     def _load_state(self):
         if RISK_STATE_FILE.exists():
@@ -124,6 +159,13 @@ class RiskEngine:
                         base = dict(PROFILES.get(self.active_profile_name, PROFILES["CONSERVATIVE"]))
                         base.update(data["active_profile_overrides"])
                         self.active_profile = base
+                    saved_venues = data.get("profiles_by_venue", {})
+                    if isinstance(saved_venues, dict):
+                        for k, v in saved_venues.items():
+                            if isinstance(v, dict):
+                                if k not in self.profiles_by_venue:
+                                    self.profiles_by_venue[k] = {}
+                                self.profiles_by_venue[k].update(v)
             except Exception as e:
                 print(f"[RISK ENGINE] Load state notice: {e}")
         self._maybe_reset_daily_loss()
@@ -135,6 +177,7 @@ class RiskEngine:
                 json.dump({
                     "active_profile_name": self.active_profile_name,
                     "active_profile_overrides": getattr(self, "active_profile", {}),
+                    "profiles_by_venue": self.profiles_by_venue,
                     "custom_trade_cap_usd": self.custom_trade_cap_usd,
                     "daily_realized_loss": self.daily_realized_loss,
                     "daily_loss_limit_usd": self.daily_loss_limit_usd,
@@ -160,15 +203,27 @@ class RiskEngine:
                 self.daily_realized_loss_by_ws[ws_key] += loss_usd
             self._save_state()
 
-    def set_risk_profile(self, profile_name: str) -> Dict[str, Any]:
+    def set_risk_profile(self, profile_name: str, workspace: Optional[str] = None, environment: Optional[str] = None) -> Dict[str, Any]:
         name = profile_name.upper()
         if name in PROFILES:
+            base_prof = dict(PROFILES[name])
+            if workspace or environment:
+                key = self._venue_key(workspace, environment)
+                self.profiles_by_venue[key] = {
+                    "active_profile_name": name,
+                    "profile": base_prof,
+                    "custom_trade_cap_usd": self.profiles_by_venue.get(key, {}).get("custom_trade_cap_usd", 5000.0),
+                    "daily_loss_limit_usd": self.profiles_by_venue.get(key, {}).get("daily_loss_limit_usd", 2000.0)
+                }
             self.active_profile_name = name
-            self.active_profile = PROFILES[name]
-            self.max_drawdown_pct = self.active_profile["circuit_breaker_drawdown_pct"]
+            self.active_profile = base_prof
+            self.max_drawdown_pct = base_prof["circuit_breaker_drawdown_pct"]
             self._save_state()
-            max_lev_val = self.active_profile['max_leverage']
-        print(f'[RISK ENGINE] Profile set: {name} (Max Lev: {max_lev_val}x)')
+            max_lev_val = base_prof['max_leverage']
+            print(f'[RISK ENGINE] Profile set for {workspace}:{environment} -> {name} (Max Lev: {max_lev_val}x)')
+            if workspace or environment:
+                return self.profiles_by_venue[self._venue_key(workspace, environment)]["profile"]
+            return self.active_profile
         return self.active_profile
 
     def is_circuit_tripped(self, workspace: str = "CRYPTO", environment: str = "DEMO") -> Tuple[bool, str]:
@@ -230,42 +285,54 @@ class RiskEngine:
         max_open_positions: Optional[int] = None,
         daily_loss_limit_usd: Optional[float] = None,
         custom_trade_cap_usd: Optional[float] = None,
-        circuit_breaker_drawdown_pct: Optional[float] = None
+        circuit_breaker_drawdown_pct: Optional[float] = None,
+        workspace: Optional[str] = None,
+        environment: Optional[str] = None
     ) -> Dict[str, Any]:
-        """Update active risk profile limits or custom bounds manually."""
-        self.active_profile = dict(self.active_profile)
+        """Update active risk profile limits or custom bounds manually for a venue."""
+        cfg = self.get_venue_config(workspace, environment)
+        prof = dict(cfg.get("profile", self.active_profile))
         if max_leverage is not None and float(max_leverage) > 0:
-            self.active_profile["max_leverage"] = float(max_leverage)
-            self.active_profile["default_leverage"] = float(max_leverage)
+            prof["max_leverage"] = float(max_leverage)
+            prof["default_leverage"] = float(max_leverage)
         if stop_loss_pct is not None and float(stop_loss_pct) > 0:
-            self.active_profile["stop_loss_pct"] = float(stop_loss_pct)
+            prof["stop_loss_pct"] = float(stop_loss_pct)
         if max_open_positions is not None and int(max_open_positions) > 0:
-            self.active_profile["max_open_positions"] = int(max_open_positions)
+            prof["max_open_positions"] = int(max_open_positions)
         if daily_loss_limit_usd is not None and float(daily_loss_limit_usd) > 0:
+            cfg["daily_loss_limit_usd"] = float(daily_loss_limit_usd)
             self.daily_loss_limit_usd = float(daily_loss_limit_usd)
         if custom_trade_cap_usd is not None and float(custom_trade_cap_usd) > 0:
+            cfg["custom_trade_cap_usd"] = float(custom_trade_cap_usd)
             self.custom_trade_cap_usd = float(custom_trade_cap_usd)
         if circuit_breaker_drawdown_pct is not None and float(circuit_breaker_drawdown_pct) > 0:
             self.max_drawdown_pct = float(circuit_breaker_drawdown_pct)
-            self.active_profile["circuit_breaker_drawdown_pct"] = float(circuit_breaker_drawdown_pct)
+            prof["circuit_breaker_drawdown_pct"] = float(circuit_breaker_drawdown_pct)
+        cfg["profile"] = prof
+        self.active_profile = prof
         self._save_state()
-        return self.get_profile_summary()
+        return self.get_profile_summary(workspace, environment)
 
-    def get_profile_summary(self) -> Dict[str, Any]:
+    def get_profile_summary(self, workspace: Optional[str] = None, environment: Optional[str] = None) -> Dict[str, Any]:
+        cfg = self.get_venue_config(workspace, environment)
+        prof = cfg.get("profile", self.active_profile)
+        prof_name = cfg.get("active_profile_name", self.active_profile_name)
+        trade_cap = cfg.get("custom_trade_cap_usd", self.custom_trade_cap_usd)
+        daily_loss_lim = cfg.get("daily_loss_limit_usd", self.daily_loss_limit_usd)
         return {
-            "active_profile": self.active_profile_name,
-            "description": self.active_profile["description"],
-            "default_leverage": self.active_profile["default_leverage"],
-            "max_leverage": self.active_profile["max_leverage"],
-            "max_risk_pct": self.active_profile["max_risk_per_trade_pct"],
-            "max_positions": self.active_profile["max_open_positions"],
-            "stop_loss_pct": self.active_profile["stop_loss_pct"],
-            "take_profit_pct": self.active_profile["take_profit_target_pct"],
-            "max_trade_cap_usd": self.custom_trade_cap_usd,
+            "active_profile": prof_name,
+            "description": prof.get("description", "Custom Risk Rules"),
+            "default_leverage": prof.get("default_leverage", 2.0),
+            "max_leverage": prof.get("max_leverage", 2.0),
+            "max_risk_pct": prof.get("max_risk_per_trade_pct", 1.0),
+            "max_positions": prof.get("max_open_positions", 4),
+            "stop_loss_pct": prof.get("stop_loss_pct", 0.4),
+            "take_profit_pct": prof.get("take_profit_target_pct", 0.15),
+            "max_trade_cap_usd": trade_cap,
             "circuit_tripped": self.circuit_tripped,
             "trip_reason": self.trip_reason,
             "daily_realized_loss_usd": round(self.daily_realized_loss, 2),
-            "daily_loss_limit_usd": self.daily_loss_limit_usd
+            "daily_loss_limit_usd": daily_loss_lim
         }
 
     def calculate_position_size(self, virtual_cash: float, volatility: float, confidence_score: float) -> float:
@@ -357,7 +424,8 @@ class RiskEngine:
         current_open_positions: int,
         available_cash: float,
         data_age_seconds: Optional[float] = None,
-        workspace: Optional[str] = None
+        workspace: Optional[str] = None,
+        environment: Optional[str] = None
     ) -> Tuple[bool, str, str]:
         """
         HARD 7-Gate Server-Side Order Risk Pipeline.
@@ -365,23 +433,27 @@ class RiskEngine:
         No bypass path exists. All gates must pass in sequence.
         """
         self._maybe_reset_daily_loss()
+        cfg = self.get_venue_config(workspace, environment)
+        prof = cfg.get("profile", self.active_profile)
+        prof_name = cfg.get("active_profile_name", self.active_profile_name)
+        trade_cap = cfg.get("custom_trade_cap_usd", self.custom_trade_cap_usd)
 
         # Gate 1: Position limit
-        max_pos = self.active_profile["max_open_positions"]
+        max_pos = prof.get("max_open_positions", 4)
         if current_open_positions >= max_pos:
-            msg = f"Max open positions ({max_pos}) reached for {self.active_profile_name} profile."
+            msg = f"Max open positions ({max_pos}) reached for {prof_name} profile on {workspace}:{environment}."
             return False, RISK_REJECTED_POSITION_LIMIT, msg
 
         # Gate 2: HARD capital cap — strictly <= cap, no multiplier, no slack
-        if amount_usd > self.custom_trade_cap_usd:
+        if amount_usd > trade_cap:
             msg = (f"Order ${amount_usd:,.2f} exceeds hard cap "
-                   f"${self.custom_trade_cap_usd:,.2f}. MAX_CAPITAL_LIMIT_EXCEEDED.")
+                   f"${trade_cap:,.2f} for {workspace}:{environment}. MAX_CAPITAL_LIMIT_EXCEEDED.")
             return False, RISK_REJECTED_CAPITAL_CAP, msg
 
         # Gate 3: Leverage
-        max_lev = self.active_profile["max_leverage"]
+        max_lev = prof.get("max_leverage", 2.0)
         if leverage > max_lev:
-            msg = f"Leverage {leverage}x exceeds max {max_lev}x for {self.active_profile_name}."
+            msg = f"Leverage {leverage}x exceeds max {max_lev}x for {prof_name} on {workspace}:{environment}."
             return False, RISK_REJECTED_LEVERAGE, msg
 
         # Gate 4: Margin availability
@@ -504,11 +576,20 @@ class RiskEngine:
 
     validate_pre_execution_risk = validate_workspace_order
 
-    def get_risk_status(self, workspace: Optional[str] = None) -> Dict[str, Any]:
+    def get_risk_status(self, workspace: Optional[str] = None, environment: Optional[str] = None) -> Dict[str, Any]:
         """Centralized risk status for Phase 11 /api/risk/status endpoint."""
-        ws_key = (workspace or "INDIA").upper()
+        ws_key = (workspace or "CRYPTO").upper()
         if ws_key not in self.WORKSPACE_DAILY_LOSS_LIMITS:
-            ws_key = "INDIA"
+            ws_key = "CRYPTO"
+        env_key = (environment or "DEMO").upper()
+        if env_key not in ["DEMO", "LIVE"]:
+            env_key = "DEMO"
+
+        venue_cfg = self.get_venue_config(ws_key, env_key)
+        prof = venue_cfg.get("profile", self.active_profile)
+        prof_name = venue_cfg.get("active_profile_name", self.active_profile_name)
+        trade_cap = venue_cfg.get("custom_trade_cap_usd", self.custom_trade_cap_usd)
+        daily_loss_lim = venue_cfg.get("daily_loss_limit_usd", self.daily_loss_limit_usd)
 
         ws_limit = self.WORKSPACE_DAILY_LOSS_LIMITS.get(ws_key, 5000.0)
         ws_realized = self.daily_realized_loss_by_ws.get(ws_key, 0.0)
@@ -525,24 +606,25 @@ class RiskEngine:
             pass
 
         return {
-            "active_profile": self.active_profile_name,
-            "active_profile_name": self.active_profile_name,
-            "max_drawdown_pct": self.max_drawdown_pct,
-            "profile_details": self.active_profile,
+            "active_profile": prof_name,
+            "active_profile_name": prof_name,
+            "max_drawdown_pct": prof.get("circuit_breaker_drawdown_pct", 5.0),
+            "profile_details": prof,
             "workspace": ws_key,
+            "environment": env_key,
             "currency": currency,
             "currency_symbol": currency_symbol,
             "daily_loss_limit": ws_limit,
-            "daily_loss_limit_usd": self.daily_loss_limit_usd,
+            "daily_loss_limit_usd": daily_loss_lim,
             "daily_realized_loss": round(ws_realized, 2),
             "daily_realized_loss_legacy": round(self.daily_realized_loss, 2),
-            "max_leverage": self.active_profile.get("max_leverage"),
-            "max_open_positions": self.active_profile.get("max_open_positions"),
-            "custom_trade_cap_usd": self.custom_trade_cap_usd,
+            "max_leverage": prof.get("max_leverage"),
+            "max_open_positions": prof.get("max_open_positions"),
+            "custom_trade_cap_usd": trade_cap,
             "circuit_tripped": self.circuit_tripped,
             "trip_reason": self.trip_reason,
-            "stop_loss_pct": self.active_profile.get("stop_loss_pct"),
-            "take_profit_target_pct": self.active_profile.get("take_profit_target_pct"),
+            "stop_loss_pct": prof.get("stop_loss_pct"),
+            "take_profit_target_pct": prof.get("take_profit_target_pct"),
             "news_lock_status": news_status,
             "news_lock": {"status": news_status}
         }

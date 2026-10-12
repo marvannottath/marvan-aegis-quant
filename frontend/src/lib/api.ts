@@ -119,17 +119,18 @@ export const api = {
   },
 
   // Risk & Safety
-  async getRiskStatus(ws: Workspace): Promise<RiskStatus> {
+  async getRiskStatus(ws: Workspace, env?: string): Promise<RiskStatus> {
+    const envParam = env ? `&environment=${env}` : '';
     const res = await fetchJson<{ status: string; data: RiskStatus }>(
-      `/api/risk/status?workspace=${ws}`
+      `/api/risk/status?workspace=${ws}${envParam}`
     );
     return res.data;
   },
 
-  async setRiskProfile(profile: 'CONSERVATIVE' | 'MODERATE' | 'AGGRESSIVE'): Promise<any> {
+  async setRiskProfile(profile: 'CONSERVATIVE' | 'MODERATE' | 'AGGRESSIVE', ws?: Workspace, env?: string): Promise<any> {
     return fetchJson('/api/set-risk-profile', {
       method: 'POST',
-      body: JSON.stringify({ profile }),
+      body: JSON.stringify({ profile, workspace: ws, environment: env }),
     });
   },
 
@@ -140,6 +141,8 @@ export const api = {
     daily_loss_limit_usd?: number;
     custom_trade_cap_usd?: number;
     circuit_breaker_drawdown_pct?: number;
+    workspace?: Workspace;
+    environment?: string;
   }): Promise<any> {
     return fetchJson('/api/risk/update-limits', {
       method: 'POST',

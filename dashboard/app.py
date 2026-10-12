@@ -1465,7 +1465,9 @@ async def get_state(workspace: Optional[str] = None, request_id: Optional[str] =
 async def set_risk_profile_endpoint(data: dict):
     """Dynamically switch active risk profile."""
     prof = data.get("profile", "CONSERVATIVE")
-    res = risk_engine.set_risk_profile(prof)
+    ws = data.get("workspace")
+    env = data.get("environment")
+    res = risk_engine.set_risk_profile(prof, workspace=ws, environment=env)
     return JSONResponse({"status": "SUCCESS", "active_profile": res})
 
 @app.post("/api/risk/reset-circuit-breaker")
@@ -1507,6 +1509,8 @@ async def update_risk_limits_endpoint(data: dict):
         daily_loss_limit_usd=data.get("daily_loss_limit_usd"),
         custom_trade_cap_usd=data.get("custom_trade_cap_usd"),
         circuit_breaker_drawdown_pct=data.get("circuit_breaker_drawdown_pct"),
+        workspace=data.get("workspace"),
+        environment=data.get("environment"),
     )
     return JSONResponse({"status": "SUCCESS", "profile": res})
 
@@ -7049,11 +7053,12 @@ async def get_feature_health_endpoint():
 # 33. Centralized Risk Status API (Phase 11)
 # ------------------------------------------------------------------
 @app.get("/api/risk/status")
-async def get_risk_status_endpoint(request: Request, workspace: Optional[str] = None):
+async def get_risk_status_endpoint(request: Request, workspace: Optional[str] = None, environment: Optional[str] = None):
     """Centralized risk configuration, limits, and circuit breaker status."""
     try:
         active_ws = workspace or workspace_manager.get_active_workspace()
-        status = risk_engine.get_risk_status(workspace=active_ws)
+        active_env = environment or request.query_params.get("environment") or workspace_manager.get_active_environment()
+        status = risk_engine.get_risk_status(workspace=active_ws, environment=active_env)
         return JSONResponse({"status": "SUCCESS", "data": status})
     except Exception as e:
         return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)

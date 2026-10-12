@@ -231,11 +231,12 @@ class AutonomousTrader:
                             pass
 
                     # 2. Risk profile & Capacity
-                    profile_name = self.risk_engine.active_profile.get("name", "CONSERVATIVE")
-                    target_capacity = int(self.risk_engine.active_profile.get("max_open_positions", 4))
+                    venue_prof = self.risk_engine.get_profile(_active_ws, _active_env)
+                    profile_name = venue_prof.get("name", "CONSERVATIVE")
+                    target_capacity = int(venue_prof.get("max_open_positions", 4))
                     if _active_ws == "CRYPTO":
                         target_capacity = max(3, target_capacity)
-                    base_lev = float(self.risk_engine.active_profile.get("default_leverage", 2.0))
+                    base_lev = float(venue_prof.get("default_leverage", 2.0))
 
                     # 3. Scan workspace opportunities
                     filtered_scanned = multi_scanner.scan_workspace(_active_ws, sentiment_score)
@@ -309,7 +310,8 @@ class AutonomousTrader:
                                 calc_leverage = min(5.0, calc_leverage)
 
                             # Dynamic position sizing within risk engine limits
-                            max_cap = float(getattr(self.risk_engine, "custom_trade_cap_usd", 4000.0))
+                            venue_cfg = self.risk_engine.get_venue_config(_active_ws, _active_env)
+                            max_cap = float(venue_cfg.get("custom_trade_cap_usd", 4000.0))
                             if pool == "BINANCE_LIVE_REAL":
                                 if working_cash < 5.20:
                                     continue
@@ -319,7 +321,7 @@ class AutonomousTrader:
                                     else:
                                         size_usd = round(min(working_cash * 0.95, 6.00), 2)
                                 else:
-                                    size_usd = min(max_cap * 0.75, self.risk_engine.calculate_position_size(working_cash, volatility, opp_score))
+                                    size_usd = min(max_cap * 0.75, self.risk_engine.calculate_position_size(working_cash, volatility, opp_score, workspace=_active_ws, environment=_active_env))
                             elif pool in ["BINANCE_TESTNET_DEMO", "BINANCE_DEMO"] or _active_ws == "CRYPTO":
                                 if working_cash < 10.0:
                                     continue
@@ -331,9 +333,9 @@ class AutonomousTrader:
                             else:
                                 if working_cash < 10.0:
                                     continue
-                                size_usd = min(max_cap * 0.75, self.risk_engine.calculate_position_size(working_cash, volatility, opp_score))
+                                size_usd = min(max_cap * 0.75, self.risk_engine.calculate_position_size(working_cash, volatility, opp_score, workspace=_active_ws, environment=_active_env))
 
-                            is_risk_valid, _ = self.risk_engine.validate_order(size_usd, calc_leverage, len(self.broker.positions))
+                            is_risk_valid, _ = self.risk_engine.validate_order(size_usd, calc_leverage, len(self.broker.positions), workspace=_active_ws, environment=_active_env)
                             if is_risk_valid and size_usd >= 5.0:
                                 live_order_placed = False
 
