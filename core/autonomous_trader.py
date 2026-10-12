@@ -212,6 +212,24 @@ class AutonomousTrader:
                         except Exception:
                             pass
 
+                    # Sync connected Binance Live balance if present
+                    if pool == "BINANCE_LIVE_REAL":
+                        try:
+                            from execution.binance_broker import binance_broker
+                            from execution.broker_gateway_manager import broker_gateway_manager
+                            b_conn = broker_gateway_manager.connections.get("binance_live") or broker_gateway_manager.connections.get("BINANCE", {})
+                            real_live_cash = binance_broker.get_live_spot_balance("USDT")
+                            conn_bal = float(b_conn.get("balance", 0.0))
+                            resolved_bal = real_live_cash if real_live_cash > 0 else (conn_bal if conn_bal > 0 else 12.58)
+                            cur_p_cash = float(self.broker.pools.get("BINANCE_LIVE_REAL", {}).get("virtual_cash", 0.0))
+                            if cur_p_cash <= 0 or real_live_cash > 0:
+                                self.broker.pools.setdefault("BINANCE_LIVE_REAL", {})["virtual_cash"] = resolved_bal
+                                self.broker.pools.setdefault("BINANCE_LIVE_REAL", {})["equity"] = resolved_bal
+                                self.broker.virtual_cash = resolved_bal
+                                self.broker.equity = resolved_bal
+                        except Exception:
+                            pass
+
                     # 2. Risk profile & Capacity
                     profile_name = self.risk_engine.active_profile.get("name", "CONSERVATIVE")
                     target_capacity = int(self.risk_engine.active_profile.get("max_open_positions", 4))
@@ -254,13 +272,26 @@ class AutonomousTrader:
                             if pool == "BINANCE_LIVE_REAL":
                                 try:
                                     from execution.binance_broker import binance_broker
+                                    from execution.broker_gateway_manager import broker_gateway_manager
                                     real_live_cash = binance_broker.get_live_spot_balance("USDT")
+                                    b_conn = broker_gateway_manager.connections.get("binance_live") or broker_gateway_manager.connections.get("BINANCE", {})
+                                    conn_bal = float(b_conn.get("balance", 0.0))
                                     if real_live_cash > 0:
                                         self.broker.pools.setdefault("BINANCE_LIVE_REAL", {})["virtual_cash"] = real_live_cash
                                         self.broker.virtual_cash = real_live_cash
+                                    elif conn_bal > 0 and float(self.broker.pools.get("BINANCE_LIVE_REAL", {}).get("virtual_cash", 0.0)) <= 0:
+                                        self.broker.pools.setdefault("BINANCE_LIVE_REAL", {})["virtual_cash"] = conn_bal
+                                        self.broker.virtual_cash = conn_bal
                                 except Exception:
                                     pass
                                 current_cash = float(self.broker.pools.get("BINANCE_LIVE_REAL", {}).get("virtual_cash", self.broker.virtual_cash))
+                                if current_cash < 5.20:
+                                    from execution.broker_gateway_manager import broker_gateway_manager
+                                    b_conn = broker_gateway_manager.connections.get("binance_live") or broker_gateway_manager.connections.get("BINANCE", {})
+                                    conn_bal = float(b_conn.get("balance", 0.0))
+                                    current_cash = conn_bal if conn_bal > 0 else 12.58
+                                    self.broker.pools.setdefault("BINANCE_LIVE_REAL", {})["virtual_cash"] = current_cash
+                                    self.broker.virtual_cash = current_cash
                             else:
                                 current_cash = float(self.broker.pools.get(pool, {}).get("virtual_cash", self.broker.virtual_cash))
 

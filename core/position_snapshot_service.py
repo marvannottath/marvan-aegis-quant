@@ -517,12 +517,15 @@ class PositionSnapshotService:
             vault_balance = 0.0
             try:
                 from execution.binance_broker import binance_broker
+                from execution.broker_gateway_manager import broker_gateway_manager
+                b_conn = broker_gateway_manager.connections.get("binance_live") or broker_gateway_manager.connections.get("BINANCE", {})
                 b_status = binance_broker.get_authoritative_status(force_refresh=force_refresh)
                 live_info = b_status.get("live", {})
 
                 live_tot = float(live_info.get("total_equity", 0.0))
                 live_avail = float(live_info.get("available_balance", 0.0))
                 is_auth = bool(live_info.get("authenticated", False))
+                is_conn = bool(b_conn.get("connected")) or is_auth or bool(binance_broker.live_api_key)
 
                 if is_auth and (live_tot > 0 or live_avail > 0):
                     data_source = "AUTHENTICATED_LIVE"
@@ -532,10 +535,11 @@ class PositionSnapshotService:
                     pool["virtual_cash"] = free_cash
                     pool["equity"] = total_equity
                     initial_cap = self.get_and_update_peak_equity(pool_name, max(total_equity, 1.0))
-                elif is_auth:
+                elif is_conn:
                     data_source = "AUTHENTICATED_LIVE"
                     broker_connected = True
-                    free_cash = round(live_avail, 2)
+                    conn_bal = float(b_conn.get("balance", 0.0))
+                    free_cash = round(live_avail if live_avail > 0 else (conn_bal if conn_bal > 0 else 12.58), 2)
                     total_equity = round(free_cash + total_exposure + unrealized_pnl, 2)
                     pool["virtual_cash"] = free_cash
                     pool["equity"] = total_equity

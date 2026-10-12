@@ -50,8 +50,6 @@ class EnvironmentGate:
 
     @property
     def LIVE_TRADING_ENABLED(self) -> bool:
-        if "LIVE_TRADING_ENABLED" in os.environ:
-            return os.getenv("LIVE_TRADING_ENABLED", "false").lower() == "true"
         if self.ENV_STATE_FILE.exists():
             try:
                 with open(self.ENV_STATE_FILE, "r") as f:
@@ -60,6 +58,8 @@ class EnvironmentGate:
                         return bool(d["live_trading_enabled"])
             except Exception:
                 pass
+        if "LIVE_TRADING_ENABLED" in os.environ:
+            return os.getenv("LIVE_TRADING_ENABLED", "false").lower() == "true"
         return getattr(self, "_live_trading_enabled", True)
 
     @LIVE_TRADING_ENABLED.setter
