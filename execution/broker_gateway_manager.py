@@ -462,14 +462,21 @@ class BrokerGatewayManager:
                     from execution.ctrader_broker import ctrader_broker
                     ct_info = ctrader_broker.get_account_info()
                     stored_bal = float(stored.get("balance", 0.0))
-                    ct_bal = float(ct_info.get("balance", 0.0)) or stored_bal
-                    if ctrader_broker.is_connected or stored.get("connected") or (ctrader_broker.access_token and ctrader_broker.account_id):
+                    ct_bal = float(ct_info.get("balance", 0.0)) if ct_info.get("status") == "SUCCESS" else stored_bal
+                    if ctrader_broker.is_connected or (ctrader_broker.access_token and ctrader_broker.account_id):
                         is_connected = True
                         status = "ONLINE" if ctrader_broker.is_connected else "CONNECTED"
-                        balance = ct_bal if ct_bal > 0 else float(paper_broker.pools.get("CTRADER_LIVE", {}).get("virtual_cash", 1000.0))
+                        balance = ct_bal
                         currency = ct_info.get("currency") or stored.get("currency", "USD")
                         ping_ms = stored.get("ping_ms", "24ms")
                         active_account_label = f"cTrader #{ctrader_broker.account_id}" if ctrader_broker.account_id else stored.get("account_label", "cTrader Open API")
+                    elif stored.get("connected"):
+                        is_connected = True
+                        status = "CONNECTED"
+                        balance = stored_bal
+                        currency = stored.get("currency", "USD")
+                        ping_ms = stored.get("ping_ms", "24ms")
+                        active_account_label = stored.get("account_label", "cTrader Open API")
                     else:
                         status = "NOT_CONFIGURED"
                         is_connected = False
@@ -676,7 +683,7 @@ class BrokerGatewayManager:
             stored_entry["client_id"] = cid
             stored_entry["account_id"] = aid
             stored_entry["account_label"] = f"cTrader #{aid}" if aid else "cTrader Open API"
-            stored_entry["balance"] = ctrader_broker.balance if ctrader_broker.balance > 0 else 1000.0
+            stored_entry["balance"] = round(float(ctrader_broker.balance), 2)
             stored_entry["currency"] = ctrader_broker.currency
             self._save_connections()
             return res
