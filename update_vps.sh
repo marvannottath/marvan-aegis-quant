@@ -15,6 +15,10 @@ git fetch origin main
 git reset --hard origin/main
 echo "✓ Git HEAD is now at: $(git rev-parse --short HEAD)"
 
+mkdir -p "$APP_DIR/data"
+echo '{"live_trading_enabled": true}' > "$APP_DIR/data/environment_gate_state.json"
+echo "✓ Live Trading Guard state enabled"
+
 echo "======================================================"
 echo "📦 [2/3] Compiling Next.js Production Frontend Build..."
 echo "======================================================"

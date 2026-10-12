@@ -46,18 +46,25 @@ class EnvironmentGate:
 
     def __init__(self):
         self._decision_log: list = []
+        self._live_trading_enabled: bool = True
+
+    @property
+    def LIVE_TRADING_ENABLED(self) -> bool:
         if "LIVE_TRADING_ENABLED" in os.environ:
-            self.LIVE_TRADING_ENABLED = os.getenv("LIVE_TRADING_ENABLED").lower() == "true"
-        elif self.ENV_STATE_FILE.exists():
+            return os.getenv("LIVE_TRADING_ENABLED", "false").lower() == "true"
+        if self.ENV_STATE_FILE.exists():
             try:
                 with open(self.ENV_STATE_FILE, "r") as f:
                     d = json.load(f)
                     if "live_trading_enabled" in d:
-                        self.LIVE_TRADING_ENABLED = bool(d["live_trading_enabled"])
+                        return bool(d["live_trading_enabled"])
             except Exception:
-                self.LIVE_TRADING_ENABLED = False
-        else:
-            self.LIVE_TRADING_ENABLED = False
+                pass
+        return getattr(self, "_live_trading_enabled", True)
+
+    @LIVE_TRADING_ENABLED.setter
+    def LIVE_TRADING_ENABLED(self, val: bool):
+        self._live_trading_enabled = bool(val)
 
     def toggle_live_trading(self, enabled: bool) -> bool:
         """Toggle Live Trading ON or OFF dynamically and persist to disk."""
@@ -65,7 +72,7 @@ class EnvironmentGate:
         try:
             self.ENV_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
             with open(self.ENV_STATE_FILE, "w") as f:
-                json.dump({"live_trading_enabled": self.LIVE_TRADING_ENABLED}, f, indent=2)
+                json.dump({"live_trading_enabled": bool(enabled)}, f, indent=2)
         except Exception:
             pass
         return self.LIVE_TRADING_ENABLED

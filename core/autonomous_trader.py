@@ -98,14 +98,19 @@ class AutonomousTrader:
                 from core.risk_engine import risk_engine as _re
                 from core.environment_gate import environment_gate
 
-                # Determine all workspaces currently enabled for AI trading
+                # Determine all engines (workspace, environment) currently enabled for AI trading
                 candidate_ws_list = ["CRYPTO", "FOREX_GOLD", "INDIA"]
-                running_workspaces = [w for w in candidate_ws_list if _aic.get_state(w) == "RUNNING"]
-                if not running_workspaces:
+                running_engines = []
+                for w in candidate_ws_list:
+                    for env in ("DEMO", "LIVE"):
+                        if _aic.get_state(w, environment=env) == "RUNNING":
+                            running_engines.append((w, env))
+
+                if not running_engines:
                     _cur = _wsm.get_active_workspace()
                     if _aic.get_state(_cur) not in ("STOPPED", "PAUSED"):
                         _aic.set_state(_cur, "RUNNING", user="SYSTEM", reason="Autonomous Trading Loop Active")
-                        running_workspaces = [_cur]
+                        running_engines = [(_cur, "DEMO")]
                     else:
                         if step_counter % 12 == 0:
                             self._log_action(
@@ -135,8 +140,8 @@ class AutonomousTrader:
 
                 sentiment_score = daily_sync.current_alignment_score
 
-                # Process opportunities for each active workspace
-                for _active_ws in running_workspaces:
+                # Process opportunities for each active engine (workspace x environment)
+                for _active_ws, _engine_env in running_engines:
                     # ── Gate B: Market Session Check ─────────────────────────────
                     _session_state = _mse.get_state(_active_ws)
                     if _session_state in ("CLOSED", "HALTED", "HOLIDAY"):
@@ -165,9 +170,9 @@ class AutonomousTrader:
                             )
                         continue
 
-                    # 1. Determine active pool for this workspace
-                    pool = _wsm.get_workspace_pool(_active_ws)
-                    is_live_pool = pool in ["BINANCE_LIVE_REAL", "MT5_LIVE_REAL", "UPSTOX_LIVE"] or "LIVE" in pool.upper()
+                    # 1. Determine active pool for this workspace and environment
+                    pool = _wsm.get_workspace_pool(_active_ws, environment=_engine_env)
+                    is_live_pool = (_engine_env == "LIVE") or pool in ["BINANCE_LIVE_REAL", "MT5_LIVE_REAL", "UPSTOX_LIVE", "KOTAK_NEO_LIVE"] or "LIVE" in pool.upper()
 
                     # Safety invariant: if live trading is locked by server policy, route to testnet/demo pool
                     if is_live_pool and not environment_gate.LIVE_TRADING_ENABLED:
@@ -179,7 +184,7 @@ class AutonomousTrader:
                             pool = "UPSTOX_DEMO"
 
                     # Check if this specific engine (workspace x environment) is paused
-                    engine_env = "LIVE" if is_live_pool else "DEMO"
+                    engine_env = _engine_env
                     if _aic.get_state(_active_ws, environment=engine_env) != "RUNNING":
                         if step_counter % 12 == 0:
                             self._log_action(
