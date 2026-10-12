@@ -233,11 +233,11 @@ export function SettingsView() {
           <div className="p-4 rounded-lg border border-line bg-slate-50/50 flex flex-col justify-between space-y-3">
             <div>
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-txt-primary">🌍 MetaTrader 5 / Exness</span>
+                <span className="text-xs font-bold text-txt-primary">🌍 Forex & Gold (cTrader / MT5)</span>
                 <Badge variant={workspace === 'FOREX_GOLD' ? 'info' : 'neutral'}>Forex/Gold</Badge>
               </div>
               <p className="text-[11px] text-txt-muted mt-1">
-                Direct Terminal / ECN Bridge execution for Spot Gold (XAUUSD) & Major Forex pairs.
+                cTrader Open API & MT5 Direct Terminal execution for Spot Gold (XAUUSD) & Major Forex pairs.
               </p>
             </div>
             <button
@@ -247,7 +247,7 @@ export function SettingsView() {
               }}
               className="w-full py-1.5 px-2.5 text-xs font-semibold rounded border border-line bg-white hover:bg-slate-100 text-txt-secondary transition flex items-center justify-center gap-1"
             >
-              <span>Configure MT5 Bridge</span>
+              <span>Configure cTrader & MT5</span>
               <ChevronRight className="h-3 w-3" />
             </button>
           </div>

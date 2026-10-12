@@ -102,11 +102,16 @@ export function ConnectBrokerModal({
     setFormValues(initial);
   };
 
-  // Auto-select first broker when filtered venues change or modal opens
+  // Auto-select preferred broker (active > online/connected > first) when venues change or modal opens
   useEffect(() => {
     if (isOpen && filteredBrokers.length > 0) {
-      if (!selectedBroker || !filteredBrokers.some((b) => b.id === selectedBroker.id)) {
-        handleSelectBroker(filteredBrokers[0]);
+      const currentSelectedExists = selectedBroker && filteredBrokers.some((b) => b.id === selectedBroker.id);
+      if (!currentSelectedExists) {
+        const preferred =
+          filteredBrokers.find((b) => b.is_active) ||
+          filteredBrokers.find((b) => b.status === 'ONLINE' || b.status === 'CONNECTED') ||
+          filteredBrokers[0];
+        handleSelectBroker(preferred);
       }
     }
   }, [isOpen, brokers, selectedCategory, environment]);
@@ -197,6 +202,8 @@ export function ConnectBrokerModal({
         aegis_demo: 'AEGIS_QUANT_MASTER',
         mt5_demo: 'MT5_DEMO',
         mt5_live: 'MT5_LIVE_REAL',
+        ctrader_live: 'CTRADER_LIVE',
+        ctrader_demo: 'CTRADER_DEMO',
         kotak_neo_demo: 'KOTAK_NEO_DEMO_POOL',
         kotak_neo_live: 'KOTAK_NEO_LIVE_POOL',
         upstox_demo: 'UPSTOX_DEMO',
