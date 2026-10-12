@@ -306,6 +306,30 @@ class PositionSnapshotService:
                 if allocated <= 0.0 and entry_px > 0 and units > 0:
                     allocated = round(entry_px * units, 2)
 
+                # Ticker enrichment from live stream / binance cache
+                live_px = 0.0
+                if target_ws == "CRYPTO":
+                    try:
+                        from core.crypto_market_streamer import crypto_market_streamer
+                        c_tick = crypto_market_streamer.get_tick(sym)
+                        if c_tick and float(c_tick.get("price", 0.0)) > 0:
+                            live_px = float(c_tick["price"])
+                    except Exception:
+                        pass
+                    if live_px <= 0.0:
+                        try:
+                            from execution.binance_broker import binance_broker
+                            b_mdata = binance_broker.get_market_data("BINANCE_LIVE", sym)
+                            if b_mdata and float(b_mdata.get("last_price", 0.0)) > 0:
+                                live_px = float(b_mdata["last_price"])
+                        except Exception:
+                            pass
+
+                if live_px > 0.0:
+                    last_px = live_px
+                    pos["last_price"] = live_px
+                    pos["current_price"] = live_px
+
                 side = str(pos.get("side", pos.get("action", "BUY"))).upper()
                 if entry_px > 0 and last_px > 0:
                     raw_diff = (last_px - entry_px) if side == "BUY" else (entry_px - last_px)
@@ -318,6 +342,14 @@ class PositionSnapshotService:
                 else:
                     unrealized = 0.0
                     pnl_pct = 0.0
+
+                # Compute stop loss and take profit
+                sl_val = float(pos.get("stop_loss", 0.0))
+                tp_val = float(pos.get("take_profit", 0.0))
+                if sl_val <= 0.0 and entry_px > 0:
+                    sl_val = round(entry_px * 0.985 if side == "BUY" else entry_px * 1.015, 4 if entry_px < 10 else 2)
+                if tp_val <= 0.0 and entry_px > 0:
+                    tp_val = round(entry_px * 1.004 if side == "BUY" else entry_px * 0.996, 4 if entry_px < 10 else 2)
 
                 verified_positions.append({
                     "workspace": target_ws,
@@ -339,6 +371,8 @@ class PositionSnapshotService:
                     "product": pos.get("product", "CNC" if target_ws == "INDIA" else ("SPOT" if target_ws == "CRYPTO" else "MARGIN")),
                     "leverage": float(pos.get("leverage", 1.0)) if (target_ws != "CRYPTO" or pos.get("product") == "USDT_M_FUTURES") else 1.0,
                     "liquidation_price": float(pos.get("liquidation_price", 0.0)),
+                    "stop_loss": sl_val,
+                    "take_profit": tp_val,
                     "timestamp": pos.get("timestamp", _ist_now()),
                     "status": "ACTIVE",
                     "source": "AUTHORITATIVE_STORE",

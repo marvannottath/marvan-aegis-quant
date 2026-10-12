@@ -378,19 +378,28 @@ class AutonomousTrader:
                     alpha_magnitude = 0.0003 + ((idx % 3) * 0.00015)
                     delta_pct = drift_direction * alpha_magnitude
 
-                    # For crypto assets, fetch real-time market price from Binance
+                    # For crypto assets, fetch real-time market price from Binance streamer or broker
                     is_crypto_sym = "USDT" in pos_asset or "BUSD" in pos_asset
                     if is_crypto_sym:
+                        real_px = 0.0
                         try:
-                            from execution.binance_broker import binance_broker
-                            mdata = binance_broker.get_market_data("BINANCE_LIVE", pos_asset)
-                            real_px = float(mdata.get("last_price", 0.0))
-                            if real_px > 0:
-                                new_live_price = real_px
-                            else:
-                                base_price = pos.get("last_price", pos["entry_price"])
-                                new_live_price = max(0.0001, base_price * (1.0 + delta_pct))
+                            from core.crypto_market_streamer import crypto_market_streamer
+                            s_tick = crypto_market_streamer.get_tick(pos_asset)
+                            if s_tick and float(s_tick.get("price", 0.0)) > 0:
+                                real_px = float(s_tick["price"])
                         except Exception:
+                            pass
+                        if real_px <= 0.0:
+                            try:
+                                from execution.binance_broker import binance_broker
+                                mdata = binance_broker.get_market_data("BINANCE_LIVE", pos_asset)
+                                real_px = float(mdata.get("last_price", 0.0))
+                            except Exception:
+                                pass
+
+                        if real_px > 0:
+                            new_live_price = real_px
+                        else:
                             base_price = pos.get("last_price", pos["entry_price"])
                             new_live_price = max(0.0001, base_price * (1.0 + delta_pct))
                     else:
@@ -418,41 +427,65 @@ class AutonomousTrader:
                     pos["highest_pnl_pct"] = highest_pnl
 
                     # ── BREAK-EVEN RATCHET (ZERO-RISK TRADE GUARD) ───
-                    # Once trade hits +0.80% gain, lock Stop Loss at entry + fees (+0.15%)
-                    if highest_pnl >= 0.008:
+                    # Once trade hits +0.60% gain, lock Stop Loss at entry + fees (+0.12%)
+                    if highest_pnl >= 0.0060:
                         pos["break_even_active"] = True
 
-                    is_break_even_guard = bool(pos.get("break_even_active") and pnl_pct <= 0.0015)
+                    is_break_even_guard = bool(pos.get("break_even_active") and pnl_pct <= 0.0012)
 
                     # ── DYNAMIC TIERED TRAILING STOP LOSS (TSL) ──────
-                    # Tier 2 (Strong Runner >= +1.8%): Trail 0.40% below peak
-                    is_tsl_tier2 = (highest_pnl >= 0.018) and (pnl_pct <= highest_pnl - 0.0040)
-                    # Tier 1 (Initial Runner >= +0.8%): Trail 0.30% below peak
-                    is_tsl_tier1 = (highest_pnl >= 0.008) and (pnl_pct <= highest_pnl - 0.0030)
+                    # Tier 2 (Strong Runner >= +1.5%): Trail 0.35% below peak
+                    is_tsl_tier2 = (highest_pnl >= 0.015) and (pnl_pct <= highest_pnl - 0.0035)
+                    # Tier 1 (Initial Runner >= +0.6%): Trail 0.25% below peak
+                    is_tsl_tier1 = (highest_pnl >= 0.006) and (pnl_pct <= highest_pnl - 0.0025)
                     is_trailing_stop = is_tsl_tier2 or is_tsl_tier1
 
                     # Derive position workspace safely
                     pos_ws = "CRYPTO" if ("USDT" in pos_asset or "BUSD" in pos_asset) else ("FOREX_GOLD" if any(c in pos_asset for c in ["EUR", "GBP", "USD", "XAU"]) else "INDIA")
 
+                    # Compute accurate elapsed holding time
+                    time_held_sec = float(age * 2.5)
+                    ts_str = pos.get("timestamp")
+                    if ts_str:
+                        try:
+                            clean_ts = str(ts_str).replace(" IST", "").strip()
+                            pos_dt = datetime.strptime(clean_ts, "%Y-%m-%d %H:%M:%S").replace(tzinfo=IST_TZ)
+                            time_held_sec = max(time_held_sec, (datetime.now(timezone.utc).astimezone(IST_TZ) - pos_dt).total_seconds())
+                        except Exception:
+                            pass
+
                     # Fee-Aware Scalping & Swing Take-Profit Rules:
                     if pool in ["MT5_LIVE_REAL", "MT5_DEMO"] or pos_ws == "FOREX_GOLD":
-                        is_fee_secured_tp = (pnl_pct >= 0.010)  # +1.0% Forex take profit
-                        is_milestone = (pnl_pct >= 0.020)       # +2.0% Milestone profit
-                        is_staggered_harvest = ((step_counter + idx) % 15 == 0) and (pnl_usd >= 1.0 and pnl_pct >= 0.008)
-                        is_maturity_rebalance = (age >= 120) and (pnl_usd >= 0.50 and pnl_pct >= 0.005)  # Rebalance after ~5 mins
+                        is_fee_secured_tp = (pnl_pct >= 0.008)  # +0.8% Forex take profit
+                        is_milestone = (pnl_pct >= 0.016)       # +1.6% Milestone profit
+                        is_staggered_harvest = ((step_counter + idx) % 10 == 0) and (pnl_usd >= 0.50 and pnl_pct >= 0.005)
+                        is_maturity_rebalance = (age >= 60 or time_held_sec >= 300) and (pnl_usd >= 0.20 and pnl_pct >= 0.003)
+                        is_stale_rotation = (time_held_sec >= 900) and (pnl_pct >= -0.005)
                         is_hard_stop = (pnl_pct <= -0.015)      # 1.5% Stop loss
                     else:
-                        # Binance round-trip fee: 0.20% (Buy 0.1% + Sell 0.1%)
-                        ROUND_TRIP_FEE = 0.0020
-                        NET_TARGET = 0.0020
-                        MIN_GROSS_TP = ROUND_TRIP_FEE + NET_TARGET
-                        is_fee_secured_tp = (pnl_pct >= MIN_GROSS_TP)
-                        is_milestone = (pnl_pct >= 0.008)
-                        is_staggered_harvest = ((step_counter + idx) % 3 == 0) and (pnl_usd >= 0.01 and pnl_pct >= MIN_GROSS_TP)
-                        is_maturity_rebalance = (age >= 5) and (pnl_usd >= 0.01 and pnl_pct >= MIN_GROSS_TP)
+                        # Crypto: Fee-secured micro-scalp & active rotation
+                        # Standard Binance round-trip fee: 0.15% - 0.20%
+                        is_fee_secured_tp = (pnl_pct >= 0.0028)  # +0.28% fee-secured take profit
+                        is_milestone = (pnl_pct >= 0.0060)       # +0.60% milestone profit
+                        is_micro_harvest = (age >= 10) and (pnl_usd >= 0.05 and pnl_pct >= 0.0018)
+                        is_staggered_harvest = ((step_counter + idx) % 3 == 0) and (pnl_usd >= 0.05 and pnl_pct >= 0.0020)
+                        # Maturity rebalance: held for > 60s with positive profit
+                        is_maturity_rebalance = (age >= 25 or time_held_sec >= 60) and (pnl_usd >= 0.02 and pnl_pct >= 0.0012)
+                        # Stale rotation: trades held > 10 mins near break-even rotated to liberate slots for fresh setups
+                        is_stale_rotation = (time_held_sec >= 600 or age >= 200) and (pnl_pct >= -0.0040)
                         is_hard_stop = (pnl_pct <= -0.015)
 
-                    should_close = is_break_even_guard or is_fee_secured_tp or is_milestone or is_staggered_harvest or is_maturity_rebalance or is_hard_stop or is_trailing_stop
+                    should_close = (
+                        is_break_even_guard or 
+                        is_fee_secured_tp or 
+                        is_milestone or 
+                        (is_micro_harvest if pos_ws == "CRYPTO" else False) or 
+                        is_staggered_harvest or 
+                        is_maturity_rebalance or 
+                        is_stale_rotation or 
+                        is_hard_stop or 
+                        is_trailing_stop
+                    )
 
                     if should_close:
                         closed_any = True
@@ -462,6 +495,8 @@ class AutonomousTrader:
                             close_reason = "TRAILING_STOP_LOSS_LOCKED"
                         elif is_fee_secured_tp or is_milestone:
                             close_reason = "FEE_SECURED_TAKE_PROFIT"
+                        elif is_stale_rotation and pnl_usd <= 0:
+                            close_reason = "STALE_POSITION_REBALANCE"
                         elif pnl_usd > 0:
                             close_reason = "SCALP_PROFIT_HARVEST"
                         else:
