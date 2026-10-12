@@ -1876,17 +1876,27 @@ async def close_position_endpoint(request: Request):
                 from execution.binance_broker import binance_broker
                 b_res = binance_broker.close_spot_position(asset, environment="BINANCE_LIVE")
                 if b_res:
-                    if b_res.get("status") == "SUCCESS" and b_res.get("trade_record"):
-                        binance_close_record = b_res["trade_record"]
+                    if b_res.get("status") in ["SUCCESS", "FILLED", "DUST_DISMISSED"]:
+                        if b_res.get("trade_record"):
+                            binance_close_record = b_res["trade_record"]
                         binance_live_notice = b_res.get("message")
                     elif b_res.get("status") == "ERROR":
-                        binance_live_notice = f"Binance Spot Notice: {b_res.get('message', 'Failed to sell on Binance')}"
-                        print(f"[CLOSE_SPOT_ERROR]: {binance_live_notice}")
+                        err_msg = b_res.get("message", "Failed to sell on Binance")
+                        print(f"[CLOSE_SPOT_ERROR]: {err_msg}")
+                        return JSONResponse({
+                            "status": "ERROR",
+                            "message": err_msg,
+                            "binance_notice": err_msg
+                        }, status_code=400)
                     else:
                         binance_live_notice = b_res.get("message")
             except Exception as e:
                 binance_live_notice = f"Binance Spot Exception: {e}"
                 print(f"[CLOSE_SPOT_NOTICE]: {e}")
+                return JSONResponse({
+                    "status": "ERROR",
+                    "message": f"Binance Spot execution error: {str(e)}"
+                }, status_code=400)
 
         # 2. If it is USDT_M_FUTURES, execute close_futures_position on Binance
         if pos_product == "USDT_M_FUTURES":
