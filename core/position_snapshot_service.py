@@ -590,8 +590,11 @@ class PositionSnapshotService:
                 if is_kotak_conn:
                     data_source = "AUTHENTICATED_LIVE"
                     broker_connected = True
-                    k_funds = kotak_neo_broker.get_funds()
-                    live_cash = float(k_conn.get("balance", 0.0) or k_funds.get("available_margin", 0.0))
+                    k_funds = kotak_neo_broker.get_funds(environment="LIVE")
+                    if k_conn.get("balance") is not None:
+                        live_cash = float(k_conn["balance"])
+                    else:
+                        live_cash = float(k_funds.get("available_margin", 0.0))
                     free_cash = round(live_cash, 2)
                     total_equity = round(free_cash + used_margin + unrealized_pnl, 2)
                     pool["virtual_cash"] = free_cash

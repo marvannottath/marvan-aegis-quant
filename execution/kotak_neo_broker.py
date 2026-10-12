@@ -43,6 +43,13 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
         self._session_token: str = ""
         self._token_expiry: float = 0.0
 
+        self._profile: Dict[str, Any] = {}
+        self._is_authenticated: bool = False
+        self._last_error: str = ""
+        self._paper_mode: bool = False
+        self._live_cash: float = 0.0
+        self._read_only: bool = True
+
         if not self._consumer_key and KOTAK_CONFIG_FILE.exists():
             try:
                 with open(KOTAK_CONFIG_FILE, "r") as f:
@@ -52,16 +59,14 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
                     self._mobile_number = cfg.get("mobile_number", "").strip()
                     self._ucc = cfg.get("ucc", "").strip()
                     self._paper_mode = cfg.get("is_demo", False)
+                    self._live_cash = float(cfg.get("live_cash", cfg.get("balance", 0.0)))
                     if self._consumer_key:
                         self._is_authenticated = True
             except Exception as e:
                 print(f"[KOTAK_NEO] Config read notice: {e}")
 
-        self._profile: Dict[str, Any] = {}
-        self._is_authenticated: bool = bool(self._consumer_key)
-        self._last_error: str = ""
-        self._paper_mode: bool = True
-        self._read_only: bool = True
+        if self._consumer_key:
+            self._is_authenticated = True
 
         # Mock / Paper ledger storage for test simulation
         self._mock_positions: Dict[str, Dict[str, Any]] = {}
@@ -102,7 +107,8 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
         ucc: str = "",
         mpin: str = "",
         access_token: str = "",
-        is_demo: bool = False
+        is_demo: bool = False,
+        balance: float = 0.0
     ) -> Dict[str, Any]:
         """Save Kotak Neo API credentials to persistent config file and verify connection."""
         self._consumer_key = consumer_key.strip()
@@ -115,6 +121,7 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
             self._access_token = access_token.strip()
 
         self._paper_mode = is_demo
+        self._live_cash = float(balance) if not is_demo else 0.0
 
         try:
             with open(KOTAK_CONFIG_FILE, "w") as f:
@@ -124,7 +131,8 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
                     "mobile_number": self._mobile_number,
                     "ucc": self._ucc,
                     "saved_at": _ist_now(),
-                    "is_demo": is_demo
+                    "is_demo": is_demo,
+                    "live_cash": self._live_cash
                 }, f, indent=2)
         except Exception as e:
             print(f"[KOTAK_NEO] Save config notice: {e}")
@@ -248,9 +256,10 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
             }
         return self._profile
 
-    def get_funds(self) -> Dict[str, Any]:
+    def get_funds(self, environment: str = "LIVE") -> Dict[str, Any]:
         """Fetch cash and margin balances in INR."""
-        if self._paper_mode:
+        is_paper = self._paper_mode or str(environment).upper() in ["DEMO", "PAPER"]
+        if is_paper:
             used_margin = sum(
                 float(p.get("quantity", 0)) * float(p.get("buy_price", 0))
                 for p in self._mock_positions.values()
@@ -262,7 +271,7 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
                 float(p.get("quantity", 0)) * float(p.get("buy_price", 0))
                 for p in self._mock_positions.values()
             )
-            cash_val = 0.0
+            cash_val = float(self._live_cash)
             avail = max(0.0, cash_val - used_margin)
 
         return {

@@ -154,7 +154,8 @@ BROKER_DEFINITIONS = {
             {"id": "consumer_secret", "label": "Kotak Consumer Secret (Optional for v2)", "type": "password", "placeholder": "Optional if not provided", "required": False},
             {"id": "mobile_number", "label": "Registered Mobile Number", "type": "text", "placeholder": "e.g. 9876543210", "required": False},
             {"id": "ucc", "label": "Client Code / UCC", "type": "text", "placeholder": "e.g. KOTAK12345", "required": False},
-            {"id": "mpin", "label": "Neo MPIN / Access Token", "type": "password", "placeholder": "Enter 6-digit MPIN or Neo Token", "required": False}
+            {"id": "mpin", "label": "Neo MPIN / Access Token", "type": "password", "placeholder": "Enter 6-digit MPIN or Neo Token", "required": False},
+            {"id": "balance", "label": "Live Account Balance / Capital (INR ₹)", "type": "number", "placeholder": "e.g. 10000 (Enter 0 or your real Kotak Neo balance)", "required": False}
         ],
         "default_currency": "INR"
     },
@@ -418,8 +419,13 @@ class BrokerGatewayManager:
                     if is_k_conn:
                         status = "ONLINE"
                         is_connected = True
-                        k_funds = kotak_neo_broker.get_funds()
-                        balance = float(stored.get("balance") or k_funds.get("available_margin", 50000.0 if b_id == "kotak_neo_demo" else 0.0))
+                        k_funds = kotak_neo_broker.get_funds(environment="DEMO" if b_id == "kotak_neo_demo" else "LIVE")
+                        if stored.get("balance") is not None:
+                            balance = float(stored.get("balance"))
+                        elif b_id == "kotak_neo_demo":
+                            balance = 50000.0
+                        else:
+                            balance = float(k_funds.get("available_margin", 0.0))
                         active_account_label = kotak_neo_broker.ucc or stored.get("account_label") or (self._mask_secret(kotak_neo_broker.consumer_key) if kotak_neo_broker.consumer_key else "ACTIVE")
                         ping_ms = "38ms"
                     else:
@@ -566,6 +572,12 @@ class BrokerGatewayManager:
             if not consumer_key:
                 return {"status": "ERROR", "message": "Kotak Neo Consumer Key is required."}
 
+            custom_bal = payload.get("balance")
+            if custom_bal is not None and str(custom_bal).strip() != "":
+                user_balance = float(custom_bal)
+            else:
+                user_balance = 50000.0 if is_demo else 0.0
+
             res = kotak_neo_broker.save_credentials(
                 consumer_key=consumer_key,
                 consumer_secret=consumer_secret or consumer_key,
@@ -573,13 +585,14 @@ class BrokerGatewayManager:
                 ucc=ucc,
                 mpin=mpin,
                 access_token=access_token,
-                is_demo=is_demo
+                is_demo=is_demo,
+                balance=user_balance
             )
             is_ok = res.get("connected") or res.get("status") == "SUCCESS"
             stored_entry["connected"] = bool(is_ok)
             stored_entry["consumer_key_masked"] = self._mask_secret(consumer_key)
             stored_entry["account_label"] = ucc or self._mask_secret(consumer_key)
-            stored_entry["balance"] = 50000.0 if is_demo else 0.0
+            stored_entry["balance"] = user_balance
             stored_entry["status"] = "CONNECTED" if is_ok else "ERROR"
             self._save_connections()
             return res
