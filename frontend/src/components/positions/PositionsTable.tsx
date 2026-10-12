@@ -282,7 +282,7 @@ export function PositionsTable({
                                 Opened At
                               </span>
                               <span className="font-semibold text-txt-primary">
-                                {pos.timestamp || 'N/A'}
+                                {pos.timestamp ? (pos.timestamp.includes('IST') ? pos.timestamp : `${pos.timestamp} IST`) : 'N/A'}
                               </span>
                             </div>
                           </div>

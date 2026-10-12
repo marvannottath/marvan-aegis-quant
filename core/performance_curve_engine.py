@@ -139,7 +139,24 @@ class PerformanceCurveEngine:
                     events.append({"timestamp": ts_val, "pnl": amt})
 
         if not events:
-            val = cur_equity if metric == "equity" else 0.0
+            # Reconcile live floating values if present
+            floating_pnl = float(agg.get("unrealized_pnl", 0.0)) if 'agg' in locals() else 0.0
+            dd_pct = float(agg.get("drawdown_pct", 0.0)) if 'agg' in locals() else 0.0
+            peak_eq = float(agg.get("peak_equity", cur_equity)) if 'agg' in locals() else cur_equity
+
+            if metric == "equity":
+                start_val = peak_eq
+                end_val = cur_equity
+            elif metric == "pnl":
+                start_val = 0.0
+                end_val = floating_pnl
+            elif metric == "drawdown":
+                start_val = 0.0
+                end_val = dd_pct
+            else:
+                start_val = cur_equity
+                end_val = cur_equity
+
             # Generate 12 evenly-spaced points across the window for continuous line rendering
             num_baseline_points = 12
             total_seconds = max(60.0, (now_dt - cutoff_dt).total_seconds())
@@ -147,19 +164,25 @@ class PerformanceCurveEngine:
             baseline_points = []
             for i in range(num_baseline_points):
                 pt_dt = cutoff_dt + timedelta(seconds=i * sec_step)
+                if i < num_baseline_points - 3:
+                    pt_val = start_val
+                else:
+                    progress = (i - (num_baseline_points - 3)) / 2.0
+                    pt_val = round(start_val + (end_val - start_val) * progress, 2)
                 baseline_points.append({
                     "timestamp": pt_dt.strftime("%Y-%m-%d %H:%M:%S"),
-                    "value": val
+                    "value": pt_val
                 })
+            vals = [p["value"] for p in baseline_points]
             return {
                 "status": "SUCCESS",
                 "metric": metric,
                 "range": time_range,
                 "environment": environment,
                 "points": baseline_points,
-                "latest": val,
-                "min": val,
-                "max": val,
+                "latest": end_val,
+                "min": min(vals),
+                "max": max(vals),
                 "point_count": len(baseline_points),
                 "baseline_anchor": True
             }

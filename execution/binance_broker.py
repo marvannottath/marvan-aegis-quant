@@ -2308,6 +2308,16 @@ class BinanceBroker:
             qty_decimals = 6 if cur_price > 1000.0 else 4
             formatted_qty = round(total_qty, qty_decimals)
 
+            orig_ts = None
+            try:
+                from execution.paper_broker import paper_broker
+                pos_obj = paper_broker.positions.get(ticker_symbol) or paper_broker.pools.get("BINANCE_LIVE_REAL", {}).get("positions", {}).get(ticker_symbol)
+                if pos_obj and pos_obj.get("timestamp"):
+                    orig_ts = str(pos_obj.get("timestamp"))
+            except Exception:
+                pass
+            pos_ts = orig_ts if orig_ts else datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S IST")
+
             positions.append({
                 "trade_id": f"TRD-{environment[:4]}-{asset}",
                 "asset": ticker_symbol,
@@ -2331,7 +2341,7 @@ class BinanceBroker:
                 "product": "SPOT",
                 "status": "ACTIVE",
                 "source": "BINANCE_SPOT_LIVE",
-                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
+                "timestamp": pos_ts
             })
 
         # Merge active Binance Futures positions
