@@ -151,7 +151,7 @@ BROKER_DEFINITIONS = {
         "description": "Kotak Neo Open API (v2) for NSE & BSE Equities, F&O and Currency with zero brokerage on intraday",
         "fields": [
             {"id": "consumer_key", "label": "Kotak Consumer Key (API Key)", "type": "text", "placeholder": "Enter Kotak Neo Consumer Key", "required": True},
-            {"id": "consumer_secret", "label": "Kotak Consumer Secret", "type": "password", "placeholder": "Enter Kotak Neo Consumer Secret", "required": True},
+            {"id": "consumer_secret", "label": "Kotak Consumer Secret (Optional for v2)", "type": "password", "placeholder": "Optional if not provided", "required": False},
             {"id": "mobile_number", "label": "Registered Mobile Number", "type": "text", "placeholder": "e.g. 9876543210", "required": False},
             {"id": "ucc", "label": "Client Code / UCC", "type": "text", "placeholder": "e.g. KOTAK12345", "required": False},
             {"id": "mpin", "label": "Neo MPIN / Access Token", "type": "password", "placeholder": "Enter 6-digit MPIN or Neo Token", "required": False}
@@ -563,12 +563,12 @@ class BrokerGatewayManager:
             access_token = str(payload.get("access_token", "")).strip()
             is_demo = (broker_id == "kotak_neo_demo")
 
-            if not consumer_key or not consumer_secret:
-                return {"status": "ERROR", "message": "Kotak Neo Consumer Key and Consumer Secret are required."}
+            if not consumer_key:
+                return {"status": "ERROR", "message": "Kotak Neo Consumer Key is required."}
 
             res = kotak_neo_broker.save_credentials(
                 consumer_key=consumer_key,
-                consumer_secret=consumer_secret,
+                consumer_secret=consumer_secret or consumer_key,
                 mobile_number=mobile_number,
                 ucc=ucc,
                 mpin=mpin,
