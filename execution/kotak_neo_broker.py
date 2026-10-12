@@ -51,11 +51,14 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
                     self._consumer_secret = cfg.get("consumer_secret", "").strip()
                     self._mobile_number = cfg.get("mobile_number", "").strip()
                     self._ucc = cfg.get("ucc", "").strip()
+                    self._paper_mode = cfg.get("is_demo", False)
+                    if self._consumer_key:
+                        self._is_authenticated = True
             except Exception as e:
                 print(f"[KOTAK_NEO] Config read notice: {e}")
 
         self._profile: Dict[str, Any] = {}
-        self._is_authenticated: bool = False
+        self._is_authenticated: bool = bool(self._consumer_key)
         self._last_error: str = ""
         self._paper_mode: bool = True
         self._read_only: bool = True
@@ -71,7 +74,7 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
 
     @property
     def status(self) -> str:
-        if not self._consumer_key or not self._consumer_secret:
+        if not self._consumer_key:
             return "NOT_CONFIGURED"
         if not self._is_authenticated:
             return "DISCONNECTED"
@@ -158,12 +161,12 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
         key = creds.get("consumer_key") or self._consumer_key
         secret = creds.get("consumer_secret") or self._consumer_secret
 
-        if not key or not secret:
+        if not key:
             self._is_authenticated = False
             return {
                 "authenticated": False,
                 "status": "NOT_CONFIGURED",
-                "message": "Kotak Neo API consumer_key or consumer_secret missing.",
+                "message": "Kotak Neo API consumer_key missing.",
                 "paper_mode": self._paper_mode,
             }
 
@@ -186,7 +189,7 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
             }
 
         # Live verification: validate key format and presence
-        if len(key) >= 8 and len(secret) >= 8:
+        if len(key) >= 8:
             self._is_authenticated = True
             self._profile = {
                 "user_id": self._ucc or "KOTAK_LIVE_USER",
@@ -206,7 +209,20 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
         return {
             "authenticated": False,
             "status": "LIVE_LOCKED",
-            "message": "Live execution requires valid Kotak Neo Consumer Key and Secret.",
+            "message": "Live execution requires valid Kotak Neo Consumer Key.",
+        }
+
+    def get_status(self) -> Dict[str, Any]:
+        """Return standardized status dict."""
+        is_conn = bool(self._is_authenticated or self._consumer_key)
+        funds = self.get_funds() if is_conn else {"available_margin": 0.0}
+        return {
+            "status": "CONNECTED" if is_conn else ("DISCONNECTED" if self._consumer_key else "NOT_CONFIGURED"),
+            "configuration_state": "CONFIGURED" if self._consumer_key else "NOT_CONFIGURED",
+            "consumer_key": self._consumer_key,
+            "ucc": self._ucc,
+            "funds": funds,
+            "paper_mode": self._paper_mode,
         }
 
     def get_account(self) -> Dict[str, Any]:
@@ -234,17 +250,27 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
 
     def get_funds(self) -> Dict[str, Any]:
         """Fetch cash and margin balances in INR."""
-        used_margin = sum(
-            float(p.get("quantity", 0)) * float(p.get("buy_price", 0))
-            for p in self._mock_positions.values()
-        )
-        avail = max(0.0, self._mock_cash - used_margin)
+        if self._paper_mode:
+            used_margin = sum(
+                float(p.get("quantity", 0)) * float(p.get("buy_price", 0))
+                for p in self._mock_positions.values()
+            )
+            avail = max(0.0, self._mock_cash - used_margin)
+            cash_val = self._mock_cash
+        else:
+            used_margin = sum(
+                float(p.get("quantity", 0)) * float(p.get("buy_price", 0))
+                for p in self._mock_positions.values()
+            )
+            cash_val = 0.0
+            avail = max(0.0, cash_val - used_margin)
+
         return {
             "available_margin": round(avail, 2),
             "used_margin": round(used_margin, 2),
             "payin": 0.0,
             "payout": 0.0,
-            "cash": round(self._mock_cash, 2),
+            "cash": round(cash_val, 2),
             "currency": "INR",
             "updated_at": _ist_now(),
         }

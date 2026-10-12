@@ -490,7 +490,7 @@ class PositionSnapshotService:
 
         is_live_crypto = (target_ws == "CRYPTO" and pool_name in ["BINANCE_LIVE_REAL", "BINANCE_LIVE"]) or (pool_name in ["BINANCE_LIVE_REAL", "BINANCE_LIVE"])
         is_live_forex = (target_ws == "FOREX_GOLD" and pool_name in ["MT5_LIVE_REAL", "CTRADER_LIVE"])
-        is_live_india = (target_ws == "INDIA" and pool_name == "UPSTOX_LIVE")
+        is_live_india = (target_ws == "INDIA" and pool_name in ["UPSTOX_LIVE", "KOTAK_NEO_LIVE", "KOTAK_NEO_LIVE_POOL", "KOTAK_NEO"]) or (pool_name in ["UPSTOX_LIVE", "KOTAK_NEO_LIVE", "KOTAK_NEO_LIVE_POOL"])
         is_live_pool = is_live_crypto or is_live_forex or is_live_india or ("LIVE" in pool_name.upper())
         is_testnet_crypto = pool_name in ["BINANCE_TESTNET", "BINANCE_SPOT_DEMO", "BINANCE_TESTNET_DEMO"]
 
@@ -575,16 +575,37 @@ class PositionSnapshotService:
                 used_margin = 0.0
                 unrealized_pnl = 0.0
         elif is_live_india:
-            vault_balance = round(float(profit_vault.get_vault_balance(pool_name)), 2)
+            vault_balance = 0.0
             try:
+                from execution.broker_gateway_manager import broker_gateway_manager
+                from execution.kotak_neo_broker import kotak_neo_broker
                 from execution.upstox_broker import upstox_broker
+
+                k_conn = broker_gateway_manager.connections.get("kotak_neo_live", {})
+                is_kotak_conn = bool(k_conn.get("connected")) or kotak_neo_broker._is_authenticated or bool(kotak_neo_broker.consumer_key)
+
                 upstox_stat = upstox_broker.get_status()
-                if upstox_stat.get("status") == "CONNECTED":
+                is_upstox_conn = upstox_stat.get("status") == "CONNECTED"
+
+                if is_kotak_conn:
+                    data_source = "AUTHENTICATED_LIVE"
+                    broker_connected = True
+                    k_funds = kotak_neo_broker.get_funds()
+                    live_cash = float(k_conn.get("balance", 0.0) or k_funds.get("available_margin", 0.0))
+                    free_cash = round(live_cash, 2)
+                    total_equity = round(free_cash + used_margin + unrealized_pnl, 2)
+                    pool["virtual_cash"] = free_cash
+                    pool["equity"] = total_equity
+                    initial_cap = self.get_and_update_peak_equity(pool_name, max(total_equity, 1.0))
+                elif is_upstox_conn:
                     data_source = "AUTHENTICATED_LIVE"
                     broker_connected = True
                     funds = upstox_stat.get("funds", {})
                     free_cash = round(float(funds.get("available_margin", 0.0)), 2)
-                    total_equity = round(free_cash + used_margin + unrealized_pnl + vault_balance, 2)
+                    total_equity = round(free_cash + used_margin + unrealized_pnl, 2)
+                    pool["virtual_cash"] = free_cash
+                    pool["equity"] = total_equity
+                    initial_cap = self.get_and_update_peak_equity(pool_name, max(total_equity, 1.0))
                 else:
                     data_source = "DISCONNECTED"
                     broker_connected = False
@@ -594,7 +615,8 @@ class PositionSnapshotService:
                     total_exposure = 0.0
                     used_margin = 0.0
                     unrealized_pnl = 0.0
-            except Exception:
+            except Exception as e:
+                print(f"[SNAPSHOT_SERVICE] is_live_india exception: {e}")
                 data_source = "DISCONNECTED"
                 broker_connected = False
                 free_cash = None
@@ -630,7 +652,7 @@ class PositionSnapshotService:
                 broker_connected = True
                 free_cash = round(float(pool.get("virtual_cash", initial_cap)), 2)
                 total_equity = round(free_cash + used_margin + unrealized_pnl + vault_balance, 2)
-        elif pool_name in ["AEGIS_INDIA_INR", "UPSTOX_DEMO"] or (target_ws == "INDIA" and pool_name != "UPSTOX_LIVE"):
+        elif pool_name in ["AEGIS_INDIA_INR", "UPSTOX_DEMO", "KOTAK_NEO_DEMO"] or (target_ws == "INDIA" and not is_live_india):
             conn_balance = 0.0
             try:
                 from execution.broker_gateway_manager import broker_gateway_manager

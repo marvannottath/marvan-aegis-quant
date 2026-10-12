@@ -33,8 +33,8 @@ class WorkspaceManager:
             'currency': 'INR',
             'currency_symbol': '₹',
             'default_pool': 'AEGIS_INDIA_INR',
-            'allowed_pools': ['AEGIS_INDIA_INR', 'UPSTOX_DEMO', 'UPSTOX_LIVE'],
-            'venue_name': 'Upstox / NSE / BSE',
+            'allowed_pools': ['AEGIS_INDIA_INR', 'UPSTOX_DEMO', 'UPSTOX_LIVE', 'KOTAK_NEO_LIVE', 'KOTAK_NEO_DEMO', 'KOTAK_NEO_LIVE_POOL'],
+            'venue_name': 'Upstox / Kotak Neo / NSE / BSE',
             'settlement': 'T+1 Rolling',
             'regulation': 'SEBI Compliant',
             'initial_capital': 100000.0,
@@ -107,7 +107,7 @@ class WorkspaceManager:
         if not ws:
             return self._active_workspace
         clean = str(ws).strip().upper().replace(' ', '_')
-        if clean in ['INDIA', 'INDIA_INR', 'NSE', 'BSE', 'UPSTOX']:
+        if clean in ['INDIA', 'INDIA_INR', 'NSE', 'BSE', 'UPSTOX', 'KOTAK', 'KOTAK_NEO', 'NEO']:
             return self.WORKSPACE_INDIA
         if clean in ['FOREX', 'FOREX_GOLD', 'GOLD', 'COMMODITIES', 'FX', 'GLOBAL_FX']:
             return self.WORKSPACE_FOREX_GOLD
@@ -189,11 +189,19 @@ class WorkspaceManager:
 
         if ws == self.WORKSPACE_INDIA:
             if env_norm == "LIVE":
+                try:
+                    from execution.broker_gateway_manager import broker_gateway_manager
+                    from execution.kotak_neo_broker import kotak_neo_broker
+                    k_conn = broker_gateway_manager.connections.get("kotak_neo_live", {})
+                    if k_conn.get("connected") or kotak_neo_broker._is_authenticated or bool(kotak_neo_broker.consumer_key):
+                        return 'KOTAK_NEO_LIVE'
+                except Exception:
+                    pass
                 return 'UPSTOX_LIVE'
             elif env_norm == "PAPER":
                 return 'AEGIS_INDIA_INR'
             saved = self._active_pool_per_workspace.get(ws)
-            if saved and saved in ['AEGIS_INDIA_INR', 'UPSTOX_DEMO', 'UPSTOX_LIVE']:
+            if saved and saved in ['AEGIS_INDIA_INR', 'UPSTOX_DEMO', 'UPSTOX_LIVE', 'KOTAK_NEO_LIVE', 'KOTAK_NEO_DEMO']:
                 return saved
             return 'AEGIS_INDIA_INR'
 

@@ -25,7 +25,7 @@ IST_TZ = timezone(timedelta(hours=5, minutes=30))
 VAULT_FILE = Path(__file__).resolve().parent / "profit_vault_state.json"
 
 # Pool classifications for profit vault accounting
-EXTERNAL_LIVE_POOLS = {"BINANCE_LIVE_REAL", "BINANCE_LIVE", "UPSTOX_LIVE", "MT5_LIVE_REAL"}
+EXTERNAL_LIVE_POOLS = {"BINANCE_LIVE_REAL", "BINANCE_LIVE", "UPSTOX_LIVE", "MT5_LIVE_REAL", "KOTAK_NEO_LIVE"}
 PAPER_SIMULATED_POOLS = {
     "AEGIS_QUANT_MASTER",
     "BINANCE_TESTNET_DEMO",

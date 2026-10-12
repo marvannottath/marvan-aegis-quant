@@ -118,6 +118,28 @@ class PaperBroker:
                 "trade_history": [],
                 "ai_active": False,
                 "order_stream": []
+            },
+            "KOTAK_NEO_LIVE": {
+                "initial_capital": 0.0,
+                "virtual_cash": 0.0,
+                "equity": 0.0,
+                "currency": "INR",
+                "currency_symbol": "₹",
+                "positions": {},
+                "trade_history": [],
+                "ai_active": False,
+                "order_stream": []
+            },
+            "KOTAK_NEO_DEMO": {
+                "initial_capital": 50000.0,
+                "virtual_cash": 50000.0,
+                "equity": 50000.0,
+                "currency": "INR",
+                "currency_symbol": "₹",
+                "positions": {},
+                "trade_history": [],
+                "ai_active": True,
+                "order_stream": []
             }
         }
         
@@ -268,6 +290,10 @@ class PaperBroker:
             target_name = "UPSTOX_DEMO"
         elif pool_name in ["UPSTOX_LIVE", "UPSTOX_REAL"]:
             target_name = "UPSTOX_LIVE"
+        elif pool_name in ["KOTAK", "KOTAK_NEO", "KOTAK_NEO_LIVE", "KOTAK_LIVE", "KOTAK_NEO_LIVE_POOL"]:
+            target_name = "KOTAK_NEO_LIVE"
+        elif pool_name in ["KOTAK_DEMO", "KOTAK_NEO_DEMO"]:
+            target_name = "KOTAK_NEO_DEMO"
         else:
             target_name = pool_name
 
