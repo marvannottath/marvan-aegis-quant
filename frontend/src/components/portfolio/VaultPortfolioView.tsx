@@ -118,7 +118,7 @@ export function VaultPortfolioView() {
   const residualDust = capital?.residual_dust_capital ?? 0;
   const safetyBuffer = capital?.safety_buffer ?? (Number(totalEquity) * 0.02);
   const tradeableCapital = capital?.tradeable_capital ?? Math.max(0, Number(availableCash) - safetyBuffer);
-  const vaultBalance = isLive ? 0.12 : (portfolio?.vault_balance ?? vaultData?.vault_balance ?? 3334918.53);
+  const vaultBalance = isLive ? 0.0 : (portfolio?.vault_balance ?? vaultData?.vault_balance ?? 0.0);
   const totalAssets = Number(totalEquity) + Number(vaultBalance);
 
   const handleSweepSubmit = async (e: React.FormEvent) => {

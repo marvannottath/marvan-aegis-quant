@@ -174,13 +174,14 @@ class ProfitVault:
     def get_vault_balance(self, environment: str = "AEGIS_QUANT_MASTER") -> float:
         """
         Dynamically compute vault balance = base_balance + sum(confirmed sweeps) - sum(completed withdrawals) - sum(confirmed transfers).
-        For EXTERNAL_LIVE_POOLS (BINANCE_LIVE_REAL, UPSTOX_LIVE, MT5_LIVE_REAL), base_balance is strictly 0.0 (enforced by _sanitize_live_stores),
-        and any swept profits represent internal ledger allocations (the actual money resides in the external broker wallet).
+        For EXTERNAL_LIVE_POOLS (BINANCE_LIVE_REAL, UPSTOX_LIVE, MT5_LIVE_REAL), vault balance is STRICTLY 0.0.
+        All capital belongs 100% to live active working capital on the exchange.
         """
+        is_live_pool = environment in EXTERNAL_LIVE_POOLS or "LIVE" in str(environment).upper() or "REAL" in str(environment).upper()
+        if is_live_pool:
+            return 0.0
         store = self.vault_stores.get(environment, {"transactions": [], "withdrawals": [], "transfers": []})
-        # Double check: if it's an external live pool, ensure base_balance cannot be nonzero
-        is_live_pool = environment in EXTERNAL_LIVE_POOLS or "LIVE" in environment.upper() or "REAL" in environment.upper()
-        base = 0.0 if is_live_pool else float(store.get("base_balance", 0.0))
+        base = float(store.get("base_balance", 0.0))
         sweeps_sum = sum(float(tx.get("sweep_amount", 0.0)) for tx in store.get("transactions", []) if tx.get("status") == "CONFIRMED")
         withdrawals_sum = sum(float(w.get("amount", 0.0)) for w in store.get("withdrawals", []) if w.get("status") == "COMPLETED")
         transfers_sum = sum(float(t.get("amount", 0.0)) for t in store.get("transfers", []) if t.get("status") == "CONFIRMED")
@@ -230,8 +231,10 @@ class ProfitVault:
         """
         Only REALIZED PnL from closed positions may be swept into the vault.
         Unrealized PnL is NEVER swept.
+        External live broker pools (e.g. Binance Live) never accumulate simulated sweeps.
         """
-        if trade_pnl <= 0:
+        is_live_pool = environment in EXTERNAL_LIVE_POOLS or "LIVE" in str(environment).upper() or "REAL" in str(environment).upper()
+        if is_live_pool or trade_pnl <= 0:
             return {}
 
         store = self.vault_stores.setdefault(environment, {"transactions": [], "withdrawals": [], "transfers": []})

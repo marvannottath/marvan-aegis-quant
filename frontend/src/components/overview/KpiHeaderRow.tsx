@@ -37,6 +37,8 @@ export function KpiHeaderRow() {
     ? 'UNAVAILABLE'
     : isLoading
     ? '—'
+    : isLive
+    ? 0.0
     : portfolio.vault_balance !== null && portfolio.vault_balance !== undefined
     ? portfolio.vault_balance
     : 0.0;
@@ -45,6 +47,8 @@ export function KpiHeaderRow() {
     ? 'DISCONNECTED'
     : isLoading
     ? '—'
+    : isLive
+    ? availableCash
     : capital?.tradeable_capital !== null && capital?.tradeable_capital !== undefined
     ? capital.tradeable_capital
     : typeof availableCash === 'number'

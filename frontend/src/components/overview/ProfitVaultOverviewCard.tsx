@@ -28,13 +28,16 @@ export function ProfitVaultOverviewCard() {
   const isLiveDisconnected =
     isLive && (!portfolio || portfolio.broker_connected === false || portfolio.total_equity === null);
 
-  const vaultBalance =
-    typeof portfolio?.vault_balance === 'number' ? portfolio.vault_balance : 0.0;
+  const vaultBalance = isLive
+    ? 0.0
+    : typeof portfolio?.vault_balance === 'number'
+    ? portfolio.vault_balance
+    : 0.0;
   const totalEquity =
     typeof portfolio?.total_equity === 'number' ? portfolio.total_equity : 0.0;
   const freeCash =
     typeof portfolio?.free_cash === 'number' ? portfolio.free_cash : 0.0;
-  const workingCapital = Math.max(0, freeCash - vaultBalance);
+  const workingCapital = isLive ? freeCash : Math.max(0, freeCash - vaultBalance);
 
   useEffect(() => {
     let isMounted = true;

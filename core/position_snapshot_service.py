@@ -500,7 +500,7 @@ class PositionSnapshotService:
 
         # Vault reserve and pool equity resolution
         if is_live_crypto:
-            vault_balance = round(float(profit_vault.get_vault_balance(pool_name)), 2)
+            vault_balance = 0.0
             try:
                 from execution.binance_broker import binance_broker
                 b_status = binance_broker.get_authoritative_status(force_refresh=force_refresh)
@@ -674,6 +674,9 @@ class PositionSnapshotService:
             drawdown_pct = max(0.0, round(((peak_equity - total_equity) / peak_equity) * 100.0, 2)) if peak_equity > 0 else 0.0
             daily_open_equity = self.get_and_update_daily_open_equity(pool_name, total_equity)
             daily_drawdown_pct = max(0.0, round(((daily_open_equity - total_equity) / daily_open_equity) * 100.0, 2)) if daily_open_equity > 0 else 0.0
+            if is_live_pool and open_pos_count == 0 and (unrealized_pnl or 0.0) == 0.0:
+                drawdown_pct = 0.0
+                daily_drawdown_pct = 0.0
         else:
             peak_equity = None
             drawdown_pct = None
