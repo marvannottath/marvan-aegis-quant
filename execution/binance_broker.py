@@ -418,15 +418,29 @@ class BinanceBroker:
             # Default to Testnet / Demo for non-live
             return self.demo_api_key or self.api_key, self.demo_secret_key or self.secret_key, TESTNET_BASE_URL, True
 
+    @staticmethod
+    def _format_float(val: Any) -> str:
+        """Format float strictly as standard decimal string, preventing scientific notation like 6e-05."""
+        if isinstance(val, (float, int)):
+            s = f"{float(val):.8f}".rstrip("0").rstrip(".")
+            return s if s else "0"
+        return str(val)
+
     def _sign_query(self, secret_key: str, params: Dict[str, Any]) -> Tuple[str, Dict[str, Any]]:
-        """Sign request parameters with HMAC-SHA256."""
-        query_str = "&".join(f"{k}={v}" for k, v in params.items())
+        """Sign request parameters with HMAC-SHA256, ensuring all numeric params are clean decimals."""
+        clean_params = {}
+        for k, v in params.items():
+            if isinstance(v, float):
+                clean_params[k] = self._format_float(v)
+            else:
+                clean_params[k] = v
+        query_str = "&".join(f"{k}={v}" for k, v in clean_params.items())
         signature = hmac.new(
             secret_key.encode("utf-8"),
             query_str.encode("utf-8"),
             hashlib.sha256
         ).hexdigest()
-        return signature, {**params, "signature": signature}
+        return signature, {**clean_params, "signature": signature}
 
     def _format_binance_error(self, raw_text: str, status_code: Optional[int] = None) -> str:
         """Parse Binance raw JSON error and produce clear actionable guidance."""
@@ -1331,6 +1345,16 @@ class BinanceBroker:
             step = KNOWN_STEP_SIZES.get(sym_upper, 0.0)
 
         if step and step > 0:
+            from decimal import Decimal
+            try:
+                # Use Decimal string format to eliminate IEEE 754 precision artifacts (e.g. 0.00007 / 0.00001 -> 6.999999999999999)
+                step_dec = Decimal(f"{float(step):.8f}".rstrip("0").rstrip("."))
+                qty_dec = Decimal(f"{float(quantity):.8f}".rstrip("0").rstrip("."))
+                if step_dec > 0:
+                    floored_dec = (qty_dec // step_dec) * step_dec
+                    return float(floored_dec)
+            except Exception:
+                pass
             import math
             precision = max(0, int(round(-math.log10(step))))
             floored = math.floor(quantity / step) * step
@@ -1699,7 +1723,7 @@ class BinanceBroker:
             if order_type.upper() == "LIMIT":
                 params["price"] = round(price, 2)
                 params["timeInForce"] = "GTC"
-                params["quantity"] = round(quantity, 6)
+                params["quantity"] = self.format_quantity(environment, symbol, quantity) if quantity > 0 else round(quantity, 6)
             elif order_type.upper() == "MARKET":
                 if quantity > 0:
                     formatted_qty = self.format_quantity(environment, symbol, quantity)
