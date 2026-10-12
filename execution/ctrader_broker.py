@@ -84,8 +84,9 @@ class CTraderBrokerAdapter:
         try:
             # Test authentication using cTrader REST API
             headers = {"Authorization": f"Bearer {self.access_token}"}
+            params = {"oauth_token": self.access_token}
             url = f"https://api.spotware.com/connect/tradingaccounts"
-            resp = requests.get(url, headers=headers, timeout=5.0)
+            resp = requests.get(url, headers=headers, params=params, timeout=10.0)
 
             if resp.status_code == 200:
                 data = resp.json()
