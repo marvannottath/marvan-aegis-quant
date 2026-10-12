@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useTradingContext } from '../../context/TradingContext';
 import { api } from '../../lib/api';
 import { KpiCard } from '../common/KpiCard';
@@ -50,6 +52,7 @@ interface CalendarData {
 }
 
 export function AnalyticsView() {
+  const router = useRouter();
   const { portfolio, workspace, environment, isFinancialMasked } = useTradingContext();
   const [calendarData, setCalendarData] = useState<CalendarData | null>(null);
   const [selectedMonth, setSelectedMonth] = useState<string>('2026-10');
@@ -301,7 +304,9 @@ export function AnalyticsView() {
                 <div
                   key={day.date}
                   onClick={() => {
-                    if (!isFuture) setSelectedDay(day);
+                    if (!isFuture) {
+                      router.push(`${environment === 'LIVE' ? '/analytics/session' : '/demo/analytics/session'}?date=${day.date}`);
+                    }
                   }}
                   className={`h-20 p-2 rounded-lg border flex flex-col justify-between font-mono transition select-none ${
                     isFuture
@@ -313,7 +318,7 @@ export function AnalyticsView() {
                           ? 'border-red-500/30 bg-red-500/10 hover:bg-red-500/15 text-loss'
                           : 'border-line bg-panel-light/40 hover:bg-panel-light/60 text-txt-secondary')
                   }`}
-                  title={isFuture ? 'Future Date' : `Click to view trades & telemetry for ${day.date}`}
+                  title={isFuture ? 'Future Date' : `Click to open dedicated session breakdown for ${day.date}`}
                 >
                   <div className="flex items-center justify-between text-[11px]">
                     <span className="font-bold">{day.day_of_month}</span>
@@ -353,12 +358,20 @@ export function AnalyticsView() {
         title={`Trading Session Detail — ${selectedDay?.date || ''}`}
         description="Forensic daily execution logs, win-rate breakdown, and filled order audit."
         footer={
-          <button
-            onClick={() => setSelectedDay(null)}
-            className="px-4 py-2 rounded-lg bg-slate-200 dark:bg-panel-light hover:bg-slate-300 text-xs font-semibold text-txt-primary cursor-pointer"
-          >
-            Close
-          </button>
+          <div className="flex items-center justify-between w-full">
+            <Link
+              href={`${environment === 'LIVE' ? '/analytics/session' : '/demo/analytics/session'}?date=${selectedDay?.date || ''}`}
+              className="text-xs text-brand font-bold hover:underline flex items-center gap-1"
+            >
+              <span>Open Dedicated Session Page &rarr;</span>
+            </Link>
+            <button
+              onClick={() => setSelectedDay(null)}
+              className="px-4 py-2 rounded-lg bg-slate-200 dark:bg-panel-light hover:bg-slate-300 text-xs font-semibold text-txt-primary cursor-pointer"
+            >
+              Close
+            </button>
+          </div>
         }
       >
         {selectedDay && (

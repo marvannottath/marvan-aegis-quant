@@ -541,6 +541,8 @@ class PaperBroker:
             "capital_allocated": round(amount_usd, 2),
             "margin": round(amount_usd, 2),
             "leverage": leverage,
+            "stop_loss": round(current_price * 0.985 if action == "BUY" else current_price * 1.015, 4 if current_price < 10 else 2),
+            "take_profit": round(current_price * 1.004 if action == "BUY" else current_price * 0.996, 4 if current_price < 10 else 2),
             "timestamp": datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S")
         }
 

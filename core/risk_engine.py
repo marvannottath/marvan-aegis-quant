@@ -86,6 +86,11 @@ class RiskEngine:
         self.custom_trade_cap_usd: float = 5000.0
         self.circuit_tripped = False
         self.trip_reason = "NORMAL_OPERATIONS"
+        self.circuit_tripped_by_market: Dict[str, Dict[str, Any]] = {
+            "CRYPTO": {"DEMO": False, "LIVE": False, "reason": "NORMAL_OPERATIONS"},
+            "FOREX_GOLD": {"DEMO": False, "LIVE": False, "reason": "NORMAL_OPERATIONS"},
+            "INDIA": {"DEMO": False, "LIVE": False, "reason": "NORMAL_OPERATIONS"}
+        }
         self.daily_realized_loss: float = 0.0
         self.daily_loss_limit_usd: float = 2000.0
         self.daily_realized_loss_by_ws: Dict[str, float] = {
@@ -166,10 +171,25 @@ class RiskEngine:
         print(f'[RISK ENGINE] Profile set: {name} (Max Lev: {max_lev_val}x)')
         return self.active_profile
 
-    def reset_circuit_breaker(self, workspace: str = "CRYPTO") -> Dict[str, Any]:
+    def is_circuit_tripped(self, workspace: str = "CRYPTO", environment: str = "DEMO") -> Tuple[bool, str]:
+        ws = workspace.upper() if workspace else "CRYPTO"
+        env = environment.upper() if environment else "DEMO"
+        m = self.circuit_tripped_by_market.get(ws, {})
+        return m.get(env, False), m.get("reason", "NORMAL_OPERATIONS")
+
+    def reset_circuit_breaker(self, workspace: str = "CRYPTO", environment: Optional[str] = None) -> Dict[str, Any]:
         """Reset circuit breaker, clear daily realized loss, and recalibrate peak equity strictly per pool."""
-        self.circuit_tripped = False
-        self.trip_reason = "NORMAL_OPERATIONS"
+        ws = workspace.upper() if workspace else "CRYPTO"
+        if ws in self.circuit_tripped_by_market:
+            if environment:
+                self.circuit_tripped_by_market[ws][environment.upper()] = False
+            else:
+                self.circuit_tripped_by_market[ws]["DEMO"] = False
+                self.circuit_tripped_by_market[ws]["LIVE"] = False
+            self.circuit_tripped_by_market[ws]["reason"] = "NORMAL_OPERATIONS"
+
+        self.circuit_tripped = any(v.get("DEMO") or v.get("LIVE") for v in self.circuit_tripped_by_market.values())
+        self.trip_reason = "NORMAL_OPERATIONS" if not self.circuit_tripped else self.trip_reason
         self.daily_realized_loss = 0.0
         self._save_state()
 
@@ -390,9 +410,11 @@ class RiskEngine:
                    f"(today: {cur_sym}{ws_loss:,.2f}{unit}). No new orders today.")
             return False, RISK_REJECTED_DAILY_LOSS, msg
 
-        # Gate 6: Drawdown circuit breaker
-        if self.circuit_tripped:
-            msg = f"Circuit breaker: {self.trip_reason}"
+        # Gate 6: Drawdown circuit breaker (isolated per workspace)
+        ws_key = (workspace or "CRYPTO").upper()
+        market_tripped, m_reason = self.is_circuit_tripped(ws_key)
+        if market_tripped:
+            msg = f"Circuit breaker tripped for {ws_key}: {m_reason}"
             return False, RISK_REJECTED_DRAWDOWN, msg
 
         # Gate 7: Stop-loss configured

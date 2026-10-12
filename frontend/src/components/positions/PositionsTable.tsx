@@ -187,9 +187,14 @@ export function PositionsTable({
                           { minimumFractionDigits: 2 }
                         )}
                       </td>
-                      <td className="py-2.5 px-3 text-center font-mono text-[11px] text-txt-muted">
-                        {pos.stop_loss ? `${curr}${pos.stop_loss}` : '—'} /{' '}
-                        {pos.take_profit ? `${curr}${pos.take_profit}` : '—'}
+                      <td className="py-2.5 px-3 text-center font-mono text-[11px] whitespace-nowrap">
+                        <span className="text-red-500 font-semibold" title="Stop Loss Level (-1.5%)">
+                          {pos.stop_loss ? `${curr}${pos.stop_loss}` : pos.entry_price ? `${curr}${(pos.entry_price * 0.985).toFixed(pos.entry_price < 10 ? 4 : 2)}` : '—'}
+                        </span>
+                        <span className="text-txt-subtle mx-1">/</span>
+                        <span className="text-emerald-500 font-semibold" title="Take Profit Target (+0.4%)">
+                          {pos.take_profit ? `${curr}${pos.take_profit}` : pos.entry_price ? `${curr}${(pos.entry_price * 1.004).toFixed(pos.entry_price < 10 ? 4 : 2)}` : '—'}
+                        </span>
                       </td>
                       <td className="py-2.5 px-3 text-center">
                         <Badge variant="success" size="sm">
