@@ -257,6 +257,23 @@ BROKER_DEFINITIONS = {
         ],
         "default_currency": "USD"
     },
+    "ctrader_demo": {
+        "id": "ctrader_demo",
+        "name": "cTrader Open API Sandbox",
+        "venue": "FOREX_GOLD",
+        "category": "FOREX_GOLD",
+        "environment": "DEMO",
+        "icon": "fa-solid fa-sliders text-cyan-400",
+        "badge_color": "cyan",
+        "description": "Spotware cTrader Open API Sandbox for testing ECN algorithms risk-free",
+        "fields": [
+            {"id": "client_id", "label": "cTrader Client ID", "type": "text", "placeholder": "Enter cTrader App Client ID", "required": True},
+            {"id": "client_secret", "label": "cTrader Client Secret", "type": "password", "placeholder": "Enter cTrader Client Secret", "required": True},
+            {"id": "access_token", "label": "OAuth Access Token", "type": "password", "placeholder": "Enter cTrader Access Token", "required": True},
+            {"id": "account_id", "label": "Trading Account ID", "type": "text", "placeholder": "e.g. 5924492", "required": True}
+        ],
+        "default_currency": "EUR"
+    },
     "kotak_neo_demo": {
         "id": "kotak_neo_demo",
         "name": "Kotak Neo Sandbox (Paper)",
@@ -441,7 +458,7 @@ class BrokerGatewayManager:
                     balance = float(paper_broker.pools.get("AEGIS_QUANT_MASTER", {}).get("virtual_cash", 100000.0))
                     active_account_label = "Quantum Master Simulator"
                     ping_ms = "0.4ms"
-                elif b_id == "ctrader_live":
+                elif b_id in ["ctrader_live", "ctrader_demo"]:
                     from execution.ctrader_broker import ctrader_broker
                     ct_info = ctrader_broker.get_account_info()
                     stored_bal = float(stored.get("balance", 0.0))
@@ -648,7 +665,7 @@ class BrokerGatewayManager:
             self._save_connections()
             return {"status": "SUCCESS", "message": f"Aegis Quantum Paper Engine reset to ${virt_cash:,.2f}"}
 
-        elif broker_id == "ctrader_live":
+        elif broker_id in ["ctrader_live", "ctrader_demo"]:
             from execution.ctrader_broker import ctrader_broker
             cid = str(payload.get("client_id", "")).strip()
             csec = str(payload.get("client_secret", "")).strip()
@@ -742,7 +759,7 @@ class BrokerGatewayManager:
                 "ping_ms": f"{latency}ms"
             }
 
-        elif broker_id == "ctrader_live":
+        elif broker_id in ["ctrader_live", "ctrader_demo"]:
             from execution.ctrader_broker import ctrader_broker
             res = ctrader_broker.connect()
             latency = max(15, int((time.time() - t0) * 1000))

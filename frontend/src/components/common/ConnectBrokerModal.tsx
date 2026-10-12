@@ -73,7 +73,7 @@ export function ConnectBrokerModal({
     { id: 'ALL', label: 'All Gateways' },
     { id: 'CRYPTO', label: '🪙 Crypto (Binance)' },
     { id: 'INDIA', label: '🇮🇳 India (Kotak Neo, Upstox, Zerodha)' },
-    { id: 'FOREX_GOLD', label: '🌍 Forex & Gold (MT5)' },
+    { id: 'FOREX_GOLD', label: '🌍 Forex & Gold (MT5 & cTrader)' },
   ];
 
   // Strictly filter venues by active environment (LIVE vs DEMO)
