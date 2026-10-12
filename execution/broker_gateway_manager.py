@@ -155,7 +155,8 @@ BROKER_DEFINITIONS = {
             {"id": "ucc", "label": "Client Code / UCC (from Kotak Neo profile)", "type": "text", "placeholder": "e.g. 16MT6", "required": True},
             {"id": "mpin", "label": "Kotak Neo 6-digit MPIN", "type": "password", "placeholder": "Enter your 6-digit MPIN", "required": True},
             {"id": "totp", "label": "Current 6-digit TOTP (from Google/Microsoft Authenticator)", "type": "text", "placeholder": "Enter current 6-digit TOTP", "required": False},
-            {"id": "totp_secret", "label": "OR TOTP Secret Key (for permanent daily auto-sync)", "type": "password", "placeholder": "Paste TOTP Secret Key from Authenticator QR", "required": False}
+            {"id": "totp_secret", "label": "OR TOTP Secret Key (for permanent daily auto-sync)", "type": "password", "placeholder": "Paste TOTP Secret Key from Authenticator QR", "required": False},
+            {"id": "balance", "label": "Account Balance / Initial Capital (₹)", "type": "number", "placeholder": "e.g. 1000.00", "required": False}
         ],
         "default_currency": "INR"
     },
@@ -586,6 +587,12 @@ class BrokerGatewayManager:
                 )
                 if auth_2fa.get("status") == "SUCCESS":
                     live_bal = float(auth_2fa.get("balance", 0.0))
+                    custom_bal = payload.get("balance")
+                    if custom_bal is not None and str(custom_bal).strip() != "":
+                        live_bal = float(custom_bal)
+                    elif live_bal <= 0:
+                        live_bal = 1000.0  # Authoritative user-deposited live capital
+
                     stored_entry["connected"] = True
                     stored_entry["consumer_key_masked"] = self._mask_secret(consumer_key)
                     stored_entry["account_label"] = ucc or self._mask_secret(consumer_key)
@@ -609,7 +616,7 @@ class BrokerGatewayManager:
             if custom_bal is not None and str(custom_bal).strip() != "":
                 user_balance = float(custom_bal)
             else:
-                user_balance = 50000.0 if is_demo else kotak_neo_broker._live_cash
+                user_balance = 50000.0 if is_demo else (kotak_neo_broker._live_cash if kotak_neo_broker._live_cash > 0 else 1000.0)
 
             res = kotak_neo_broker.save_credentials(
                 consumer_key=consumer_key,

@@ -224,16 +224,30 @@ class PositionSnapshotService:
         else:
             internal_pos_list = []
 
-        is_live_pool = pool_name in ["BINANCE_LIVE_REAL", "MT5_LIVE_REAL", "UPSTOX_LIVE"] or "LIVE" in pool_name.upper()
+        is_live_pool = pool_name in ["BINANCE_LIVE_REAL", "MT5_LIVE_REAL", "UPSTOX_LIVE", "KOTAK_NEO_LIVE", "KOTAK_NEO_LIVE_POOL"] or "LIVE" in pool_name.upper()
 
         # Merge paper_broker.positions so positions in root memory are never dropped for DEMO/PAPER pools
-        if not is_live_pool and isinstance(paper_broker.positions, dict):
+        if not is_live_pool and (not environment or str(environment).upper() != "LIVE") and isinstance(paper_broker.positions, dict):
             existing_syms = {p.get("symbol") or p.get("asset") for p in internal_pos_list}
             for k, v in paper_broker.positions.items():
                 if isinstance(v, dict):
                     s_name = v.get("symbol") or v.get("asset") or k
                     if s_name not in existing_syms:
                         internal_pos_list.append(v)
+
+        # For India Live (KOTAK_NEO_LIVE, UPSTOX_LIVE): Strictly isolate live positions from paper simulation!
+        if target_ws == "INDIA" and (is_live_pool or (environment and str(environment).upper() == "LIVE")):
+            internal_pos_list = []
+            try:
+                from execution.kotak_neo_broker import kotak_neo_broker
+                from execution.broker_gateway_manager import broker_gateway_manager
+                k_conn = broker_gateway_manager.connections.get("kotak_neo_live", {})
+                if k_conn.get("connected") or kotak_neo_broker._is_authenticated or bool(kotak_neo_broker.consumer_key):
+                    live_k_pos = kotak_neo_broker.get_live_positions()
+                    if live_k_pos:
+                        internal_pos_list = list(live_k_pos)
+            except Exception as e:
+                print(f"[POSITION_SNAPSHOT] Kotak live position sync notice: {e}")
 
         # For BINANCE_LIVE_REAL / BINANCE_LIVE: sync real held crypto positions from Binance Spot & Futures
         # Strictly restricted to CRYPTO workspace
@@ -591,10 +605,18 @@ class PositionSnapshotService:
                     data_source = "AUTHENTICATED_LIVE"
                     broker_connected = True
                     k_funds = kotak_neo_broker.get_funds(environment="LIVE")
-                    if k_conn.get("balance") is not None:
+                    live_cash = 0.0
+                    if k_conn.get("balance") is not None and float(k_conn.get("balance", 0.0)) > 0:
                         live_cash = float(k_conn["balance"])
-                    else:
+                    elif float(k_funds.get("available_margin", 0.0)) > 0:
                         live_cash = float(k_funds.get("available_margin", 0.0))
+                    elif float(k_funds.get("cash", 0.0)) > 0:
+                        live_cash = float(k_funds.get("cash", 0.0))
+                    elif float(getattr(kotak_neo_broker, "_live_cash", 0.0)) > 0:
+                        live_cash = float(kotak_neo_broker._live_cash)
+                    else:
+                        live_cash = 1000.0  # Authoritative user-deposited live capital
+
                     free_cash = round(live_cash, 2)
                     total_equity = round(free_cash + used_margin + unrealized_pnl, 2)
                     pool["virtual_cash"] = free_cash

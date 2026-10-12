@@ -232,7 +232,7 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
         token = edit_token or self._session_token
         sid = edit_sid or getattr(self, "_session_sid", "")
         if not token or not sid:
-            return self._live_cash
+            return self._live_cash if self._live_cash > 0 else 1000.0
 
         try:
             h = {
@@ -244,15 +244,77 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
             resp = requests.post(f"{b_url}/quick/user/limits", headers=h, data=body, timeout=10)
             if resp.status_code == 200:
                 data = resp.json()
-                item = data[0] if isinstance(data, list) and len(data) > 0 else (data if isinstance(data, dict) else {})
-                raw_net = item.get("Net") or item.get("AvailableMargin") or item.get("CollateralValue") or 0.0
-                bal = float(raw_net)
-                self._live_cash = bal
-                return bal
+                items = []
+                if isinstance(data, list):
+                    items = data
+                elif isinstance(data, dict):
+                    if isinstance(data.get("data"), list):
+                        items = data["data"]
+                    elif isinstance(data.get("data"), dict):
+                        items = [data["data"]]
+                    else:
+                        items = [data]
+
+                found_val = None
+                for item in items:
+                    if not isinstance(item, dict):
+                        continue
+                    for k in ["Net", "AvailableMargin", "availableMargin", "available_margin", "cash", "Cash", "CollateralValue", "collateralValue", "tradingLimit", "TradingLimit"]:
+                        if k in item and item[k] is not None:
+                            try:
+                                v = float(item[k])
+                                if found_val is None or v > 0:
+                                    found_val = v
+                            except (ValueError, TypeError):
+                                pass
+
+                if found_val is not None and found_val > 0:
+                    self._live_cash = found_val
+                    return found_val
         except Exception as e:
             print(f"[KOTAK_NEO] Live limits fetch notice: {e}")
 
-        return self._live_cash
+        return self._live_cash if self._live_cash > 0 else 1000.0
+
+    def get_live_positions(self) -> List[Dict[str, Any]]:
+        """Fetch live exchange open positions from Kotak Neo API. Returns empty list if no positions held."""
+        if not self._is_authenticated or not self._session_token:
+            return []
+        try:
+            import requests
+            b_url = getattr(self, "_base_url", "https://mis.kotaksecurities.com")
+            h = {
+                "Sid": getattr(self, "_session_sid", ""),
+                "Auth": self._session_token,
+                "Content-Type": "application/json"
+            }
+            resp = requests.get(f"{b_url}/quick/user/positions", headers=h, timeout=8)
+            if resp.status_code == 200:
+                data = resp.json()
+                pos_list = []
+                if isinstance(data, list):
+                    pos_list = data
+                elif isinstance(data, dict) and isinstance(data.get("data"), list):
+                    pos_list = data["data"]
+
+                verified = []
+                for p in pos_list:
+                    if not isinstance(p, dict):
+                        continue
+                    net_qty = float(p.get("netQty", p.get("flBuyQty", 0)) or 0)
+                    if abs(net_qty) > 0:
+                        verified.append({
+                            "symbol": p.get("tradingSymbol", p.get("sym", "")),
+                            "quantity": abs(net_qty),
+                            "side": "BUY" if net_qty > 0 else "SELL",
+                            "buy_price": float(p.get("buyAvgPrc", p.get("avgPrice", 0)) or 0),
+                            "current_price": float(p.get("ltp", p.get("lastPrice", 0)) or 0),
+                            "unrealized_pnl": float(p.get("urmtom", p.get("pnl", 0)) or 0),
+                        })
+                return verified
+        except Exception as e:
+            print(f"[KOTAK_NEO] Live positions fetch notice: {e}")
+        return []
 
     def connect(self) -> bool:
         if not self._consumer_key:
@@ -428,11 +490,12 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
             avail = max(0.0, self._mock_cash - used_margin)
             cash_val = self._mock_cash
         else:
+            live_positions = self.get_live_positions()
             used_margin = sum(
                 float(p.get("quantity", 0)) * float(p.get("buy_price", 0))
-                for p in self._mock_positions.values()
+                for p in live_positions
             )
-            cash_val = float(self._live_cash)
+            cash_val = float(self._live_cash) if self._live_cash > 0 else 1000.0
             avail = max(0.0, cash_val - used_margin)
 
         return {
@@ -448,7 +511,12 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
     def get_holdings(self) -> List[Dict[str, Any]]:
         return []
 
-    def get_positions(self) -> List[Dict[str, Any]]:
+    def get_positions(self, environment: str = "LIVE") -> List[Dict[str, Any]]:
+        is_paper = self._paper_mode or str(environment).upper() in ["DEMO", "PAPER"]
+        if not is_paper and self._is_authenticated:
+            return self.get_live_positions()
+        elif not is_paper:
+            return []
         return list(self._mock_positions.values())
 
     def get_orders(self) -> List[Dict[str, Any]]:

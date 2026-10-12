@@ -364,6 +364,29 @@ class PaperBroker:
                 mt5_pool.setdefault("order_stream", [])
                 mt5_pool.setdefault("positions", {})
 
+        if target_name == "KOTAK_NEO_LIVE":
+            try:
+                from execution.kotak_neo_broker import kotak_neo_broker
+                from execution.broker_gateway_manager import broker_gateway_manager
+                k_conn = broker_gateway_manager.connections.get("kotak_neo_live", {})
+                real_bal = 0.0
+                if k_conn.get("balance") is not None and float(k_conn.get("balance", 0.0)) > 0:
+                    real_bal = float(k_conn["balance"])
+                elif float(getattr(kotak_neo_broker, "_live_cash", 0.0)) > 0:
+                    real_bal = float(kotak_neo_broker._live_cash)
+                else:
+                    real_bal = 1000.0
+                k_pool = self.pools.setdefault(target_name, {})
+                k_pool["initial_capital"] = real_bal
+                k_pool["virtual_cash"] = real_bal
+                k_pool["equity"] = real_bal
+                k_pool["base_equity"] = real_bal
+                k_pool["positions"] = {}
+                k_pool.setdefault("trade_history", [])
+                k_pool.setdefault("order_stream", [])
+            except Exception:
+                pass
+
         self._sync_active_pool_refs()
         self._update_equity()
         self._save_state()

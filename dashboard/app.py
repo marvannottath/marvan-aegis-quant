@@ -1990,32 +1990,33 @@ async def close_all_positions_endpoint(request: Request):
             except Exception as e:
                 errors.append(f"{sym}: {str(e)}")
 
-    # Check broker pool directly for any positions that might not be in snapshot cache
+    # Check broker pools directly for any positions that might not be in snapshot cache
     pool_mapping = {
-        ("CRYPTO", "DEMO"): "BINANCE_SPOT_DEMO",
-        ("CRYPTO", "LIVE"): "BINANCE_LIVE_REAL",
-        ("INDIA", "DEMO"): "AEGIS_INDIA_INR",
-        ("INDIA", "LIVE"): "UPSTOX_LIVE",
-        ("FOREX_GOLD", "DEMO"): "MT5_DEMO",
-        ("FOREX_GOLD", "LIVE"): "MT5_LIVE_REAL",
+        ("CRYPTO", "DEMO"): ["BINANCE_SPOT_DEMO", "BINANCE_TESTNET_DEMO"],
+        ("CRYPTO", "LIVE"): ["BINANCE_LIVE_REAL"],
+        ("INDIA", "DEMO"): ["AEGIS_INDIA_INR", "UPSTOX_DEMO", "KOTAK_NEO_DEMO"],
+        ("INDIA", "LIVE"): ["KOTAK_NEO_LIVE", "KOTAK_NEO_LIVE_POOL", "UPSTOX_LIVE"],
+        ("FOREX_GOLD", "DEMO"): ["MT5_DEMO"],
+        ("FOREX_GOLD", "LIVE"): ["MT5_LIVE_REAL", "CTRADER_LIVE"],
     }
-    target_pool = pool_mapping.get((workspace.upper(), environment.upper()))
-    if target_pool and target_pool in paper_broker.pools:
-        paper_broker.switch_pool(target_pool)
-        for sym in list(paper_broker.positions.keys()):
-            if sym not in closed_list:
-                try:
-                    await close_position_endpoint({"asset": sym, "workspace": workspace})
-                    closed_list.append(sym)
-                except Exception as e:
-                    errors.append(f"{sym}: {str(e)}")
-        # If any remain lingering, clear pool positions map and restore virtual cash
-        for sym, pos_data in list(paper_broker.positions.items()):
-            cap_alloc = float(pos_data.get("capital_allocated", 0.0))
-            paper_broker.virtual_cash += cap_alloc
-        paper_broker.positions.clear()
-        if target_pool in paper_broker.pools and "positions" in paper_broker.pools[target_pool]:
-            paper_broker.pools[target_pool]["positions"].clear()
+    target_pools = pool_mapping.get((workspace.upper(), environment.upper()), [])
+    for target_pool in target_pools:
+        if target_pool in paper_broker.pools:
+            paper_broker.switch_pool(target_pool)
+            for sym in list(paper_broker.positions.keys()):
+                if sym not in closed_list:
+                    try:
+                        await close_position_endpoint({"asset": sym, "workspace": workspace})
+                        closed_list.append(sym)
+                    except Exception as e:
+                        errors.append(f"{sym}: {str(e)}")
+            # Clear pool positions map and restore virtual cash
+            for sym, pos_data in list(paper_broker.positions.items()):
+                cap_alloc = float(pos_data.get("capital_allocated", 0.0))
+                paper_broker.virtual_cash += cap_alloc
+            paper_broker.positions.clear()
+            if target_pool in paper_broker.pools and "positions" in paper_broker.pools[target_pool]:
+                paper_broker.pools[target_pool]["positions"].clear()
 
     # Force clear snapshot cache so UI reflects 0 open positions instantly
     position_snapshot_service.clear_injected_delta()
@@ -6622,13 +6623,19 @@ async def get_india_positions():
 
 @app.get("/api/position-snapshot")
 @app.get("/api/positions")
-async def get_position_snapshot(workspace: Optional[str] = None):
+async def get_position_snapshot(
+    workspace: Optional[str] = None,
+    environment: Optional[str] = None,
+    account_id: Optional[str] = None
+):
     """Return authoritative position snapshot for active or specified workspace (Section 2)."""
     try:
         from core.position_snapshot_service import position_snapshot_service
         from core.workspace_manager import workspace_manager
+        from core.account_context import account_context_manager
         ws = workspace or workspace_manager.get_active_workspace()
-        snapshot = await asyncio.to_thread(position_snapshot_service.get_snapshot, ws)
+        ctx = account_context_manager.resolve(account_id=account_id, workspace=ws, environment=environment)
+        snapshot = await asyncio.to_thread(position_snapshot_service.get_snapshot, ws, False, environment or ctx.environment)
         return JSONResponse({"status": "SUCCESS", **snapshot})
     except Exception as e:
         return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
