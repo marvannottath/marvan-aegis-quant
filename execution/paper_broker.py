@@ -76,9 +76,9 @@ class PaperBroker:
                 "order_stream": []
             },
             "CTRADER_LIVE": {
-                "initial_capital": 10000.0,
-                "virtual_cash": 10000.0,
-                "equity": 10000.0,
+                "initial_capital": 0.0,
+                "virtual_cash": 0.0,
+                "equity": 0.0,
                 "currency": "USD",
                 "currency_symbol": "$",
                 "positions": {},
@@ -335,13 +335,12 @@ class PaperBroker:
             if target_name == "CTRADER_LIVE":
                 try:
                     from execution.ctrader_broker import ctrader_broker
-                    default_b = 10000.0
+                    default_b = float(ctrader_broker.balance) if ctrader_broker.is_connected else 0.0
                     ct_pool = self.pools.setdefault(target_name, {})
-                    if "initial_capital" not in ct_pool or ct_pool.get("initial_capital", 0.0) <= 0:
-                        ct_pool["initial_capital"] = default_b
-                    ct_pool.setdefault("virtual_cash", default_b)
-                    ct_pool.setdefault("equity", default_b)
-                    ct_pool.setdefault("base_equity", default_b)
+                    ct_pool["initial_capital"] = default_b
+                    ct_pool["virtual_cash"] = default_b
+                    ct_pool["equity"] = default_b
+                    ct_pool["base_equity"] = default_b
                     ct_pool.setdefault("trade_history", [])
                     ct_pool.setdefault("order_stream", [])
                     ct_pool.setdefault("positions", {})
