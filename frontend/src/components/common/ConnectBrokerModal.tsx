@@ -70,10 +70,11 @@ export function ConnectBrokerModal({
   }, [isOpen]);
 
   const categories = [
+    { id: 'CONNECTED', label: '🟢 Connected Accounts' },
     { id: 'ALL', label: 'All Gateways' },
+    { id: 'FOREX_GOLD', label: '🌍 Forex & Gold (MT5 & cTrader)' },
     { id: 'CRYPTO', label: '🪙 Crypto (Binance)' },
     { id: 'INDIA', label: '🇮🇳 India (Kotak Neo, Upstox, Zerodha)' },
-    { id: 'FOREX_GOLD', label: '🌍 Forex & Gold (MT5 & cTrader)' },
   ];
 
   // Strictly filter venues by active environment (LIVE vs DEMO)
@@ -82,6 +83,9 @@ export function ConnectBrokerModal({
     const matchesEnv = environment === 'LIVE' ? b.environment === 'LIVE' : b.environment === 'DEMO';
     if (!matchesEnv) return false;
 
+    if (selectedCategory === 'CONNECTED') {
+      return b.status === 'CONNECTED' || b.status === 'ONLINE' || b.status === 'ACTIVE' || b.is_active;
+    }
     if (selectedCategory === 'ALL') return true;
     return b.category === selectedCategory || b.venue === selectedCategory;
   });

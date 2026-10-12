@@ -249,6 +249,10 @@ class PositionSnapshotService:
             except Exception as e:
                 print(f"[POSITION_SNAPSHOT] Kotak live position sync notice: {e}")
 
+        # For Forex & Gold Live (CTRADER_LIVE, MT5_LIVE_REAL): Strictly isolate live positions from paper simulation!
+        if target_ws == "FOREX_GOLD" and (is_live_pool or (environment and str(environment).upper() == "LIVE")):
+            internal_pos_list = []
+
         # For BINANCE_LIVE_REAL / BINANCE_LIVE: sync real held crypto positions from Binance Spot & Futures
         # Strictly restricted to CRYPTO workspace
         if target_ws == "CRYPTO" and pool_name in ["BINANCE_LIVE_REAL", "BINANCE_LIVE"]:
@@ -566,23 +570,48 @@ class PositionSnapshotService:
         elif is_live_forex:
             vault_balance = round(float(profit_vault.get_vault_balance(pool_name)), 2)
             try:
-                from execution.mt5_broker import mt5_broker
-                mt5_stat = mt5_broker.get_status()
-                if mt5_stat.get("is_connected", False):
-                    data_source = "AUTHENTICATED_LIVE"
-                    broker_connected = True
-                    acc_info = mt5_broker.get_account_info()
-                    free_cash = round(float(acc_info.get("free_margin", acc_info.get("balance", 0.0))), 2)
-                    total_equity = round(float(acc_info.get("equity", free_cash)), 2)
+                if pool_name == "CTRADER_LIVE":
+                    from execution.ctrader_broker import ctrader_broker
+                    from execution.broker_gateway_manager import broker_gateway_manager
+                    ct_conn = broker_gateway_manager.connections.get("ctrader_live", {})
+                    ct_info = ctrader_broker.get_account_info()
+                    is_ct_ok = ctrader_broker.is_connected or bool(ct_conn.get("connected")) or (ctrader_broker.access_token and ctrader_broker.account_id)
+                    if is_ct_ok:
+                        data_source = "AUTHENTICATED_LIVE"
+                        broker_connected = True
+                        live_bal = float(ct_info.get("balance", ctrader_broker.balance or ct_conn.get("balance", 0.0)))
+                        free_cash = round(live_bal, 2)
+                        total_equity = round(live_bal + unrealized_pnl, 2)
+                        pool["virtual_cash"] = free_cash
+                        pool["equity"] = total_equity
+                        initial_cap = self.get_and_update_peak_equity(pool_name, max(total_equity, 1.0))
+                    else:
+                        data_source = "DISCONNECTED"
+                        broker_connected = False
+                        free_cash = None
+                        total_equity = None
+                        open_pos_count = 0
+                        total_exposure = 0.0
+                        used_margin = 0.0
+                        unrealized_pnl = 0.0
                 else:
-                    data_source = "DISCONNECTED"
-                    broker_connected = False
-                    free_cash = None
-                    total_equity = None
-                    open_pos_count = 0
-                    total_exposure = 0.0
-                    used_margin = 0.0
-                    unrealized_pnl = 0.0
+                    from execution.mt5_broker import mt5_broker
+                    mt5_stat = mt5_broker.get_status()
+                    if mt5_stat.get("is_connected", False):
+                        data_source = "AUTHENTICATED_LIVE"
+                        broker_connected = True
+                        acc_info = mt5_broker.get_account_info()
+                        free_cash = round(float(acc_info.get("free_margin", acc_info.get("balance", 0.0))), 2)
+                        total_equity = round(float(acc_info.get("equity", free_cash)), 2)
+                    else:
+                        data_source = "DISCONNECTED"
+                        broker_connected = False
+                        free_cash = None
+                        total_equity = None
+                        open_pos_count = 0
+                        total_exposure = 0.0
+                        used_margin = 0.0
+                        unrealized_pnl = 0.0
             except Exception:
                 data_source = "DISCONNECTED"
                 broker_connected = False

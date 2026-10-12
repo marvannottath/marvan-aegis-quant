@@ -168,14 +168,12 @@ class WorkspaceManager:
             env_norm = "PAPER" if e_str in ("DEMO", "TESTNET", "SANDBOX", "PAPER") else ("LIVE" if e_str == "LIVE" else e_str)
 
         if ws == self.WORKSPACE_FOREX_GOLD:
-            if env_norm == "LIVE":
-                return 'MT5_LIVE_REAL'
-            elif env_norm == "PAPER":
-                return 'MT5_DEMO'
             saved = self._active_pool_per_workspace.get(ws)
-            if saved and saved in ['MT5_LIVE_REAL', 'MT5_DEMO', 'CTRADER_LIVE']:
-                return saved
-            return 'MT5_LIVE_REAL'
+            if env_norm == "LIVE":
+                return saved if (saved and saved in ['MT5_LIVE_REAL', 'CTRADER_LIVE']) else 'CTRADER_LIVE'
+            elif env_norm == "PAPER":
+                return saved if (saved and saved in ['MT5_DEMO', 'CTRADER_DEMO']) else 'MT5_DEMO'
+            return saved or 'CTRADER_LIVE'
 
         if ws == self.WORKSPACE_CRYPTO:
             if env_norm == "LIVE":

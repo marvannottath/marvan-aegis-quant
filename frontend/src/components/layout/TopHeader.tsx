@@ -212,10 +212,23 @@ export function TopHeader() {
               <span className="text-xs">Connect Broker</span>
             </button>
           ) : isLive ? (
-            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-300 text-xs font-semibold">
-              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-              <span>Broker Active</span>
-            </div>
+            <button
+              onClick={() => setIsBrokerModalOpen(true)}
+              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-300 text-xs font-semibold hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition cursor-pointer"
+              title="Click to view connected accounts and switch broker"
+            >
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span>
+                {portfolio?.pool_name?.includes('CTRADER')
+                  ? 'cTrader Live'
+                  : portfolio?.pool_name?.includes('BINANCE')
+                  ? 'Binance Live'
+                  : portfolio?.pool_name?.includes('MT5')
+                  ? 'MT5 Direct'
+                  : 'Broker Active'}
+              </span>
+              <ChevronDown className="h-3 w-3 opacity-60" />
+            </button>
           ) : null}
 
           {/* Privacy Amount Masking Toggle */}
