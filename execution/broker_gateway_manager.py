@@ -151,11 +151,11 @@ BROKER_DEFINITIONS = {
         "description": "Kotak Neo Open API (v2) for NSE & BSE Equities, F&O and Currency with zero brokerage on intraday",
         "fields": [
             {"id": "consumer_key", "label": "Kotak Consumer Key (API Key)", "type": "text", "placeholder": "Enter Kotak Neo Consumer Key", "required": True},
-            {"id": "consumer_secret", "label": "Kotak Consumer Secret (Optional for v2)", "type": "password", "placeholder": "Optional if not provided", "required": False},
-            {"id": "mobile_number", "label": "Registered Mobile Number", "type": "text", "placeholder": "e.g. 9876543210", "required": False},
-            {"id": "ucc", "label": "Client Code / UCC", "type": "text", "placeholder": "e.g. KOTAK12345", "required": False},
-            {"id": "mpin", "label": "Neo MPIN / Access Token", "type": "password", "placeholder": "Enter 6-digit MPIN or Neo Token", "required": False},
-            {"id": "balance", "label": "Live Account Balance / Capital (INR ₹)", "type": "number", "placeholder": "e.g. 10000 (Enter 0 or your real Kotak Neo balance)", "required": False}
+            {"id": "mobile_number", "label": "Registered Mobile Number", "type": "text", "placeholder": "e.g. 9207802002", "required": True},
+            {"id": "ucc", "label": "Client Code / UCC (from Kotak Neo profile)", "type": "text", "placeholder": "e.g. 16MT6", "required": True},
+            {"id": "mpin", "label": "Kotak Neo 6-digit MPIN", "type": "password", "placeholder": "Enter your 6-digit MPIN", "required": True},
+            {"id": "totp", "label": "Current 6-digit TOTP (from Google/Microsoft Authenticator)", "type": "text", "placeholder": "Enter current 6-digit TOTP", "required": False},
+            {"id": "totp_secret", "label": "OR TOTP Secret Key (for permanent daily auto-sync)", "type": "password", "placeholder": "Paste TOTP Secret Key from Authenticator QR", "required": False}
         ],
         "default_currency": "INR"
     },
@@ -566,17 +566,50 @@ class BrokerGatewayManager:
             mobile_number = str(payload.get("mobile_number", "")).strip()
             ucc = str(payload.get("ucc", "")).strip()
             mpin = str(payload.get("mpin", "")).strip()
+            totp = str(payload.get("totp", "")).strip()
+            totp_secret = str(payload.get("totp_secret", payload.get("totp_key", ""))).strip()
             access_token = str(payload.get("access_token", "")).strip()
             is_demo = (broker_id == "kotak_neo_demo")
 
             if not consumer_key:
                 return {"status": "ERROR", "message": "Kotak Neo Consumer Key is required."}
 
+            # Live exchange 2FA authentication flow
+            if not is_demo and (mpin or totp or totp_secret):
+                auth_2fa = kotak_neo_broker.authenticate_live_session(
+                    consumer_key=consumer_key,
+                    mobile_number=mobile_number,
+                    ucc=ucc,
+                    mpin=mpin,
+                    totp=totp,
+                    totp_secret=totp_secret
+                )
+                if auth_2fa.get("status") == "SUCCESS":
+                    live_bal = float(auth_2fa.get("balance", 0.0))
+                    stored_entry["connected"] = True
+                    stored_entry["consumer_key_masked"] = self._mask_secret(consumer_key)
+                    stored_entry["account_label"] = ucc or self._mask_secret(consumer_key)
+                    stored_entry["balance"] = live_bal
+                    stored_entry["status"] = "CONNECTED"
+                    kotak_neo_broker.save_credentials(
+                        consumer_key=consumer_key,
+                        consumer_secret=consumer_secret,
+                        mobile_number=mobile_number,
+                        ucc=ucc,
+                        mpin=mpin,
+                        is_demo=False,
+                        balance=live_bal
+                    )
+                    self._save_connections()
+                    return auth_2fa
+                elif auth_2fa.get("status") in ["ERROR", "REQUIRES_TOTP"]:
+                    return auth_2fa
+
             custom_bal = payload.get("balance")
             if custom_bal is not None and str(custom_bal).strip() != "":
                 user_balance = float(custom_bal)
             else:
-                user_balance = 50000.0 if is_demo else 0.0
+                user_balance = 50000.0 if is_demo else kotak_neo_broker._live_cash
 
             res = kotak_neo_broker.save_credentials(
                 consumer_key=consumer_key,
