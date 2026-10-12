@@ -163,17 +163,17 @@ export const api = {
     return fetchJson('/api/ai/status');
   },
 
-  async pauseAiTrading(workspace: Workspace): Promise<any> {
+  async pauseAiTrading(workspace: Workspace, environment?: string): Promise<any> {
     return fetchJson('/api/ai/pause', {
       method: 'POST',
-      body: JSON.stringify({ workspace, reason: 'MANUAL_PAUSE', user: 'OPERATOR' }),
+      body: JSON.stringify({ workspace, environment, reason: 'MANUAL_PAUSE', user: 'OPERATOR' }),
     });
   },
 
-  async resumeAiTrading(workspace: Workspace): Promise<any> {
+  async resumeAiTrading(workspace: Workspace, environment?: string): Promise<any> {
     return fetchJson('/api/ai/resume', {
       method: 'POST',
-      body: JSON.stringify({ workspace, user: 'OPERATOR' }),
+      body: JSON.stringify({ workspace, environment, user: 'OPERATOR' }),
     });
   },
 

@@ -178,6 +178,19 @@ class AutonomousTrader:
                         elif _active_ws == "INDIA":
                             pool = "UPSTOX_DEMO"
 
+                    # Check if this specific engine (workspace x environment) is paused
+                    engine_env = "LIVE" if is_live_pool else "DEMO"
+                    if _aic.get_state(_active_ws, environment=engine_env) != "RUNNING":
+                        if step_counter % 12 == 0:
+                            self._log_action(
+                                asset="AI_CONTROLLER",
+                                action="PAUSED",
+                                price=0.0,
+                                amount_usd=0.0,
+                                reasoning=f"Engine {_active_ws} ({engine_env}) is PAUSED by operator"
+                            )
+                        continue
+
                     self.broker.switch_pool(pool)
 
                     # Sync connected Binance Testnet balance if present

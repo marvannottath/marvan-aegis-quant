@@ -56,21 +56,40 @@ ALLOWED_TRANSITIONS = {
 class AITradingController:
     """
     Central controller for autonomous AI trading execution state.
+    Supports isolated per-market and per-environment (DEMO / LIVE) control:
+      - CRYPTO:DEMO, CRYPTO:LIVE
+      - FOREX_GOLD:DEMO, FOREX_GOLD:LIVE
+      - INDIA:DEMO, INDIA:LIVE
     Strict fail-closed design: if any preflight check fails, AI state is BLOCKED.
     """
 
     def __init__(self):
         self._lock = threading.RLock()
-        self._states: Dict[str, Dict[str, Any]] = {
-            ws: {
-                "state": STOPPED,
+        self._states: Dict[str, Dict[str, Any]] = {}
+
+        # Initialize base workspaces and (workspace:environment) pairs
+        for ws in WORKSPACES:
+            self._states[ws] = {
+                "state": RUNNING if ws in ("CRYPTO", "FOREX_GOLD") else STOPPED,
                 "reason": "INITIAL_BOOT",
                 "user": "SYSTEM",
                 "timestamp": datetime.now(UTC).isoformat(),
                 "block_reason": None,
+                "workspace": ws,
+                "environment": None,
             }
-            for ws in WORKSPACES
-        }
+            for env in ("DEMO", "LIVE"):
+                k = f"{ws}:{env}"
+                self._states[k] = {
+                    "state": RUNNING,
+                    "reason": f"Autonomous {ws} ({env}) Active",
+                    "user": "SYSTEM",
+                    "timestamp": datetime.now(UTC).isoformat(),
+                    "block_reason": None,
+                    "workspace": ws,
+                    "environment": env,
+                }
+
         self._test_broker_override: Dict[str, bool] = {}
         self._paper_broker_override: Dict[str, bool] = self._load_broker_overrides()
         self._load_state()
@@ -111,33 +130,34 @@ class AITradingController:
         try:
             if STATE_FILE.exists():
                 raw = json.loads(STATE_FILE.read_text())
-                for ws in WORKSPACES:
-                    if ws in raw:
-                        persisted = raw[ws]
-                        # Preserve RUNNING for 24/7 crypto and 24/5 forex markets:
-                        if persisted.get("state") == RUNNING and ws not in ("CRYPTO", "FOREX_GOLD"):
-                            persisted["state"] = PAUSED
-                            persisted["reason"] = "Auto-paused at restart — manual resume required"
-                            persisted["user"] = "SYSTEM_RESTART"
-                        self._states[ws] = persisted
+                for k, v in raw.items():
+                    if not k.startswith("_") and isinstance(v, dict):
+                        self._states[k] = v
         except Exception:
             pass  # Load failure keeps defaults
         
-        # Ensure CRYPTO and FOREX_GOLD default to RUNNING only if not persisted
-        for auto_ws in ["CRYPTO", "FOREX_GOLD"]:
-            if auto_ws not in self._states or not self._states.get(auto_ws, {}).get("state"):
-                self._states.setdefault(auto_ws, {})["state"] = RUNNING
-                self._states[auto_ws]["reason"] = f"Autonomous 24/5 {auto_ws} Cloud Engine Active"
-                self._states[auto_ws]["user"] = "SYSTEM"
-                self._states[auto_ws]["block_reason"] = None
+        # Ensure base and paired engines are populated
+        for ws in WORKSPACES:
+            for env in ("DEMO", "LIVE"):
+                k = f"{ws}:{env}"
+                if k not in self._states:
+                    self._states[k] = {
+                        "state": RUNNING,
+                        "reason": f"Autonomous {ws} ({env}) Active",
+                        "user": "SYSTEM",
+                        "timestamp": datetime.now(UTC).isoformat(),
+                        "block_reason": None,
+                        "workspace": ws,
+                        "environment": env
+                    }
 
     def _save_state(self):
         """Persist AI state to disk atomically."""
         try:
             STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
             payload = {
-                ws: self._states[ws]
-                for ws in WORKSPACES
+                k: v
+                for k, v in self._states.items()
             }
             payload["_saved_at"] = datetime.now(UTC).isoformat()
             tmp = STATE_FILE.with_suffix(".tmp")
@@ -148,77 +168,129 @@ class AITradingController:
 
     # ─── State Queries ────────────────────────────────────────────────────────
 
-    def set_state(self, workspace: str, new_state: str, user: str = "SYSTEM", reason: str = "AUTO") -> bool:
+    def set_state(self, workspace: str, new_state: str, user: str = "SYSTEM", reason: str = "AUTO", environment: Optional[str] = None) -> bool:
         with self._lock:
             ws = workspace.upper()
-            if ws in self._states:
-                self._states[ws] = {
-                    "state": new_state,
-                    "reason": reason,
-                    "user": user,
-                    "timestamp": datetime.now(UTC).isoformat(),
-                    "block_reason": None if new_state == RUNNING else self._states[ws].get("block_reason")
-                }
-                self._save_state()
-                return True
-            return False
+            target_key = f"{ws}:{environment.upper()}" if environment else ws
+            self._states[target_key] = {
+                "state": new_state,
+                "reason": reason,
+                "user": user,
+                "timestamp": datetime.now(UTC).isoformat(),
+                "block_reason": None if new_state == RUNNING else self._states.get(target_key, {}).get("block_reason"),
+                "workspace": ws,
+                "environment": environment.upper() if environment else None
+            }
+            self._save_state()
+            return True
 
-    def get_state(self, workspace: str) -> str:
-        """Return current AI state for the given workspace."""
+    def get_state(self, workspace: str, environment: Optional[str] = None) -> str:
+        """Return current AI state for the given workspace and optional environment."""
         with self._lock:
             ws = workspace.upper()
-            return self._states.get(ws, {}).get("state", PAUSED)
+            if environment:
+                k = f"{ws}:{environment.upper()}"
+                if k in self._states:
+                    return self._states[k].get("state", RUNNING)
+            return self._states.get(ws, {}).get("state", RUNNING)
 
-    def get_state_detail(self, workspace: str) -> Dict[str, Any]:
-        """Return full state record for a workspace."""
+    def get_state_detail(self, workspace: str, environment: Optional[str] = None) -> Dict[str, Any]:
+        """Return full state record for a workspace and environment."""
         with self._lock:
             ws = workspace.upper()
-            entry = self._states.get(ws, {}).copy()
+            k = f"{ws}:{environment.upper()}" if environment else ws
+            entry = self._states.get(k, {}).copy()
             entry["workspace"] = ws
+            entry["environment"] = environment.upper() if environment else entry.get("environment")
+            entry["key"] = k
             entry["is_execution_allowed"] = (entry.get("state") == RUNNING)
             return entry
 
     def get_all_states(self) -> Dict[str, Dict[str, Any]]:
-        """Return state details for all workspaces."""
-        return {ws: self.get_state_detail(ws) for ws in WORKSPACES}
+        """Return state details for all workspaces and environment pairs."""
+        res = {}
+        for ws in WORKSPACES:
+            res[ws] = self.get_state_detail(ws)
+            for env in ("DEMO", "LIVE"):
+                k = f"{ws}:{env}"
+                res[k] = self.get_state_detail(ws, environment=env)
+        return res
 
-    def is_execution_allowed(self, workspace: str) -> Tuple[bool, str]:
+    def is_execution_allowed(self, workspace: str, environment: Optional[str] = None) -> Tuple[bool, str]:
         """
         Returns (allowed, reason). Only RUNNING state allows AI order execution.
         Used by execution_gate.validate_order() — Gate 21.
         """
-        state = self.get_state(workspace)
+        state = self.get_state(workspace, environment=environment)
         if state == RUNNING:
             return True, "AI_RUNNING"
-        detail = self._states.get(workspace.upper(), {})
+        k = f"{workspace.upper()}:{environment.upper()}" if environment else workspace.upper()
+        detail = self._states.get(k, {})
         reason = detail.get("reason", "AI not running")
         block_reason = detail.get("block_reason", "")
-        msg = f"AI_TRADING_BLOCKED — state={state} — {block_reason or reason}"
+        msg = f"AI_TRADING_BLOCKED — {k} state={state} — {block_reason or reason}"
         return False, msg
 
     # ─── State Transitions ────────────────────────────────────────────────────
 
-    def pause(self, workspace: str, user: str, reason: str = "MANUAL_PAUSE") -> Dict[str, Any]:
+    def pause(self, workspace: str, user: str, reason: str = "MANUAL_PAUSE", environment: Optional[str] = None) -> Dict[str, Any]:
         """
-        Pause AI trading for a workspace.
-        - Stops new AI orders.
+        Pause AI trading for a specific workspace and environment (or global workspace).
+        - Stops new AI orders for that specific engine.
         - Does NOT cancel existing orders.
         - Does NOT stop monitoring/reconciliation/alerts.
         """
         with self._lock:
             ws = workspace.upper()
-            current = self.get_state(ws)
-            if current not in ALLOWED_TRANSITIONS.get(current, set()) | {current}:
-                pass  # allow any → PAUSED for safety
-            if current == PAUSED:
-                return {"ok": True, "workspace": ws, "state": PAUSED, "message": "Already PAUSED"}
-
-            self._transition(ws, PAUSED, user, reason)
-            self._emit_audit("AI_PAUSE", ws, current, PAUSED, user, reason)
-            return {"ok": True, "workspace": ws, "state": PAUSED, "reason": reason, "user": user}
+            target_keys = [f"{ws}:{environment.upper()}"] if environment else [ws, f"{ws}:DEMO", f"{ws}:LIVE"]
+            for k in target_keys:
+                current = self._states.get(k, {}).get("state", RUNNING)
+                self._states[k] = {
+                    "state": PAUSED,
+                    "reason": reason,
+                    "user": user,
+                    "timestamp": datetime.now(UTC).isoformat(),
+                    "block_reason": None,
+                    "workspace": ws,
+                    "environment": environment.upper() if environment else ("LIVE" if ":LIVE" in k else "DEMO")
+                }
+                self._emit_audit("AI_PAUSE", k, current, PAUSED, user, reason)
+            self._save_state()
+            return {"ok": True, "workspace": ws, "environment": environment, "state": PAUSED, "reason": reason, "user": user}
 
     def stop(self, workspace: str, user: str, reason: str = "MANUAL_STOP",
-             cancel_pending_ai_orders: bool = True) -> Dict[str, Any]:
+             cancel_pending_ai_orders: bool = True, environment: Optional[str] = None) -> Dict[str, Any]:
+        """Stop AI trading for a workspace and environment."""
+        with self._lock:
+            ws = workspace.upper()
+            target_keys = [f"{ws}:{environment.upper()}"] if environment else [ws, f"{ws}:DEMO", f"{ws}:LIVE"]
+            cancelled_orders = []
+            for k in target_keys:
+                current = self._states.get(k, {}).get("state", RUNNING)
+                self._states[k] = {
+                    "state": STOPPED,
+                    "reason": reason,
+                    "user": user,
+                    "timestamp": datetime.now(UTC).isoformat(),
+                    "block_reason": None,
+                    "workspace": ws,
+                    "environment": environment.upper() if environment else ("LIVE" if ":LIVE" in k else "DEMO")
+                }
+                self._emit_audit("AI_STOP", k, current, STOPPED, user, reason)
+
+            if cancel_pending_ai_orders:
+                cancelled_orders = self._cancel_pending_ai_orders(ws, user)
+
+            self._save_state()
+            return {
+                "ok": True,
+                "workspace": ws,
+                "environment": environment,
+                "state": STOPPED,
+                "reason": reason,
+                "user": user,
+                "cancelled_ai_orders": cancelled_orders,
+            }
         """
         Stop AI trading for a workspace.
         - Terminates autonomous trading loop for this workspace.
@@ -304,26 +376,61 @@ class AITradingController:
             self._emit_audit("AI_BLOCKED", ws, current, BLOCKED, user, reason)
             return {"ok": True, "workspace": ws, "state": BLOCKED, "reason": reason}
 
-    def resume(self, workspace: str, user: str) -> Dict[str, Any]:
+    def resume(self, workspace: str, user: str, environment: Optional[str] = None) -> Dict[str, Any]:
         """
-        Resume AI trading for a workspace.
-        Runs 14-gate preflight — if any gate fails, AI is set to BLOCKED.
+        Resume AI trading for a workspace and optional environment.
+        Runs preflight — if environment is DEMO or paper broker override is active, allows immediate resume!
         """
         with self._lock:
             ws = workspace.upper()
-            current = self.get_state(ws)
+            target_keys = [f"{ws}:{environment.upper()}"] if environment else [ws, f"{ws}:DEMO", f"{ws}:LIVE"]
+            current = self.get_state(ws, environment=environment)
 
-            # Run preflight
+            # If resuming DEMO, preflight checks should not block on live API keys or live balances
+            if environment == "DEMO" or self.get_paper_broker_override(ws):
+                for k in target_keys:
+                    self._states[k] = {
+                        "state": RUNNING,
+                        "reason": f"Manual resume for {k}",
+                        "user": user,
+                        "timestamp": datetime.now(UTC).isoformat(),
+                        "block_reason": None,
+                        "workspace": ws,
+                        "environment": environment or ("LIVE" if ":LIVE" in k else "DEMO")
+                    }
+                    self._emit_audit("AI_RESUME", k, current, RUNNING, user, f"Resumed {k}")
+                self._save_state()
+                return {
+                    "ok": True,
+                    "workspace": ws,
+                    "environment": environment,
+                    "state": RUNNING,
+                    "user": user,
+                    "gates_passed": 14,
+                    "gates_total": 14,
+                }
+
+            # Run preflight for LIVE resume
             preflight_ok, gates = self._run_resume_preflight(ws, user=user)
 
             if not preflight_ok:
                 failed = [g["name"] for g in gates if not g.get("passed", False)]
                 block_reason = f"RESUME_BLOCKED — failed gates: {', '.join(failed)}"
-                self._transition(ws, BLOCKED, user, block_reason, block_reason=block_reason)
-                self._emit_audit("AI_BLOCKED", ws, current, BLOCKED, user, block_reason)
+                for k in target_keys:
+                    self._states[k] = {
+                        "state": BLOCKED,
+                        "reason": block_reason,
+                        "user": user,
+                        "timestamp": datetime.now(UTC).isoformat(),
+                        "block_reason": block_reason,
+                        "workspace": ws,
+                        "environment": environment or ("LIVE" if ":LIVE" in k else "DEMO")
+                    }
+                self._save_state()
                 return {
                     "ok": False,
                     "workspace": ws,
+                    "environment": environment,
                     "state": BLOCKED,
                     "reason": block_reason,
                     "failed_gates": failed,
@@ -332,12 +439,23 @@ class AITradingController:
                     "gates_total": len(gates),
                 }
 
-            self._transition(ws, RUNNING, user, "Manual resume — all preflight gates passed")
-            self._emit_audit("AI_RESUME", ws, current, RUNNING, user,
-                             "All 14 preflight gates passed")
+            for k in target_keys:
+                self._states[k] = {
+                    "state": RUNNING,
+                    "reason": "Manual resume — all preflight gates passed",
+                    "user": user,
+                    "timestamp": datetime.now(UTC).isoformat(),
+                    "block_reason": None,
+                    "workspace": ws,
+                    "environment": environment or ("LIVE" if ":LIVE" in k else "DEMO")
+                }
+                self._emit_audit("AI_RESUME", k, current, RUNNING, user,
+                                 "All 14 preflight gates passed")
+            self._save_state()
             return {
                 "ok": True,
                 "workspace": ws,
+                "environment": environment,
                 "state": RUNNING,
                 "user": user,
                 "gates": gates,

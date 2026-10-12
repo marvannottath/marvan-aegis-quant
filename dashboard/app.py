@@ -1603,9 +1603,10 @@ async def ai_pause_endpoint(request: Request):
     except Exception:
         body = {}
     workspace = body.get("workspace", "FOREX_GOLD")
+    environment = body.get("environment", None)
     reason = body.get("reason", "MANUAL_PAUSE")
     user = body.get("user", "OPERATOR")
-    result = ai_trading_controller.pause(workspace, user=user, reason=reason)
+    result = ai_trading_controller.pause(workspace, user=user, reason=reason, environment=environment)
     return JSONResponse(result)
 
 
@@ -1625,6 +1626,7 @@ async def ai_stop_endpoint(request: Request):
     except Exception:
         body = {}
     workspace = body.get("workspace", "FOREX_GOLD")
+    environment = body.get("environment", None)
     confirmation = body.get("confirmation_token", "")
     user = body.get("user", "OPERATOR")
     # Require confirmation token = "CONFIRM_STOP"
@@ -1636,14 +1638,14 @@ async def ai_stop_endpoint(request: Request):
         }, status_code=400)
     reason = body.get("reason", "MANUAL_STOP")
     result = ai_trading_controller.stop(workspace, user=user, reason=reason,
-                                        cancel_pending_ai_orders=True)
+                                        cancel_pending_ai_orders=True, environment=environment)
     return JSONResponse(result)
 
 
 @app.post("/api/ai/resume")
 async def ai_resume_endpoint(request: Request):
     """
-    Resume AI trading for a workspace.
+    Resume AI trading for a workspace and optional environment.
     Runs 14-gate preflight validation — if any gate fails, AI is set to BLOCKED.
     No stale overnight signal can execute just because the market reopened.
     """
@@ -1653,8 +1655,9 @@ async def ai_resume_endpoint(request: Request):
     except Exception:
         body = {}
     workspace = body.get("workspace", "FOREX_GOLD")
+    environment = body.get("environment", None)
     user = body.get("user", "OPERATOR")
-    result = ai_trading_controller.resume(workspace, user=user)
+    result = ai_trading_controller.resume(workspace, user=user, environment=environment)
     status_code = 200 if result.get("ok") else 400
     return JSONResponse(result, status_code=status_code)
 
