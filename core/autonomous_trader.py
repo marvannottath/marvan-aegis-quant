@@ -262,9 +262,15 @@ class AutonomousTrader:
                             # Dynamic position sizing within risk engine limits
                             max_cap = float(getattr(self.risk_engine, "custom_trade_cap_usd", 4000.0))
                             if pool == "BINANCE_LIVE_REAL":
-                                if working_cash < 5.0:
+                                if working_cash < 5.20:
                                     continue
-                                size_usd = min(working_cash * 0.4, 6.00) if working_cash < 50.0 else min(max_cap * 0.75, self.risk_engine.calculate_position_size(working_cash, volatility, opp_score))
+                                if working_cash < 50.0:
+                                    if working_cash >= 10.50:
+                                        size_usd = round(min(working_cash * 0.48, 6.00), 2)
+                                    else:
+                                        size_usd = round(min(working_cash * 0.95, 6.00), 2)
+                                else:
+                                    size_usd = min(max_cap * 0.75, self.risk_engine.calculate_position_size(working_cash, volatility, opp_score))
                             elif pool in ["BINANCE_TESTNET_DEMO", "BINANCE_DEMO"] or _active_ws == "CRYPTO":
                                 if working_cash < 10.0:
                                     continue
