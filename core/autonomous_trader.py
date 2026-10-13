@@ -313,12 +313,16 @@ class AutonomousTrader:
                             working_cash = max(0.0, round(current_cash - vault_locked, 2))
 
                             calc_leverage = base_lev
-                            if pool in ["AEGIS_INDIA_INR", "UPSTOX_DEMO", "UPSTOX_LIVE"] or _active_ws == "INDIA":
-                                calc_leverage = min(5.0, calc_leverage)
+                            if pool in ["AEGIS_INDIA_INR", "UPSTOX_DEMO", "UPSTOX_LIVE", "KOTAK_NEO_LIVE"] or _active_ws == "INDIA":
+                                max_prof_lev = float(venue_prof.get("max_leverage", 2.0))
+                                calc_leverage = min(max_prof_lev, 5.0)
 
                             # Dynamic position sizing within risk engine limits
                             venue_cfg = self.risk_engine.get_venue_config(_active_ws, _engine_env)
                             max_cap = float(venue_cfg.get("custom_trade_cap_usd", 4000.0))
+                            
+                            is_india_pool = (_active_ws == "INDIA") or pool in ["AEGIS_INDIA_INR", "UPSTOX_DEMO", "UPSTOX_LIVE", "KOTAK_NEO_LIVE"]
+
                             if pool == "BINANCE_LIVE_REAL":
                                 if working_cash < 5.20:
                                     continue
@@ -337,13 +341,26 @@ class AutonomousTrader:
                                 if working_cash < 20.0:
                                     continue
                                 size_usd = min(max_cap * 0.75, max(100.0, round(working_cash * 0.005, 2)))
+                            elif is_india_pool:
+                                if working_cash < 50.0:
+                                    continue
+                                if working_cash <= 2500.0:
+                                    # Retail micro-account (e.g. ₹1,000 INR working capital)
+                                    size_inr = round(min(working_cash * 0.45, 350.0), 2)
+                                else:
+                                    size_inr = min(max_cap * 75.0, self.risk_engine.calculate_position_size(working_cash, volatility, opp_score, workspace=_active_ws, environment=_engine_env))
+                                size_usd = size_inr
                             else:
                                 if working_cash < 10.0:
                                     continue
                                 size_usd = min(max_cap * 0.75, self.risk_engine.calculate_position_size(working_cash, volatility, opp_score, workspace=_active_ws, environment=_engine_env))
 
-                            is_risk_valid, _ = self.risk_engine.validate_order(size_usd, calc_leverage, len(self.broker.positions), workspace=_active_ws, environment=_engine_env)
-                            if is_risk_valid and size_usd >= 5.0:
+                            # Risk validation
+                            is_risk_valid, risk_reason = self.risk_engine.validate_order(size_usd, calc_leverage, len(self.broker.positions), workspace=_active_ws, environment=_engine_env)
+                            
+                            min_threshold_ok = (size_usd >= 5.0) if not is_india_pool else (size_usd >= 50.0)
+
+                            if is_risk_valid and min_threshold_ok:
                                 live_order_placed = False
 
                                 if pool == "BINANCE_LIVE_REAL":
@@ -385,6 +402,63 @@ class AutonomousTrader:
                                             continue
                                     except Exception as live_err:
                                         self._log_action(ticker, "LIVE_ORDER_ERROR", current_price, size_usd, f"Live order error: {live_err}")
+
+                                elif pool in ["KOTAK_NEO_LIVE", "UPSTOX_LIVE"] or (_active_ws == "INDIA" and is_live_pool):
+                                    try:
+                                        from execution.kotak_neo_broker import kotak_neo_broker
+                                        gate_ok, gate_msg = environment_gate.check_order_allowed("LIVE", 0.0)
+                                        if gate_ok:
+                                            effective_cap = size_usd * max(1.0, calc_leverage)
+                                            qty = max(1, int(effective_cap / max(1.0, current_price)))
+                                            margin_required = round((qty * current_price) / max(1.0, calc_leverage), 2)
+                                            if margin_required > working_cash:
+                                                qty = 1
+                                                margin_required = round(current_price / max(1.0, calc_leverage), 2)
+
+                                            if margin_required <= working_cash:
+                                                valid_tick_price = round(round(current_price * 20.0) / 20.0, 2)
+                                                prod_type = "MIS" if calc_leverage > 1.0 else "CNC"
+                                                k_order_res = kotak_neo_broker.place_order({
+                                                    "symbol": ticker,
+                                                    "side": act,
+                                                    "quantity": float(qty),
+                                                    "price": valid_tick_price,
+                                                    "order_type": "MARKET",
+                                                    "product": prod_type,
+                                                    "environment": "LIVE"
+                                                })
+                                                if k_order_res and k_order_res.get("status") in ("ACCEPTED", "FILLED", "SUBMITTED", "SUCCESS"):
+                                                    live_order_placed = True
+                                                    pos_id = f"TRD-KNEO-{ticker}-{int(time.time()*1000)}"
+                                                    pos_record = {
+                                                        "trade_id": pos_id,
+                                                        "asset": ticker, "symbol": ticker, "action": act, "side": act,
+                                                        "units": qty, "quantity": qty, "entry_price": valid_tick_price,
+                                                        "last_price": valid_tick_price, "capital_allocated": margin_required,
+                                                        "margin": margin_required, "leverage": calc_leverage,
+                                                        "market_value": round(qty * valid_tick_price, 2),
+                                                        "pnl_usd": 0.0, "pnl_pct": 0.0, "unrealized_pnl": 0.0,
+                                                        "product": prod_type, "status": "ACTIVE", "environment": "KOTAK_NEO_LIVE",
+                                                        "source": "KOTAK_NEO_LIVE",
+                                                        "timestamp": datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S")
+                                                    }
+                                                    self.broker.positions[ticker] = pos_record
+                                                    self.broker.pools.setdefault(pool, {}).setdefault("positions", {})[ticker] = pos_record
+                                                    cur_pool_cash = float(self.broker.pools.get(pool, {}).get("virtual_cash", self.broker.virtual_cash))
+                                                    new_pool_cash = max(0.0, round(cur_pool_cash - margin_required, 2))
+                                                    self.broker.pools.setdefault(pool, {})["virtual_cash"] = new_pool_cash
+                                                    self.broker.virtual_cash = new_pool_cash
+                                                    self.broker._save_state()
+                                                    self._log_action(ticker, act, valid_tick_price, margin_required, f"KOTAK NEO LIVE ORDER PLACED: {k_order_res.get('order_id', 'ACCEPTED')} | Qty: {qty} | Margin ₹{margin_required:,.2f} | Opp {opp_score:.0f}%")
+                                                else:
+                                                    self._log_action(ticker, "LIVE_GATE_BLOCKED", current_price, margin_required, f"Kotak order blocked: {k_order_res.get('message', gate_msg)}")
+                                            else:
+                                                self._log_action(ticker, "LIVE_MARGIN_EXCEEDED", current_price, margin_required, f"Margin ₹{margin_required:,.2f} exceeds working cash ₹{working_cash:,.2f}")
+                                        else:
+                                            self._log_action(ticker, "LIVE_GATE_BLOCKED", current_price, size_usd, f"Live trading disabled: {gate_msg}")
+                                            continue
+                                    except Exception as k_err:
+                                        self._log_action(ticker, "LIVE_ORDER_ERROR", current_price, size_usd, f"Kotak order error: {k_err}")
 
                                 elif pool == "BINANCE_TESTNET_DEMO":
                                     try:

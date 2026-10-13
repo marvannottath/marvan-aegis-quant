@@ -375,6 +375,7 @@ class SignalEnsembleEngine:
             "risk_reward": rr_str,
             "rr": f"{calc_rr:.2f}",
             "volatility_regime": f"NORMAL ({vol*100:.2f}%)" if vol <= 0.025 else f"ELEVATED ({vol*100:.2f}%)",
+            "rsi": round(rsi, 1),
             "sub_agent_breakdown": agent_scores,
             "fortress_shields_passed": shields_passed,
             "fortress_shields_total": 1000,

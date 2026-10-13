@@ -248,11 +248,16 @@ class MultiMarketScanner:
                         source = "NSE_SIMULATION"
                         status = "LIVE"
 
-                osc = np.sin(self.step_counter * 0.35 + hash(key) % 7) * 20.0
-                rsi = float(np.clip(50.0 + ((change_24h or 0.0) * 4.0) + osc, 15.0, 85.0))
-                momentum_score = abs(rsi - 50.0) * 1.3
-                opp_score = round(float(np.clip(48.0 + momentum_score + 16.0, 42.0, 95.0)), 1)
-                ai_act = "BUY" if rsi <= 50.0 else "SELL"
+                try:
+                    from core.signal_ensemble import signal_ensemble_engine
+                    eval_res = signal_ensemble_engine.evaluate_signal(key, current_price=price, volatility=0.015)
+                    opp_score = float(eval_res.get("confidence_score", 75.0))
+                    ai_act = eval_res.get("action", eval_res.get("signal", "HOLD"))
+                    rsi = float(eval_res.get("rsi", 50.0))
+                except Exception:
+                    rsi = 50.0
+                    opp_score = 75.0
+                    ai_act = "HOLD"
 
                 results.append({
                     "ticker": key,
@@ -296,11 +301,16 @@ class MultiMarketScanner:
                         source = "MT5_SIMULATION"
                         status = "LIVE"
 
-                osc = np.sin(self.step_counter * 0.35 + hash(key) % 7) * 20.0
-                rsi = float(np.clip(50.0 + ((change_24h or 0.0) * 4.0) + osc, 15.0, 85.0))
-                momentum_score = abs(rsi - 50.0) * 1.3
-                opp_score = round(float(np.clip(48.0 + momentum_score + 16.0, 42.0, 95.0)), 1)
-                ai_act = "BUY" if rsi <= 50.0 else "SELL"
+                try:
+                    from core.signal_ensemble import signal_ensemble_engine
+                    eval_res = signal_ensemble_engine.evaluate_signal(key, current_price=price, volatility=0.015)
+                    opp_score = float(eval_res.get("confidence_score", 75.0))
+                    ai_act = eval_res.get("action", eval_res.get("signal", "HOLD"))
+                    rsi = float(eval_res.get("rsi", 50.0))
+                except Exception:
+                    rsi = 50.0
+                    opp_score = 75.0
+                    ai_act = "HOLD"
 
                 results.append({
                     "ticker": key,

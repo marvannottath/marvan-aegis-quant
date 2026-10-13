@@ -531,7 +531,8 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
         Live order placement is strictly blocked by server-side policy.
         """
         # 1. Server-side live trading lockout
-        is_live = os.getenv("LIVE_TRADING_ENABLED", "false").lower() == "true"
+        from core.environment_gate import environment_gate
+        is_live = bool(environment_gate.LIVE_TRADING_ENABLED) or (os.getenv("LIVE_TRADING_ENABLED", "false").lower() == "true")
         if order_request.get("environment") == "LIVE" and not is_live:
             return {
                 "status": "REJECTED",
@@ -548,9 +549,9 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
         if quantity <= 0:
             return {"status": "REJECTED", "message": "Invalid quantity"}
 
-        # Validate NSE tick size (multiple of 0.05)
-        if price > 0 and round(price * 100) % 5 != 0:
-            return {"status": "REJECTED", "message": "Price does not conform to NSE tick size (0.05)"}
+        # Ensure NSE tick size (0.05 multiple)
+        if price > 0:
+            price = round(round(price * 20.0) / 20.0, 2)
 
         order_id = f"KNEO-{int(time.time() * 1000)}"
         record = {
