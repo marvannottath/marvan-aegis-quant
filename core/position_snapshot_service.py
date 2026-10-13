@@ -254,8 +254,9 @@ class PositionSnapshotService:
             internal_pos_list = []
 
         # For BINANCE_LIVE_REAL / BINANCE_LIVE: sync real held crypto positions from Binance Spot & Futures
-        # Strictly restricted to CRYPTO workspace
-        if target_ws == "CRYPTO" and pool_name in ["BINANCE_LIVE_REAL", "BINANCE_LIVE"]:
+        # Strictly isolate live positions from paper simulation!
+        if target_ws == "CRYPTO" and (is_live_pool or (environment and str(environment).upper() == "LIVE")):
+            internal_pos_list = []
             try:
                 from execution.binance_broker import binance_broker
                 live_positions = binance_broker.get_open_positions("BINANCE_LIVE", force_refresh=force_refresh)
@@ -535,7 +536,13 @@ class PositionSnapshotService:
                     data_source = "AUTHENTICATED_LIVE"
                     broker_connected = True
                     free_cash = round(live_avail, 2)
-                    total_equity = round(max(live_tot, free_cash + total_exposure + unrealized_pnl), 2)
+                    if open_pos_count == 0:
+                        total_exposure = 0.0
+                        used_margin = 0.0
+                        unrealized_pnl = 0.0
+                        total_equity = round(live_tot if live_tot > 0 else free_cash, 2)
+                    else:
+                        total_equity = round(free_cash + total_exposure + unrealized_pnl, 2)
                     pool["virtual_cash"] = free_cash
                     pool["equity"] = total_equity
                     initial_cap = self.get_and_update_peak_equity(pool_name, max(total_equity, 1.0))
@@ -544,7 +551,13 @@ class PositionSnapshotService:
                     broker_connected = True
                     conn_bal = float(b_conn.get("balance", 0.0))
                     free_cash = round(live_avail if live_avail > 0 else (conn_bal if conn_bal > 0 else 12.58), 2)
-                    total_equity = round(free_cash + total_exposure + unrealized_pnl, 2)
+                    if open_pos_count == 0:
+                        total_exposure = 0.0
+                        used_margin = 0.0
+                        unrealized_pnl = 0.0
+                        total_equity = free_cash
+                    else:
+                        total_equity = round(free_cash + total_exposure + unrealized_pnl, 2)
                     pool["virtual_cash"] = free_cash
                     pool["equity"] = total_equity
                     initial_cap = self.get_and_update_peak_equity(pool_name, max(total_equity, 1.0))

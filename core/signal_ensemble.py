@@ -33,24 +33,25 @@ class SignalEnsembleEngine:
             "Volatility_AI", "Sentiment_AI", "Macro_AI", "Order_Flow_AI"
         ]
         self.precision_mode = "ULTRA_9999_PRECISION"
-        self.min_confidence_threshold = 64.0
-        self.min_shields_required = 750
+        self.min_confidence_threshold = 92.0
+        self.min_shields_required = 850
 
     def set_precision_mode(self, mode: str) -> Dict[str, Any]:
-        """Configure ensemble precision threshold mode."""
+        """Configure ensemble precision threshold mode with institutional 90%+ confidence requirement."""
         m_upper = str(mode).upper()
         if m_upper in ["ULTRA_9999_PRECISION", "ULTRA_PRECISION", "ULTRA", "99.99%", "1000_SHIELD", "CONSERVATIVE"]:
             self.precision_mode = "ULTRA_9999_PRECISION"
-            self.min_confidence_threshold = 64.0
-            self.min_shields_required = 750
+            self.min_confidence_threshold = 92.0
+            self.min_shields_required = 850
         elif m_upper in ["HIGH_CONVICTION", "HIGH_PRECISION", "MODERATE"]:
             self.precision_mode = "HIGH_CONVICTION"
-            self.min_confidence_threshold = 58.0
-            self.min_shields_required = 700
+            self.min_confidence_threshold = 90.0
+            self.min_shields_required = 800
         else:
-            self.precision_mode = "STANDARD"
-            self.min_confidence_threshold = 50.0
-            self.min_shields_required = 600
+            # Aggressive: Keep confidence strictly high (>=90%) to protect against leveraged drawdowns
+            self.precision_mode = "AGGRESSIVE_HIGH_CONVICTION"
+            self.min_confidence_threshold = 90.0
+            self.min_shields_required = 750
 
         return {
             "status": "SUCCESS",

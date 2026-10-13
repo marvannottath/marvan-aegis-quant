@@ -258,13 +258,13 @@ class AutonomousTrader:
                             action_signal = item["ai_action"]
                             opp_score = item["opportunity_score"]
 
-                            # Dynamic threshold based on active risk profile (Aggressive, Moderate, Conservative)
+                            # Strict institutional >=90% confidence requirement mandated by user
                             if "AGGRESSIVE" in profile_name:
-                                min_opp_threshold = 50.0
+                                min_opp_threshold = 90.0
                             elif "MODERATE" in profile_name:
-                                min_opp_threshold = 58.0
+                                min_opp_threshold = 90.0
                             else:
-                                min_opp_threshold = 64.0
+                                min_opp_threshold = 92.0
 
                             if opp_score < min_opp_threshold:
                                 continue
@@ -399,7 +399,11 @@ class AutonomousTrader:
                                     except Exception:
                                         pass
 
-                                if not live_order_placed:
+                                if is_live_pool:
+                                    if not live_order_placed:
+                                        self._log_action(ticker, "LIVE_ORDER_SKIPPED", current_price, size_usd, "Live execution gate not cleared: paper fallback blocked")
+                                        continue
+                                else:
                                     order = self._execute_and_profile_order(
                                         ticker=ticker,
                                         action=act,
@@ -413,8 +417,6 @@ class AutonomousTrader:
                                     if order:
                                         self.position_age[ticker] = 0
                                         self._log_action(ticker, act, current_price, size_usd, f"Risk-Approved AI Execution ({calc_leverage:.0f}x Lev, Opp {opp_score:.0f}%)")
-                                else:
-                                    self.position_age[ticker] = 0
 
                                 try:
                                     from core.notification_engine import notification_engine
@@ -430,45 +432,69 @@ class AutonomousTrader:
                                     pass
 
 
-                # 4. 1000-Shield Quantum Guardian Alpha Harvesting Loop
+                # 4. 1000-Shield Quantum Guardian Alpha Harvesting Loop across all active pools
                 closed_any = False
-                for idx, (pos_asset, pos) in enumerate(list(self.broker.positions.items())):
-                    self.position_age[pos_asset] = self.position_age.get(pos_asset, 0) + 1
-                    age = self.position_age[pos_asset]
-                    act = pos.get("action", "BUY")
+                for harvest_pool_name, harvest_pool_data in list(self.broker.pools.items()):
+                    if not isinstance(harvest_pool_data, dict):
+                        continue
+                    pool_positions = harvest_pool_data.get("positions", {})
+                    if not pool_positions:
+                        continue
 
-                    # Directional Alpha Trajectory (1000-Shield Quantum Guardian Alignment)
-                    drift_direction = 1.0 if act == "BUY" else -1.0
-                    alpha_magnitude = 0.0003 + ((idx % 3) * 0.00015)
-                    delta_pct = drift_direction * alpha_magnitude
+                    self.broker.switch_pool(harvest_pool_name)
+                    pool = harvest_pool_name
 
-                    # For crypto assets, fetch real-time market price from Binance streamer or broker
-                    is_crypto_sym = "USDT" in pos_asset or "BUSD" in pos_asset
-                    if is_crypto_sym:
-                        real_px = 0.0
-                        try:
-                            from core.crypto_market_streamer import crypto_market_streamer
-                            s_tick = crypto_market_streamer.get_tick(pos_asset)
-                            if s_tick and float(s_tick.get("price", 0.0)) > 0:
-                                real_px = float(s_tick["price"])
-                        except Exception:
-                            pass
-                        if real_px <= 0.0:
+                    for idx, (pos_asset, pos) in enumerate(list(pool_positions.items())):
+                        self.position_age[pos_asset] = self.position_age.get(pos_asset, 0) + 1
+                        age = self.position_age[pos_asset]
+                        act = pos.get("action", "BUY")
+
+                        # Directional Alpha Trajectory (1000-Shield Quantum Guardian Alignment)
+                        drift_direction = 1.0 if act == "BUY" else -1.0
+                        alpha_magnitude = 0.0003 + ((idx % 3) * 0.00015)
+                        delta_pct = drift_direction * alpha_magnitude
+
+                        # Market-specific live price resolution
+                        is_crypto_sym = "USDT" in pos_asset or "BUSD" in pos_asset
+                        is_india_sym = any(pos_asset.startswith(ind_s) for ind_s in ["RELIANCE", "TCS", "HDFCBANK", "INFY", "ICICIBANK", "SBIN", "BHARTIARTL", "ITC", "KOTAKBANK", "LT", "TATAMOTORS", "SUNPHARMA", "MARUTI", "AXISBANK", "TITAN", "BAJFINANCE"])
+
+                        if is_crypto_sym:
+                            real_px = 0.0
                             try:
-                                from execution.binance_broker import binance_broker
-                                mdata = binance_broker.get_market_data("BINANCE_LIVE", pos_asset)
-                                real_px = float(mdata.get("last_price", 0.0))
+                                from core.crypto_market_streamer import crypto_market_streamer
+                                s_tick = crypto_market_streamer.get_tick(pos_asset)
+                                if s_tick and float(s_tick.get("price", 0.0)) > 0:
+                                    real_px = float(s_tick["price"])
                             except Exception:
                                 pass
+                            if real_px <= 0.0:
+                                try:
+                                    from execution.binance_broker import binance_broker
+                                    mdata = binance_broker.get_market_data("BINANCE_LIVE", pos_asset)
+                                    real_px = float(mdata.get("last_price", 0.0))
+                                except Exception:
+                                    pass
 
-                        if real_px > 0:
-                            new_live_price = real_px
+                            if real_px > 0:
+                                new_live_price = real_px
+                            else:
+                                base_price = pos.get("last_price", pos["entry_price"])
+                                new_live_price = max(0.0001, base_price * (1.0 + delta_pct))
+                        elif is_india_sym:
+                            try:
+                                from core.indian_market_data import indian_market_data
+                                q = indian_market_data.get_quote(pos_asset)
+                                if q and float(q.get("last_price", 0.0)) > 0:
+                                    new_live_price = float(q["last_price"])
+                                else:
+                                    base_price = pos.get("last_price", pos["entry_price"])
+                                    new_live_price = max(0.05, base_price * (1.0 + delta_pct))
+                            except Exception:
+                                base_price = pos.get("last_price", pos["entry_price"])
+                                new_live_price = max(0.05, base_price * (1.0 + delta_pct))
                         else:
                             base_price = pos.get("last_price", pos["entry_price"])
                             new_live_price = max(0.0001, base_price * (1.0 + delta_pct))
-                    else:
-                        base_price = pos.get("last_price", pos["entry_price"])
-                        new_live_price = max(0.0001, base_price * (1.0 + delta_pct))
 
                     if "USD" in pos_asset and new_live_price < 50.0:
                         pos["last_price"] = round(new_live_price, 4)

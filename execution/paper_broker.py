@@ -198,6 +198,11 @@ class PaperBroker:
             if "ai_active" in data:
                 master["ai_active"] = data["ai_active"]
 
+        # Strict isolation: Live broker pools NEVER persist or store simulated paper positions
+        for live_pool_key in ["BINANCE_LIVE_REAL", "MT5_LIVE_REAL", "UPSTOX_LIVE", "KOTAK_NEO_LIVE", "CTRADER_LIVE"]:
+            if live_pool_key in self.pools:
+                self.pools[live_pool_key]["positions"] = {}
+
         self._sync_active_pool_refs()
         self._update_equity()
 
