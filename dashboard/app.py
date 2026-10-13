@@ -1282,22 +1282,15 @@ async def get_state(workspace: Optional[str] = None, request_id: Optional[str] =
             vol = float(str(m.get("volatility", 0.015)).replace("%", "")) / 100.0 if "volatility" in m else 0.015
             eval_res = signal_ensemble_engine.evaluate_signal(sym, price, vol)
             conf = eval_res["confidence_score"]
-            action = eval_res["signal"]
-            risk_st = "APPROVED"
+            action = eval_res["action"]
+            risk_st = eval_res["risk_state"]
             inst_id = workspace_manager.get_instrument_id(sym, ws)
             asset_cls = workspace_manager.get_asset_class(sym, ws)
             vol_regime = eval_res.get("volatility_regime", "NORMAL")
             sub_agents = eval_res.get("sub_agent_breakdown", {})
-
-            if action == "BUY":
-                sl_price = round(price * 0.985, 2 if price > 10 else 4)
-                tp_price = round(price * 1.035, 2 if price > 10 else 4)
-            elif action == "SELL":
-                sl_price = round(price * 1.015, 2 if price > 10 else 4)
-                tp_price = round(price * 0.965, 2 if price > 10 else 4)
-            else:
-                sl_price = round(price * 0.980, 2 if price > 10 else 4)
-                tp_price = round(price * 1.020, 2 if price > 10 else 4)
+            sl_price = eval_res["sl"]
+            tp_price = eval_res["tp"]
+            rr_val = eval_res["rr"]
         else:
             sym = "DATA UNAVAILABLE"
             inst_id = "UNRESOLVED"
@@ -1308,6 +1301,7 @@ async def get_state(workspace: Optional[str] = None, request_id: Optional[str] =
             price = None
             sl_price = None
             tp_price = None
+            rr_val = "--"
             vol_regime = "DATA_UNAVAILABLE"
             sub_agents = {}
 
@@ -1323,7 +1317,7 @@ async def get_state(workspace: Optional[str] = None, request_id: Optional[str] =
             "score": conf,
             "opportunity_score": conf,
             "confidence": conf,
-            "rr": "2.33" if is_valid else "--",
+            "rr": rr_val,
             "current_price": price,
             "price": price,
             "entry": price,
@@ -1458,6 +1452,7 @@ async def get_state(workspace: Optional[str] = None, request_id: Optional[str] =
             **risk_engine.active_profile,
             "profile_name": risk_engine.active_profile_name,
             "active_profile": risk_engine.active_profile_name,
+            "min_confidence": signal_ensemble_engine.min_confidence_threshold,
             "currency": currency,
             "currency_symbol": currency_symbol,
             "max_leverage": meta["max_leverage"]

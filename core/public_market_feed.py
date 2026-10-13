@@ -60,6 +60,9 @@ class PublicMarketFeed:
                 meta = res["meta"]
                 price = meta.get("regularMarketPrice")
                 prev = meta.get("previousClose", price)
+                high = meta.get("regularMarketDayHigh", price)
+                low = meta.get("regularMarketDayLow", price)
+                vol = meta.get("regularMarketVolume", 0)
                 chg_pct = round(((price - prev) / prev) * 100.0, 2) if (prev and price) else 0.0
                 digits = 2 if (price and price > 10) else 5
 
@@ -68,6 +71,10 @@ class PublicMarketFeed:
                     "yf_symbol": yf_sym,
                     "price": round(float(price), digits) if price is not None else None,
                     "change_24h": chg_pct,
+                    "high": round(float(high), digits) if high is not None else None,
+                    "low": round(float(low), digits) if low is not None else None,
+                    "previous_close": round(float(prev), digits) if prev is not None else None,
+                    "volume": vol,
                     "source": "PUBLIC_FEED_LIVE",
                     "status": "LIVE",
                     "timestamp": datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S IST")

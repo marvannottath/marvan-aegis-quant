@@ -31,6 +31,7 @@ export function SignalsFeed() {
   const { workspace, environment, portfolio } = useTradingContext();
   const [opportunities, setOpportunities] = useState<SignalOpportunity[]>([]);
   const [activeModel, setActiveModel] = useState<string>('7-Agent Quantitative Ensemble');
+  const [minConfidence, setMinConfidence] = useState<number>(90);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [lastUpdated, setLastUpdated] = useState<string>('—');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -53,6 +54,9 @@ export function SignalsFeed() {
       setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }));
       if (data.risk_profile?.profile_name) {
         setActiveModel(`7-Agent Ensemble (${data.risk_profile.profile_name})`);
+      }
+      if (data.risk_profile?.min_confidence) {
+        setMinConfidence(Number(data.risk_profile.min_confidence));
       }
     } catch (err: any) {
       console.error('Failed to load signals:', err);
@@ -87,7 +91,7 @@ export function SignalsFeed() {
               <Badge variant="info">Ensemble v4.2</Badge>
             </div>
             <p className="text-xs text-txt-muted mt-0.5">
-              Active Model: <span className="font-semibold text-txt-primary">{activeModel}</span> • Min Confidence: 70%
+              Active Model: <span className="font-semibold text-txt-primary">{activeModel}</span> • Min Confidence: {minConfidence}%
             </p>
           </div>
         </div>
@@ -217,14 +221,14 @@ export function SignalsFeed() {
                         {isDisabled || opp.tp == null ? '—' : `${curr}${Number(opp.tp).toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
                       </td>
                       <td className="py-2.5 px-3 text-center">
-                        {isDisabled ? '—' : opp.rr || '2.33'}
+                        {isDisabled ? '—' : opp.rr || '—'}
                       </td>
                       <td className="py-2.5 px-3 text-center">
                         <span
                           className={`px-1.5 py-0.5 rounded text-[9px] font-black ${
                             opp.risk_state === 'APPROVED'
-                              ? 'bg-emerald-50 text-profit'
-                              : 'bg-amber-50 text-amber-700'
+                              ? 'bg-emerald-50 text-profit border border-emerald-200'
+                              : 'bg-red-50 text-red-600 border border-red-200'
                           }`}
                         >
                           {opp.risk_state}

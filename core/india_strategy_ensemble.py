@@ -16,6 +16,7 @@ All signals pass to the Risk Engine and Smart Router before execution authorizat
 
 from typing import Dict, Any, List, Optional
 from core.indian_market_data import indian_market_data, INDIAN_UNIVERSE
+from core.signal_ensemble import signal_ensemble_engine
 
 
 class IndiaStrategyEnsemble:
@@ -26,8 +27,8 @@ class IndiaStrategyEnsemble:
 
     def evaluate_asset(self, symbol: str) -> Dict[str, Any]:
         """
-        Run 7 specialized agents on an Indian equity or ETF.
-        Returns consensus direction, calibrated confidence %, entry, stop-loss, target, and risk score.
+        Run 7 specialized agents on an Indian equity or ETF using authentic Signal Ensemble Engine.
+        Returns consensus direction, calibrated confidence %, entry, stop-loss, target, dynamic R:R, and risk gate.
         """
         quotes_res = indian_market_data.get_quotes([symbol])
         quotes = quotes_res.get("quotes", {})
@@ -36,98 +37,38 @@ class IndiaStrategyEnsemble:
         if not q:
             meta = INDIAN_UNIVERSE.get(symbol, {"base_price": 1000.0, "tick": 0.05})
             ltp = meta.get("base_price", 1000.0)
-            tick = meta.get("tick", 0.05)
+            vol = 0.015
         else:
             ltp = q["ltp"]
-            tick = q["tick_size"]
+            vol = q.get("volatility", 0.015)
 
-        # 1. Trend AI (0-100)
-        trend_score = 72.5 if q and q["change_pct"] >= 0 else 38.0
-
-        # 2. Momentum AI (0-100)
-        mom_score = 68.0 if q and q["change_pct"] > 0.5 else 45.0
-
-        # 3. Mean Reversion AI (0-100)
-        rev_score = 60.0
-
-        # 4. Volume AI (0-100)
-        vol_score = 75.0 if q and q["volume"] > 1000000 else 50.0
-
-        # 5. Volatility AI (0-100)
-        vola_score = 70.0
-
-        # 6. Market Regime AI (Nifty 50 Alignment)
-        regime_score = 65.0
-
-        # 7. News/Event AI
-        news_score = 80.0
-
-        sub_agents = {
-            "Trend_AI": trend_score,
-            "Momentum_AI": mom_score,
-            "Mean_Reversion_AI": rev_score,
-            "Volume_AI": vol_score,
-            "Volatility_AI": vola_score,
-            "Market_Regime_AI": regime_score,
-            "News_Event_AI": news_score
-        }
-
-        # Weighted Ensemble Calculation
-        weights = {
-            "Trend_AI": 0.20,
-            "Momentum_AI": 0.20,
-            "Mean_Reversion_AI": 0.15,
-            "Volume_AI": 0.15,
-            "Volatility_AI": 0.10,
-            "Market_Regime_AI": 0.10,
-            "News_Event_AI": 0.10
-        }
-
-        composite_score = sum(sub_agents[k] * weights[k] for k in sub_agents)
-        calibrated_confidence = round(composite_score, 1)
-
-        # Directional Consensus
-        if calibrated_confidence >= 65.0:
-            direction = "BUY"
-            # 1.5% Stop Loss, 3.5% Take Profit -> R:R 2.33
-            sl_raw = ltp * 0.985
-            tp_raw = ltp * 1.035
-        elif calibrated_confidence <= 38.0:
-            direction = "SELL"
-            sl_raw = ltp * 1.015
-            tp_raw = ltp * 0.965
-        else:
-            direction = "HOLD"
-            sl_raw = ltp * 0.985
-            tp_raw = ltp * 1.035
-
-        # Align SL / TP with NSE tick size (0.05)
-        sl_price = round(round(sl_raw / tick) * tick, 2)
-        tp_price = round(round(tp_raw / tick) * tick, 2)
-
-        risk_score = round(100.0 - calibrated_confidence, 1)
+        sig_res = signal_ensemble_engine.evaluate_signal(symbol, ltp, vol)
 
         return {
             "symbol": symbol,
             "exchange": "NSE",
-            "action": direction,
-            "direction": direction,
-            "confidence_pct": calibrated_confidence,
-            "confidence": calibrated_confidence,
-            "score": calibrated_confidence,
+            "action": sig_res["action"],
+            "direction": sig_res["direction"],
+            "confidence_pct": sig_res["confidence"],
+            "confidence": sig_res["confidence"],
+            "score": sig_res["confidence"],
             "entry_price": ltp,
             "price": ltp,
-            "stop_loss": sl_price,
-            "sl": sl_price,
-            "take_profit": tp_price,
-            "tp": tp_price,
-            "expected_rr": "2.33",
-            "rr": "2.33",
+            "stop_loss": sig_res["sl"],
+            "sl": sig_res["sl"],
+            "take_profit": sig_res["tp"],
+            "tp": sig_res["tp"],
+            "expected_rr": sig_res["rr"],
+            "rr": sig_res["rr"],
+            "risk_reward": sig_res["risk_reward"],
             "horizon": "INTRADAY (MIS) / DELIVERY (CNC)",
-            "risk_score": risk_score,
+            "risk_state": sig_res["risk_state"],
+            "is_approved": sig_res["is_approved"],
+            "risk_score": round(100.0 - sig_res["confidence"], 1),
             "currency": "INR",
             "currency_symbol": "₹",
-            "sub_agents": sub_agents,
+            "sub_agents": sig_res["sub_agent_breakdown"],
+            "fortress_shields_passed": sig_res["fortress_shields_passed"],
             "model_status": "CALIBRATED_PROBABILITY"
         }
 
@@ -138,3 +79,4 @@ class IndiaStrategyEnsemble:
 
 # Global Singleton
 india_strategy_ensemble = IndiaStrategyEnsemble()
+
