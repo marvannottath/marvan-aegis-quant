@@ -33,24 +33,24 @@ class SignalEnsembleEngine:
             "Volatility_AI", "Sentiment_AI", "Macro_AI", "Order_Flow_AI"
         ]
         self.precision_mode = "ULTRA_9999_PRECISION"
-        self.min_confidence_threshold = 92.0
-        self.min_shields_required = 950
+        self.min_confidence_threshold = 64.0
+        self.min_shields_required = 750
 
     def set_precision_mode(self, mode: str) -> Dict[str, Any]:
         """Configure ensemble precision threshold mode."""
         m_upper = str(mode).upper()
-        if m_upper in ["ULTRA_9999_PRECISION", "ULTRA_PRECISION", "ULTRA", "99.99%", "1000_SHIELD"]:
+        if m_upper in ["ULTRA_9999_PRECISION", "ULTRA_PRECISION", "ULTRA", "99.99%", "1000_SHIELD", "CONSERVATIVE"]:
             self.precision_mode = "ULTRA_9999_PRECISION"
-            self.min_confidence_threshold = 92.0
-            self.min_shields_required = 950
-        elif m_upper in ["HIGH_CONVICTION", "HIGH_PRECISION", "AGGRESSIVE"]:
+            self.min_confidence_threshold = 64.0
+            self.min_shields_required = 750
+        elif m_upper in ["HIGH_CONVICTION", "HIGH_PRECISION", "MODERATE"]:
             self.precision_mode = "HIGH_CONVICTION"
-            self.min_confidence_threshold = 82.0
-            self.min_shields_required = 850
+            self.min_confidence_threshold = 58.0
+            self.min_shields_required = 700
         else:
             self.precision_mode = "STANDARD"
-            self.min_confidence_threshold = 70.0
-            self.min_shields_required = 750
+            self.min_confidence_threshold = 50.0
+            self.min_shields_required = 600
 
         return {
             "status": "SUCCESS",
@@ -265,8 +265,8 @@ class SignalEnsembleEngine:
 
         # Determine actionable signal based on precision mode
         if shields_passed >= self.min_shields_required and weighted_confidence >= self.min_confidence_threshold:
-            # Trend orientation
-            recommended_action = "BUY" if pct_24h >= -0.5 else "HOLD"
+            # Actionable BUY if not in active heavy dump (pct_24h >= -2.0% or oversold bounce)
+            recommended_action = "BUY" if (pct_24h >= -2.0 or rsi <= 35.0) else "HOLD"
         else:
             recommended_action = "HOLD"
 

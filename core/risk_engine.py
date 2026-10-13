@@ -335,10 +335,21 @@ class RiskEngine:
             "daily_loss_limit_usd": daily_loss_lim
         }
 
-    def calculate_position_size(self, virtual_cash: float, volatility: float, confidence_score: float) -> float:
+    def calculate_position_size(
+        self,
+        virtual_cash: float,
+        volatility: float,
+        confidence_score: float,
+        workspace: Optional[str] = None,
+        environment: Optional[str] = None,
+        **kwargs
+    ) -> float:
         if virtual_cash <= 0:
             return 0.0
-        risk_pct = self.active_profile["max_risk_per_trade_pct"] / 100.0
+        cfg = self.get_venue_config(workspace, environment)
+        prof = cfg.get("profile", self.active_profile)
+        trade_cap = cfg.get("custom_trade_cap_usd", self.custom_trade_cap_usd)
+        risk_pct = prof.get("max_risk_per_trade_pct", 1.0) / 100.0
         base_size = virtual_cash * risk_pct
         vol_scalar = max(0.5, min(1.5, (0.01 / max(0.001, volatility))))
         conf_scalar = max(0.6, min(1.3, confidence_score / 70.0))
@@ -710,14 +721,23 @@ class RiskEngine:
         res["total_checks_100"] = 100
         return res
 
-    def validate_order(self, position_size_usd: float, leverage: float, current_open_positions_count: int) -> tuple:
-
-        """Legacy compatibility alias — routes through full 7-gate pipeline."""
+    def validate_order(
+        self,
+        position_size_usd: float,
+        leverage: float,
+        current_open_positions_count: int,
+        workspace: Optional[str] = None,
+        environment: Optional[str] = None,
+        **kwargs
+    ) -> tuple:
+        """Legacy compatibility alias — routes through full 7-gate pipeline with workspace/environment awareness."""
         ok, code, msg = self.validate_order_pipeline(
             amount_usd=position_size_usd,
             leverage=leverage,
             current_open_positions=current_open_positions_count,
-            available_cash=position_size_usd + 0.01
+            available_cash=position_size_usd + 0.01,
+            workspace=workspace,
+            environment=environment
         )
         return ok, msg
 

@@ -260,11 +260,11 @@ class AutonomousTrader:
 
                             # Dynamic threshold based on active risk profile (Aggressive, Moderate, Conservative)
                             if "AGGRESSIVE" in profile_name:
-                                min_opp_threshold = 64.0
+                                min_opp_threshold = 50.0
                             elif "MODERATE" in profile_name:
-                                min_opp_threshold = 70.0
+                                min_opp_threshold = 58.0
                             else:
-                                min_opp_threshold = 76.0
+                                min_opp_threshold = 64.0
 
                             if opp_score < min_opp_threshold:
                                 continue
