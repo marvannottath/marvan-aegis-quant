@@ -168,6 +168,11 @@ async def serve_favicon():
 
 @app.exception_handler(500)
 async def custom_500_handler(request: Request, exc: Exception):
+    if request.url.path.startswith("/api/"):
+        return JSONResponse(
+            content={"status": "ERROR", "message": str(exc)},
+            status_code=500
+        )
     return HTMLResponse(
         content=f"<html><body style='background:#090d16;color:#fff;font-family:sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;'><h2>System Synchronizing...</h2><p style='color:#9ca3af;'>{str(exc)}</p><a href='/' style='color:#3b82f6;margin-top:12px;'>Refresh Dashboard</a></body></html>",
         status_code=200
@@ -175,6 +180,11 @@ async def custom_500_handler(request: Request, exc: Exception):
 
 @app.exception_handler(404)
 async def custom_404_handler(request: Request, exc: Exception):
+    if request.url.path.startswith("/api/"):
+        return JSONResponse(
+            content={"status": "ERROR", "message": "Not Found"},
+            status_code=404
+        )
     return HTMLResponse(
         content="<html><body style='background:#090d16;color:#fff;font-family:sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;'><h2>404 - Not Found</h2><a href='/' style='color:#3b82f6;margin-top:12px;'>Return to Dashboard</a></body></html>",
         status_code=404
@@ -1330,6 +1340,9 @@ async def get_state(workspace: Optional[str] = None, request_id: Optional[str] =
     deposit_history = getattr(usdt_deposit_engine, "requests", [])
     vault_summary = profit_vault.get_vault_summary(active_pool)
     news_intel = macro_engine.get_workspace_news(ws)
+
+    drawdown_val = port_aggregate.get("drawdown_pct")
+    drawdown_pct = float(drawdown_val) if drawdown_val is not None else 0.0
 
     # Evaluate Drawdown Circuit Breaker: strictly on REALIZED capital loss, not temporary market fluctuation of held assets
     dd_allowed, dd_eval_pct, dd_reason = risk_engine.evaluate_drawdown(ws)
