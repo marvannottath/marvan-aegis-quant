@@ -222,9 +222,10 @@ class PaperBroker:
                 "trade_history": master.get("trade_history", []),
                 "ai_active": master.get("ai_active", True)
             }
-            tmp = BROKER_FILE.parent / f"paper_broker_state_{os.getpid()}_{time.time_ns()}.tmp"
+            # Fast, fixed tmp filename with compact JSON (indent ozhivaakkunnu)
+            tmp = BROKER_FILE.with_suffix(".tmp")
             with open(tmp, "w") as f:
-                json.dump(payload, f, indent=2)
+                json.dump(payload, f, separators=(',', ':'))
             tmp.replace(BROKER_FILE)
         except Exception as e:
             print(f"[PAPER BROKER] Save state notice: {e}")
@@ -454,17 +455,31 @@ class PaperBroker:
             "ai_active": True,
             "order_stream": []
         }
-        if target_name == "BINANCE_LIVE_REAL":
-            try:
-                from execution.profit_vault import profit_vault
-                profit_vault.reset_vault("BINANCE_LIVE_REAL")
-            except Exception:
-                pass
-
+        # Remove the reset_vault() call to preserve history safely
+        
+        # 1. Update pool and sync references cleanly
+        previous_pool = getattr(self, 'active_pool_name', None)
+        self.active_pool_name = target_name
+        # Remove the reset_vault() call to preserve history safely
+        
+        # 1. Update pool and sync references cleanly
+        previous_pool = getattr(self, 'active_pool_name', None)
+        self.active_pool_name = target_name
+        
         if self.active_pool_name == target_name:
             self._sync_active_pool_refs()
             self._update_equity()
+            
+        # 2. Save the isolated state for both pools
         self._save_state()
+        
+        return {
+            "status": "SUCCESS",
+            "pool": target_name,
+            "previous_pool": previous_pool,
+            "equity": cap,
+            "virtual_cash": cap
+        }
         return {
             "status": "SUCCESS",
             "pool": target_name,

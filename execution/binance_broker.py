@@ -35,6 +35,34 @@ import uuid
 import hmac
 import hashlib
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+
+# ==============================================================
+# AEGIS-QUANT SPEED & STABILITY PATCH
+# Persistent Connection Pool for Binance API (Zero-Refactor Fix)
+# ==============================================================
+_session = requests.Session()
+# Auto-retry on Binance server errors or rate limits (429, 50x)
+_retry = Retry(total=3, connect=3, read=3, backoff_factor=0.2, status_forcelist=[429, 500, 502, 503, 504])
+_adapter = HTTPAdapter(pool_connections=50, pool_maxsize=100, max_retries=_retry)
+_session.mount('http://', _adapter)
+_session.mount('https://', _adapter)
+
+class FastRequestsProxy:
+    """Intercepts all requests.get/post in this file and routes them through the high-speed session"""
+    @staticmethod
+    def get(*args, **kwargs): return _session.get(*args, **kwargs)
+    @staticmethod
+    def post(*args, **kwargs): return _session.post(*args, **kwargs)
+    @staticmethod
+    def put(*args, **kwargs): return _session.put(*args, **kwargs)
+    @staticmethod
+    def delete(*args, **kwargs): return _session.delete(*args, **kwargs)
+
+# Hijack the local 'requests' module reference
+requests = FastRequestsProxy()
+# ==============================================================
 from pathlib import Path
 from typing import Dict, Any, Optional, List, Tuple
 from datetime import datetime, timezone, timedelta
@@ -1795,6 +1823,12 @@ class BinanceBroker:
         **kwargs
     ) -> Dict[str, Any]:
         """Convenience alias for create_order with automatic argument normalization."""
+        if quantity > 0 and side.upper() == "SELL":
+            str_qty = str(float(quantity))
+            if "." in str_qty:
+                int_part, dec_part = str_qty.split(".")
+                quantity = float(f"{int_part}.{dec_part[:4]}")
+
         return self.create_order(
             environment=environment,
             symbol=symbol,

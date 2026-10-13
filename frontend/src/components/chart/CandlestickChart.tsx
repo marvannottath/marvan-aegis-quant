@@ -472,9 +472,11 @@ export function CandlestickChart({
     candleSeriesRef.current = candleSeries;
 
     const handleResize = () => {
+      try {
       if (chartRef.current && container) {
         chartRef.current.applyOptions({ width: container.clientWidth });
       }
+      } catch (e) { /* ignore disposed */ }
     };
     window.addEventListener('resize', handleResize);
 

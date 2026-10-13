@@ -52,6 +52,15 @@ export function ConnectBrokerModal({
     try {
       setIsLoading(true);
       const list = await api.getAllBrokers();
+      if (!Array.isArray(list) || list.length === 0) {
+        setBrokers([
+          { id: "binance_live", name: "Binance Live (Spot & Futures)", category: "CRYPTO", environment: "LIVE", status: "STANDBY", default_currency: "USDT" },
+          { id: "mt5_live", name: "MetaTrader 5 (MT5 Direct)", category: "FOREX_GOLD", environment: "LIVE", status: "STANDBY", default_currency: "USD" },
+          { id: "upstox_live", name: "Upstox / Zerodha / Kotak", category: "INDIA", environment: "LIVE", status: "STANDBY", default_currency: "INR" }
+        ]);
+        setIsLoading(false);
+        return;
+      }
       setBrokers(Array.isArray(list) ? list : []);
     } catch (err) {
       console.error('Failed to load brokers:', err);

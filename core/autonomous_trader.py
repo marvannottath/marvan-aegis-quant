@@ -847,22 +847,26 @@ class AutonomousTrader:
         dur_gate = max(0.01, round((t7 - t6) * 1000, 3))
 
         # 8. Order Submission
-        ord_id = f"ORD-AUT-{int(time.time()*1000)}-{ticker}"
+        import uuid
+        unique_suffix = uuid.uuid4().hex[:6].upper()
+        ord_id = f"ORD-AUT-{int(time.time()*1000)}-{ticker}-{unique_suffix}"
         try:
             from core.order_state_machine import order_state_machine
             osm_order = order_state_machine.create_order(
-                symbol=ticker, side=action, quantity=round(size_usd / max(0.01, current_price), 4),
-                order_type="MARKET", environment=self.broker.active_pool_name,
-                price=current_price, strategy="7-Agent Ensemble"
+                symbol=ticker, 
+                side=action, 
+                quantity=round(size_usd / max(0.01, current_price), 4),
+                order_type="MARKET", 
+                environment=self.broker.active_pool_name,
+                price=current_price, 
+                strategy="7-Agent Ensemble",
+                client_order_id=ord_id  # <--- ഈ ഒരൊറ്റ വരിയാണ് സിസ്റ്റത്തെ രക്ഷിക്കുന്നത്!
             )
-            ord_id = osm_order["order_id"]
+            ord_id = osm_order.get("order_id", ord_id)
             order_state_machine.transition(ord_id, "RISK_PENDING", reason="Automated risk pipeline check")
             order_state_machine.transition(ord_id, "APPROVED", reason="Risk engine validated")
-            order_state_machine.transition(ord_id, "SUBMITTED", reason="Submitted to broker")
-        except Exception:
-            pass
-        t8 = time.perf_counter()
-        dur_sub = max(0.01, round((t8 - t7) * 1000, 3))
+        except Exception as e:
+            print(f"Order state machine error: {e}")
 
         # 9. Exchange/Fills
         order = self.broker.execute_order(

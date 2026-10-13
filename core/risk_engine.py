@@ -344,7 +344,7 @@ class RiskEngine:
         environment: Optional[str] = None,
         **kwargs
     ) -> float:
-        if virtual_cash <= 0:
+        if virtual_cash < 6.0:
             return 0.0
         cfg = self.get_venue_config(workspace, environment)
         prof = cfg.get("profile", self.active_profile)

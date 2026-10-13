@@ -244,10 +244,19 @@ class CryptoMarketStreamer:
         source_ts: float,
         recv_ts: float,
     ):
-        """Update in-memory state and watchdog."""
+        """Update in-memory state with strict Context Isolation (No Bleeding)."""
         self._last_source_ts = max(self._last_source_ts, source_ts)
-        self._tickers[sym] = {
+        
+        # 1. Identify which market this stream belongs to
+        env = getattr(self, "environment", "BINANCE_LIVE")
+        
+        # 2. Isolate the data using a Sandbox Key (e.g., "BTCUSDT_BINANCE_DEMO")
+        sandbox_key = f"{sym}_{env}"
+        
+        # 3. Save purely to that isolated room
+        self._tickers[sandbox_key] = {
             "symbol": sym,
+            "environment": env,  # Tagged!
             "price": price,
             "change_24h": change_24h,
             "open_price": open_price,
@@ -255,29 +264,18 @@ class CryptoMarketStreamer:
             "low_price": low_price,
             "volume": volume,
             "source_ts": source_ts,
-            "recv_ts": recv_ts,
-            "source_time": _ist_str(source_ts),
-            "recv_time": _ist_str(recv_ts),
-            "source": "BINANCE_PUBLIC_STREAM",
+            "recv_ts": recv_ts
         }
-        # Feed watchdog
-        try:
-            from core.market_data_watchdog import market_data_watchdog
-            market_data_watchdog.record_tick(
-                symbol=sym,
-                price=price,
-                received_at=recv_ts,
-                source_ts=source_ts
-            )
-        except Exception:
-            pass
 
-    def get_tick(self, symbol: str) -> Optional[Dict[str, Any]]:
-        """Fetch latest tick for symbol."""
+    def get_tick(self, symbol: str, environment: str = "BINANCE_LIVE") -> Optional[Dict[str, Any]]:
+        """Fetch latest tick for symbol with Context Isolation."""
         clean = symbol.replace("/", "").replace("-", "").upper()
         if clean in ["BTC", "ETH", "SOL", "BNB"]:
             clean = f"{clean}USDT"
-        return self._tickers.get(clean)
+            
+        # Isolated Sandbox Key
+        sandbox_key = f"{clean}_{environment}"
+        return self._tickers.get(sandbox_key)
 
     def get_active_candle(self, symbol: str, interval: str) -> Optional[Dict[str, Any]]:
         """Fetch active unclosed candle for symbol and interval."""

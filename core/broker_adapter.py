@@ -67,13 +67,13 @@ class BrokerAdapter(ABC):
         pass
 
     @abstractmethod
-    def get_positions(self) -> List[Dict[str, Any]]:
-        """Fetch open positions with symbol, side, units, entry_price, current_price, unrealized_pnl."""
+    def get_positions(self, environment: str = "LIVE") -> List[Dict[str, Any]]:
+        """Fetch open positions with strict Context Isolation."""
         pass
 
     @abstractmethod
-    def get_orders(self) -> List[Dict[str, Any]]:
-        """Fetch orders placed for current trading session."""
+    def get_orders(self, environment: str = "LIVE") -> List[Dict[str, Any]]:
+        """Fetch orders placed for current trading session safely."""
         pass
 
     @abstractmethod

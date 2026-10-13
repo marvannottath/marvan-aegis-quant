@@ -7015,7 +7015,7 @@ async def get_all_brokers_endpoint(env: Optional[str] = None, category: Optional
     """Return enriched directory of all supported live and demo brokers."""
     try:
         from execution.broker_gateway_manager import broker_gateway_manager
-        brokers = broker_gateway_manager.get_all_brokers(env_filter=env, cat_filter=category)
+        brokers = broker_gateway_manager.get_all_brokers(env_filter=None, cat_filter=None)
         return JSONResponse({"status": "SUCCESS", "brokers": brokers})
     except Exception as e:
         return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
@@ -7690,3 +7690,51 @@ async def get_risk_history_endpoint(limit: int = 10):
 
 
 
+
+# --- API ROUTE FOR SAFE POSITION CLOSING ---
+@app.post("/api/positions/close-all")
+async def close_all_positions_endpoint(request: Request):
+    """Safely cancel pending orders and close all open positions."""
+    try:
+        data = await request.json()
+        workspace = data.get("workspace", "CRYPTO").upper()
+        environment = data.get("environment", "BINANCE_TESTNET").upper()
+        
+        closed_count = 0
+        
+        # Route to Binance Broker for Crypto
+        if workspace == "CRYPTO" and "BINANCE" in environment:
+            from execution.binance_broker import BinanceBroker
+            broker = BinanceBroker()
+            
+            # 1. Fetch active positions using the context-aware environment
+            positions = broker.get_open_positions(environment=environment)
+            
+            for pos in positions:
+                symbol = pos.get("symbol")
+                qty = float(pos.get("units", pos.get("quantity", 0)))
+                
+                if qty > 0:
+                    # STEP 1: Auto-Cancel pending limit orders to unlock funds!
+                    try:
+                        broker.cancel_all_open_orders(environment=environment, symbol=symbol)
+                    except Exception:
+                        pass # Ignore if no pending orders exist
+                        
+                    # STEP 2: Market Sell to close position cleanly (Dust Fix is active)
+                    try:
+                        broker.place_order(
+                            symbol=symbol,
+                            side="SELL",
+                            order_type="MARKET",
+                            quantity=qty,
+                            environment=environment
+                        )
+                        closed_count += 1
+                    except Exception as e:
+                        print(f"Error closing {symbol}: {e}")
+                        
+        return {"status": "SUCCESS", "closed_count": closed_count, "message": f"Successfully closed {closed_count} positions and released locked funds."}
+        
+    except Exception as e:
+        return {"status": "ERROR", "message": str(e)}
