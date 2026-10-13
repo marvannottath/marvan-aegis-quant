@@ -85,6 +85,7 @@ export const api = {
   ): Promise<{
     symbol: string;
     candles: Array<{ time: number; open: number; high: number; low: number; close: number; volume: number }>;
+    change_24h?: number;
     market_data_status?: string;
     market_data_source?: string;
     last_event_time_ist?: string;

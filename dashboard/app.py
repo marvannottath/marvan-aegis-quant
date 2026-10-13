@@ -221,6 +221,13 @@ async def on_startup():
     except Exception as e:
         print(f"[STARTUP] Workspace init notice: {e}")
 
+    try:
+        from core.crypto_market_streamer import crypto_market_streamer
+        crypto_market_streamer.set_broadcast_callback(manager.broadcast)
+        crypto_market_streamer.start()
+    except Exception as e:
+        print(f"[STARTUP] Crypto streamer notice: {e}")
+
     trader.start_autonomous_loop()
 
 INDEX_HTML_PATH = BASE_DIR / "templates" / "index.html"
@@ -5471,6 +5478,21 @@ async def get_chart_history(
 
     from core.crypto_market_streamer import crypto_market_streamer
     stream_telemetry = crypto_market_streamer.get_status(clean_sym if symbol else None) if (is_crypto and symbol) else {}
+    change_24h = None
+    if is_crypto and symbol:
+        change_24h = stream_telemetry.get("symbol_change_24h")
+        if change_24h is None:
+            try:
+                import requests
+                t_resp = requests.get(
+                    "https://api.binance.com/api/v3/ticker/24hr",
+                    params={"symbol": clean_sym},
+                    timeout=2.0
+                )
+                if t_resp.status_code == 200:
+                    change_24h = round(float(t_resp.json().get("priceChangePercent", 0.0)), 2)
+            except Exception:
+                pass
 
     return {
         "metric": metric,
@@ -5482,6 +5504,7 @@ async def get_chart_history(
         "environment": target_pool,
         "symbol": symbol,
         "candles": candles,
+        "change_24h": change_24h,
         "market_data_status": market_data_status,
         "market_data_source": market_data_source,
         "last_event_time_ist": stream_telemetry.get("last_event_time_ist", "NONE"),
@@ -5673,9 +5696,8 @@ manager = ConnectionManager()
 try:
     from core.crypto_market_streamer import crypto_market_streamer
     crypto_market_streamer.set_broadcast_callback(manager.broadcast)
-    crypto_market_streamer.start()
 except Exception as e:
-    print(f"[STREAMER_INIT] Startup notice: {e}")
+    print(f"[STREAMER_INIT] Callback notice: {e}")
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):

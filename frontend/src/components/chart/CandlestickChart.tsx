@@ -126,7 +126,9 @@ export function CandlestickChart({
         lastCandleRef.current = latest;
         const prev = chartData[Math.max(0, chartData.length - 2)];
         setLastPrice(latest.close);
-        if (prev && prev.close > 0) {
+        if (typeof data.change_24h === 'number') {
+          setPriceChange(data.change_24h);
+        } else if (prev && prev.close > 0) {
           setPriceChange(((latest.close - prev.close) / prev.close) * 100);
         }
 
@@ -597,6 +599,7 @@ export function CandlestickChart({
                 className={`text-xs font-semibold ${
                   priceChange >= 0 ? 'text-profit' : 'text-loss'
                 }`}
+                title="24h Price Change (Binance 24hr Ticker)"
               >
                 {priceChange >= 0 ? '+' : ''}
                 {priceChange.toFixed(2)}%
