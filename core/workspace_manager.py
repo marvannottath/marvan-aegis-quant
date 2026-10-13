@@ -190,12 +190,20 @@ class WorkspaceManager:
                 try:
                     from execution.broker_gateway_manager import broker_gateway_manager
                     from execution.kotak_neo_broker import kotak_neo_broker
-                    k_conn = broker_gateway_manager.connections.get("kotak_neo_live", {})
-                    if k_conn.get("connected") or kotak_neo_broker._is_authenticated or bool(kotak_neo_broker.consumer_key):
-                        return 'KOTAK_NEO_LIVE'
+                    from execution.upstox_broker import upstox_broker
+                    k_conn = (
+                        broker_gateway_manager.connections.get("kotak_neo_live")
+                        or broker_gateway_manager.connections.get("kotak")
+                        or broker_gateway_manager.connections.get("KOTAK")
+                        or {}
+                    )
+                    upstox_stat = upstox_broker.get_status()
+                    if upstox_stat.get("status") == "CONNECTED" and not (k_conn.get("connected") or kotak_neo_broker._is_authenticated or bool(kotak_neo_broker.consumer_key)):
+                        return 'UPSTOX_LIVE'
+                    return 'KOTAK_NEO_LIVE'
                 except Exception:
                     pass
-                return 'UPSTOX_LIVE'
+                return 'KOTAK_NEO_LIVE'
             elif env_norm == "PAPER":
                 return 'AEGIS_INDIA_INR'
             saved = self._active_pool_per_workspace.get(ws)

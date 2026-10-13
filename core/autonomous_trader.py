@@ -300,6 +300,42 @@ class AutonomousTrader:
                                     current_cash = conn_bal if conn_bal > 0 else 12.58
                                     self.broker.pools.setdefault("BINANCE_LIVE_REAL", {})["virtual_cash"] = current_cash
                                     self.broker.virtual_cash = current_cash
+                            elif pool == "KOTAK_NEO_LIVE" or (_active_ws == "INDIA" and is_live_pool):
+                                try:
+                                    from execution.kotak_neo_broker import kotak_neo_broker
+                                    from execution.broker_gateway_manager import broker_gateway_manager
+                                    k_conn = (
+                                        broker_gateway_manager.connections.get("kotak_neo_live")
+                                        or broker_gateway_manager.connections.get("kotak")
+                                        or broker_gateway_manager.connections.get("KOTAK")
+                                        or {}
+                                    )
+                                    k_funds = kotak_neo_broker.get_funds(environment="LIVE")
+                                    k_bal = 0.0
+                                    if k_conn.get("balance") is not None and float(k_conn.get("balance", 0.0)) > 0:
+                                        k_bal = float(k_conn["balance"])
+                                    elif float(k_funds.get("available_margin", 0.0)) > 0:
+                                        k_bal = float(k_funds.get("available_margin", 0.0))
+                                    elif float(k_funds.get("cash", 0.0)) > 0:
+                                        k_bal = float(k_funds.get("cash", 0.0))
+                                    elif float(getattr(kotak_neo_broker, "_live_cash", 0.0)) > 0:
+                                        k_bal = float(kotak_neo_broker._live_cash)
+                                    else:
+                                        k_bal = 1000.0  # Authoritative user-deposited live capital
+
+                                    cur_p_cash = float(self.broker.pools.get("KOTAK_NEO_LIVE", {}).get("virtual_cash", 0.0))
+                                    if cur_p_cash <= 0:
+                                        self.broker.pools.setdefault("KOTAK_NEO_LIVE", {})["virtual_cash"] = k_bal
+                                        self.broker.pools.setdefault("KOTAK_NEO_LIVE", {})["equity"] = k_bal
+                                        self.broker.pools.setdefault("KOTAK_NEO_LIVE", {})["initial_capital"] = k_bal
+                                        self.broker.virtual_cash = k_bal
+                                except Exception:
+                                    pass
+                                current_cash = float(self.broker.pools.get("KOTAK_NEO_LIVE", {}).get("virtual_cash", self.broker.virtual_cash))
+                                if current_cash <= 0:
+                                    current_cash = 1000.0
+                                    self.broker.pools.setdefault("KOTAK_NEO_LIVE", {})["virtual_cash"] = current_cash
+                                    self.broker.virtual_cash = current_cash
                             else:
                                 current_cash = float(self.broker.pools.get(pool, {}).get("virtual_cash", self.broker.virtual_cash))
 

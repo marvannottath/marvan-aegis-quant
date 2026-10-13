@@ -235,13 +235,30 @@ class PositionSnapshotService:
                     if s_name not in existing_syms:
                         internal_pos_list.append(v)
 
-        # For India Live (KOTAK_NEO_LIVE, UPSTOX_LIVE): Strictly isolate live positions from paper simulation!
+        # For India Live (KOTAK_NEO_LIVE, UPSTOX_LIVE): Sync live exchange positions if authenticated, else preserve pool positions
         if target_ws == "INDIA" and (is_live_pool or (environment and str(environment).upper() == "LIVE")):
-            internal_pos_list = []
+            if isinstance(paper_broker.positions, dict):
+                existing_syms = {p.get("symbol") or p.get("asset") for p in internal_pos_list}
+                for k, v in paper_broker.positions.items():
+                    if isinstance(v, dict):
+                        is_india_pos = (
+                            v.get("environment") in ["KOTAK_NEO_LIVE", "UPSTOX_LIVE"]
+                            or v.get("source") in ["KOTAK_NEO_LIVE", "UPSTOX_LIVE"]
+                            or workspace_manager.is_symbol_allowed(k, "INDIA")
+                        )
+                        if is_india_pos:
+                            s_name = v.get("symbol") or v.get("asset") or k
+                            if s_name not in existing_syms:
+                                internal_pos_list.append(v)
             try:
                 from execution.kotak_neo_broker import kotak_neo_broker
                 from execution.broker_gateway_manager import broker_gateway_manager
-                k_conn = broker_gateway_manager.connections.get("kotak_neo_live", {})
+                k_conn = (
+                    broker_gateway_manager.connections.get("kotak_neo_live")
+                    or broker_gateway_manager.connections.get("kotak")
+                    or broker_gateway_manager.connections.get("KOTAK")
+                    or {}
+                )
                 if k_conn.get("connected") or kotak_neo_broker._is_authenticated or bool(kotak_neo_broker.consumer_key):
                     live_k_pos = kotak_neo_broker.get_live_positions()
                     if live_k_pos:
@@ -451,8 +468,8 @@ class PositionSnapshotService:
             "unrealized_pnl": total_unrealized_pnl,
             "positions": verified_positions
         }
-        self._snapshot_cache[target_ws] = snap_dict
-        self._snapshot_cache_ts[target_ws] = now
+        self._snapshot_cache[cache_key] = snap_dict
+        self._snapshot_cache_ts[cache_key] = now
         return snap_dict
 
     def get_portfolio_aggregate(self, workspace: Optional[str] = None, force_refresh: bool = False, pos_snap: Optional[Dict[str, Any]] = None, environment: Optional[str] = None) -> Dict[str, Any]:
@@ -641,8 +658,18 @@ class PositionSnapshotService:
                 from execution.kotak_neo_broker import kotak_neo_broker
                 from execution.upstox_broker import upstox_broker
 
-                k_conn = broker_gateway_manager.connections.get("kotak_neo_live", {})
-                is_kotak_conn = bool(k_conn.get("connected")) or kotak_neo_broker._is_authenticated or bool(kotak_neo_broker.consumer_key)
+                k_conn = (
+                    broker_gateway_manager.connections.get("kotak_neo_live")
+                    or broker_gateway_manager.connections.get("kotak")
+                    or broker_gateway_manager.connections.get("KOTAK")
+                    or {}
+                )
+                is_kotak_conn = (
+                    bool(k_conn.get("connected"))
+                    or kotak_neo_broker._is_authenticated
+                    or bool(kotak_neo_broker.consumer_key)
+                    or "KOTAK" in pool_name.upper()
+                )
 
                 upstox_stat = upstox_broker.get_status()
                 is_upstox_conn = upstox_stat.get("status") == "CONNECTED"
@@ -663,8 +690,8 @@ class PositionSnapshotService:
                     else:
                         live_cash = 1000.0  # Authoritative user-deposited live capital
 
-                    free_cash = round(live_cash, 2)
-                    total_equity = round(free_cash + used_margin + unrealized_pnl, 2)
+                    free_cash = round(max(0.0, live_cash - used_margin), 2)
+                    total_equity = round(live_cash + unrealized_pnl, 2)
                     pool["virtual_cash"] = free_cash
                     pool["equity"] = total_equity
                     initial_cap = self.get_and_update_peak_equity(pool_name, max(total_equity, 1.0))

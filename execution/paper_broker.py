@@ -198,8 +198,9 @@ class PaperBroker:
             if "ai_active" in data:
                 master["ai_active"] = data["ai_active"]
 
-        # Strict isolation: Live broker pools NEVER persist or store simulated paper positions
-        for live_pool_key in ["BINANCE_LIVE_REAL", "MT5_LIVE_REAL", "UPSTOX_LIVE", "KOTAK_NEO_LIVE", "CTRADER_LIVE"]:
+        # Strict isolation: Live broker pools that rely on pure external API polling reset positions.
+        # However, KOTAK_NEO_LIVE and UPSTOX_LIVE retain their recorded trades.
+        for live_pool_key in ["BINANCE_LIVE_REAL", "MT5_LIVE_REAL", "CTRADER_LIVE"]:
             if live_pool_key in self.pools:
                 self.pools[live_pool_key]["positions"] = {}
 
@@ -221,8 +222,10 @@ class PaperBroker:
                 "trade_history": master.get("trade_history", []),
                 "ai_active": master.get("ai_active", True)
             }
-            with open(BROKER_FILE, "w") as f:
+            tmp = BROKER_FILE.parent / f"paper_broker_state_{os.getpid()}_{time.time_ns()}.tmp"
+            with open(tmp, "w") as f:
                 json.dump(payload, f, indent=2)
+            tmp.replace(BROKER_FILE)
         except Exception as e:
             print(f"[PAPER BROKER] Save state notice: {e}")
 
@@ -381,11 +384,14 @@ class PaperBroker:
                 else:
                     real_bal = 1000.0
                 k_pool = self.pools.setdefault(target_name, {})
-                k_pool["initial_capital"] = real_bal
-                k_pool["virtual_cash"] = real_bal
+                if "initial_capital" not in k_pool or float(k_pool.get("initial_capital", 0.0)) <= 0:
+                    k_pool["initial_capital"] = real_bal
+                k_pool.setdefault("positions", {})
+                used_m = sum(float(p.get("capital_allocated", p.get("margin", 0.0))) for p in k_pool["positions"].values())
+                if "virtual_cash" not in k_pool or float(k_pool.get("virtual_cash", 0.0)) <= 0:
+                    k_pool["virtual_cash"] = max(0.0, round(real_bal - used_m, 2))
                 k_pool["equity"] = real_bal
                 k_pool["base_equity"] = real_bal
-                k_pool["positions"] = {}
                 k_pool.setdefault("trade_history", [])
                 k_pool.setdefault("order_stream", [])
             except Exception:
