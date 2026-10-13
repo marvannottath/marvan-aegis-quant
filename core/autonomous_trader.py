@@ -258,13 +258,13 @@ class AutonomousTrader:
                             action_signal = item["ai_action"]
                             opp_score = item["opportunity_score"]
 
-                            # Strict institutional >=90% confidence requirement mandated by user
+                            # Option B: Calibrated High-Probability Threshold (80% - 85%)
                             if "AGGRESSIVE" in profile_name:
-                                min_opp_threshold = 90.0
+                                min_opp_threshold = 80.0
                             elif "MODERATE" in profile_name:
-                                min_opp_threshold = 90.0
+                                min_opp_threshold = 82.0
                             else:
-                                min_opp_threshold = 92.0
+                                min_opp_threshold = 85.0
 
                             if opp_score < min_opp_threshold:
                                 continue

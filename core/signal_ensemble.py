@@ -32,26 +32,26 @@ class SignalEnsembleEngine:
             "Trend_AI", "Momentum_AI", "Mean_Reversion_AI", 
             "Volatility_AI", "Sentiment_AI", "Macro_AI", "Order_Flow_AI"
         ]
-        self.precision_mode = "ULTRA_9999_PRECISION"
-        self.min_confidence_threshold = 92.0
-        self.min_shields_required = 850
+        self.precision_mode = "HIGH_CONVICTION"
+        self.min_confidence_threshold = 82.0
+        self.min_shields_required = 750
 
     def set_precision_mode(self, mode: str) -> Dict[str, Any]:
-        """Configure ensemble precision threshold mode with institutional 90%+ confidence requirement."""
+        """Configure ensemble precision threshold mode with Option B calibrated high-probability requirements (80% - 85%)."""
         m_upper = str(mode).upper()
         if m_upper in ["ULTRA_9999_PRECISION", "ULTRA_PRECISION", "ULTRA", "99.99%", "1000_SHIELD", "CONSERVATIVE"]:
             self.precision_mode = "ULTRA_9999_PRECISION"
-            self.min_confidence_threshold = 92.0
-            self.min_shields_required = 850
+            self.min_confidence_threshold = 85.0
+            self.min_shields_required = 800
         elif m_upper in ["HIGH_CONVICTION", "HIGH_PRECISION", "MODERATE"]:
             self.precision_mode = "HIGH_CONVICTION"
-            self.min_confidence_threshold = 90.0
-            self.min_shields_required = 800
-        else:
-            # Aggressive: Keep confidence strictly high (>=90%) to protect against leveraged drawdowns
-            self.precision_mode = "AGGRESSIVE_HIGH_CONVICTION"
-            self.min_confidence_threshold = 90.0
+            self.min_confidence_threshold = 82.0
             self.min_shields_required = 750
+        else:
+            # Aggressive: 80% threshold for optimal trade discovery while preventing bad entries
+            self.precision_mode = "AGGRESSIVE_HIGH_CONVICTION"
+            self.min_confidence_threshold = 80.0
+            self.min_shields_required = 720
 
         return {
             "status": "SUCCESS",

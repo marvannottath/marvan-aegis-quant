@@ -31,7 +31,7 @@ export function SignalsFeed() {
   const { workspace, environment, portfolio } = useTradingContext();
   const [opportunities, setOpportunities] = useState<SignalOpportunity[]>([]);
   const [activeModel, setActiveModel] = useState<string>('7-Agent Quantitative Ensemble');
-  const [minConfidence, setMinConfidence] = useState<number>(90);
+  const [minConfidence, setMinConfidence] = useState<number>(82);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [lastUpdated, setLastUpdated] = useState<string>('—');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
