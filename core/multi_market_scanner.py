@@ -192,30 +192,18 @@ class MultiMarketScanner:
                         market_data_watchdog.record_tick(key, price)
                     except Exception:
                         pass
-                    osc = np.sin(self.step_counter * 0.35 + hash(key) % 7) * 8.0
-                    # RSI modeled on 24h trend + short-term oscillator
-                    rsi = float(np.clip(50.0 + (change_24h * 4.0) + osc, 18.0, 82.0))
                     
-                    # Directional Trend & Quality Filter:
-                    # 1. Strong Bullish Breakout: Positive 24h change and healthy momentum (RSI 45 - 68)
-                    is_bullish_trend = (change_24h > 0.15) and (45.0 <= rsi <= 68.0)
-                    # 2. Deep Oversold Reversal: Extreme selloff reaching bottom (RSI < 32) with reversal potential
-                    is_deep_oversold = (rsi <= 32.0)
-                    # 3. Active Selloff Protection: If 24h change is dropping and not deeply oversold, DO NOT BUY!
-                    is_active_dump = (change_24h < -0.4) and (rsi > 32.0)
-
-                    if is_bullish_trend:
-                        opp_score = round(float(np.clip(75.0 + min(change_24h * 3.0, 18.0) + (sentiment_bias * 5.0), 75.0, 96.0)), 1)
-                        action = "BUY"
-                    elif is_deep_oversold:
-                        opp_score = round(float(np.clip(78.0 + (32.0 - rsi) * 1.5, 76.0, 92.0)), 1)
-                        action = "BUY"
-                    elif is_active_dump:
-                        opp_score = round(float(np.clip(45.0 + (change_24h * 2.0), 30.0, 58.0)), 1)
-                        action = "HOLD"
-                    else:
-                        opp_score = round(float(np.clip(52.0 + (change_24h * 1.5), 45.0, 68.0)), 1)
-                        action = "HOLD"
+                    try:
+                        from core.signal_ensemble import signal_ensemble_engine
+                        eval_res = signal_ensemble_engine.evaluate_signal(key, price, 0.015)
+                        opp_score = eval_res["confidence_score"]
+                        action = eval_res["signal"]
+                        # Calibrated technical RSI
+                        rsi = float(np.clip(50.0 + (change_24h * 3.5), 20.0, 80.0))
+                    except Exception:
+                        opp_score = 75.0 if change_24h > 0 else 50.0
+                        action = "BUY" if change_24h > 0.2 else "HOLD"
+                        rsi = 52.0
 
                 results.append({
                     "ticker": key,

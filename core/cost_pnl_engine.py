@@ -49,6 +49,16 @@ VENUE_DEFAULTS = {
         "commission_per_million_usd": 30.0,
         "typical_spread_pips": 0.3,
         "swap_rate_annual_pct": 2.5,
+    },
+    "KOTAK_NEO": {
+        "equity_delivery_brokerage": 0.0,
+        "equity_intraday_brokerage_pct": 0.0,  # Zero Brokerage Free Trading Plan
+        "max_brokerage_per_order_inr": 0.0,
+        "stt_ctt_pct": 0.025,
+        "exchange_turnover_pct": 0.00345,
+        "gst_pct": 18.0,
+        "sebi_charges_pct": 0.0001,
+        "stamp_duty_pct": 0.003,
     }
 }
 
@@ -140,7 +150,9 @@ class CostPnLEngine:
 
         # Dynamic default fees when not provided explicitly
         if entry_fee is None:
-            if "BINANCE" in broker_norm:
+            if "KOTAK" in broker_norm:
+                calc_entry_fee = 0.0  # Zero Brokerage on Kotak Neo
+            elif "BINANCE" in broker_norm:
                 rate = VENUE_DEFAULTS["BINANCE"]["spot_taker_fee_pct"] / 100.0
                 calc_entry_fee = round(entry_val * rate, 4)
             elif "UPSTOX" in broker_norm or currency == "INR":
@@ -150,7 +162,9 @@ class CostPnLEngine:
                 calc_entry_fee = round(quantity * 3.50, 2)  # half-turn
 
         if exit_fee is None:
-            if "BINANCE" in broker_norm:
+            if "KOTAK" in broker_norm:
+                calc_exit_fee = 0.0  # Zero Brokerage on Kotak Neo
+            elif "BINANCE" in broker_norm:
                 rate = VENUE_DEFAULTS["BINANCE"]["spot_taker_fee_pct"] / 100.0
                 calc_exit_fee = round(exit_val * rate, 4)
             elif "UPSTOX" in broker_norm or currency == "INR":
@@ -160,7 +174,7 @@ class CostPnLEngine:
                 calc_exit_fee = round(quantity * 3.50, 2)
 
         # Taxes for Indian Equities (STT + GST + Stamp Duty)
-        if taxes_charges is None and (currency == "INR" or "UPSTOX" in broker_norm):
+        if taxes_charges is None and (currency == "INR" or "UPSTOX" in broker_norm or "KOTAK" in broker_norm):
             stt = round(exit_val * (VENUE_DEFAULTS["UPSTOX"]["stt_ctt_pct"] / 100.0), 2)
             gst = round((calc_entry_fee + calc_exit_fee) * (VENUE_DEFAULTS["UPSTOX"]["gst_pct"] / 100.0), 2)
             calc_taxes = round(stt + gst, 2)

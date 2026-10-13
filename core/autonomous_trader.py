@@ -231,7 +231,7 @@ class AutonomousTrader:
                             pass
 
                     # 2. Risk profile & Capacity
-                    venue_prof = self.risk_engine.get_profile(_active_ws, _active_env)
+                    venue_prof = self.risk_engine.get_profile(_active_ws, _engine_env)
                     profile_name = venue_prof.get("name", "CONSERVATIVE")
                     target_capacity = int(venue_prof.get("max_open_positions", 4))
                     if _active_ws == "CRYPTO":
@@ -258,7 +258,14 @@ class AutonomousTrader:
                             action_signal = item["ai_action"]
                             opp_score = item["opportunity_score"]
 
-                            min_opp_threshold = 72.0 if (_active_ws == "CRYPTO" or pool == "BINANCE_LIVE_REAL") else 70.0
+                            # Dynamic threshold based on active risk profile (Aggressive, Moderate, Conservative)
+                            if "AGGRESSIVE" in profile_name:
+                                min_opp_threshold = 64.0
+                            elif "MODERATE" in profile_name:
+                                min_opp_threshold = 70.0
+                            else:
+                                min_opp_threshold = 76.0
+
                             if opp_score < min_opp_threshold:
                                 continue
 
@@ -310,7 +317,7 @@ class AutonomousTrader:
                                 calc_leverage = min(5.0, calc_leverage)
 
                             # Dynamic position sizing within risk engine limits
-                            venue_cfg = self.risk_engine.get_venue_config(_active_ws, _active_env)
+                            venue_cfg = self.risk_engine.get_venue_config(_active_ws, _engine_env)
                             max_cap = float(venue_cfg.get("custom_trade_cap_usd", 4000.0))
                             if pool == "BINANCE_LIVE_REAL":
                                 if working_cash < 5.20:
@@ -321,7 +328,7 @@ class AutonomousTrader:
                                     else:
                                         size_usd = round(min(working_cash * 0.95, 6.00), 2)
                                 else:
-                                    size_usd = min(max_cap * 0.75, self.risk_engine.calculate_position_size(working_cash, volatility, opp_score, workspace=_active_ws, environment=_active_env))
+                                    size_usd = min(max_cap * 0.75, self.risk_engine.calculate_position_size(working_cash, volatility, opp_score, workspace=_active_ws, environment=_engine_env))
                             elif pool in ["BINANCE_TESTNET_DEMO", "BINANCE_DEMO"] or _active_ws == "CRYPTO":
                                 if working_cash < 10.0:
                                     continue
@@ -333,9 +340,9 @@ class AutonomousTrader:
                             else:
                                 if working_cash < 10.0:
                                     continue
-                                size_usd = min(max_cap * 0.75, self.risk_engine.calculate_position_size(working_cash, volatility, opp_score, workspace=_active_ws, environment=_active_env))
+                                size_usd = min(max_cap * 0.75, self.risk_engine.calculate_position_size(working_cash, volatility, opp_score, workspace=_active_ws, environment=_engine_env))
 
-                            is_risk_valid, _ = self.risk_engine.validate_order(size_usd, calc_leverage, len(self.broker.positions), workspace=_active_ws, environment=_active_env)
+                            is_risk_valid, _ = self.risk_engine.validate_order(size_usd, calc_leverage, len(self.broker.positions), workspace=_active_ws, environment=_engine_env)
                             if is_risk_valid and size_usd >= 5.0:
                                 live_order_placed = False
 
@@ -511,24 +518,33 @@ class AutonomousTrader:
                         except Exception:
                             pass
 
-                    # Fee-Aware Scalping & Swing Take-Profit Rules:
-                    if pool in ["MT5_LIVE_REAL", "MT5_DEMO"] or pos_ws == "FOREX_GOLD":
-                        is_fee_secured_tp = (pnl_pct >= 0.008)  # +0.8% Forex take profit
-                        is_milestone = (pnl_pct >= 0.016)       # +1.6% Milestone profit
-                        is_staggered_harvest = ((step_counter + idx) % 10 == 0) and (pnl_usd >= 0.50 and pnl_pct >= 0.005)
-                        is_maturity_rebalance = (age >= 60 or time_held_sec >= 300) and (pnl_usd >= 0.20 and pnl_pct >= 0.003)
-                        is_stale_rotation = (time_held_sec >= 900) and (pnl_pct >= -0.005)
-                        is_hard_stop = (pnl_pct <= -0.015)      # 1.5% Stop loss
+                    # Fee-Aware & Zero-Brokerage Scalping Take-Profit Rules:
+                    is_zero_brokerage_venue = ("KOTAK" in pool.upper() or "KOTAK" in str(pos.get("broker", "")).upper())
+                    if pool in ["MT5_LIVE_REAL", "MT5_DEMO", "CTRADER_LIVE"] or pos_ws == "FOREX_GOLD":
+                        # Forex & Gold Nimble Scalp: Quick profits locked in (15 - 25 pips)
+                        is_fee_secured_tp = (pnl_pct >= 0.0025) or (pnl_usd >= 1.00 and pnl_pct >= 0.0018)
+                        is_milestone = (pnl_pct >= 0.0050)       # +0.50% milestone profit
+                        is_micro_harvest = (pnl_usd >= 0.50 and pnl_pct >= 0.0020)
+                        is_staggered_harvest = ((step_counter + idx) % 5 == 0) and (pnl_usd >= 0.30 and pnl_pct >= 0.0015)
+                        is_maturity_rebalance = (age >= 30 or time_held_sec >= 120) and (pnl_usd >= 0.20 and pnl_pct >= 0.0012)
+                        is_stale_rotation = (time_held_sec >= 600) and (pnl_pct >= -0.003)
+                        is_hard_stop = (pnl_pct <= -0.012)      # 1.2% hard stop
+                    elif is_zero_brokerage_venue:
+                        # Kotak Neo / Zero Brokerage: Zero commission allows micro-scalps (+0.15%) to bank pure profit
+                        is_fee_secured_tp = (pnl_pct >= 0.0015)  # +0.15% zero-brokerage pure profit
+                        is_milestone = (pnl_pct >= 0.0035)       # +0.35% milestone
+                        is_micro_harvest = (pnl_pct >= 0.0012)
+                        is_staggered_harvest = ((step_counter + idx) % 3 == 0) and (pnl_pct >= 0.0015)
+                        is_maturity_rebalance = (time_held_sec >= 90) and (pnl_pct >= 0.0010)
+                        is_stale_rotation = (time_held_sec >= 600) and (pnl_pct >= -0.0025)
+                        is_hard_stop = (pnl_pct <= -0.010)      # 1.0% hard stop
                     else:
-                        # Crypto: Fee-secured micro-scalp & active rotation
-                        # Standard Binance round-trip fee: 0.15% - 0.20%
-                        is_fee_secured_tp = (pnl_pct >= 0.0028)  # +0.28% fee-secured take profit
+                        # Crypto: Fee-secured micro-scalp (Binance round-trip fee: ~0.15% - 0.20%)
+                        is_fee_secured_tp = (pnl_pct >= 0.0028)  # +0.28% covers fees and locks net USDT profit
                         is_milestone = (pnl_pct >= 0.0060)       # +0.60% milestone profit
                         is_micro_harvest = (age >= 10) and (pnl_usd >= 0.05 and pnl_pct >= 0.0018)
                         is_staggered_harvest = ((step_counter + idx) % 3 == 0) and (pnl_usd >= 0.05 and pnl_pct >= 0.0020)
-                        # Maturity rebalance: held for > 60s with positive profit
                         is_maturity_rebalance = (age >= 25 or time_held_sec >= 60) and (pnl_usd >= 0.02 and pnl_pct >= 0.0012)
-                        # Stale rotation: trades held > 10 mins near break-even rotated to liberate slots for fresh setups
                         is_stale_rotation = (time_held_sec >= 600 or age >= 200) and (pnl_pct >= -0.0040)
                         is_hard_stop = (pnl_pct <= -0.015)
 
@@ -584,6 +600,14 @@ class AutonomousTrader:
                                 binance_broker.close_spot_position(pos_asset, environment="BINANCE_TESTNET")
                             except Exception:
                                 pass
+                        elif pool in ["CTRADER_LIVE", "MT5_LIVE_REAL"]:
+                            try:
+                                from execution.ctrader_broker import ctrader_broker
+                                pos_id = pos.get("broker_position_id") or pos.get("id") or pos.get("position_id")
+                                if pos_id and hasattr(ctrader_broker, "close_position"):
+                                    ctrader_broker.close_position(str(pos_id))
+                            except Exception as c_err:
+                                print(f"[AUTONOMOUS TRADER] cTrader close error for {pos_asset}: {c_err}")
 
                         self.broker.close_position(
                             asset=pos_asset,

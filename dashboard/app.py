@@ -1331,14 +1331,11 @@ async def get_state(workspace: Optional[str] = None, request_id: Optional[str] =
     vault_summary = profit_vault.get_vault_summary(active_pool)
     news_intel = macro_engine.get_workspace_news(ws)
 
-    drawdown_val = port_aggregate.get("drawdown_pct")
-    drawdown_pct = float(drawdown_val) if drawdown_val is not None else 0.0
-
-    if drawdown_pct >= risk_engine.max_drawdown_pct:
-        risk_engine.circuit_tripped = True
-        risk_engine.trip_reason = f"MAX_DRAWDOWN_BREACHED: Drawdown {drawdown_pct:.2f}% >= {risk_engine.max_drawdown_pct:.1f}% limit."
+    # Evaluate Drawdown Circuit Breaker: strictly on REALIZED capital loss, not temporary market fluctuation of held assets
+    dd_allowed, dd_eval_pct, dd_reason = risk_engine.evaluate_drawdown(ws)
+    if not dd_allowed:
         if ai_trading_controller.get_state(ws) == "RUNNING":
-            ai_trading_controller.auto_block_for_drawdown(ws, drawdown_pct, risk_engine.max_drawdown_pct)
+            ai_trading_controller.auto_block_for_drawdown(ws, dd_eval_pct, risk_engine.max_drawdown_pct)
 
     today_str = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d")
     today_pnl = 0.0
@@ -1468,6 +1465,11 @@ async def set_risk_profile_endpoint(data: dict):
     ws = data.get("workspace")
     env = data.get("environment")
     res = risk_engine.set_risk_profile(prof, workspace=ws, environment=env)
+    try:
+        from core.signal_ensemble import signal_ensemble_engine
+        signal_ensemble_engine.set_precision_mode(prof)
+    except Exception:
+        pass
     return JSONResponse({"status": "SUCCESS", "active_profile": res})
 
 @app.post("/api/risk/reset-circuit-breaker")
