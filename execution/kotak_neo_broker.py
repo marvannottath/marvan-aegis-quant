@@ -50,6 +50,9 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
         self._live_cash: float = 0.0
         self._read_only: bool = True
 
+        self._mpin: str = ""
+        self._totp_secret: str = ""
+
         if not self._consumer_key and KOTAK_CONFIG_FILE.exists():
             try:
                 with open(KOTAK_CONFIG_FILE, "r") as f:
@@ -58,6 +61,8 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
                     self._consumer_secret = cfg.get("consumer_secret", "").strip()
                     self._mobile_number = cfg.get("mobile_number", "").strip()
                     self._ucc = cfg.get("ucc", "").strip()
+                    self._mpin = cfg.get("mpin", "").strip()
+                    self._totp_secret = cfg.get("totp_secret", "").strip()
                     self._paper_mode = cfg.get("is_demo", False)
                     self._live_cash = float(cfg.get("live_cash", cfg.get("balance", 0.0)))
                     if self._consumer_key:
@@ -330,6 +335,7 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
         ucc: str = "",
         mpin: str = "",
         access_token: str = "",
+        totp_secret: str = "",
         is_demo: bool = False,
         balance: float = 0.0
     ) -> Dict[str, Any]:
@@ -340,6 +346,10 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
             self._mobile_number = mobile_number.strip()
         if ucc:
             self._ucc = ucc.strip()
+        if mpin:
+            self._mpin = str(mpin).strip()
+        if totp_secret:
+            self._totp_secret = totp_secret.strip()
         if access_token:
             self._access_token = access_token.strip()
 
@@ -353,6 +363,8 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
                     "consumer_secret": self._consumer_secret,
                     "mobile_number": self._mobile_number,
                     "ucc": self._ucc,
+                    "mpin": self._mpin,
+                    "totp_secret": self._totp_secret,
                     "saved_at": _ist_now(),
                     "is_demo": is_demo,
                     "live_cash": self._live_cash
@@ -554,6 +566,113 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
             price = round(round(price * 20.0) / 20.0, 2)
 
         order_id = f"KNEO-{int(time.time() * 1000)}"
+
+        # 2. Real Live Exchange Submission via Kotak Neo Trade API
+        is_live_order = (order_request.get("environment") == "LIVE") and not self._paper_mode
+        if is_live_order:
+            # Refresh session if token expired or missing
+            if not self._session_token and self._consumer_key and self._mobile_number and getattr(self, "_mpin", ""):
+                totp_sec = getattr(self, "_totp_secret", "")
+                if totp_sec:
+                    try:
+                        self.authenticate_live_session(
+                            consumer_key=self._consumer_key,
+                            mobile_number=self._mobile_number,
+                            ucc=self._ucc,
+                            mpin=self._mpin,
+                            totp_secret=totp_sec
+                        )
+                    except Exception as e:
+                        print(f"[KOTAK_NEO] Auto-auth exception: {e}")
+
+            if self._session_token:
+                try:
+                    import requests
+                    b_url = getattr(self, "_base_url", "https://mis.kotaksecurities.com")
+                    endpoint = f"{b_url}/quick/order/rule/ms/place"
+                    headers = {
+                        "Sid": getattr(self, "_session_sid", ""),
+                        "Auth": self._session_token,
+                        "neo-fin-key": "neotradeapi",
+                        "Content-Type": "application/x-www-form-urlencoded"
+                    }
+                    ts_sym = f"{symbol}-EQ" if not symbol.endswith("-EQ") else symbol
+                    prod = order_request.get("product", "MIS").upper()
+                    data_payload = {
+                        "am": "NO",
+                        "dq": "0",
+                        "es": "nse_cm",
+                        "mp": "0",
+                        "pc": prod,
+                        "pf": "N",
+                        "pr": str(price) if order_type == "LIMIT" else "0",
+                        "pt": "MKT" if order_type == "MARKET" else "L",
+                        "qt": str(int(quantity)),
+                        "rt": "DAY",
+                        "tp": "0",
+                        "ts": ts_sym,
+                        "tt": "B" if side == "BUY" else "S"
+                    }
+                    resp = requests.post(endpoint, headers=headers, data=data_payload, timeout=12)
+                    res_json = resp.json() if resp.status_code == 200 else {}
+                    if resp.status_code in (200, 201) and res_json.get("stat") != "Not_Ok":
+                        data_block = res_json.get("data", res_json)
+                        real_ord_id = ""
+                        if isinstance(data_block, dict):
+                            real_ord_id = str(data_block.get("nOrdNo") or data_block.get("orderId") or data_block.get("order_id", ""))
+                        real_id = real_ord_id if real_ord_id else order_id
+                        record = {
+                            "order_id": real_id,
+                            "symbol": symbol,
+                            "side": side,
+                            "quantity": quantity,
+                            "price": price,
+                            "order_type": order_type,
+                            "product": prod,
+                            "status": "SUBMITTED",
+                            "fill_qty": quantity,
+                            "avg_fill_price": price if price > 0 else 100.0,
+                            "created_at": _ist_now(),
+                            "live_exchange": "NSE",
+                            "raw": res_json
+                        }
+                        self._mock_orders[real_id] = record
+                        return {
+                            "status": "ACCEPTED",
+                            "order_id": real_id,
+                            "fill_price": price if price > 0 else 100.0,
+                            "message": f"Real order {real_id} placed on Kotak Neo exchange.",
+                            "raw": res_json
+                        }
+                    else:
+                        err_msg = ""
+                        if isinstance(res_json, dict):
+                            err_msg = res_json.get("errMsg") or res_json.get("message") or str(res_json)
+                        print(f"[KOTAK_NEO] Live exchange order failed: {err_msg or resp.text}")
+                        if "session" in (err_msg or "").lower() or resp.status_code == 401:
+                            self._is_authenticated = False
+                            self._session_token = ""
+                        return {
+                            "status": "REJECTED",
+                            "order_id": None,
+                            "message": f"Kotak Neo Exchange Rejected: {err_msg or resp.text}",
+                            "raw": res_json
+                        }
+                except Exception as ex:
+                    print(f"[KOTAK_NEO] Live API request error: {ex}")
+                    return {
+                        "status": "ERROR",
+                        "order_id": None,
+                        "message": f"Kotak Neo Live Gateway Error: {ex}"
+                    }
+            elif self._consumer_key:
+                return {
+                    "status": "REQUIRES_AUTH",
+                    "order_id": None,
+                    "message": "Kotak Neo session expired. Please enter today's 6-digit TOTP in Connect Broker to activate live trading."
+                }
+
+        # 3. Paper / Simulation execution fallback
         record = {
             "order_id": order_id,
             "symbol": symbol,

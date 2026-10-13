@@ -628,6 +628,7 @@ class BrokerGatewayManager:
                         mobile_number=mobile_number,
                         ucc=ucc,
                         mpin=mpin,
+                        totp_secret=totp_secret,
                         is_demo=False,
                         balance=live_bal
                     )
@@ -649,6 +650,7 @@ class BrokerGatewayManager:
                 ucc=ucc,
                 mpin=mpin,
                 access_token=access_token,
+                totp_secret=totp_secret,
                 is_demo=is_demo,
                 balance=user_balance
             )
