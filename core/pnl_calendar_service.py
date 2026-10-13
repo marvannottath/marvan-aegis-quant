@@ -17,10 +17,11 @@ class PnLCalendarService:
     def __init__(self):
         pass
 
-    def get_monthly_calendar(self, year_month: Optional[str] = None, workspace: str = "ALL") -> Dict[str, Any]:
+    def get_monthly_calendar(self, year_month: Optional[str] = None, workspace: str = "ALL", environment: str = "ALL") -> Dict[str, Any]:
         """
         Build full monthly calendar grid with daily Net PnL, trades, and win rate.
         year_month format: 'YYYY-MM' (defaults to current IST month).
+        Strictly partitions between LIVE and DEMO environments.
         """
         now = datetime.now(timezone.utc).astimezone(IST_TZ)
         if not year_month:
@@ -36,7 +37,7 @@ class PnLCalendarService:
         first_day_date = datetime(year, month, 1)
         first_day_weekday = first_day_date.weekday()  # 0=Monday .. 6=Sunday
 
-        # Fetch real trades from unified historical_log_service
+        # Fetch real trades from unified historical_log_service strictly filtered by workspace & environment
         real_trades_by_date: Dict[str, List[dict]] = {}
         try:
             from core.historical_log_service import historical_log_service
@@ -45,7 +46,8 @@ class PnLCalendarService:
             all_month_trades = historical_log_service.query(
                 start_date=start_str,
                 end_date=end_str,
-                workspace=workspace if workspace != "ALL" else None
+                workspace=workspace if workspace != "ALL" else None,
+                environment=environment if environment != "ALL" else None
             )
             for t in all_month_trades:
                 d_str = t.get("date") or str(t.get("timestamp", ""))[:10]
@@ -164,6 +166,8 @@ class PnLCalendarService:
             "status": "SUCCESS",
             "year_month": year_month,
             "month_name": month_name,
+            "workspace": workspace,
+            "environment": environment,
             "calendar_metadata": {
                 "year": year,
                 "month": month,

@@ -239,8 +239,8 @@ export function TradingProvider({ children }: { children: React.ReactNode }) {
     setCapital(null);
     refreshData();
 
-    // High-frequency polling (3 seconds) for live trading telemetry
-    const interval = setInterval(refreshData, 3000);
+    // Smooth institutional polling (5 seconds) for live trading telemetry
+    const interval = setInterval(refreshData, 5000);
     return () => clearInterval(interval);
   }, [environment, workspace, refreshData]);
 

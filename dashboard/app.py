@@ -4929,11 +4929,12 @@ async def trigger_daily_summary_push():
         return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
 
 @app.get("/api/analytics/pnl-calendar")
-async def get_pnl_calendar(month: Optional[str] = None, workspace: str = "ALL"):
-    """Return institutional daily PnL calendar grid, win-rate breakdown, and monthly KPIs."""
+async def get_pnl_calendar(month: Optional[str] = None, workspace: str = "ALL", environment: Optional[str] = None, env: Optional[str] = None):
+    """Return institutional daily PnL calendar grid, win-rate breakdown, and monthly KPIs strictly isolated by environment."""
     try:
         from core.pnl_calendar_service import pnl_calendar_service
-        cal_data = pnl_calendar_service.get_monthly_calendar(year_month=month, workspace=workspace)
+        eff_env = environment or env or "ALL"
+        cal_data = pnl_calendar_service.get_monthly_calendar(year_month=month, workspace=workspace, environment=eff_env)
         return JSONResponse(cal_data)
     except Exception as e:
         return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
@@ -6245,24 +6246,66 @@ async def submit_order(request: Request):
 # ------------------------------------------------------------------
 @app.get("/api/orders")
 async def get_orders_list(environment: Optional[str] = None, env: Optional[str] = None, workspace: Optional[str] = None):
-    """Return order list from order_state_machine filtered strictly by environment/workspace."""
+    """Return order list from order_state_machine and broker audit log filtered strictly by environment/workspace."""
     try:
-        osm = _get_order_state_machine()
-        orders = list(osm.orders.values())
-        eff_env = environment or env
-        if eff_env:
-            e_str = str(eff_env).strip().upper()
-            if e_str == "LIVE":
-                from execution.binance_broker import binance_broker
-                b_stat = binance_broker.get_authoritative_status() or {}
-                if not b_stat.get("is_authenticated", False):
-                    return JSONResponse({"status": "SUCCESS", "orders": [], "count": 0})
-                orders = [o for o in orders if any(k in o.get("environment", "").upper() for k in ("LIVE", "REAL"))]
-            elif e_str in ("DEMO", "TESTNET", "SANDBOX", "PAPER"):
-                orders = [o for o in orders if any(k in o.get("environment", "").upper() for k in ("DEMO", "TESTNET", "PAPER", "SANDBOX"))]
-            else:
-                orders = [o for o in orders if e_str in o.get("environment", "").upper()]
+        from core.order_state_machine import order_state_machine
+        from execution.paper_broker import paper_broker
 
+        osm_orders = list(order_state_machine.orders.values())
+        eff_env = str(environment or env or "LIVE").strip().upper()
+
+        # Gather completed trades from broker pools to ensure full lifecycle coverage
+        all_candidate_orders = list(osm_orders)
+        seen_order_ids = {o.get("order_id") for o in osm_orders if o.get("order_id")}
+
+        # Pull any closed trades from paper_broker pools that are not yet in OSM
+        for pool_name, p_data in paper_broker.pools.items():
+            if not isinstance(p_data, dict):
+                continue
+            is_pool_live = any(k in pool_name.upper() for k in ("LIVE", "REAL"))
+            pool_env = "LIVE" if is_pool_live else "DEMO"
+            for t in p_data.get("trade_history", []):
+                t_id = t.get("trade_id") or t.get("internal_order_id")
+                if t_id and t_id not in seen_order_ids:
+                    seen_order_ids.add(t_id)
+                    all_candidate_orders.append({
+                        "order_id": t_id,
+                        "symbol": t.get("symbol") or t.get("asset", "BTCUSDT"),
+                        "side": t.get("side") or t.get("action", "BUY"),
+                        "quantity": float(t.get("units") or t.get("quantity", 0.0)),
+                        "price": float(t.get("entry_price") or t.get("price", 0.0)),
+                        "order_type": "MARKET",
+                        "environment": pool_name,
+                        "strategy": t.get("strategy") or "Automated Scalp Engine",
+                        "status": "FILLED",
+                        "fill_qty": float(t.get("units") or t.get("quantity", 0.0)),
+                        "avg_fill_price": float(t.get("exit_price") or t.get("entry_price", 0.0)),
+                        "fees": float(t.get("fee_usd", 0.0)),
+                        "created_at": t.get("timestamp", ""),
+                        "updated_at": t.get("timestamp", ""),
+                        "transitions": [
+                            {"from": "SUBMITTED", "to": "FILLED", "at": t.get("timestamp", ""), "reason": t.get("reason", "Order executed")}
+                        ]
+                    })
+
+        # Filter strictly by environment
+        if eff_env == "LIVE":
+            orders = [
+                o for o in all_candidate_orders
+                if any(k in str(o.get("environment", "")).upper() for k in ("LIVE", "REAL"))
+            ]
+        elif eff_env in ("DEMO", "TESTNET", "SANDBOX", "PAPER"):
+            orders = [
+                o for o in all_candidate_orders
+                if not any(k in str(o.get("environment", "")).upper() for k in ("LIVE", "REAL"))
+            ]
+        else:
+            orders = [
+                o for o in all_candidate_orders
+                if eff_env in str(o.get("environment", "")).upper()
+            ]
+
+        # Filter by workspace
         if workspace:
             norm_ws = "FOREX_GOLD" if str(workspace).upper() in ["FOREX", "FOREX_GOLD"] else str(workspace).upper()
             filtered = []
@@ -6273,10 +6316,10 @@ async def get_orders_list(environment: Optional[str] = None, env: Optional[str] 
                     continue
                 sym = str(o.get("symbol", "")).upper()
                 if norm_ws in ("CRYPTO", "CRYPTO_BINANCE"):
-                    if sym.endswith("USDT") or any(c in sym for c in ["BTC", "ETH", "SOL", "BNB", "XRP", "DOGE"]):
+                    if sym.endswith("USDT") or any(c in sym for c in ["BTC", "ETH", "SOL", "BNB", "XRP", "DOGE", "ADA"]):
                         filtered.append(o)
                 elif norm_ws in ("INDIA", "INDIAN_EQUITY_OPTIONS"):
-                    if sym.endswith(".NS") or sym.endswith(".BO") or sym in ["NIFTY", "BANKNIFTY", "RELIANCE", "TCS", "INFY", "HDFCBANK", "ICICIBANK", "TATAMOTORS"]:
+                    if sym.endswith(".NS") or sym.endswith(".BO") or sym in ["NIFTY", "BANKNIFTY", "RELIANCE", "TCS", "INFY", "HDFCBANK", "ICICIBANK", "TATAMOTORS", "SBIN"]:
                         filtered.append(o)
                 elif norm_ws in ("FOREX", "FOREX_GOLD"):
                     if any(sym.startswith(c) for c in ["EUR", "GBP", "USD", "AUD", "NZD", "XAU"]):
@@ -6286,7 +6329,7 @@ async def get_orders_list(environment: Optional[str] = None, env: Optional[str] 
             orders = filtered
 
         # Sort descending by timestamp so newest orders appear first
-        orders = sorted(orders, key=lambda x: str(x.get("created_at") or x.get("submitted_at") or ""), reverse=True)
+        orders = sorted(orders, key=lambda x: str(x.get("created_at") or x.get("submitted_at") or x.get("updated_at") or ""), reverse=True)
         return JSONResponse({"status": "SUCCESS", "orders": orders, "count": len(orders)})
     except Exception as e:
         return JSONResponse({"status": "ERROR", "message": str(e), "orders": [], "count": 0}, status_code=500)

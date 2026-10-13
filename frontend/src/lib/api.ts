@@ -325,8 +325,12 @@ export const api = {
   },
 
   // Monthly PnL Calendar Heatmap
-  async getPnlCalendar(month?: string, workspace: string = 'ALL'): Promise<any> {
-    const q = month ? `?month=${month}&workspace=${workspace}` : `?workspace=${workspace}`;
+  async getPnlCalendar(month?: string, workspace: string = 'ALL', environment?: string): Promise<any> {
+    const params = new URLSearchParams();
+    if (month) params.set('month', month);
+    if (workspace) params.set('workspace', workspace);
+    if (environment) params.set('environment', environment);
+    const q = params.toString() ? `?${params.toString()}` : '';
     return fetchJson(`/api/analytics/pnl-calendar${q}`);
   },
 

@@ -46,7 +46,7 @@ export function SessionDetailView() {
     setIsLoading(true);
     try {
       const monthStr = dateStr.slice(0, 7);
-      const res = await api.getPnlCalendar(monthStr, workspace);
+      const res = await api.getPnlCalendar(monthStr, workspace, environment);
       const cal = res?.data || res;
       const days = cal?.days || [];
       const matchDay = days.find((d: any) => d.date === dateStr);

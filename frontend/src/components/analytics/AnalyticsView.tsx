@@ -105,7 +105,7 @@ export function AnalyticsView() {
     try {
       setIsLoading(true);
       const [cal, tax, fact, tuner] = await Promise.allSettled([
-        api.getPnlCalendar(selectedMonth, workspace),
+        api.getPnlCalendar(selectedMonth, workspace, environment),
         api.getTaxAudit(),
         api.getFactsheet(),
         api.getOptimizerStatus(),

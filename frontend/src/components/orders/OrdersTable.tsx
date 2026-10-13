@@ -30,7 +30,7 @@ export function OrdersTable() {
 
   useEffect(() => {
     loadOrders();
-    const interval = setInterval(loadOrders, 4000);
+    const interval = setInterval(loadOrders, 5000);
     return () => clearInterval(interval);
   }, [loadOrders]);
 

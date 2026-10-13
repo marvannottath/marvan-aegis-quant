@@ -182,6 +182,14 @@ class HistoricalLogService:
 
         res = t.get("result") or ("WIN" if net > 0 else ("LOSS" if net < 0 else "BREAKEVEN"))
 
+        is_live = (
+            any(k in pool_name.upper() for k in ("LIVE", "REAL"))
+            or t.get("source") == "BINANCE_LIVE"
+            or "LIVE" in str(t.get("environment", "")).upper()
+            or "REAL" in str(t.get("environment", "")).upper()
+        )
+        env_tag = "LIVE" if is_live else "DEMO"
+
         return {
             "trade_id": t.get("trade_id") or f"TRD-{int(time.time()*1000)}",
             "timestamp": raw_ts,
@@ -202,6 +210,7 @@ class HistoricalLogService:
             "close_reason": t.get("reason") or t.get("close_reason", "EXECUTION_COMPLETE"),
             "workspace": workspace,
             "pool_name": pool_name,
+            "environment": env_tag,
             "source": t.get("source", "AEGIS_LEDGER")
         }
 
@@ -212,9 +221,25 @@ class HistoricalLogService:
         symbol: Optional[str] = None,
         side: Optional[str] = None,
         workspace: Optional[str] = None,
+        environment: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         self._ensure_loaded()
         res = self._cached_trades
+
+        if environment and environment.upper() != "ALL":
+            env_clean = environment.upper().strip()
+            if env_clean == "LIVE":
+                res = [
+                    t for t in res
+                    if t.get("environment") == "LIVE"
+                    or any(k in str(t.get("pool_name", "")).upper() for k in ("LIVE", "REAL"))
+                ]
+            elif env_clean in ("DEMO", "PAPER", "TESTNET", "SANDBOX"):
+                res = [
+                    t for t in res
+                    if t.get("environment") != "LIVE"
+                    and not any(k in str(t.get("pool_name", "")).upper() for k in ("LIVE", "REAL"))
+                ]
 
         if workspace and workspace.upper() != "ALL":
             res = [t for t in res if t.get("workspace") == workspace.upper()]

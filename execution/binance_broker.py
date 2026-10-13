@@ -704,7 +704,6 @@ class BinanceBroker:
             return res_not_cfg
 
         try:
-            self._sync_server_time(base_url)
             st = self._get_server_time_ms(base_url)
             params = {"timestamp": st, "recvWindow": 60000}
             sig, signed_params = self._sign_query(sec_k, params)

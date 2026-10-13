@@ -197,7 +197,7 @@ class PositionSnapshotService:
             self._snapshot_cache = {}
             self._snapshot_cache_ts = {}
 
-        if not force_refresh and (now - self._snapshot_cache_ts.get(cache_key, 0)) < 3.0:
+        if not force_refresh and (now - self._snapshot_cache_ts.get(cache_key, 0)) < 5.0:
             cached = self._snapshot_cache.get(cache_key)
             if cached:
                 return cached
@@ -481,7 +481,7 @@ class PositionSnapshotService:
             self._agg_cache = {}
             self._agg_cache_ts = {}
 
-        if not force_refresh and (now - self._agg_cache_ts.get(cache_key, 0)) < 3.0:
+        if not force_refresh and (now - self._agg_cache_ts.get(cache_key, 0)) < 5.0:
             cached = self._agg_cache.get(cache_key)
             if cached:
                 return cached
