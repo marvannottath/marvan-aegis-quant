@@ -552,6 +552,12 @@ class AutonomousTrader:
                                     )
                                 except Exception:
                                     pass
+                            elif not is_risk_valid:
+                                if step_counter % 3 == 0:
+                                    self._log_action(ticker, "RISK_REJECTED", current_price, size_usd, f"Risk check rejected: {risk_reason}")
+                            elif not min_threshold_ok:
+                                if step_counter % 3 == 0:
+                                    self._log_action(ticker, "SIZE_TOO_SMALL", current_price, size_usd, f"Order size ₹{size_usd:,.2f} below minimum threshold ₹50.00")
 
 
                 # 4. 1000-Shield Quantum Guardian Alpha Harvesting Loop across all active pools

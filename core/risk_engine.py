@@ -463,6 +463,8 @@ class RiskEngine:
 
         # Gate 3: Leverage
         max_lev = prof.get("max_leverage", 2.0)
+        if (workspace or "").upper() == "INDIA":
+            max_lev = max(max_lev, 5.0)
         if leverage > max_lev:
             msg = f"Leverage {leverage}x exceeds max {max_lev}x for {prof_name} on {workspace}:{environment}."
             return False, RISK_REJECTED_LEVERAGE, msg
