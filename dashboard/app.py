@@ -1500,6 +1500,31 @@ async def reset_circuit_breaker_endpoint(request: Request):
     res = risk_engine.reset_circuit_breaker(ws)
     return JSONResponse(res)
 
+@app.post("/api/portfolio/recalibrate-peak")
+async def recalibrate_peak_equity_endpoint(request: Request):
+    """Force recalibrate peak equity and daily open equity to current live balance."""
+    try:
+        body = await request.json()
+        pool = body.get("pool", "BINANCE_LIVE_REAL")
+        workspace = body.get("workspace", "CRYPTO")
+        environment = body.get("environment", "LIVE")
+    except Exception:
+        pool = "BINANCE_LIVE_REAL"
+        workspace = "CRYPTO"
+        environment = "LIVE"
+
+    from core.position_snapshot_service import position_snapshot_service
+    agg = position_snapshot_service.get_portfolio_aggregate(workspace, force_refresh=True, environment=environment)
+    total_eq = float(agg.get("total_equity", 0.0) or 0.0)
+    if total_eq > 0:
+        position_snapshot_service.recalibrate_peak_equity(pool, total_eq)
+    return JSONResponse({
+        "status": "SUCCESS",
+        "pool": pool,
+        "calibrated_equity": total_eq,
+        "message": f"Peak equity calibrated to ${total_eq:.2f}"
+    })
+
 @app.post("/api/set-precision-mode")
 async def set_precision_mode_endpoint(data: dict):
     """Dynamically set Signal Ensemble Precision Mode (ULTRA_9999_PRECISION, HIGH_CONVICTION, STANDARD)."""

@@ -80,7 +80,7 @@ class PositionSnapshotService:
         except Exception:
             pass
 
-    def get_and_update_peak_equity(self, pool_name: str, current_equity: float) -> float:
+    def get_and_update_peak_equity(self, pool_name: str, current_equity: float, unrealized_pnl: float = 0.0) -> float:
         peaks = self._load_peak_equity()
         stored_peak = float(peaks.get(pool_name, 0.0))
         # Initial calibration: if never seen, initialize to current equity
@@ -89,23 +89,39 @@ class PositionSnapshotService:
             self._save_peak_equity(peaks)
             return round(current_equity, 2)
 
-        # Detect cross-contamination / legacy mock residue:
-        # If stored peak is more than 3x the current equity, but no massive realized losses exist on ledger,
-        # recalibrate peak equity to current equity so artificial 90%+ drawdowns never paralyze live trading.
-        if current_equity > 0 and stored_peak > (current_equity * 3.0):
-            try:
-                from core.double_entry_ledger import double_entry_ledger
-                realized_loss = abs(double_entry_ledger.get_account_balance("REALIZED_LOSSES_ACCOUNT", pool_name))
-                if realized_loss < (stored_peak - current_equity) * 0.5:
-                    peaks[pool_name] = round(current_equity, 2)
+        # Detect cross-contamination / legacy mock residue / deposit baseline shift:
+        # A legitimate trading peak drawdown can ONLY occur if the account actually suffered trading losses.
+        # If stored peak exceeds current equity, but the gap is not backed by ledger realized losses + unrealized pnl,
+        # it is a legacy peak or external balance shift (e.g. historical balance prior to live sync).
+        is_live = ("LIVE" in pool_name) or (pool_name == "BINANCE_LIVE_REAL")
+        try:
+            from core.double_entry_ledger import double_entry_ledger
+            realized_loss = abs(double_entry_ledger.get_account_balance("REALIZED_LOSSES_ACCOUNT", pool_name))
+            floating_loss = abs(min(0.0, unrealized_pnl))
+            total_verified_losses = realized_loss + floating_loss
+            gap = stored_peak - current_equity
+
+            # For live pool: if the gap between stored peak and current equity is not explained by verified trading losses,
+            # recalibrate peak to current equity + floating_loss so true drawdown is accurately measured.
+            if is_live and gap > 0.05:
+                if total_verified_losses < (gap * 0.5):
+                    authentic_peak = round(current_equity + floating_loss, 2)
+                    peaks[pool_name] = authentic_peak
                     self._save_peak_equity(peaks)
-                    return round(current_equity, 2)
-            except Exception:
-                pass
+                    return authentic_peak
+            # General safety for non-live pools:
+            elif current_equity > 0 and stored_peak > (current_equity * 1.5):
+                if realized_loss < gap * 0.5:
+                    authentic_peak = round(current_equity + floating_loss, 2)
+                    peaks[pool_name] = authentic_peak
+                    self._save_peak_equity(peaks)
+                    return authentic_peak
+        except Exception:
+            pass
 
         return round(stored_peak, 2)
 
-    def get_and_update_daily_open_equity(self, pool_name: str, current_equity: float) -> float:
+    def get_and_update_daily_open_equity(self, pool_name: str, current_equity: float, unrealized_pnl: float = 0.0) -> float:
         """
         Authoritative Daily Opening Equity Tracker.
         Automatically rolls over on a new calendar day (IST/UTC).
@@ -127,6 +143,21 @@ class PositionSnapshotService:
             state["pools"] = pools
             self._save_daily_open_equity(state)
             return round(current_equity, 2)
+
+        # In live pools, if stored_open is inflated compared to current equity without trading losses:
+        is_live = ("LIVE" in pool_name) or (pool_name == "BINANCE_LIVE_REAL")
+        if is_live and (stored_open - current_equity) > 0.05:
+            try:
+                from core.double_entry_ledger import double_entry_ledger
+                realized_loss = abs(double_entry_ledger.get_account_balance("REALIZED_LOSSES_ACCOUNT", pool_name))
+                floating_loss = abs(min(0.0, unrealized_pnl))
+                if (realized_loss + floating_loss) < (stored_open - current_equity) * 0.5:
+                    pools[pool_name] = round(current_equity + floating_loss, 2)
+                    state["pools"] = pools
+                    self._save_daily_open_equity(state)
+                    return pools[pool_name]
+            except Exception:
+                pass
 
         return round(stored_open, 2)
 
@@ -790,9 +821,9 @@ class PositionSnapshotService:
 
         # Peak equity & Drawdown calculation
         if total_equity is not None:
-            peak_equity = self.get_and_update_peak_equity(pool_name, total_equity)
+            peak_equity = self.get_and_update_peak_equity(pool_name, total_equity, unrealized_pnl or 0.0)
             drawdown_pct = max(0.0, round(((peak_equity - total_equity) / peak_equity) * 100.0, 2)) if peak_equity > 0 else 0.0
-            daily_open_equity = self.get_and_update_daily_open_equity(pool_name, total_equity)
+            daily_open_equity = self.get_and_update_daily_open_equity(pool_name, total_equity, unrealized_pnl or 0.0)
             daily_drawdown_pct = max(0.0, round(((daily_open_equity - total_equity) / daily_open_equity) * 100.0, 2)) if daily_open_equity > 0 else 0.0
             if is_live_pool and open_pos_count == 0 and (unrealized_pnl or 0.0) == 0.0:
                 drawdown_pct = 0.0
