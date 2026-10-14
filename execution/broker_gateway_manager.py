@@ -528,7 +528,8 @@ class BrokerGatewayManager:
         if broker_id in ["binance_live", "binance_demo"]:
             from execution.binance_broker import binance_broker
             api_key = str(payload.get("api_key", "")).strip()
-            secret_key = str(payload.get("secret_key", "")).strip()
+            # Accept both field names: 'secret_key' (backend) and 'api_secret' (frontend form)
+            secret_key = str(payload.get("secret_key", "") or payload.get("api_secret", "")).strip()
             is_test = (broker_id == "binance_demo") or payload.get("testnet", False) or payload.get("is_testnet", False)
             if not api_key or not secret_key:
                 return {"status": "ERROR", "message": "API Key and Secret Key are required."}
