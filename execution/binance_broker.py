@@ -1752,9 +1752,10 @@ class BinanceBroker:
                 params["timeInForce"] = "GTC"
                 params["quantity"] = self.format_quantity(environment, symbol, quantity) if quantity > 0 else round(quantity, 6)
             elif order_type.upper() == "MARKET":
-                if quantity > 0:
+                if side.upper() == "BUY" and price > 0:
+                    params["quoteOrderQty"] = round(price, 2)
+                elif quantity > 0:
                     formatted_qty = self.format_quantity(environment, symbol, quantity)
-                    # Use formatted float, round to 6 decimal places max
                     params["quantity"] = formatted_qty
                 elif price > 0:
                     params["quoteOrderQty"] = round(price, 2)

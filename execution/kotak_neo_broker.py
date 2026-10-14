@@ -145,9 +145,27 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
         u_code = ucc.strip().upper()
         m_pin = str(mpin).strip()
 
-        curr_totp = totp.strip()
-        if not curr_totp and totp_secret:
-            curr_totp = self._generate_totp(totp_secret)
+        curr_totp = str(totp or "").strip()
+        t_sec = str(totp_secret or "").strip()
+
+        # Flexible fallback: user may have entered 6-digit TOTP into totp_secret field
+        if not curr_totp and t_sec:
+            if len(t_sec) == 6 and t_sec.isdigit():
+                curr_totp = t_sec
+            else:
+                curr_totp = self._generate_totp(t_sec)
+        elif curr_totp:
+            if len(curr_totp) == 6 and curr_totp.isdigit():
+                pass  # genuine 6-digit code from authenticator
+            else:
+                # user may have entered base32 secret into totp field
+                generated = self._generate_totp(curr_totp)
+                if generated:
+                    curr_totp = generated
+
+        # If a genuine permanent base32 secret was supplied, persist it
+        if t_sec and not (len(t_sec) == 6 and t_sec.isdigit()):
+            self._totp_secret = t_sec
 
         if not curr_totp:
             return {

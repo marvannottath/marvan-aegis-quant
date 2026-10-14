@@ -110,7 +110,8 @@ const DEFAULT_BROKERS = [
       { id: "mobile_number", label: "Registered Mobile Number", type: "text", placeholder: "e.g. 9207802002", required: true },
       { id: "ucc", label: "Client Code / UCC", type: "text", placeholder: "e.g. 16MT6", required: true },
       { id: "mpin", label: "Kotak Neo 6-digit MPIN", type: "password", placeholder: "Enter your 6-digit MPIN", required: true },
-      { id: "totp_secret", label: "TOTP Secret Key (optional for permanent auto-auth)", type: "password", placeholder: "Paste TOTP Secret Key from Authenticator QR", required: false },
+      { id: "totp", label: "Current 6-Digit TOTP (from Authenticator App)", type: "text", placeholder: "e.g. 582910 (Refreshes every 30s)", required: false },
+      { id: "totp_secret", label: "OR TOTP Secret Key (base32 key for permanent daily auto-auth)", type: "password", placeholder: "Paste base32 secret (Optional)", required: false },
     ],
   },
   {
