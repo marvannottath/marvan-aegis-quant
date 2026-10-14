@@ -12,6 +12,7 @@ Backs up original configs before modifying and validates with 'nginx -t'.
 import os
 import re
 import sys
+import time
 import shutil
 import subprocess
 from pathlib import Path
@@ -33,7 +34,7 @@ API_BLOCK = """
     }
 
     # Aegis-Quant Backend APIs
-    location /api/ {
+    location /api {
         proxy_pass http://127.0.0.1:8888;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -41,6 +42,15 @@ API_BLOCK = """
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_read_timeout 300s;
         proxy_connect_timeout 75s;
+    }
+
+    # State Alias API
+    location /state {
+        proxy_pass http://127.0.0.1:8888;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
     }
 
     # Aegis-Quant WebSockets
@@ -78,16 +88,18 @@ def patch_file(file_path: Path) -> bool:
         content = loc_pattern.sub(repl_loc_root, content)
         modified = True
 
-    # 2. If location / was modified or if server block has 3000, ensure /api/ and /ws are present
+    # 2. If location / was modified or if server block has 3000, ensure /api and /ws are present
     if "127.0.0.1:3000" in content:
-        # Check if location /api/ is missing
-        if "location /api/" not in content and "location /api" not in content:
+        # Check if location /api is missing
+        if "location /api" not in content:
             # Insert API_BLOCK before 'location /'
             content = content.replace("location /", f"{API_BLOCK}\n    location /", 1)
             modified = True
 
     if modified and content != original:
-        backup = file_path.with_suffix(file_path.suffix + ".bak")
+        backup_dir = Path("/etc/nginx/backups")
+        backup_dir.mkdir(parents=True, exist_ok=True)
+        backup = backup_dir / f"{file_path.name}_{int(time.time())}.bak"
         shutil.copy2(file_path, backup)
         file_path.write_text(content, encoding="utf-8")
         print(f"✓ Patched {file_path} (backup at {backup})")
@@ -99,6 +111,16 @@ def main():
     print("==================================================")
     print("Scanning Nginx configurations on Hostinger VPS...")
     print("==================================================")
+
+    # Clean up conflicting .bak files from sites-enabled and conf.d
+    for d in [Path("/etc/nginx/sites-enabled"), Path("/etc/nginx/conf.d")]:
+        if d.exists():
+            for bak in d.glob("*.bak"):
+                try:
+                    bak.unlink()
+                    print(f"Removed conflicting backup file: {bak}")
+                except Exception:
+                    pass
 
     modified_any = False
     for nginx_dir in NGINX_DIRS:

@@ -24,13 +24,139 @@ interface ConnectBrokerModalProps {
   defaultCategory?: 'ALL' | 'CRYPTO' | 'INDIA' | 'FOREX_GOLD';
 }
 
+const DEFAULT_BROKERS = [
+  {
+    id: "binance_live",
+    name: "Binance Live (Spot & Futures)",
+    venue: "CRYPTO",
+    category: "CRYPTO",
+    environment: "LIVE",
+    icon: "fa-solid fa-coins text-amber-400",
+    badge_color: "amber",
+    status: "STANDBY",
+    balance: 0.0,
+    currency: "USDT",
+    description: "High-Speed Binance VIP API (Spot & USDⓈ-M Futures) with Read & Trade permissions only",
+    fields: [
+      { id: "api_key", label: "Binance API Key", type: "text", placeholder: "Paste Binance Live API Key", required: true },
+      { id: "secret_key", label: "Binance API Secret", type: "password", placeholder: "Paste Binance Live Secret Key", required: true },
+    ],
+  },
+  {
+    id: "okx_live",
+    name: "OKX V5 Institutional API",
+    venue: "CRYPTO",
+    category: "CRYPTO",
+    environment: "LIVE",
+    icon: "fa-solid fa-cube text-blue-400",
+    badge_color: "blue",
+    status: "STANDBY",
+    balance: 0.0,
+    currency: "USDT",
+    description: "Institutional Multi-Currency Portfolio Margin & Web3 Order Execution",
+    fields: [
+      { id: "api_key", label: "OKX API Key", type: "text", placeholder: "Paste OKX API Key", required: true },
+      { id: "secret_key", label: "OKX Secret Key", type: "password", placeholder: "Paste OKX Secret Key", required: true },
+    ],
+  },
+  {
+    id: "bybit_live",
+    name: "Bybit Unified V5 API",
+    venue: "CRYPTO",
+    category: "CRYPTO",
+    environment: "LIVE",
+    icon: "fa-solid fa-bolt text-yellow-400",
+    badge_color: "yellow",
+    status: "STANDBY",
+    balance: 0.0,
+    currency: "USDT",
+    description: "Bybit Unified Trading Account (UTA) for Crypto Perpetuals, Inverse Contracts & Spot",
+    fields: [
+      { id: "api_key", label: "Bybit API Key", type: "text", placeholder: "Paste Bybit V5 API Key", required: true },
+      { id: "secret_key", label: "Bybit API Secret", type: "password", placeholder: "Paste Bybit V5 Secret Key", required: true },
+    ],
+  },
+  {
+    id: "binance_demo",
+    name: "Binance Testnet Sandbox",
+    venue: "CRYPTO",
+    category: "CRYPTO",
+    environment: "DEMO",
+    icon: "fa-solid fa-coins text-amber-400",
+    badge_color: "amber",
+    status: "STANDBY",
+    balance: 10000.0,
+    currency: "USDT",
+    description: "Binance Official Testnet SPOT environment for simulated algorithmic validation",
+    fields: [
+      { id: "api_key", label: "Testnet API Key", type: "text", placeholder: "Enter Binance Testnet API Key", required: true },
+      { id: "secret_key", label: "Testnet Secret Key", type: "password", placeholder: "Enter Binance Testnet Secret Key", required: true },
+    ],
+  },
+  {
+    id: "kotak_neo_live",
+    name: "Kotak Neo (Kotak Securities)",
+    venue: "INDIA",
+    category: "INDIA",
+    environment: "LIVE",
+    icon: "fa-solid fa-building-columns text-red-500",
+    badge_color: "red",
+    status: "STANDBY",
+    balance: 0.0,
+    currency: "INR",
+    description: "Kotak Neo Open API (v2) for NSE & BSE Equities, F&O and Currency",
+    fields: [
+      { id: "consumer_key", label: "Kotak Consumer Key (API Key)", type: "text", placeholder: "Enter Kotak Neo Consumer Key", required: true },
+      { id: "mobile_number", label: "Registered Mobile Number", type: "text", placeholder: "e.g. 9207802002", required: true },
+      { id: "ucc", label: "Client Code / UCC", type: "text", placeholder: "e.g. 16MT6", required: true },
+      { id: "mpin", label: "Kotak Neo 6-digit MPIN", type: "password", placeholder: "Enter your 6-digit MPIN", required: true },
+      { id: "totp_secret", label: "TOTP Secret Key (optional for permanent auto-auth)", type: "password", placeholder: "Paste TOTP Secret Key from Authenticator QR", required: false },
+    ],
+  },
+  {
+    id: "upstox_live",
+    name: "Upstox Interactive (NSE/BSE)",
+    venue: "INDIA",
+    category: "INDIA",
+    environment: "LIVE",
+    icon: "fa-solid fa-arrow-trend-up text-purple-500",
+    badge_color: "purple",
+    status: "STANDBY",
+    balance: 0.0,
+    currency: "INR",
+    description: "Upstox OpenAPI v2 with direct HFT order routing",
+    fields: [
+      { id: "api_key", label: "Upstox API Key", type: "text", placeholder: "Enter Upstox API Key", required: true },
+      { id: "api_secret", label: "Upstox API Secret", type: "password", placeholder: "Enter Upstox API Secret", required: true },
+    ],
+  },
+  {
+    id: "mt5_live",
+    name: "MetaTrader 5 (MT5 Direct)",
+    venue: "FOREX_GOLD",
+    category: "FOREX_GOLD",
+    environment: "LIVE",
+    icon: "fa-solid fa-chart-line text-emerald-500",
+    badge_color: "emerald",
+    status: "STANDBY",
+    balance: 0.0,
+    currency: "USD",
+    description: "Institutional MT5 Direct STP Gateway for XAUUSD, Forex Majors, and Indices",
+    fields: [
+      { id: "login", label: "MT5 Login Account ID", type: "number", placeholder: "e.g. 12948271", required: true },
+      { id: "password", label: "MT5 Trading Password", type: "password", placeholder: "Enter MT5 Master Password", required: true },
+      { id: "server", label: "Broker Server Name", type: "text", placeholder: "e.g. Exness-Real19", required: true },
+    ],
+  },
+];
+
 export function ConnectBrokerModal({
   isOpen,
   onClose,
   defaultCategory = 'ALL',
 }: ConnectBrokerModalProps) {
   const { environment, workspace, refreshData } = useTradingContext();
-  const [brokers, setBrokers] = useState<any[]>([]);
+  const [brokers, setBrokers] = useState<any[]>(DEFAULT_BROKERS);
   const [selectedCategory, setSelectedCategory] = useState<string>(
     defaultCategory === 'ALL'
       ? workspace === 'INDIA'
@@ -42,7 +168,7 @@ export function ConnectBrokerModal({
   );
   const [selectedBroker, setSelectedBroker] = useState<any | null>(null);
   const [formValues, setFormValues] = useState<Record<string, any>>({});
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isTesting, setIsTesting] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [testResult, setTestResult] = useState<{ status: string; message: string } | null>(null);
@@ -52,19 +178,14 @@ export function ConnectBrokerModal({
     try {
       setIsLoading(true);
       const list = await api.getAllBrokers();
-      if (!Array.isArray(list) || list.length === 0) {
-        setBrokers([
-          { id: "binance_live", name: "Binance Live (Spot & Futures)", category: "CRYPTO", environment: "LIVE", status: "STANDBY", default_currency: "USDT" },
-          { id: "mt5_live", name: "MetaTrader 5 (MT5 Direct)", category: "FOREX_GOLD", environment: "LIVE", status: "STANDBY", default_currency: "USD" },
-          { id: "upstox_live", name: "Upstox / Zerodha / Kotak", category: "INDIA", environment: "LIVE", status: "STANDBY", default_currency: "INR" }
-        ]);
-        setIsLoading(false);
-        return;
+      if (Array.isArray(list) && list.length > 0) {
+        setBrokers(list);
+      } else {
+        setBrokers(DEFAULT_BROKERS);
       }
-      setBrokers(Array.isArray(list) ? list : []);
     } catch (err) {
-      console.error('Failed to load brokers:', err);
-      setBrokers([]);
+      console.warn('Backend broker list fetch notice, using robust defaults:', err);
+      setBrokers(DEFAULT_BROKERS);
     } finally {
       setIsLoading(false);
     }
@@ -87,9 +208,9 @@ export function ConnectBrokerModal({
   ];
 
   // Strictly filter venues by active environment (LIVE vs DEMO)
-  const filteredBrokers = (brokers || []).filter((b) => {
+  const filteredBrokers = (brokers && brokers.length > 0 ? brokers : DEFAULT_BROKERS).filter((b) => {
     if (!b) return false;
-    const matchesEnv = environment === 'LIVE' ? b.environment === 'LIVE' : b.environment === 'DEMO';
+    const matchesEnv = environment === 'LIVE' ? (b.environment === 'LIVE' || !b.environment) : (b.environment === 'DEMO' || !b.environment);
     if (!matchesEnv) return false;
 
     if (selectedCategory === 'CONNECTED') {
