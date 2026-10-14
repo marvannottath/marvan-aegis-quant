@@ -241,7 +241,7 @@ class ExecutionGate:
         if order_source in ("AI", "AI_GENERATED", "AUTONOMOUS"):
             try:
                 from core.ai_trading_controller import ai_trading_controller
-                ai_allowed, ai_reason = ai_trading_controller.is_execution_allowed(target_ws)
+                ai_allowed, ai_reason = ai_trading_controller.is_execution_allowed(target_ws, environment=environment)
                 if not ai_allowed:
                     code = "AI_TRADING_BLOCKED"
                     reason = f"Execution rejected: {ai_reason}"
