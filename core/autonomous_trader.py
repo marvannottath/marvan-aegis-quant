@@ -249,6 +249,10 @@ class AutonomousTrader:
                             if len(self.broker.positions) >= target_capacity:
                                 break
 
+                            # Benchmark indices (NIFTY50, BANKNIFTY) require > ₹4,500 margin, skip for micro accounts
+                            if _active_ws == "INDIA" and ticker in ["NIFTY50", "BANKNIFTY"]:
+                                continue
+
                             current_price = item["price"]
                             if not current_price or current_price <= 0:
                                 continue
@@ -258,13 +262,13 @@ class AutonomousTrader:
                             action_signal = item["ai_action"]
                             opp_score = item["opportunity_score"]
 
-                            # Option B: Calibrated High-Probability Threshold (80% - 85%)
+                            # Calibrated High-Probability Threshold
                             if "AGGRESSIVE" in profile_name:
-                                min_opp_threshold = 80.0
+                                min_opp_threshold = 74.0
                             elif "MODERATE" in profile_name:
-                                min_opp_threshold = 82.0
+                                min_opp_threshold = 76.0
                             else:
-                                min_opp_threshold = 85.0
+                                min_opp_threshold = 80.0
 
                             if opp_score < min_opp_threshold:
                                 continue
@@ -419,7 +423,7 @@ class AutonomousTrader:
                                             qty = round(size_usd / max(0.01, current_price), 6)
                                             live_result = binance_broker.place_order(
                                                 symbol=ticker, side="BUY", order_type="MARKET",
-                                                quantity=qty, environment="BINANCE_LIVE_REAL"
+                                                price=size_usd, quantity=qty, environment="BINANCE_LIVE_REAL"
                                             )
                                             if live_result and live_result.get("status") not in ("ERROR", "REJECTED", "GATE_BLOCKED"):
                                                 live_order_placed = True

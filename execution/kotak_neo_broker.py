@@ -65,7 +65,12 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
                     self._totp_secret = cfg.get("totp_secret", "").strip()
                     self._paper_mode = cfg.get("is_demo", False)
                     self._live_cash = float(cfg.get("live_cash", cfg.get("balance", 0.0)))
-                    if self._consumer_key:
+                    self._session_token = cfg.get("session_token", "").strip()
+                    self._session_sid = cfg.get("session_sid", "").strip()
+                    self._base_url = cfg.get("base_url", "https://mis.kotaksecurities.com").strip()
+                    today_str = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d")
+                    saved_date = cfg.get("session_date", "")
+                    if (saved_date == today_str and self._session_token) or self._consumer_key:
                         self._is_authenticated = True
             except Exception as e:
                 print(f"[KOTAK_NEO] Config read notice: {e}")
@@ -211,6 +216,7 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
             self._session_sid = edit_sid
             self._base_url = base_url
             self._is_authenticated = True
+            self._save_session_cache(edit_token, edit_sid, base_url)
 
             # Step 3: Fetch real limits from Kotak Securities
             live_bal = self.fetch_live_limits(base_url=base_url, edit_token=edit_token, edit_sid=edit_sid)
@@ -327,6 +333,36 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
             return False
         return self.authenticate().get("authenticated", False)
 
+    def _save_session_cache(self, token: str, sid: str, base_url: str):
+        """Persist authenticated session token so it survives server restarts within the same trading day."""
+        try:
+            today_str = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d")
+            data = {}
+            if KOTAK_CONFIG_FILE.exists():
+                try:
+                    with open(KOTAK_CONFIG_FILE, "r") as f:
+                        data = json.load(f)
+                except Exception:
+                    pass
+            data.update({
+                "consumer_key": self._consumer_key,
+                "consumer_secret": self._consumer_secret,
+                "mobile_number": self._mobile_number,
+                "ucc": self._ucc,
+                "mpin": self._mpin,
+                "totp_secret": self._totp_secret,
+                "session_token": token,
+                "session_sid": sid,
+                "base_url": base_url,
+                "session_date": today_str,
+                "session_saved_at": _ist_now(),
+                "live_cash": self._live_cash
+            })
+            with open(KOTAK_CONFIG_FILE, "w") as f:
+                json.dump(data, f, indent=2)
+        except Exception as e:
+            print(f"[KOTAK_NEO] Session cache save notice: {e}")
+
     def save_credentials(
         self,
         consumer_key: str,
@@ -357,18 +393,32 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
         self._live_cash = float(balance) if not is_demo else 0.0
 
         try:
+            cfg_data = {}
+            if KOTAK_CONFIG_FILE.exists():
+                try:
+                    with open(KOTAK_CONFIG_FILE, "r") as f:
+                        cfg_data = json.load(f)
+                except Exception:
+                    pass
+            cfg_data.update({
+                "consumer_key": self._consumer_key,
+                "consumer_secret": self._consumer_secret,
+                "mobile_number": self._mobile_number,
+                "ucc": self._ucc,
+                "mpin": self._mpin,
+                "totp_secret": self._totp_secret,
+                "saved_at": _ist_now(),
+                "is_demo": is_demo,
+                "live_cash": self._live_cash
+            })
+            if self._session_token:
+                today_str = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d")
+                cfg_data["session_token"] = self._session_token
+                cfg_data["session_sid"] = getattr(self, "_session_sid", "")
+                cfg_data["base_url"] = getattr(self, "_base_url", "https://mis.kotaksecurities.com")
+                cfg_data["session_date"] = today_str
             with open(KOTAK_CONFIG_FILE, "w") as f:
-                json.dump({
-                    "consumer_key": self._consumer_key,
-                    "consumer_secret": self._consumer_secret,
-                    "mobile_number": self._mobile_number,
-                    "ucc": self._ucc,
-                    "mpin": self._mpin,
-                    "totp_secret": self._totp_secret,
-                    "saved_at": _ist_now(),
-                    "is_demo": is_demo,
-                    "live_cash": self._live_cash
-                }, f, indent=2)
+                json.dump(cfg_data, f, indent=2)
         except Exception as e:
             print(f"[KOTAK_NEO] Save config notice: {e}")
 
