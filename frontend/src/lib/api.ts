@@ -10,7 +10,11 @@ import {
   OrderRecord,
 } from './types';
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
+// In browser execution, ALWAYS use relative path '' so requests go to current origin (e.g. https://srv1799665.hstgr.cloud)
+// Never let client bundle call localhost:8000 from remote user browser
+const BASE_URL = typeof window !== 'undefined'
+  ? ''
+  : (process.env.BACKEND_URL || 'http://127.0.0.1:8888');
 
 async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${url}`, {
