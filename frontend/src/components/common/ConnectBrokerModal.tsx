@@ -104,13 +104,30 @@ const DEFAULT_BROKERS = [
     status: "STANDBY",
     balance: 0.0,
     currency: "INR",
-    description: "Kotak Neo Open API (v2) for NSE & BSE Equities, F&O and Currency",
+    description: "Kotak Neo Open API (v2) for NSE & BSE Equities, F&O and Currency with zero intraday brokerage",
     fields: [
       { id: "consumer_key", label: "Kotak Consumer Key (API Key)", type: "text", placeholder: "Enter Kotak Neo Consumer Key", required: true },
       { id: "mobile_number", label: "Registered Mobile Number", type: "text", placeholder: "e.g. 9207802002", required: true },
       { id: "ucc", label: "Client Code / UCC", type: "text", placeholder: "e.g. 16MT6", required: true },
       { id: "mpin", label: "Kotak Neo 6-digit MPIN", type: "password", placeholder: "Enter your 6-digit MPIN", required: true },
       { id: "totp_secret", label: "TOTP Secret Key (optional for permanent auto-auth)", type: "password", placeholder: "Paste TOTP Secret Key from Authenticator QR", required: false },
+    ],
+  },
+  {
+    id: "kotak_neo_demo",
+    name: "Kotak Neo Sandbox (Paper)",
+    venue: "INDIA",
+    category: "INDIA",
+    environment: "DEMO",
+    icon: "fa-solid fa-flask text-red-400",
+    badge_color: "red",
+    status: "STANDBY",
+    balance: 100000.0,
+    currency: "INR",
+    description: "Kotak Neo Sandbox simulator for testing NSE/BSE algos with zero financial risk",
+    fields: [
+      { id: "consumer_key", label: "Sandbox Consumer Key", type: "text", placeholder: "Enter Kotak Neo Sandbox Key", required: true },
+      { id: "consumer_secret", label: "Sandbox Consumer Secret", type: "password", placeholder: "Enter Kotak Neo Sandbox Secret", required: true },
     ],
   },
   {
@@ -128,6 +145,23 @@ const DEFAULT_BROKERS = [
     fields: [
       { id: "api_key", label: "Upstox API Key", type: "text", placeholder: "Enter Upstox API Key", required: true },
       { id: "api_secret", label: "Upstox API Secret", type: "password", placeholder: "Enter Upstox API Secret", required: true },
+    ],
+  },
+  {
+    id: "zerodha_live",
+    name: "Zerodha Kite Connect v3",
+    venue: "INDIA",
+    category: "INDIA",
+    environment: "LIVE",
+    icon: "fa-solid fa-paper-plane text-orange-400",
+    badge_color: "orange",
+    status: "STANDBY",
+    balance: 0.0,
+    currency: "INR",
+    description: "Direct Kite Connect API for NSE Stocks, NIFTY/BANKNIFTY Options",
+    fields: [
+      { id: "api_key", label: "Kite API Key", type: "text", placeholder: "Enter Kite Connect API Key", required: true },
+      { id: "api_secret", label: "Kite API Secret", type: "password", placeholder: "Enter Kite Connect API Secret", required: true },
     ],
   },
   {
@@ -207,11 +241,14 @@ export function ConnectBrokerModal({
     { id: 'INDIA', label: '🇮🇳 India (Kotak Neo, Upstox, Zerodha)' },
   ];
 
-  // Strictly filter venues by active environment (LIVE vs DEMO)
+  const [envFilter, setEnvFilter] = useState<'ALL' | 'LIVE' | 'DEMO'>('ALL');
+
+  // Filter venues by category and optional environment filter (defaults to ALL so venues are never hidden)
   const filteredBrokers = (brokers && brokers.length > 0 ? brokers : DEFAULT_BROKERS).filter((b) => {
     if (!b) return false;
-    const matchesEnv = environment === 'LIVE' ? (b.environment === 'LIVE' || !b.environment) : (b.environment === 'DEMO' || !b.environment);
-    if (!matchesEnv) return false;
+    if (envFilter !== 'ALL') {
+      if (b.environment && b.environment !== envFilter) return false;
+    }
 
     if (selectedCategory === 'CONNECTED') {
       return b.status === 'CONNECTED' || b.status === 'ONLINE' || b.status === 'ACTIVE' || b.is_active;
@@ -426,25 +463,54 @@ export function ConnectBrokerModal({
           </button>
         </div>
 
-        {/* Category Tabs */}
-        <div className="flex items-center gap-2 px-6 py-2.5 border-b border-line bg-white overflow-x-auto">
-          {categories.map((cat) => (
+        {/* Category & Environment Tabs */}
+        <div className="flex items-center justify-between px-6 py-2 border-b border-line bg-white overflow-x-auto gap-4">
+          <div className="flex items-center gap-1.5 overflow-x-auto">
+            {categories.map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => {
+                  setSelectedCategory(cat.id);
+                  setTestResult(null);
+                  setSaveResult(null);
+                }}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition whitespace-nowrap cursor-pointer ${
+                  selectedCategory === cat.id
+                    ? 'bg-slate-900 text-white shadow-xs'
+                    : 'text-txt-secondary hover:bg-slate-100'
+                }`}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg shrink-0">
             <button
-              key={cat.id}
-              onClick={() => {
-                setSelectedCategory(cat.id);
-                setTestResult(null);
-                setSaveResult(null);
-              }}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition whitespace-nowrap ${
-                selectedCategory === cat.id
-                  ? 'bg-slate-900 text-white shadow-xs'
-                  : 'text-txt-secondary hover:bg-slate-100'
+              onClick={() => setEnvFilter('ALL')}
+              className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition cursor-pointer ${
+                envFilter === 'ALL' ? 'bg-white shadow-xs text-slate-900' : 'text-slate-500 hover:text-slate-800'
               }`}
             >
-              {cat.label}
+              All
             </button>
-          ))}
+            <button
+              onClick={() => setEnvFilter('LIVE')}
+              className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition cursor-pointer ${
+                envFilter === 'LIVE' ? 'bg-rose-50 text-rose-700 font-extrabold shadow-xs' : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              🔴 Live
+            </button>
+            <button
+              onClick={() => setEnvFilter('DEMO')}
+              className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition cursor-pointer ${
+                envFilter === 'DEMO' ? 'bg-blue-50 text-blue-700 font-extrabold shadow-xs' : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              🧪 Demo
+            </button>
+          </div>
         </div>
 
         {/* Modal Body */}
@@ -481,7 +547,14 @@ export function ConnectBrokerModal({
                     >
                       <div className="flex items-center justify-between">
                         <div className="space-y-0.5">
-                          <span className="text-xs font-bold text-txt-primary block">{b.name}</span>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-xs font-bold text-txt-primary">{b.name}</span>
+                            <span className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold uppercase tracking-wider ${
+                              b.environment === 'LIVE' ? 'bg-rose-100 text-rose-700 border border-rose-200' : 'bg-blue-100 text-blue-700 border border-blue-200'
+                            }`}>
+                              {b.environment === 'LIVE' ? 'LIVE' : 'DEMO'}
+                            </span>
+                          </div>
                           <span className="text-[11px] font-mono text-txt-muted block">
                             Balance: {typeof b.balance === 'number' ? b.balance.toLocaleString('en-US', { minimumFractionDigits: 2 }) : (b.balance || '0.00')} {b.currency || 'USD'}
                           </span>

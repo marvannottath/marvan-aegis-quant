@@ -225,6 +225,16 @@ export function TopHeader() {
                   ? 'Binance Live'
                   : portfolio?.pool_name?.includes('MT5')
                   ? 'MT5 Direct'
+                  : portfolio?.pool_name?.includes('KOTAK')
+                  ? 'Kotak Neo Live'
+                  : portfolio?.pool_name?.includes('UPSTOX')
+                  ? 'Upstox Live'
+                  : portfolio?.pool_name?.includes('ZERODHA')
+                  ? 'Zerodha Live'
+                  : portfolio?.pool_name?.includes('ANGEL')
+                  ? 'Angel One Live'
+                  : portfolio?.pool_name?.includes('DHAN')
+                  ? 'Dhan Live'
                   : 'Broker Active'}
               </span>
               <ChevronDown className="h-3 w-3 opacity-60" />
