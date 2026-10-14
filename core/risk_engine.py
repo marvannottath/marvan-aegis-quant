@@ -741,7 +741,7 @@ class RiskEngine:
         )
         return ok, msg
 
-    def get_drawdown(self, workspace: str = "DEFAULT") -> Dict[str, Any]:
+    def get_drawdown(self, workspace: str = "DEFAULT", environment: Optional[str] = None) -> Dict[str, Any]:
         """
         Authoritative calculation of current portfolio drawdown and daily drawdown for a workspace.
         drawdown_pct = max(0.0, ((peak_equity - current_equity) / peak_equity) * 100.0)
@@ -758,7 +758,7 @@ class RiskEngine:
 
         try:
             from core.position_snapshot_service import position_snapshot_service
-            agg = position_snapshot_service.get_portfolio_aggregate(norm_ws)
+            agg = position_snapshot_service.get_portfolio_aggregate(norm_ws, environment=environment)
             equity = float(agg.get("total_equity", init_cap))
             # CRITICAL: For CRYPTO/live workspace, initial_cap is set to real Binance balance.
             # Use agg["initial_capital"] which reflects the real balance, not a hardcoded 100k.
@@ -832,9 +832,9 @@ class RiskEngine:
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
-    def evaluate_drawdown(self, workspace: str = "DEFAULT") -> Tuple[bool, float, str]:
+    def evaluate_drawdown(self, workspace: str = "DEFAULT", environment: Optional[str] = None) -> Tuple[bool, float, str]:
         """Returns (allowed: bool, drawdown_pct: float, reason: str). Circuit breaker checks realized loss."""
-        dd_info = self.get_drawdown(workspace)
+        dd_info = self.get_drawdown(workspace, environment=environment)
         if dd_info["breached"]:
             self.circuit_tripped = True
             self.trip_reason = f"MAX_DRAWDOWN_BREACHED: realized loss ${dd_info.get('daily_realized_loss', 0.0):.2f} (Limit: ${dd_info.get('daily_loss_limit', 0.0):.2f}, Drawdown: {dd_info.get('realized_drawdown_pct', 0.0):.2f}%)"

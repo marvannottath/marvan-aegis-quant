@@ -158,7 +158,7 @@ class AutonomousTrader:
                         continue
 
                     # ── Gate C: Drawdown Circuit Breaker Check ───────────────────
-                    _dd_ok, _dd_val, _dd_reason = _re.evaluate_drawdown(_active_ws)
+                    _dd_ok, _dd_val, _dd_reason = _re.evaluate_drawdown(_active_ws, environment=_engine_env)
                     if not _dd_ok or _re.circuit_tripped:
                         if step_counter % 8 == 0:
                             self._log_action(
@@ -324,16 +324,22 @@ class AutonomousTrader:
                                         k_bal = 1000.0  # Authoritative user-deposited live capital
 
                                     cur_p_cash = float(self.broker.pools.get("KOTAK_NEO_LIVE", {}).get("virtual_cash", 0.0))
-                                    if cur_p_cash <= 0:
-                                        self.broker.pools.setdefault("KOTAK_NEO_LIVE", {})["virtual_cash"] = k_bal
+                                    used_k_margin = sum(
+                                        float(p.get("capital_allocated", p.get("margin", 0.0)))
+                                        for p in self.broker.pools.get("KOTAK_NEO_LIVE", {}).get("positions", {}).values()
+                                        if isinstance(p, dict)
+                                    )
+                                    if cur_p_cash <= 0 or cur_p_cash > k_bal:
+                                        cur_p_cash = max(0.0, round(k_bal - used_k_margin, 2))
+                                        self.broker.pools.setdefault("KOTAK_NEO_LIVE", {})["virtual_cash"] = cur_p_cash
                                         self.broker.pools.setdefault("KOTAK_NEO_LIVE", {})["equity"] = k_bal
                                         self.broker.pools.setdefault("KOTAK_NEO_LIVE", {})["initial_capital"] = k_bal
-                                        self.broker.virtual_cash = k_bal
+                                        self.broker.virtual_cash = cur_p_cash
                                 except Exception:
                                     pass
-                                current_cash = float(self.broker.pools.get("KOTAK_NEO_LIVE", {}).get("virtual_cash", self.broker.virtual_cash))
+                                current_cash = float(self.broker.pools.get("KOTAK_NEO_LIVE", {}).get("virtual_cash", k_bal if k_bal > 0 else 1000.0))
                                 if current_cash <= 0:
-                                    current_cash = 1000.0
+                                    current_cash = k_bal if k_bal > 0 else 1000.0
                                     self.broker.pools.setdefault("KOTAK_NEO_LIVE", {})["virtual_cash"] = current_cash
                                     self.broker.virtual_cash = current_cash
                             else:

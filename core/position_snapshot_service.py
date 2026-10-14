@@ -266,21 +266,9 @@ class PositionSnapshotService:
                     if s_name not in existing_syms:
                         internal_pos_list.append(v)
 
-        # For India Live (KOTAK_NEO_LIVE, UPSTOX_LIVE): Sync live exchange positions if authenticated, else preserve pool positions
+        # For India Live (KOTAK_NEO_LIVE, UPSTOX_LIVE): Strictly isolate live positions from paper simulation!
         if target_ws == "INDIA" and (is_live_pool or (environment and str(environment).upper() == "LIVE")):
-            if isinstance(paper_broker.positions, dict):
-                existing_syms = {p.get("symbol") or p.get("asset") for p in internal_pos_list}
-                for k, v in paper_broker.positions.items():
-                    if isinstance(v, dict):
-                        is_india_pos = (
-                            v.get("environment") in ["KOTAK_NEO_LIVE", "UPSTOX_LIVE"]
-                            or v.get("source") in ["KOTAK_NEO_LIVE", "UPSTOX_LIVE"]
-                            or workspace_manager.is_symbol_allowed(k, "INDIA")
-                        )
-                        if is_india_pos:
-                            s_name = v.get("symbol") or v.get("asset") or k
-                            if s_name not in existing_syms:
-                                internal_pos_list.append(v)
+            internal_pos_list = []
             try:
                 from execution.kotak_neo_broker import kotak_neo_broker
                 from execution.broker_gateway_manager import broker_gateway_manager
@@ -292,10 +280,22 @@ class PositionSnapshotService:
                 )
                 if k_conn.get("connected") or kotak_neo_broker._is_authenticated or bool(kotak_neo_broker.consumer_key):
                     live_k_pos = kotak_neo_broker.get_live_positions()
-                    if live_k_pos:
+                    if live_k_pos is not None and isinstance(live_k_pos, list):
                         internal_pos_list = list(live_k_pos)
             except Exception as e:
                 print(f"[POSITION_SNAPSHOT] Kotak live position sync notice: {e}")
+
+            # If Kotak exchange positions list is empty, also check if pool has authentic live positions (never TRD-AEGI paper positions)
+            if not internal_pos_list:
+                live_pool_pos = pool.get("positions", {})
+                if isinstance(live_pool_pos, dict):
+                    for p in live_pool_pos.values():
+                        if isinstance(p, dict):
+                            b_id = str(p.get("broker_position_id", ""))
+                            src = str(p.get("source", ""))
+                            env = str(p.get("environment", ""))
+                            if (b_id.startswith("TRD-KNEO-") or src == "KOTAK_NEO_LIVE" or env == "KOTAK_NEO_LIVE") and not b_id.startswith("TRD-AEGI-"):
+                                internal_pos_list.append(p)
 
         # For Forex & Gold Live (CTRADER_LIVE, MT5_LIVE_REAL): Strictly isolate live positions from paper simulation!
         if target_ws == "FOREX_GOLD" and (is_live_pool or (environment and str(environment).upper() == "LIVE")):
@@ -721,8 +721,15 @@ class PositionSnapshotService:
                     else:
                         live_cash = 1000.0  # Authoritative user-deposited live capital
 
-                    free_cash = round(max(0.0, live_cash - used_margin), 2)
-                    total_equity = round(live_cash + unrealized_pnl, 2)
+                    if open_pos_count == 0:
+                        total_exposure = 0.0
+                        used_margin = 0.0
+                        unrealized_pnl = 0.0
+                        free_cash = round(live_cash, 2)
+                        total_equity = round(live_cash, 2)
+                    else:
+                        free_cash = round(max(0.0, live_cash - used_margin), 2)
+                        total_equity = round(live_cash + unrealized_pnl, 2)
                     pool["virtual_cash"] = free_cash
                     pool["equity"] = total_equity
                     initial_cap = self.get_and_update_peak_equity(pool_name, max(total_equity, 1.0))
