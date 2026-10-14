@@ -350,8 +350,13 @@ class AutonomousTrader:
 
                             calc_leverage = base_lev
                             if pool in ["AEGIS_INDIA_INR", "UPSTOX_DEMO", "UPSTOX_LIVE", "KOTAK_NEO_LIVE"] or _active_ws == "INDIA":
-                                max_prof_lev = float(venue_prof.get("max_leverage", 2.0))
-                                calc_leverage = min(max_prof_lev, 5.0)
+                                max_prof_lev = float(venue_prof.get("max_leverage", 5.0))
+                                # For micro-accounts (<= ₹2,500), automatically utilize 5.0x SEBI intraday MIS leverage
+                                # so that 1 share of top Nifty 50 stocks (Reliance, Infosys, HDFC Bank, TCS) can be traded with ₹1,000
+                                if working_cash <= 2500.0:
+                                    calc_leverage = 5.0
+                                else:
+                                    calc_leverage = min(max_prof_lev, 5.0)
 
                             # Dynamic position sizing within risk engine limits
                             venue_cfg = self.risk_engine.get_venue_config(_active_ws, _engine_env)
@@ -382,7 +387,8 @@ class AutonomousTrader:
                                     continue
                                 if working_cash <= 2500.0:
                                     # Retail micro-account (e.g. ₹1,000 INR working capital)
-                                    size_inr = round(min(working_cash * 0.45, 350.0), 2)
+                                    # Allow sizing up to 85% of working cash so 1 share of top Nifty 50 with 5x leverage is permitted
+                                    size_inr = round(min(working_cash * 0.85, 900.0), 2)
                                 else:
                                     size_inr = min(max_cap * 75.0, self.risk_engine.calculate_position_size(working_cash, volatility, opp_score, workspace=_active_ws, environment=_engine_env))
                                 size_usd = size_inr
