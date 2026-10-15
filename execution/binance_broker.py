@@ -184,6 +184,17 @@ class BinanceBroker:
             except Exception as e:
                 print(f"[BINANCE] Config load notice: {e}")
 
+        # Sanitize dummy placeholders
+        dummy_keys = ("test_key", "test_secret", "mock_key", "YOUR_API_KEY", "your_api_key")
+        if self.live_api_key in dummy_keys:
+            self.live_api_key = ""
+        if self.live_secret_key in dummy_keys:
+            self.live_secret_key = ""
+        if self.demo_api_key in dummy_keys:
+            self.demo_api_key = ""
+        if self.demo_secret_key in dummy_keys:
+            self.demo_secret_key = ""
+
         # Active default selection
         if self.testnet:
             self.api_key = self.demo_api_key

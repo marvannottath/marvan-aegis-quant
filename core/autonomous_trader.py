@@ -262,13 +262,13 @@ class AutonomousTrader:
                             action_signal = item["ai_action"]
                             opp_score = item["opportunity_score"]
 
-                            # Calibrated High-Probability Threshold
+                            # Calibrated High-Probability Threshold for active quant execution
                             if "AGGRESSIVE" in profile_name:
-                                min_opp_threshold = 74.0
+                                min_opp_threshold = 64.0
                             elif "MODERATE" in profile_name:
-                                min_opp_threshold = 76.0
+                                min_opp_threshold = 68.0
                             else:
-                                min_opp_threshold = 80.0
+                                min_opp_threshold = 74.0
 
                             if opp_score < min_opp_threshold:
                                 continue
@@ -766,6 +766,20 @@ class AutonomousTrader:
                                     ctrader_broker.close_position(str(pos_id))
                             except Exception as c_err:
                                 print(f"[AUTONOMOUS TRADER] cTrader close error for {pos_asset}: {c_err}")
+                        elif pool in ["KOTAK_NEO_LIVE", "UPSTOX_LIVE"] or (_active_ws == "INDIA" and is_live_pool):
+                            try:
+                                from execution.kotak_neo_broker import kotak_neo_broker
+                                k_close_qty = float(pos.get("quantity", pos.get("units", 1)))
+                                k_prod = str(pos.get("product", "MIS"))
+                                live_k_res = kotak_neo_broker.close_position(
+                                    symbol=pos_asset,
+                                    quantity=k_close_qty,
+                                    product=k_prod,
+                                    environment="LIVE"
+                                )
+                                print(f"[AUTONOMOUS TRADER] Kotak Neo Live Close for {pos_asset}: {live_k_res}")
+                            except Exception as k_close_err:
+                                print(f"[AUTONOMOUS TRADER] Kotak live close error for {pos_asset}: {k_close_err}")
 
                         self.broker.close_position(
                             asset=pos_asset,

@@ -638,10 +638,14 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
         # 2. Real Live Exchange Submission via Kotak Neo Trade API
         is_live_order = (order_request.get("environment") == "LIVE") and not self._paper_mode
         if is_live_order:
-            # Refresh session if token expired or missing
-            if not self._session_token and self._consumer_key and self._mobile_number and getattr(self, "_mpin", ""):
+            # Refresh session if token expired, missing, or date changed to new trading day
+            today_str = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d")
+            saved_date = getattr(self, "_session_date", "")
+            needs_auth = (not self._session_token) or (saved_date != today_str) or (not self._is_authenticated)
+
+            if needs_auth and self._consumer_key and self._mobile_number and getattr(self, "_mpin", ""):
                 totp_sec = getattr(self, "_totp_secret", "")
-                if totp_sec:
+                if totp_sec and not (len(totp_sec) == 6 and totp_sec.isdigit()):
                     try:
                         self.authenticate_live_session(
                             consumer_key=self._consumer_key,
@@ -799,6 +803,28 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
             return {"status": "ERROR", "message": "Order not found"}
         self._mock_orders[order_id]["status"] = "CANCELLED"
         return {"status": "SUCCESS", "order_id": order_id}
+
+    def close_position(
+        self,
+        symbol: str,
+        quantity: float = 0,
+        product: str = "MIS",
+        environment: str = "LIVE"
+    ) -> Dict[str, Any]:
+        """
+        Close an existing open position by submitting a market SELL order to Kotak Neo exchange.
+        """
+        sym_clean = symbol.replace("-EQ", "").strip()
+        close_qty = float(quantity) if quantity > 0 else 1.0
+        return self.place_order({
+            "symbol": sym_clean,
+            "side": "SELL",
+            "quantity": close_qty,
+            "price": 0.0,
+            "order_type": "MARKET",
+            "product": product or "MIS",
+            "environment": environment
+        })
 
     def get_trades(self) -> List[Dict[str, Any]]:
         return [

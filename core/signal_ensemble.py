@@ -33,25 +33,25 @@ class SignalEnsembleEngine:
             "Volatility_AI", "Sentiment_AI", "Macro_AI", "Order_Flow_AI"
         ]
         self.precision_mode = "HIGH_CONVICTION"
-        self.min_confidence_threshold = 74.0
-        self.min_shields_required = 700
+        self.min_confidence_threshold = 68.0
+        self.min_shields_required = 680
 
     def set_precision_mode(self, mode: str) -> Dict[str, Any]:
-        """Configure ensemble precision threshold mode with Option B calibrated high-probability requirements (70% - 82%)."""
+        """Configure ensemble precision threshold mode (64% - 74%)."""
         m_upper = str(mode).upper()
         if m_upper in ["ULTRA_9999_PRECISION", "ULTRA_PRECISION", "ULTRA", "99.99%", "1000_SHIELD", "CONSERVATIVE"]:
             self.precision_mode = "ULTRA_9999_PRECISION"
-            self.min_confidence_threshold = 82.0
-            self.min_shields_required = 750
+            self.min_confidence_threshold = 74.0
+            self.min_shields_required = 720
         elif m_upper in ["HIGH_CONVICTION", "HIGH_PRECISION", "MODERATE"]:
             self.precision_mode = "HIGH_CONVICTION"
-            self.min_confidence_threshold = 74.0
-            self.min_shields_required = 700
-        else:
-            # Aggressive: 70% threshold for active multi-asset trade discovery
-            self.precision_mode = "AGGRESSIVE_HIGH_CONVICTION"
-            self.min_confidence_threshold = 70.0
+            self.min_confidence_threshold = 68.0
             self.min_shields_required = 680
+        else:
+            # Aggressive: 64% threshold for active multi-asset trade discovery
+            self.precision_mode = "AGGRESSIVE_HIGH_CONVICTION"
+            self.min_confidence_threshold = 64.0
+            self.min_shields_required = 650
 
         return {
             "status": "SUCCESS",
@@ -192,10 +192,13 @@ class SignalEnsembleEngine:
             trend_score = 82.0 + (pct_24h * 4.5) + ((range_pos - 0.5) * 8.0)
         elif pct_24h >= -0.5:
             trend_score = 65.0 + (pct_24h * 8.0) + ((range_pos - 0.5) * 14.0)
-        elif pct_24h >= -2.0:
-            trend_score = max(38.0, 55.0 + (pct_24h * 8.0))
+        elif pct_24h >= -3.5:
+            # Healthy pullback / dip consolidation: prime for mean reversion buy
+            trend_score = max(45.0, 58.0 + (pct_24h * 3.5) + ((range_pos - 0.5) * 12.0))
+        elif pct_24h >= -6.0:
+            trend_score = max(30.0, 42.0 + (pct_24h * 2.0))
         else:
-            trend_score = max(20.0, 35.0 + (pct_24h * 3.0))
+            trend_score = max(15.0, 25.0 + (pct_24h * 1.5))
 
         # Momentum AI: Evaluates RSI sweet-spot & directional velocity
         if 52.0 <= rsi <= 68.0:
@@ -310,10 +313,13 @@ class SignalEnsembleEngine:
 
         shields_passed = max(0, min(1000, shields_passed))
 
-        # Directional Consensus: calibrated for institutional scalping and high-conviction breakout/continuation
-        if trend_score >= 58.0 and momentum_score >= 58.0 and pct_24h > -1.5 and range_pos >= 0.38:
+        # Directional Consensus: institutional trend continuation OR mean-reversion dip buying
+        is_trend_buy = (trend_score >= 50.0 and momentum_score >= 50.0 and range_pos >= 0.30)
+        is_dip_buy = (mean_reversion_score >= 70.0 and order_flow_score >= 65.0 and pct_24h > -6.0)
+
+        if is_trend_buy or is_dip_buy:
             direction = "BUY"
-        elif trend_score <= 45.0 and momentum_score <= 50.0 and pct_24h < -1.0 and range_pos <= 0.35:
+        elif trend_score <= 40.0 and momentum_score <= 45.0 and pct_24h < -2.0 and range_pos <= 0.28:
             direction = "SELL"
         else:
             direction = "HOLD"
