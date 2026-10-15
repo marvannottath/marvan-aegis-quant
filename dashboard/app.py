@@ -1207,7 +1207,7 @@ async def get_state(workspace: Optional[str] = None, request_id: Optional[str] =
     # Positions: Single Authoritative Position Snapshot (Sections 1, 2, 9, 10)
     from core.position_snapshot_service import position_snapshot_service
     pos_snapshot = await asyncio.to_thread(position_snapshot_service.get_snapshot, ws, False, environment)
-    port_aggregate = await asyncio.to_thread(position_snapshot_service.get_portfolio_aggregate, ws, False, None, environment)
+    port_aggregate = await asyncio.to_thread(position_snapshot_service.get_portfolio_aggregate, ws, False, pos_snapshot, environment)
     positions = pos_snapshot["positions"]
     equity_val = port_aggregate["total_equity"]
     cash_val = port_aggregate["free_cash"]
@@ -1235,10 +1235,10 @@ async def get_state(workspace: Optional[str] = None, request_id: Optional[str] =
         and workspace_manager.is_symbol_allowed(o.get("symbol", o.get("asset", "")), ws)
     ]
 
-    # Authoritative Workspace Multi-Market Scanner
+    # Authoritative Workspace Multi-Market Scanner (offloaded to thread to avoid event loop stalling)
     from core.multi_market_scanner import multi_scanner
     watchdog = _get_market_data_watchdog()
-    scanned_assets = multi_scanner.scan_workspace(ws)
+    scanned_assets = await asyncio.to_thread(multi_scanner.scan_workspace, ws)
     markets = []
     for item in scanned_assets:
         sym = item["ticker"]

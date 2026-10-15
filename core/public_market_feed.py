@@ -41,20 +41,24 @@ class PublicMarketFeed:
             return f"{sym}.NS"
         return sym
 
+    QUOTE_CACHE_TTL = 45.0
+    CANDLE_CACHE_TTL = 120.0
+    ERROR_BACKOFF_TTL = 20.0
+
     @classmethod
     def get_quote(cls, symbol: str) -> Dict[str, Any]:
-        """Fetch current public quote for an Indian stock or Forex pair."""
+        """Fetch current public quote for an Indian stock or Forex pair with high-resiliency caching."""
         now = time.time()
         sym_clean = symbol.strip().upper()
         cache_entry = cls._quote_cache.get(sym_clean)
-        if cache_entry and (now - cache_entry["ts"]) < 15.0:
+        if cache_entry and (now - cache_entry["ts"]) < cls.QUOTE_CACHE_TTL:
             return cache_entry["data"]
 
         yf_sym = cls._map_symbol(sym_clean)
         try:
             url = f"https://query1.finance.yahoo.com/v8/finance/chart/{yf_sym}?interval=1m&range=1d"
             req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
-            with urllib.request.urlopen(req, timeout=3.5) as resp:
+            with urllib.request.urlopen(req, timeout=2.5) as resp:
                 data = json.loads(resp.read().decode())
                 res = data["chart"]["result"][0]
                 meta = res["meta"]
@@ -82,7 +86,12 @@ class PublicMarketFeed:
                 cls._quote_cache[sym_clean] = {"ts": now, "data": quote}
                 return quote
         except Exception as e:
-            return {
+            # Resiliency: If previous cached quote had a valid price, keep it with extended lease
+            if cache_entry and cache_entry.get("data", {}).get("price") is not None:
+                cache_entry["ts"] = now - (cls.QUOTE_CACHE_TTL - cls.ERROR_BACKOFF_TTL)
+                return cache_entry["data"]
+
+            fallback_quote = {
                 "symbol": sym_clean,
                 "yf_symbol": yf_sym,
                 "price": None,
@@ -91,6 +100,9 @@ class PublicMarketFeed:
                 "status": "DATA_UNAVAILABLE",
                 "error": str(e)
             }
+            # Cache failure for backoff period to prevent hammering and thread choking
+            cls._quote_cache[sym_clean] = {"ts": now - (cls.QUOTE_CACHE_TTL - cls.ERROR_BACKOFF_TTL), "data": fallback_quote}
+            return fallback_quote
 
     @classmethod
     def get_quotes_batch(cls, symbols: List[str]) -> Dict[str, Dict[str, Any]]:
@@ -102,7 +114,7 @@ class PublicMarketFeed:
         for s in symbols:
             s_clean = s.strip().upper()
             cached = cls._quote_cache.get(s_clean)
-            if cached and (now - cached["ts"]) < 15.0:
+            if cached and (now - cached["ts"]) < cls.QUOTE_CACHE_TTL:
                 results[s_clean] = cached["data"]
             else:
                 needed.append(s_clean)
@@ -126,7 +138,7 @@ class PublicMarketFeed:
         sym_clean = symbol.strip().upper()
         cache_key = f"{sym_clean}_{timeframe}_{limit}"
         cache_entry = cls._candle_cache.get(cache_key)
-        if cache_entry and (now - cache_entry["ts"]) < 30.0:
+        if cache_entry and (now - cache_entry["ts"]) < cls.CANDLE_CACHE_TTL:
             return cache_entry["data"]
 
         yf_sym = cls._map_symbol(sym_clean)
@@ -136,7 +148,7 @@ class PublicMarketFeed:
         try:
             url = f"https://query1.finance.yahoo.com/v8/finance/chart/{yf_sym}?interval={interval}&range={rng}"
             req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
-            with urllib.request.urlopen(req, timeout=4.5) as resp:
+            with urllib.request.urlopen(req, timeout=3.0) as resp:
                 data = json.loads(resp.read().decode())
                 res = data["chart"]["result"][0]
                 timestamps = res.get("timestamp", [])

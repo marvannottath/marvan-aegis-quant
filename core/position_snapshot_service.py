@@ -385,10 +385,18 @@ class PositionSnapshotService:
                         pass
                     if live_px <= 0.0:
                         try:
+                            from core.multi_market_scanner import multi_scanner
+                            c_stat = getattr(multi_scanner, "_binance_24h_cache", {}).get(sym.upper())
+                            if c_stat and float(c_stat.get("last", 0.0)) > 0:
+                                live_px = float(c_stat["last"])
+                        except Exception:
+                            pass
+                    if live_px <= 0.0:
+                        try:
                             from execution.binance_broker import binance_broker
-                            b_mdata = binance_broker.get_market_data("BINANCE_LIVE", sym)
-                            if b_mdata and float(b_mdata.get("last_price", 0.0)) > 0:
-                                live_px = float(b_mdata["last_price"])
+                            bulk = getattr(binance_broker, "_bulk_ticker_cache", {})
+                            if sym in bulk and float(bulk[sym].get("last_price", 0.0)) > 0:
+                                live_px = float(bulk[sym]["last_price"])
                         except Exception:
                             pass
 

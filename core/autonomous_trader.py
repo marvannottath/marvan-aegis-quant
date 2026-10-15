@@ -140,6 +140,9 @@ class AutonomousTrader:
 
                 sentiment_score = daily_sync.current_alignment_score
 
+                # Pass-level cache: ensure each unique workspace is scanned at most once per 2.5s loop cycle
+                scanned_cache_this_pass = {}
+
                 # Process opportunities for each active engine (workspace x environment)
                 for _active_ws, _engine_env in running_engines:
                     # ── Gate B: Market Session Check ─────────────────────────────
@@ -212,17 +215,17 @@ class AutonomousTrader:
                         except Exception:
                             pass
 
-                    # Sync connected Binance Live balance if present
+                    # Sync connected Binance Live balance if present (throttled every 15s to eliminate REST latency)
                     if pool == "BINANCE_LIVE_REAL":
                         try:
-                            from execution.binance_broker import binance_broker
-                            from execution.broker_gateway_manager import broker_gateway_manager
-                            b_conn = broker_gateway_manager.connections.get("binance_live") or broker_gateway_manager.connections.get("BINANCE", {})
-                            real_live_cash = binance_broker.get_live_spot_balance("USDT")
-                            conn_bal = float(b_conn.get("balance", 0.0))
-                            resolved_bal = real_live_cash if real_live_cash > 0 else (conn_bal if conn_bal > 0 else 12.58)
                             cur_p_cash = float(self.broker.pools.get("BINANCE_LIVE_REAL", {}).get("virtual_cash", 0.0))
-                            if cur_p_cash <= 0 or real_live_cash > 0:
+                            if cur_p_cash <= 0 or (step_counter % 6 == 0):
+                                from execution.binance_broker import binance_broker
+                                from execution.broker_gateway_manager import broker_gateway_manager
+                                b_conn = broker_gateway_manager.connections.get("binance_live") or broker_gateway_manager.connections.get("BINANCE", {})
+                                real_live_cash = binance_broker.get_live_spot_balance("USDT")
+                                conn_bal = float(b_conn.get("balance", 0.0))
+                                resolved_bal = real_live_cash if real_live_cash > 0 else (conn_bal if conn_bal > 0 else 12.58)
                                 self.broker.pools.setdefault("BINANCE_LIVE_REAL", {})["virtual_cash"] = resolved_bal
                                 self.broker.pools.setdefault("BINANCE_LIVE_REAL", {})["equity"] = resolved_bal
                                 self.broker.virtual_cash = resolved_bal
@@ -238,8 +241,12 @@ class AutonomousTrader:
                         target_capacity = max(3, target_capacity)
                     base_lev = float(venue_prof.get("default_leverage", 2.0))
 
-                    # 3. Scan workspace opportunities
-                    filtered_scanned = multi_scanner.scan_workspace(_active_ws, sentiment_score)
+                    # 3. Scan workspace opportunities (cached per pass)
+                    if _active_ws in scanned_cache_this_pass:
+                        filtered_scanned = scanned_cache_this_pass[_active_ws]
+                    else:
+                        filtered_scanned = multi_scanner.scan_workspace(_active_ws, sentiment_score)
+                        scanned_cache_this_pass[_active_ws] = filtered_scanned
 
                     if len(self.broker.positions) < target_capacity and filtered_scanned:
                         for item in filtered_scanned:
@@ -601,9 +608,10 @@ class AutonomousTrader:
                                 pass
                             if real_px <= 0.0:
                                 try:
-                                    from execution.binance_broker import binance_broker
-                                    mdata = binance_broker.get_market_data("BINANCE_LIVE", pos_asset)
-                                    real_px = float(mdata.get("last_price", 0.0))
+                                    from core.multi_market_scanner import multi_scanner
+                                    c_stat = getattr(multi_scanner, "_binance_24h_cache", {}).get(pos_asset.upper())
+                                    if c_stat and float(c_stat.get("last", 0.0)) > 0:
+                                        real_px = float(c_stat["last"])
                                 except Exception:
                                     pass
 

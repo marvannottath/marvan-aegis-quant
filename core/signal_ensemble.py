@@ -64,20 +64,28 @@ class SignalEnsembleEngine:
             "target_win_rate": "99.99%" if self.precision_mode == "ULTRA_9999_PRECISION" else "92.5%"
         }
 
-    def _calculate_technical_metrics(self, symbol: str, current_price: float, volatility: float) -> Dict[str, Any]:
+    def _calculate_technical_metrics(
+        self,
+        symbol: str,
+        current_price: float,
+        volatility: float,
+        pre_pct_24h: Optional[float] = None,
+        pre_high: Optional[float] = None,
+        pre_low: Optional[float] = None
+    ) -> Dict[str, Any]:
         """Derive genuine deterministic technical metrics from asset price and symbol structure."""
         import numpy as np
         sym_clean = symbol.upper().strip()
 
-        pct_24h = 0.0
-        high = current_price * 1.015
-        low = current_price * 0.985
+        pct_24h = float(pre_pct_24h) if pre_pct_24h is not None else 0.0
+        high = float(pre_high) if pre_high is not None and pre_high > 0 else current_price * 1.015
+        low = float(pre_low) if pre_low is not None and pre_low > 0 else current_price * 0.985
         volume = 1000000
         prev_close = current_price
 
         # 1. Check Binance Crypto Cache / Stream
         is_crypto = "USDT" in sym_clean or "BUSD" in sym_clean or sym_clean in ["BTC", "ETH", "SOL", "BNB", "XRP", "DOGE", "ADA"]
-        if is_crypto:
+        if is_crypto and pre_pct_24h is None:
             try:
                 from core.multi_market_scanner import multi_scanner
                 cache_24h = getattr(multi_scanner, "_binance_24h_cache", {})
@@ -96,7 +104,7 @@ class SignalEnsembleEngine:
                         volume = float(c_tick["volume"])
             except Exception:
                 pass
-        else:
+        elif not is_crypto and pre_pct_24h is None:
             # 2. Check Public Market Feed (NSE India & Forex / Gold)
             try:
                 from core.public_market_feed import public_market_feed
@@ -150,14 +158,30 @@ class SignalEnsembleEngine:
         symbol: str,
         current_price: float,
         volatility: float = 0.015,
-        market_session: Optional[str] = None
+        market_session: Optional[str] = None,
+        pre_pct_24h: Optional[float] = None,
+        pre_high: Optional[float] = None,
+        pre_low: Optional[float] = None
     ) -> Dict[str, Any]:
         """
         Evaluate 7-Agent Institutional Signal Ensemble with 1000-Shield Validation Matrix.
         Runs authentic micro-checks across 10 master risk and technical layers.
+        Ultra-fast memoized caching prevents redundant re-computation.
         """
         sym_upper = symbol.upper().strip()
-        metrics = self._calculate_technical_metrics(sym_upper, current_price, volatility)
+        now = time.time()
+        cache_key = f"{sym_upper}_{round(current_price, 3)}_{self.precision_mode}"
+        if not hasattr(self, "_eval_cache"):
+            self._eval_cache = {}
+            self._eval_cache_ts = {}
+
+        if (now - self._eval_cache_ts.get(cache_key, 0)) < 4.0 and cache_key in self._eval_cache:
+            return self._eval_cache[cache_key]
+
+        metrics = self._calculate_technical_metrics(
+            sym_upper, current_price, volatility,
+            pre_pct_24h=pre_pct_24h, pre_high=pre_high, pre_low=pre_low
+        )
         rsi = metrics["rsi"]
         pct_24h = metrics["pct_24h"]
         range_pos = metrics["range_pos"]
@@ -362,7 +386,7 @@ class SignalEnsembleEngine:
         shield_status = f"{shields_passed}/1000_SHIELDS_PASS" if is_approved else "DEFENSIVE_HOLD"
         primary_reason = failed_reasons[0] if failed_reasons else "All 1,000 Micro-Checks Across 10 Master Layers Cleared"
 
-        return {
+        result = {
             "symbol": sym_upper,
             "price": current_price,
             "direction": direction,
@@ -389,6 +413,9 @@ class SignalEnsembleEngine:
             "target_win_rate": "99.99%",
             "reasoning": f"1000-Shield Fortress: {shield_status} ({weighted_confidence}% Conviction). {primary_reason}."
         }
+        self._eval_cache[cache_key] = result
+        self._eval_cache_ts[cache_key] = now
+        return result
 
 
 # Global Singleton

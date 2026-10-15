@@ -104,7 +104,7 @@ class MultiMarketScanner:
         if not hasattr(self, "_scan_cache"):
             self._scan_cache = {}
             self._scan_cache_ts = {}
-        if (now - self._scan_cache_ts.get(workspace, 0)) < 2.0 and workspace in self._scan_cache:
+        if (now - self._scan_cache_ts.get(workspace, 0)) < 4.0 and workspace in self._scan_cache:
             return self._scan_cache[workspace]
 
         self.step_counter += 1
@@ -195,7 +195,7 @@ class MultiMarketScanner:
                     
                     try:
                         from core.signal_ensemble import signal_ensemble_engine
-                        eval_res = signal_ensemble_engine.evaluate_signal(key, price, 0.015)
+                        eval_res = signal_ensemble_engine.evaluate_signal(key, price, 0.015, pre_pct_24h=change_24h)
                         opp_score = eval_res["confidence_score"]
                         action = eval_res["signal"]
                         # Calibrated technical RSI
@@ -250,7 +250,7 @@ class MultiMarketScanner:
 
                 try:
                     from core.signal_ensemble import signal_ensemble_engine
-                    eval_res = signal_ensemble_engine.evaluate_signal(key, current_price=price, volatility=0.015)
+                    eval_res = signal_ensemble_engine.evaluate_signal(key, current_price=price, volatility=0.015, pre_pct_24h=change_24h)
                     opp_score = float(eval_res.get("confidence_score", 75.0))
                     ai_act = eval_res.get("action", eval_res.get("signal", "HOLD"))
                     rsi = float(eval_res.get("rsi", 50.0))
@@ -303,7 +303,7 @@ class MultiMarketScanner:
 
                 try:
                     from core.signal_ensemble import signal_ensemble_engine
-                    eval_res = signal_ensemble_engine.evaluate_signal(key, current_price=price, volatility=0.015)
+                    eval_res = signal_ensemble_engine.evaluate_signal(key, current_price=price, volatility=0.015, pre_pct_24h=change_24h)
                     opp_score = float(eval_res.get("confidence_score", 75.0))
                     ai_act = eval_res.get("action", eval_res.get("signal", "HOLD"))
                     rsi = float(eval_res.get("rsi", 50.0))
