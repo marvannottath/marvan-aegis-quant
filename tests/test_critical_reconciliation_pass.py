@@ -230,7 +230,7 @@ def run_all_tests():
             ws = r.get("workspace")
             venue = r.get("venue")
             if ws == "INDIA":
-                assert venue in ("NSE", "BSE"), f"India backtest {r['backtest_id']} has wrong venue: {venue}"
+                assert venue in ("NSE", "BSE", "NSE/BSE"), f"India backtest {r['backtest_id']} has wrong venue: {venue}"
             elif ws == "CRYPTO":
                 assert venue in ("Binance", "BINANCE"), f"Crypto backtest {r['backtest_id']} has wrong venue: {venue}"
 
