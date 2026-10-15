@@ -177,15 +177,17 @@ class AutonomousTrader:
                     pool = _wsm.get_workspace_pool(_active_ws, environment=_engine_env)
                     is_live_pool = (_engine_env == "LIVE") or pool in ["BINANCE_LIVE_REAL", "MT5_LIVE_REAL", "UPSTOX_LIVE", "KOTAK_NEO_LIVE"] or "LIVE" in pool.upper()
 
-                    # Safety invariant: if live trading is locked by server policy, route to testnet/demo pool
+                    # Safety invariant: If live trading is locked by server policy, NEVER silently route to DEMO
                     if is_live_pool and not environment_gate.LIVE_TRADING_ENABLED:
-                        if _active_ws == "CRYPTO":
-                            pool = "BINANCE_TESTNET_DEMO"
-                        elif _active_ws == "FOREX_GOLD":
-                            pool = "MT5_DEMO"
-                        elif _active_ws == "INDIA":
-                            pool = "UPSTOX_DEMO"
-                        is_live_pool = False
+                        if step_counter % 12 == 0:
+                            self._log_action(
+                                asset="ENVIRONMENT_GATE",
+                                action="BLOCKED",
+                                price=0.0,
+                                amount_usd=0.0,
+                                reasoning=f"LIVE execution locked for {_active_ws} (LIVE_TRADING_ENABLED=false). Silent routing to DEMO is strictly forbidden."
+                            )
+                        continue
 
                     # Check if this specific engine (workspace x environment) is paused
                     engine_env = _engine_env

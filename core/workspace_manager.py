@@ -5,7 +5,7 @@ Enforces strict workspace / asset-class boundaries across:
   - FOREX_GOLD (USD $) -> AEGIS_QUANT_MASTER (Interbank OTC / Global FX)
   - CRYPTO (USDT $) -> BINANCE_TESTNET_DEMO / BINANCE_LIVE_REAL (Binance)
 
-Default workspace: INDIA
+Default workspace: CRYPTO
 Persisted in: data/workspace_state.json
 """
 
@@ -54,7 +54,7 @@ class WorkspaceManager:
             'workspace': WORKSPACE_FOREX_GOLD,
             'currency': 'USD',
             'currency_symbol': '$',
-            'default_pool': 'MT5_LIVE_REAL',
+            'default_pool': 'MT5_DEMO',
             'allowed_pools': ['MT5_LIVE_REAL', 'MT5_DEMO', 'CTRADER_LIVE', 'FOREX_GOLD'],
             'venue_name': 'Interbank OTC / Global FX',
             'settlement': 'T+2 Rolling Spot',
@@ -75,7 +75,7 @@ class WorkspaceManager:
             'workspace': WORKSPACE_CRYPTO,
             'currency': 'USDT',
             'currency_symbol': '$',
-            'default_pool': 'BINANCE_LIVE_REAL',
+            'default_pool': 'BINANCE_TESTNET_DEMO',
             'allowed_pools': ['BINANCE_LIVE_REAL', 'BINANCE_TESTNET_DEMO', 'BINANCE_DEMO', 'BINANCE_LIVE'],
             'venue_name': 'Binance Spot & Futures',
             'settlement': 'Instant On-Chain / Off-Chain',
@@ -94,18 +94,18 @@ class WorkspaceManager:
     }
 
     def __init__(self):
-        self._active_workspace: str = self.WORKSPACE_INDIA
+        self._active_workspace: str = self.WORKSPACE_CRYPTO
         self._switch_count: int = 0
         self._active_pool_per_workspace: Dict[str, str] = {
             self.WORKSPACE_INDIA: 'AEGIS_INDIA_INR',
-            self.WORKSPACE_CRYPTO: 'BINANCE_LIVE_REAL',
-            self.WORKSPACE_FOREX_GOLD: 'MT5_LIVE_REAL'
+            self.WORKSPACE_CRYPTO: 'BINANCE_TESTNET_DEMO',
+            self.WORKSPACE_FOREX_GOLD: 'MT5_DEMO'
         }
         self._load_state()
 
     def _normalize_workspace(self, ws: Optional[str]) -> str:
         if not ws:
-            return self._active_workspace
+            return self.WORKSPACE_CRYPTO
         clean = str(ws).strip().upper().replace(' ', '_')
         if clean in ['INDIA', 'INDIA_INR', 'NSE', 'BSE', 'UPSTOX', 'KOTAK', 'KOTAK_NEO', 'NEO']:
             return self.WORKSPACE_INDIA
@@ -136,7 +136,7 @@ class WorkspaceManager:
                     return
             except Exception as e:
                 print(f'[WORKSPACE_MGR] Load state error: {e}')
-        self._active_workspace = self.WORKSPACE_INDIA
+        self._active_workspace = self.WORKSPACE_CRYPTO
         self._save_state()
 
     def _save_state(self):
@@ -170,10 +170,10 @@ class WorkspaceManager:
         if ws == self.WORKSPACE_FOREX_GOLD:
             saved = self._active_pool_per_workspace.get(ws)
             if env_norm == "LIVE":
-                return saved if (saved and saved in ['MT5_LIVE_REAL', 'CTRADER_LIVE']) else 'CTRADER_LIVE'
+                return saved if (saved and saved in ['MT5_LIVE_REAL', 'CTRADER_LIVE']) else 'MT5_LIVE_REAL'
             elif env_norm == "PAPER":
                 return saved if (saved and saved in ['MT5_DEMO', 'CTRADER_DEMO']) else 'MT5_DEMO'
-            return saved or 'CTRADER_LIVE'
+            return saved or 'MT5_DEMO'
 
         if ws == self.WORKSPACE_CRYPTO:
             if env_norm == "LIVE":
@@ -183,7 +183,7 @@ class WorkspaceManager:
             saved = self._active_pool_per_workspace.get(ws)
             if saved and saved in ['BINANCE_LIVE_REAL', 'BINANCE_TESTNET_DEMO', 'BINANCE_DEMO', 'BINANCE_LIVE']:
                 return saved
-            return 'BINANCE_LIVE_REAL'
+            return 'BINANCE_TESTNET_DEMO'
 
         if ws == self.WORKSPACE_INDIA:
             if env_norm == "LIVE":

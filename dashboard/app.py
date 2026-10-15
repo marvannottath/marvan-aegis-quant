@@ -4232,7 +4232,7 @@ async def place_order_endpoint(request: Request):
         from core.execution_gate import execution_gate
         from core.workspace_manager import workspace_manager
         req_ws = body.get("workspace")
-        ws = req_ws or workspace_manager.get_active_workspace()
+        ws = req_ws or workspace_manager.get_workspace_for_symbol(asset) or workspace_manager.get_active_workspace()
 
         allowed, gate_code, gate_reason, gate_details = execution_gate.validate_order(
             symbol=asset,
@@ -6079,7 +6079,7 @@ async def submit_order(request: Request):
         from core.workspace_manager import workspace_manager
         from core.audit_logger import audit_logger
         req_ws = body.get("workspace")
-        ws = req_ws or workspace_manager.get_active_workspace()
+        ws = req_ws or workspace_manager.get_workspace_for_symbol(symbol) or workspace_manager.get_active_workspace()
         req_curr = body.get("currency") or ("INR" if ws == "INDIA" else ("USDT" if ws == "CRYPTO" else "USD"))
 
         allowed, gate_code, gate_reason, gate_details = execution_gate.validate_order(

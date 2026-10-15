@@ -46,7 +46,7 @@ class EnvironmentGate:
 
     def __init__(self):
         self._decision_log: list = []
-        self._live_trading_enabled: bool = True
+        self._live_trading_enabled: bool = False
 
     @property
     def LIVE_TRADING_ENABLED(self) -> bool:
@@ -60,7 +60,7 @@ class EnvironmentGate:
                 pass
         if "LIVE_TRADING_ENABLED" in os.environ:
             return os.getenv("LIVE_TRADING_ENABLED", "false").lower() == "true"
-        return getattr(self, "_live_trading_enabled", True)
+        return getattr(self, "_live_trading_enabled", False)
 
     @LIVE_TRADING_ENABLED.setter
     def LIVE_TRADING_ENABLED(self, val: bool):

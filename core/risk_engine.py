@@ -497,9 +497,9 @@ class RiskEngine:
 
         # Gate 6: Drawdown circuit breaker (isolated per workspace)
         ws_key = (workspace or "CRYPTO").upper()
-        market_tripped, m_reason = self.is_circuit_tripped(ws_key)
-        if market_tripped:
-            msg = f"Circuit breaker tripped for {ws_key}: {m_reason}"
+        market_tripped, m_reason = self.is_circuit_tripped(ws_key, environment or "DEMO")
+        if market_tripped or self.circuit_tripped:
+            msg = f"Circuit breaker tripped for {ws_key}: {m_reason if market_tripped else self.trip_reason}"
             return False, RISK_REJECTED_DRAWDOWN, msg
 
         # Gate 7: Stop-loss configured

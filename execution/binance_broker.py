@@ -2310,7 +2310,17 @@ class BinanceBroker:
             return self._open_pos_cache.get(cache_key, [])
 
         is_testnet_env = ("TESTNET" in environment.upper() or "DEMO" in environment.upper())
+        if not is_testnet_env and not self.is_live_configured:
+            self._open_pos_cache[cache_key] = []
+            self._open_pos_ts[cache_key] = now
+            return []
+
         bals = self.get_balances(environment)
+        if not bals:
+            self._open_pos_cache[cache_key] = []
+            self._open_pos_ts[cache_key] = now
+            return []
+
         positions = []
 
         if not hasattr(self, "_entry_price_cache"):
@@ -2318,7 +2328,8 @@ class BinanceBroker:
         if not hasattr(self, "_fills_checked_cache"):
             self._fills_checked_cache = set()
 
-        bulk_data = self.get_bulk_market_data(environment=environment)
+        relevant_symbols = [f"{b.get('asset', '')}USDT" for b in bals if b.get("asset") not in ["USDT", "BUSD", "USDC", "FDUSD"]]
+        bulk_data = self.get_bulk_market_data(symbols=relevant_symbols, environment=environment) if relevant_symbols else {}
 
         for b in bals:
             asset = b.get("asset", "")

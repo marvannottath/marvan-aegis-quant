@@ -95,7 +95,8 @@ class PerformanceCurveEngine:
         env_mode = "LIVE" if str(environment).upper() in ["LIVE", "BINANCE_LIVE_REAL", "MT5_LIVE_REAL", "UPSTOX_LIVE"] else "PAPER"
         try:
             agg = position_snapshot_service.get_portfolio_aggregate(target_ws, environment=env_mode)
-            cur_equity = round(float(agg.get("total_equity", opening_amt)), 2)
+            raw_tot = agg.get("total_equity") if agg else None
+            cur_equity = round(float(raw_tot if raw_tot is not None else opening_amt), 2)
         except Exception:
             if environment in paper_broker.pools and environment != "AEGIS_QUANT_MASTER":
                 pool_data = paper_broker.pools[environment]
@@ -140,9 +141,14 @@ class PerformanceCurveEngine:
 
         if not events:
             # Reconcile live floating values if present
-            floating_pnl = float(agg.get("unrealized_pnl", 0.0)) if 'agg' in locals() else 0.0
-            dd_pct = float(agg.get("drawdown_pct", 0.0)) if 'agg' in locals() else 0.0
-            peak_eq = float(agg.get("peak_equity", cur_equity)) if 'agg' in locals() else cur_equity
+            raw_unrealized = agg.get("unrealized_pnl") if ('agg' in locals() and agg) else None
+            floating_pnl = float(raw_unrealized) if raw_unrealized is not None else 0.0
+
+            raw_dd = agg.get("drawdown_pct") if ('agg' in locals() and agg) else None
+            dd_pct = float(raw_dd) if raw_dd is not None else 0.0
+
+            raw_peak = agg.get("peak_equity") if ('agg' in locals() and agg) else None
+            peak_eq = float(raw_peak) if raw_peak is not None else cur_equity
 
             if metric == "equity":
                 start_val = peak_eq

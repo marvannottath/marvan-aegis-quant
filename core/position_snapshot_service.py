@@ -193,8 +193,10 @@ class PositionSnapshotService:
         """Test hook to simulate broker divergence / orphaned positions."""
         self._injected_delta[workspace] = delta_positions
         if hasattr(self, "_snapshot_cache"):
-            self._snapshot_cache.pop(workspace, None)
-            self._snapshot_cache_ts.pop(workspace, None)
+            keys_to_pop = [k for k in self._snapshot_cache if k.endswith(f":{workspace}") or k == workspace]
+            for k in keys_to_pop:
+                self._snapshot_cache.pop(k, None)
+                self._snapshot_cache_ts.pop(k, None)
 
     def clear_injected_delta(self, workspace: Optional[str] = None):
         """Clear test hooks."""
@@ -307,35 +309,36 @@ class PositionSnapshotService:
             internal_pos_list = []
             try:
                 from execution.binance_broker import binance_broker
-                live_positions = binance_broker.get_open_positions("BINANCE_LIVE", force_refresh=force_refresh)
-                if live_positions:
-                    existing_symbols = {p.get("symbol") or p.get("asset") for p in internal_pos_list}
-                    for lp in live_positions:
-                        sym_name = lp.get("symbol") or lp.get("asset")
-                        if not sym_name:
-                            continue
-                        clean_s = sym_name.upper().replace("USDT", "").replace("BUSD", "")
-                        val_mkt = float(lp.get("market_value", lp.get("capital_allocated", 0.0)))
-                        # If real coins exist on Binance with value >= $4.80, ALWAYS include them
-                        if val_mkt < 4.80 and sym_name not in paper_broker.positions:
-                            continue
-                        # Clear symbol from closed set if user still holds coins
-                        if hasattr(binance_broker, "_closed_spot_assets") and val_mkt >= 4.80:
-                            binance_broker._closed_spot_assets.discard(sym_name.upper())
-                            binance_broker._closed_spot_assets.discard(clean_s)
-                            binance_broker._closed_spot_assets.discard(f"{clean_s}USDT")
+                if binance_broker.is_live_configured:
+                    live_positions = binance_broker.get_open_positions("BINANCE_LIVE", force_refresh=force_refresh)
+                    if live_positions:
+                        existing_symbols = {p.get("symbol") or p.get("asset") for p in internal_pos_list}
+                        for lp in live_positions:
+                            sym_name = lp.get("symbol") or lp.get("asset")
+                            if not sym_name:
+                                continue
+                            clean_s = sym_name.upper().replace("USDT", "").replace("BUSD", "")
+                            val_mkt = float(lp.get("market_value", lp.get("capital_allocated", 0.0)))
+                            # If real coins exist on Binance with value >= $4.80, ALWAYS include them
+                            if val_mkt < 4.80 and sym_name not in paper_broker.positions:
+                                continue
+                            # Clear symbol from closed set if user still holds coins
+                            if hasattr(binance_broker, "_closed_spot_assets") and val_mkt >= 4.80:
+                                binance_broker._closed_spot_assets.discard(sym_name.upper())
+                                binance_broker._closed_spot_assets.discard(clean_s)
+                                binance_broker._closed_spot_assets.discard(f"{clean_s}USDT")
 
-                        if sym_name not in existing_symbols:
-                            internal_pos_list.append(lp)
-                            if sym_name not in paper_broker.positions:
-                                paper_broker.positions[sym_name] = lp
-                        else:
-                            for p in internal_pos_list:
-                                if (p.get("symbol") or p.get("asset")) == sym_name:
-                                    p.update(lp)
-                                    break
-                            if sym_name in paper_broker.positions:
-                                paper_broker.positions[sym_name].update(lp)
+                            if sym_name not in existing_symbols:
+                                internal_pos_list.append(lp)
+                                if sym_name not in paper_broker.positions:
+                                    paper_broker.positions[sym_name] = lp
+                            else:
+                                for p in internal_pos_list:
+                                    if (p.get("symbol") or p.get("asset")) == sym_name:
+                                        p.update(lp)
+                                        break
+                                if sym_name in paper_broker.positions:
+                                    paper_broker.positions[sym_name].update(lp)
             except Exception as e:
                 print(f"[POSITION_SNAPSHOT] Live position sync notice: {e}")
 
@@ -580,13 +583,23 @@ class PositionSnapshotService:
                 from execution.binance_broker import binance_broker
                 from execution.broker_gateway_manager import broker_gateway_manager
                 b_conn = broker_gateway_manager.connections.get("binance_live") or broker_gateway_manager.connections.get("BINANCE", {})
-                b_status = binance_broker.get_authoritative_status(force_refresh=force_refresh)
-                live_info = b_status.get("live", {})
+                if not binance_broker.is_live_configured and not b_conn.get("connected"):
+                    data_source = "DISCONNECTED"
+                    broker_connected = False
+                    free_cash = None
+                    total_equity = None
+                    open_pos_count = 0
+                    total_exposure = 0.0
+                    used_margin = 0.0
+                    unrealized_pnl = 0.0
+                else:
+                    b_status = binance_broker.get_authoritative_status(force_refresh=force_refresh)
+                    live_info = b_status.get("live", {})
 
-                live_tot = float(live_info.get("total_equity", 0.0))
-                live_avail = float(live_info.get("available_balance", 0.0))
-                is_auth = bool(live_info.get("authenticated", False))
-                is_conn = bool(b_conn.get("connected")) or is_auth or bool(binance_broker.live_api_key)
+                    live_tot = float(live_info.get("total_equity", 0.0))
+                    live_avail = float(live_info.get("available_balance", 0.0))
+                    is_auth = bool(live_info.get("authenticated", False))
+                    is_conn = bool(b_conn.get("connected")) or is_auth or bool(binance_broker.live_api_key)
 
                 if is_auth and (live_tot > 0 or live_avail > 0):
                     data_source = "AUTHENTICATED_LIVE"
