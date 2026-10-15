@@ -185,6 +185,7 @@ class AutonomousTrader:
                             pool = "MT5_DEMO"
                         elif _active_ws == "INDIA":
                             pool = "UPSTOX_DEMO"
+                        is_live_pool = False
 
                     # Check if this specific engine (workspace x environment) is paused
                     engine_env = _engine_env
@@ -528,9 +529,10 @@ class AutonomousTrader:
                                             quantity=qty, environment="BINANCE_TESTNET"
                                         )
                                         if testnet_res and testnet_res.get("status") in ("SUCCESS", "FILLED", "PLACED"):
-                                            self._log_action(ticker, act, current_price, size_usd, f"BINANCE TESTNET API ORDER: {testnet_res.get('orderId', 'FILLED')} | Opp {opp_score:.0f}%")
-                                    except Exception:
-                                        pass
+                                            p_id = testnet_res.get("provider_order_id") or testnet_res.get("orderId") or "FILLED"
+                                            self._log_action(ticker, act, current_price, size_usd, f"BINANCE TESTNET API ORDER: {p_id} | Opp {opp_score:.0f}%")
+                                    except Exception as t_err:
+                                        print(f"[AUTONOMOUS TRADER] Binance testnet order err: {t_err}")
 
                                 if is_live_pool:
                                     if not live_order_placed:
@@ -894,6 +896,7 @@ class AutonomousTrader:
         import uuid
         unique_suffix = uuid.uuid4().hex[:6].upper()
         ord_id = f"ORD-AUT-{int(time.time()*1000)}-{ticker}-{unique_suffix}"
+        t8_start = time.perf_counter()
         try:
             from core.order_state_machine import order_state_machine
             osm_order = order_state_machine.create_order(
@@ -904,13 +907,15 @@ class AutonomousTrader:
                 environment=self.broker.active_pool_name,
                 price=current_price, 
                 strategy="7-Agent Ensemble",
-                client_order_id=ord_id  # <--- ഈ ഒരൊറ്റ വരിയാണ് സിസ്റ്റത്തെ രക്ഷിക്കുന്നത്!
+                idempotency_key=ord_id
             )
             ord_id = osm_order.get("order_id", ord_id)
             order_state_machine.transition(ord_id, "RISK_PENDING", reason="Automated risk pipeline check")
             order_state_machine.transition(ord_id, "APPROVED", reason="Risk engine validated")
         except Exception as e:
             print(f"Order state machine error: {e}")
+        t8 = time.perf_counter()
+        dur_sub = max(0.01, round((t8 - t8_start) * 1000, 3))
 
         # 9. Exchange/Fills
         order = self.broker.execute_order(

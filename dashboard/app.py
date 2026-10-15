@@ -214,10 +214,10 @@ async def on_startup():
         from core.workspace_manager import workspace_manager
         from core.ai_trading_controller import ai_trading_controller
         from execution.profit_vault import profit_vault
-        ai_trading_controller.set_state("CRYPTO", "RUNNING", user="SYSTEM", reason="Autonomous Cloud Active — Binance Live")
-        ai_trading_controller.set_state("FOREX_GOLD", "RUNNING", user="SYSTEM", reason="Autonomous Cloud Active")
-        ai_trading_controller.set_state("INDIA", "RUNNING", environment="LIVE", user="SYSTEM", reason="Autonomous Cloud Active — India Kotak Live")
-        ai_trading_controller.set_state("INDIA", "RUNNING", environment="DEMO", user="SYSTEM", reason="Autonomous Cloud Active — India Paper")
+        for ws in ("CRYPTO", "FOREX_GOLD", "INDIA"):
+            ai_trading_controller.set_state(ws, "RUNNING", user="SYSTEM", reason="Autonomous Cloud Active")
+            ai_trading_controller.set_state(ws, "RUNNING", environment="DEMO", user="SYSTEM", reason=f"Autonomous Cloud Active — {ws} Demo")
+            ai_trading_controller.set_state(ws, "RUNNING", environment="LIVE", user="SYSTEM", reason=f"Autonomous Cloud Active — {ws} Live")
     except Exception as e:
         print(f"[STARTUP] Workspace init notice: {e}")
 

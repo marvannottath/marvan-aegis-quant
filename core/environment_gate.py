@@ -90,6 +90,12 @@ class EnvironmentGate:
     def _get_reconciliation_status(self) -> str:
         """Import lazily to avoid circular deps."""
         try:
+            from core.live_reconciliation_sentinel import live_reconciliation_sentinel
+            if live_reconciliation_sentinel.is_live_trading_blocked or live_reconciliation_sentinel.last_report.get("status") == "LIVE RECONCILIATION FAILED":
+                return "LIVE RECONCILIATION FAILED"
+        except Exception:
+            pass
+        try:
             from core.reconciliation_sentinel import reconciliation_sentinel
             return reconciliation_sentinel.last_report.get("status", "UNKNOWN")
         except Exception:

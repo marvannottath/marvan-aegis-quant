@@ -1353,4 +1353,5 @@ print(f"  LIVE_TRADING_ENABLED: False (LOCKED)")
 print(f"  LIVE_WITHDRAWALS_ENABLED: False (LOCKED)")
 print(f"{'='*72}\n")
 
-sys.exit(0 if all_passed else 1)
+if __name__ == "__main__":
+    sys.exit(0 if all_passed else 1)

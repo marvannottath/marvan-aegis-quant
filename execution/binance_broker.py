@@ -195,7 +195,11 @@ class BinanceBroker:
         if self.demo_secret_key in dummy_keys:
             self.demo_secret_key = ""
 
-        # Active default selection
+        # Active default selection: if live keys are not present, fallback cleanly to testnet
+        if not (self.live_api_key and self.live_secret_key) and (self.demo_api_key and self.demo_secret_key):
+            self.testnet = True
+            self.is_demo = True
+
         if self.testnet:
             self.api_key = self.demo_api_key
             self.secret_key = self.demo_secret_key
@@ -205,7 +209,7 @@ class BinanceBroker:
             self.secret_key = self.live_secret_key
             self.market_type = "SPOT_LIVE"
 
-        if self.api_key and self.secret_key:
+        if (self.demo_api_key and self.demo_secret_key) or (self.live_api_key and self.live_secret_key) or (self.api_key and self.secret_key):
             self.status = "CONFIGURED"
             self.account_balance_usd = 0.0
         else:

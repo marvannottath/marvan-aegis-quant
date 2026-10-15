@@ -401,13 +401,13 @@ class BrokerGatewayManager:
                         demo_bal = binance_broker.get_real_balance("BINANCE_TESTNET")
                     except Exception:
                         demo_bal = 19950.55
-                    has_key = bool(binance_broker.api_key)
+                    has_key = bool(binance_broker.demo_api_key or (binance_broker.testnet and binance_broker.api_key))
                     if has_key:
                         status = "ONLINE"
                         is_connected = True
                         balance = demo_bal if demo_bal > 0 else 19950.55
                         ping_ms = "32ms"
-                        active_account_label = self._mask_secret(binance_broker.api_key)
+                        active_account_label = self._mask_secret(binance_broker.demo_api_key or binance_broker.api_key)
                 elif b_id == "mt5_live":
                     mt5_stat = mt5_broker.get_status()
                     mt5_acc = mt5_broker.get_account_info()
