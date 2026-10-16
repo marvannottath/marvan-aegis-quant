@@ -12,6 +12,7 @@ RestartSec=3
 Environment=PORT=8888
 Environment=PYTHONUNBUFFERED=1
 Environment=LIVE_TRADING_ENABLED=false
+Environment=LIVE_WITHDRAWALS_ENABLED=false
 LimitNOFILE=65536
 
 [Install]
