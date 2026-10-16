@@ -7,7 +7,6 @@ Ranks all global assets by AI Confidence & Opportunity Score and routes capital 
 
 import time
 import numpy as np
-import yfinance as yf
 from typing import Dict, List, Any, Tuple
 
 class MultiMarketScanner:
@@ -82,6 +81,10 @@ class MultiMarketScanner:
 
     def __init__(self):
         self.step_counter = 0
+        self._scan_cache: Dict[str, Any] = {}
+        self._scan_cache_ts: Dict[str, float] = {}
+        self._binance_24h_cache: Dict[str, Any] = {}
+        self._binance_24h_cache_ts: float = 0.0
 
     def _get_registry_for_workspace(self, workspace: str) -> Dict[str, Any]:
         ws = str(workspace).strip().upper().replace(" ", "_")

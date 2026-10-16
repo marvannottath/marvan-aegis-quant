@@ -476,12 +476,24 @@ class UpstoxBrokerAdapter(BrokerAdapter):
                     "code": "LIVE_TRADING_LOCKED",
                     "message": "Upstox LIVE order execution is strictly LOCKED (LIVE_TRADING_ENABLED=false)"
                 }
+            if not self._access_token:
+                return {
+                    "status": "REJECTED",
+                    "code": "AUTH_REQUIRED",
+                    "message": "Upstox LIVE order rejected: Access token is missing or expired. Cannot fallback to paper."
+                }
+            if self._paper_mode:
+                return {
+                    "status": "REJECTED",
+                    "code": "CONFIG_ERROR",
+                    "message": "Upstox LIVE order rejected: Adapter is configured in paper mode."
+                }
 
         # Enforce tick size (0.05)
         if price > 0:
             price = round(round(price / 0.05) * 0.05, 2)
 
-        if not self._access_token or self._paper_mode or env == "PAPER":
+        if env in ("PAPER", "DEMO") or not ("LIVE" in env):
             # Paper execution in AEGIS_INDIA_INR pool
             from execution.paper_broker import paper_broker
             paper_broker.set_active_capital_pool("AEGIS_INDIA_INR")

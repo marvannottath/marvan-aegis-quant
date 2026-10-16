@@ -10,6 +10,8 @@ NO static vault_reserve. NO shared ledger leakage. NO ungrounded numbers.
 import os
 import json
 import time
+import threading
+import shutil
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone, timedelta
@@ -22,6 +24,7 @@ BROKER_FILE = Path(__file__).resolve().parent / "paper_broker_state.json"
 
 class PaperBroker:
     def __init__(self):
+        self._save_lock = threading.Lock()
         self.active_pool_name: str = "AEGIS_QUANT_MASTER"
         
         # 3 Completely Partitioned Namespaces
@@ -208,27 +211,40 @@ class PaperBroker:
         self._update_equity()
 
     def _save_state(self):
-        """Persist state to disk in both multi-pool and legacy-compatible flat format."""
-        try:
-            master = self.pools.get("AEGIS_QUANT_MASTER", {})
-            payload = {
-                "active_pool_name": self.active_pool_name,
-                "pools": self.pools,
-                # Backwards compatible flat fields for legacy readers & audit checks
-                "initial_capital": master.get("initial_capital", 100000.0),
-                "virtual_cash": master.get("virtual_cash", 100000.0),
-                "equity": master.get("equity", 100000.0),
-                "positions": master.get("positions", {}),
-                "trade_history": master.get("trade_history", []),
-                "ai_active": master.get("ai_active", True)
-            }
-            # Fast, fixed tmp filename with compact JSON (indent ozhivaakkunnu)
-            tmp = BROKER_FILE.with_suffix(".tmp")
-            with open(tmp, "w") as f:
-                json.dump(payload, f, separators=(',', ':'))
-            tmp.replace(BROKER_FILE)
-        except Exception as e:
-            print(f"[PAPER BROKER] Save state notice: {e}")
+        """Persist state to disk in both multi-pool and legacy-compatible flat format atomically."""
+        if not hasattr(self, "_save_lock"):
+            self._save_lock = threading.Lock()
+        with self._save_lock:
+            tmp = None
+            try:
+                master = self.pools.get("AEGIS_QUANT_MASTER", {})
+                payload = {
+                    "active_pool_name": self.active_pool_name,
+                    "pools": self.pools,
+                    # Backwards compatible flat fields for legacy readers & audit checks
+                    "initial_capital": master.get("initial_capital", 100000.0),
+                    "virtual_cash": master.get("virtual_cash", 100000.0),
+                    "equity": master.get("equity", 100000.0),
+                    "positions": master.get("positions", {}),
+                    "trade_history": master.get("trade_history", []),
+                    "ai_active": master.get("ai_active", True)
+                }
+                # Unique temp filename per save to prevent concurrent rename collisions
+                tmp = BROKER_FILE.parent / f".paper_broker_state_{os.getpid()}_{threading.get_ident()}_{time.time_ns()}.tmp"
+                with open(tmp, "w") as f:
+                    json.dump(payload, f, separators=(',', ':'))
+                try:
+                    os.replace(tmp, BROKER_FILE)
+                except OSError:
+                    shutil.move(str(tmp), str(BROKER_FILE))
+            except Exception as e:
+                print(f"[PAPER BROKER] Save state notice: {e}")
+            finally:
+                if tmp and tmp.exists():
+                    try:
+                        tmp.unlink()
+                    except Exception:
+                        pass
 
     def _sync_active_pool_refs(self):
         """Sync class-level references with active pool."""

@@ -743,6 +743,12 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
                     "order_id": None,
                     "message": "Kotak Neo session expired. Please enter today's 6-digit TOTP in Connect Broker to activate live trading."
                 }
+            else:
+                return {
+                    "status": "REJECTED",
+                    "order_id": None,
+                    "message": "Kotak Neo LIVE order rejected: Consumer Key and live credentials are not configured. Cannot fallback to paper."
+                }
 
         # 3. Paper / Simulation execution fallback
         record = {

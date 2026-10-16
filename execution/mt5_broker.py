@@ -145,13 +145,25 @@ class MT5BrokerAdapter:
             except Exception as e:
                 self.last_error = f"Bridge error: {e}"
 
-        # Successfully configured and bridged for algorithmic execution
+        is_demo_server = ("demo" in self.server.lower() or "trial" in self.server.lower())
+        if not is_demo_server:
+            self.is_connected = False
+            self.status = "BRIDGE_UNAVAILABLE"
+            self.last_error = "MT5 Direct API and REST Bridge are both unavailable for live server connection."
+            return {
+                "status": "ERROR",
+                "message": self.last_error,
+                "login": self.login,
+                "server": self.server
+            }
+
+        # Demo / Simulated connection fallback for development/sandbox
         self.is_connected = True
         self.status = "CONNECTED"
-        default_bal = 10000.0 if ("demo" in self.server.lower() or "trial" in self.server.lower()) else 1000.0
+        default_bal = 10000.0
         return {
             "status": "SUCCESS",
-            "message": f"MT5 account #{self.login} successfully connected on {self.server}!",
+            "message": f"MT5 Demo account #{self.login} active on {self.server} (Simulation)",
             "login": self.login,
             "server": self.server,
             "balance": default_bal,
