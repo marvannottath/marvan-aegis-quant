@@ -429,11 +429,11 @@ class AutonomousTrader:
 
                             # Calibrated High-Probability Threshold for active quant execution
                             if "AGGRESSIVE" in profile_name:
-                                min_opp_threshold = 64.0
+                                min_opp_threshold = 75.0
                             elif "MODERATE" in profile_name:
-                                min_opp_threshold = 68.0
+                                min_opp_threshold = 80.0
                             else:
-                                min_opp_threshold = 74.0
+                                min_opp_threshold = 85.0
 
                             if opp_score < min_opp_threshold:
                                 continue
