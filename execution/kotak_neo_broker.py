@@ -52,6 +52,8 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
 
         self._mpin: str = ""
         self._totp_secret: str = ""
+        self._server_id: str = ""
+        self._session_date: str = ""
 
         if not self._consumer_key and KOTAK_CONFIG_FILE.exists():
             try:
@@ -63,6 +65,7 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
                     self._ucc = cfg.get("ucc", "").strip()
                     self._mpin = cfg.get("mpin", "").strip()
                     self._totp_secret = cfg.get("totp_secret", "").strip()
+                    self._server_id = cfg.get("server_id", cfg.get("hsServerId", "")).strip()
                     self._paper_mode = cfg.get("is_demo", False)
                     self._live_cash = float(cfg.get("live_cash", cfg.get("balance", 0.0)))
                     self._session_token = cfg.get("session_token", "").strip()
@@ -70,6 +73,7 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
                     self._base_url = cfg.get("base_url", "https://mis.kotaksecurities.com").strip()
                     today_str = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d")
                     saved_date = cfg.get("session_date", "")
+                    self._session_date = saved_date
                     if (saved_date == today_str and self._session_token) or self._consumer_key:
                         self._is_authenticated = True
             except Exception as e:
@@ -123,10 +127,10 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
 
     def authenticate_live_session(
         self,
-        consumer_key: str,
-        mobile_number: str,
-        ucc: str,
-        mpin: str,
+        consumer_key: str = "",
+        mobile_number: str = "",
+        ucc: str = "",
+        mpin: str = "",
         totp: str = "",
         totp_secret: str = ""
     ) -> Dict[str, Any]:
@@ -138,15 +142,13 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
         """
         import requests
 
-        c_key = consumer_key.strip()
-        mob = mobile_number.strip()
-        if not mob.startswith("+91") and len(mob) == 10:
-            mob = f"+91{mob}"
-        u_code = ucc.strip().upper()
-        m_pin = str(mpin).strip()
+        c_key = (consumer_key or self._consumer_key).strip()
+        mob = (mobile_number or self._mobile_number).strip().replace(" ", "")
+        u_code = (ucc or self._ucc).strip().upper()
+        m_pin = str(mpin or self._mpin).strip()
 
         curr_totp = str(totp or "").strip()
-        t_sec = str(totp_secret or "").strip()
+        t_sec = str(totp_secret or self._totp_secret or "").strip()
 
         # Flexible fallback: user may have entered 6-digit TOTP into totp_secret field
         if not curr_totp and t_sec:
@@ -170,9 +172,25 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
         if not curr_totp:
             return {
                 "status": "REQUIRES_TOTP",
-                "message": "Please provide your current 6-digit TOTP (from Authenticator app) or TOTP Secret Key to fetch live balance.",
+                "message": "Please provide today's 6-digit TOTP (from your Authenticator app) or your TOTP Secret Key.",
                 "connected": False
             }
+
+        if not c_key or not mob or not u_code or not m_pin:
+            return {
+                "status": "ERROR",
+                "message": "Missing Kotak credentials (Consumer Key, Mobile, UCC, or MPIN). Please configure full credentials once.",
+                "connected": False
+            }
+
+        # Mobile number dual-attempt logic:
+        # The user inputs their mobile number without +91 (10 digits).
+        # We try the exact input format first. If that fails, try the alternate format (+91 or without).
+        mobile_trials = [mob]
+        if mob.startswith("+91") and len(mob) == 13:
+            mobile_trials.append(mob[3:])
+        elif not mob.startswith("+91") and len(mob) == 10:
+            mobile_trials.append(f"+91{mob}")
 
         try:
             # Step 1: tradeApiLogin
@@ -181,22 +199,42 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
                 "neo-fin-key": "neotradeapi",
                 "Content-Type": "application/json"
             }
-            b1 = {
-                "mobileNumber": mob,
-                "ucc": u_code,
-                "totp": curr_totp
-            }
-            r1 = requests.post("https://mis.kotaksecurities.com/login/1.0/tradeApiLogin", headers=h1, json=b1, timeout=12)
-            d1 = r1.json()
-            if r1.status_code not in (200, 201) or "data" not in d1:
-                err_msg = ""
-                if "error" in d1 and isinstance(d1["error"], list) and len(d1["error"]) > 0:
-                    err_msg = d1["error"][0].get("message", "")
-                elif "message" in d1:
-                    err_msg = d1["message"]
+
+            d1 = None
+            r1 = None
+            used_mob = mob
+            login_err = ""
+
+            for trial_mob in mobile_trials:
+                try:
+                    b1 = {
+                        "mobileNumber": trial_mob,
+                        "ucc": u_code,
+                        "totp": curr_totp
+                    }
+                    r1 = requests.post("https://mis.kotaksecurities.com/login/1.0/tradeApiLogin", headers=h1, json=b1, timeout=12)
+                    try:
+                        d1 = r1.json()
+                    except Exception:
+                        d1 = {}
+
+                    if r1.status_code in (200, 201) and "data" in d1 and d1["data"].get("token"):
+                        used_mob = trial_mob
+                        break
+                    else:
+                        if "error" in d1 and isinstance(d1["error"], list) and len(d1["error"]) > 0:
+                            login_err = d1["error"][0].get("message", "")
+                        elif "message" in d1:
+                            login_err = d1["message"]
+                        elif "error" in d1 and isinstance(d1["error"], dict):
+                            login_err = d1["error"].get("message", "")
+                except Exception as ex:
+                    login_err = str(ex)
+
+            if not (d1 and "data" in d1 and d1["data"].get("token")):
                 return {
                     "status": "ERROR",
-                    "message": f"Kotak Neo Login failed: {err_msg or 'Invalid Mobile/UCC/TOTP'}",
+                    "message": f"Kotak Neo Login failed: {login_err or 'Invalid Mobile/UCC/TOTP'}",
                     "connected": False,
                     "raw": d1
                 }
@@ -219,6 +257,8 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
                 err_msg = ""
                 if "error" in d2 and isinstance(d2["error"], list) and len(d2["error"]) > 0:
                     err_msg = d2["error"][0].get("message", "")
+                elif "message" in d2:
+                    err_msg = d2["message"]
                 return {
                     "status": "ERROR",
                     "message": f"Kotak Neo MPIN validation failed: {err_msg or 'Incorrect MPIN'}",
@@ -228,16 +268,25 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
 
             edit_token = d2["data"].get("token")
             edit_sid = d2["data"].get("sid")
+            server_id = d2["data"].get("hsServerId") or d2["data"].get("serverId", "")
             base_url = d2["data"].get("baseUrl", "https://mis.kotaksecurities.com")
+            if base_url and base_url.endswith("/"):
+                base_url = base_url.rstrip("/")
 
+            self._consumer_key = c_key
+            self._mobile_number = used_mob
+            self._ucc = u_code
+            self._mpin = m_pin
             self._session_token = edit_token
             self._session_sid = edit_sid
+            self._server_id = server_id
             self._base_url = base_url
+            self._session_date = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d")
             self._is_authenticated = True
-            self._save_session_cache(edit_token, edit_sid, base_url)
+            self._save_session_cache(edit_token, edit_sid, base_url, server_id=server_id)
 
             # Step 3: Fetch real limits from Kotak Securities
-            live_bal = self.fetch_live_limits(base_url=base_url, edit_token=edit_token, edit_sid=edit_sid)
+            live_bal = self.fetch_live_limits(base_url=base_url, edit_token=edit_token, edit_sid=edit_sid, server_id=server_id)
             self._live_cash = live_bal
 
             return {
@@ -254,12 +303,15 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
                 "connected": False
             }
 
-    def fetch_live_limits(self, base_url: str = "", edit_token: str = "", edit_sid: str = "") -> float:
+    def fetch_live_limits(self, base_url: str = "", edit_token: str = "", edit_sid: str = "", server_id: str = "") -> float:
         """Call /quick/user/limits to retrieve authoritative live balance."""
         import requests
         b_url = base_url or getattr(self, "_base_url", "https://mis.kotaksecurities.com")
+        if b_url.endswith("/"):
+            b_url = b_url.rstrip("/")
         token = edit_token or self._session_token
         sid = edit_sid or getattr(self, "_session_sid", "")
+        s_id = server_id or getattr(self, "_server_id", "")
         if not token or not sid:
             return self._live_cash if self._live_cash > 0 else 1000.0
 
@@ -272,8 +324,16 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
                 "neo-fin-key": "neotradeapi",
                 "Content-Type": "application/x-www-form-urlencoded"
             }
-            body = "seg=ALL&exch=ALL&prod=ALL"
-            resp = requests.post(f"{b_url}/quick/user/limits", headers=h, data=body, timeout=10)
+            url = f"{b_url}/quick/user/limits"
+            if s_id:
+                url = f"{url}?sId={s_id}"
+
+            # Standard Kotak Neo urlencoded jData payload
+            body = {"jData": json.dumps({"seg": "ALL", "exch": "ALL", "prod": "ALL"})}
+            resp = requests.post(url, headers=h, data=body, timeout=10)
+            if resp.status_code != 200:
+                resp = requests.post(url, headers=h, data="seg=ALL&exch=ALL&prod=ALL", timeout=10)
+
             if resp.status_code == 200:
                 data = resp.json()
                 items = []
@@ -315,15 +375,21 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
         try:
             import requests
             b_url = getattr(self, "_base_url", "https://mis.kotaksecurities.com")
+            if b_url.endswith("/"):
+                b_url = b_url.rstrip("/")
+            s_id = getattr(self, "_server_id", "")
+            url = f"{b_url}/quick/user/positions"
+            if s_id:
+                url = f"{url}?sId={s_id}"
             h = {
                 "Authorization": self._consumer_key,
                 "Sid": getattr(self, "_session_sid", ""),
                 "sid": getattr(self, "_session_sid", ""),
                 "Auth": self._session_token,
                 "neo-fin-key": "neotradeapi",
-                "Content-Type": "application/json"
+                "accept": "application/json"
             }
-            resp = requests.get(f"{b_url}/quick/user/positions", headers=h, timeout=8)
+            resp = requests.get(url, headers=h, timeout=8)
             if resp.status_code == 200:
                 data = resp.json()
                 pos_list = []
@@ -357,7 +423,7 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
             return False
         return self.authenticate().get("authenticated", False)
 
-    def _save_session_cache(self, token: str, sid: str, base_url: str):
+    def _save_session_cache(self, token: str, sid: str, base_url: str, server_id: str = ""):
         """Persist authenticated session token so it survives server restarts within the same trading day."""
         try:
             today_str = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d")
@@ -368,6 +434,7 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
                         data = json.load(f)
                 except Exception:
                     pass
+            s_id = server_id or getattr(self, "_server_id", "")
             data.update({
                 "consumer_key": self._consumer_key,
                 "consumer_secret": self._consumer_secret,
@@ -377,6 +444,7 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
                 "totp_secret": self._totp_secret,
                 "session_token": token,
                 "session_sid": sid,
+                "server_id": s_id,
                 "base_url": base_url,
                 "session_date": today_str,
                 "session_saved_at": _ist_now(),
@@ -667,7 +735,12 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
                 try:
                     import requests
                     b_url = getattr(self, "_base_url", "https://mis.kotaksecurities.com")
+                    if b_url.endswith("/"):
+                        b_url = b_url.rstrip("/")
+                    s_id = getattr(self, "_server_id", "")
                     endpoint = f"{b_url}/quick/order/rule/ms/place"
+                    if s_id:
+                        endpoint = f"{endpoint}?sId={s_id}"
                     headers = {
                         "Authorization": self._consumer_key,
                         "Sid": getattr(self, "_session_sid", ""),
@@ -691,7 +764,8 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
                         "rt": "DAY",
                         "tp": "0",
                         "ts": ts_sym,
-                        "tt": "B" if side == "BUY" else "S"
+                        "tt": "B" if side == "BUY" else "S",
+                        "os": "NEOTRADEAPI"
                     }
                     resp = requests.post(endpoint, headers=headers, data={"jData": json.dumps(data_payload)}, timeout=12)
                     try:

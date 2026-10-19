@@ -107,7 +107,7 @@ const DEFAULT_BROKERS = [
     description: "Kotak Neo Open API (v2) for NSE & BSE Equities, F&O and Currency with zero intraday brokerage",
     fields: [
       { id: "consumer_key", label: "Kotak Consumer Key (API Key)", type: "text", placeholder: "Enter Kotak Neo Consumer Key", required: true },
-      { id: "mobile_number", label: "Registered Mobile Number", type: "text", placeholder: "e.g. 9207802002", required: true },
+      { id: "mobile_number", label: "Registered Mobile Number (10 digits without +91)", type: "text", placeholder: "e.g. 9207802002 (without +91)", required: true },
       { id: "ucc", label: "Client Code / UCC", type: "text", placeholder: "e.g. 16MT6", required: true },
       { id: "mpin", label: "Kotak Neo 6-digit MPIN", type: "password", placeholder: "Enter your 6-digit MPIN", required: true },
       { id: "totp", label: "Current 6-Digit TOTP (from Authenticator App)", type: "text", placeholder: "e.g. 582910 (Refreshes every 30s)", required: false },
@@ -203,6 +203,9 @@ export function ConnectBrokerModal({
   );
   const [selectedBroker, setSelectedBroker] = useState<any | null>(null);
   const [formValues, setFormValues] = useState<Record<string, any>>({});
+  const [showFullCreds, setShowFullCreds] = useState<boolean>(false);
+  const [dailyTotpInput, setDailyTotpInput] = useState<string>('');
+  const [isDailyTotpSubmitting, setIsDailyTotpSubmitting] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isTesting, setIsTesting] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
@@ -263,6 +266,8 @@ export function ConnectBrokerModal({
     setSelectedBroker(broker);
     setTestResult(null);
     setSaveResult(null);
+    setShowFullCreds(false);
+    setDailyTotpInput('');
     // Pre-populate defaults
     const initial: Record<string, any> = {
       broker_id: broker.id,
@@ -271,6 +276,10 @@ export function ConnectBrokerModal({
     (broker.fields || []).forEach((f: any) => {
       initial[f.id] = '';
     });
+    if (broker.id === 'kotak_neo_live') {
+      if (broker.saved_ucc) initial.ucc = broker.saved_ucc;
+      if (broker.saved_mobile) initial.mobile_number = broker.saved_mobile;
+    }
     setFormValues(initial);
   };
 
@@ -346,6 +355,40 @@ export function ConnectBrokerModal({
       });
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleQuickDailyTotpSubmit = async () => {
+    if (!dailyTotpInput || dailyTotpInput.length !== 6) return;
+    try {
+      setIsDailyTotpSubmitting(true);
+      setSaveResult(null);
+      const res = await api.connectBroker({
+        broker_id: 'kotak_neo_live',
+        totp: dailyTotpInput,
+      });
+
+      if (res.status === 'SUCCESS' || res.connected) {
+        setSaveResult({
+          status: 'SUCCESS',
+          message: res.message || '✅ Kotak Neo Live Authenticated! Real session active.',
+        });
+        setDailyTotpInput('');
+        await loadBrokers();
+        await refreshData();
+      } else {
+        setSaveResult({
+          status: 'ERROR',
+          message: res.message || 'Kotak Neo authentication failed. Please check TOTP.',
+        });
+      }
+    } catch (err: any) {
+      setSaveResult({
+        status: 'ERROR',
+        message: err?.message || 'Authentication error during TOTP handshake',
+      });
+    } finally {
+      setIsDailyTotpSubmitting(false);
     }
   };
 
@@ -636,28 +679,105 @@ export function ConnectBrokerModal({
                     </button>
                   </div>
 
-                  {/* Form fields */}
-                  <div className="space-y-3">
-                    {(selectedBroker.fields || [
-                      { id: 'api_key', label: 'API Key', type: 'text', placeholder: 'Enter API Key', required: true },
-                      { id: 'secret_key', label: 'Secret Key', type: 'password', placeholder: 'Enter Secret Key', required: true },
-                    ]).map((f: any) => (
-                      <div key={f.id} className="space-y-1">
-                        <label className="text-[11px] font-semibold text-txt-secondary flex items-center justify-between">
-                          <span>{f.label}</span>
-                          {f.required && <span className="text-[10px] text-loss">*Required</span>}
-                        </label>
-                        <input
-                          type={f.type || 'text'}
-                          placeholder={f.placeholder}
-                          required={f.required}
-                          value={formValues[f.id] || ''}
-                          onChange={(e) => handleInputChange(f.id, e.target.value)}
-                          className="w-full px-3 py-2 text-xs font-mono bg-white border border-line rounded-md focus:border-brand focus:ring-1 focus:ring-brand outline-none transition"
-                        />
+                  {/* Fast Daily TOTP Box for Kotak Neo */}
+                  {selectedBroker.id === 'kotak_neo_live' && selectedBroker.has_stored_credentials && (
+                    <div className="p-4 bg-gradient-to-br from-red-50/90 to-amber-50/70 rounded-xl border border-red-200/90 shadow-xs space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="p-1.5 bg-red-600 text-white rounded-lg">
+                            <KeyRound className="h-4 w-4" />
+                          </div>
+                          <div>
+                            <h4 className="text-xs font-bold text-slate-900">
+                              ⚡ Fast Daily TOTP Login
+                            </h4>
+                            <p className="text-[11px] text-slate-600">
+                              UCC: <span className="font-mono font-bold text-slate-900">{selectedBroker.saved_ucc || selectedBroker.active_account_label || 'Configured'}</span> &bull; Mobile: <span className="font-mono text-slate-900">{selectedBroker.saved_mobile || 'Configured'}</span>
+                            </p>
+                          </div>
+                        </div>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
+                          selectedBroker.session_active_today
+                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                            : 'bg-amber-100 text-amber-900 border border-amber-300 animate-pulse'
+                        }`}>
+                          {selectedBroker.session_active_today ? '✓ SESSION ACTIVE TODAY' : '⚠️ DAILY 2FA REQUIRED'}
+                        </span>
                       </div>
-                    ))}
-                  </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[11px] font-bold text-slate-800 flex items-center justify-between">
+                          <span>Enter Today&apos;s 6-Digit TOTP (Authenticator App)</span>
+                          <span className="text-[10px] text-slate-500 font-normal">Valid for 30s</span>
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            maxLength={6}
+                            placeholder="e.g. 582910"
+                            value={dailyTotpInput}
+                            onChange={(e) => setDailyTotpInput(e.target.value.replace(/\D/g, ''))}
+                            className="flex-1 px-3 py-2 text-sm font-mono font-bold tracking-widest text-center bg-white border border-red-300 rounded-lg focus:border-red-600 focus:ring-2 focus:ring-red-100 outline-none transition"
+                          />
+                          <button
+                            type="button"
+                            disabled={isDailyTotpSubmitting || dailyTotpInput.length !== 6}
+                            onClick={handleQuickDailyTotpSubmit}
+                            className="px-4 py-2 text-xs font-bold bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-xs transition disabled:opacity-50 cursor-pointer flex items-center gap-1.5 shrink-0"
+                          >
+                            {isDailyTotpSubmitting ? (
+                              <>
+                                <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                                <span>Authenticating...</span>
+                              </>
+                            ) : (
+                              <>
+                                <span>🚀 Authenticate Session</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="pt-2 border-t border-red-200/60 flex items-center justify-between text-[11px]">
+                        <span className="text-slate-600">
+                          Credentials (API Key, Mobile, MPIN) are securely saved.
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setShowFullCreds(!showFullCreds)}
+                          className="font-bold text-red-700 hover:text-red-900 underline cursor-pointer"
+                        >
+                          {showFullCreds ? 'Hide Full Credentials' : 'Edit Full Credentials'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Form fields */}
+                  {(!selectedBroker.has_stored_credentials || showFullCreds || selectedBroker.id !== 'kotak_neo_live') && (
+                    <div className="space-y-3">
+                      {(selectedBroker.fields || [
+                        { id: 'api_key', label: 'API Key', type: 'text', placeholder: 'Enter API Key', required: true },
+                        { id: 'secret_key', label: 'Secret Key', type: 'password', placeholder: 'Enter Secret Key', required: true },
+                      ]).map((f: any) => (
+                        <div key={f.id} className="space-y-1">
+                          <label className="text-[11px] font-semibold text-txt-secondary flex items-center justify-between">
+                            <span>{f.label}</span>
+                            {f.required && !selectedBroker.has_stored_credentials && <span className="text-[10px] text-loss">*Required</span>}
+                          </label>
+                          <input
+                            type={f.type || 'text'}
+                            placeholder={f.placeholder}
+                            required={f.required && !selectedBroker.has_stored_credentials}
+                            value={formValues[f.id] || ''}
+                            onChange={(e) => handleInputChange(f.id, e.target.value)}
+                            className="w-full px-3 py-2 text-xs font-mono bg-white border border-line rounded-md focus:border-brand focus:ring-1 focus:ring-brand outline-none transition"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
                   {/* Binance Live Specific Checklist */}
                   {selectedBroker.id === 'binance_live' && (

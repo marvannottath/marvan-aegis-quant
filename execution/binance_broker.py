@@ -148,8 +148,8 @@ class BinanceBroker:
             pass
 
         # 1. Check environment variables with extensive aliases
-        self.demo_api_key = (os.getenv("BINANCE_TEST_API_KEY") or os.getenv("BINANCE_DEMO_API_KEY") or "").strip()
-        self.demo_secret_key = (os.getenv("BINANCE_TEST_SECRET_KEY") or os.getenv("BINANCE_DEMO_SECRET_KEY") or "").strip()
+        self.demo_api_key = (os.getenv("BINANCE_TESTNET_API_KEY") or os.getenv("BINANCE_TEST_API_KEY") or os.getenv("BINANCE_DEMO_API_KEY") or "").strip()
+        self.demo_secret_key = (os.getenv("BINANCE_TESTNET_SECRET_KEY") or os.getenv("BINANCE_TEST_SECRET_KEY") or os.getenv("BINANCE_DEMO_SECRET_KEY") or "").strip()
         self.live_api_key = (os.getenv("BINANCE_LIVE_API_KEY") or os.getenv("BINANCE_API_KEY") or os.getenv("BINANCE_KEY") or "").strip()
         self.live_secret_key = (os.getenv("BINANCE_LIVE_SECRET_KEY") or os.getenv("BINANCE_SECRET_KEY") or os.getenv("BINANCE_API_SECRET") or os.getenv("BINANCE_SECRET") or "").strip()
 
@@ -236,10 +236,56 @@ class BinanceBroker:
             print(f"[BINANCE] Closed spot assets load notice: {e}")
         return defaults
 
+    def get_entry_price(self, environment: str, symbol: str) -> float:
+        """
+        Resolve authoritative entry price for a symbol from:
+        1. In-memory entry price cache
+        2. Platform position store (matching environment pool)
+        3. Execution fills / myTrades history
+        Returns 0.0 if not resolvable (never fake or silently substitute exit price).
+        """
+        sym_clean = symbol.upper().replace("/", "").replace("USDT", "").replace("BUSD", "").strip()
+        pair = f"{sym_clean}USDT"
+
+        # 1. Check entry price cache
+        if hasattr(self, "_entry_price_cache"):
+            for k in (pair, sym_clean, symbol.upper()):
+                px = float(self._entry_price_cache.get(k, 0.0))
+                if px > 0:
+                    return px
+
+        # 2. Check paper_broker recorded positions in the target pool
+        try:
+            from execution.paper_broker import paper_broker
+            target_pool = "BINANCE_TESTNET_DEMO" if "TESTNET" in environment.upper() else "BINANCE_LIVE_REAL"
+            pool_data = paper_broker.pools.get(target_pool, {})
+            pos_dict = pool_data.get("positions", {})
+            for k in (pair, sym_clean, symbol.upper(), f"{sym_clean}:USDT_M_FUTURES"):
+                p = pos_dict.get(k) or paper_broker.positions.get(k)
+                if p and float(p.get("entry_price", 0.0)) > 0:
+                    return float(p.get("entry_price"))
+        except Exception:
+            pass
+
+        # 3. Query recent execution fills / myTrades
+        try:
+            fills = self.get_execution_fills(environment, pair, limit=10)
+            for fill in reversed(fills):
+                if fill.get("isBuyer") or fill.get("buyer"):
+                    f_px = float(fill.get("price", 0.0))
+                    if f_px > 0:
+                        return f_px
+        except Exception:
+            pass
+
+        return 0.0
+
     def close_spot_position(self, symbol: str, environment: str = "BINANCE_LIVE") -> Dict[str, Any]:
         """Liquidate or close a spot position on Binance and dismiss from active display."""
         sym_clean = symbol.upper().replace("/", "").replace("USDT", "").replace("BUSD", "").strip()
         pair = f"{sym_clean}USDT"
+        is_testnet = "TESTNET" in environment.upper()
+        target_pool = "BINANCE_TESTNET_DEMO" if is_testnet else "BINANCE_LIVE_REAL"
 
         # Clear in-memory open positions cache
         if hasattr(self, "_open_pos_ts"):
@@ -270,10 +316,12 @@ class BinanceBroker:
                     self.dismiss_spot_position(pair)
                     return {
                         "status": "SUCCESS",
+                        "outcome": "ZERO_HOLDINGS",
                         "message": f"Zero {sym_clean} holdings found on Binance. Position dismissed."
                     }
                 return {
                     "status": "ERROR",
+                    "outcome": "LOCKED_IN_ORDERS",
                     "message": f"Cannot sell {sym_clean}: balance is locked in existing Binance orders (Free: {free_qty}, Locked: {total_qty}). Please cancel open orders on Binance."
                 }
 
@@ -289,6 +337,9 @@ class BinanceBroker:
 
             notional = (formatted_qty * px) if px > 0 else (free_qty * px)
 
+            # Pre-resolve and preserve authentic entry price BEFORE submitting order or wiping caches
+            entry_px = self.get_entry_price(environment, pair)
+
             # If position value is at least 4.80 USDT (Binance spot min notional ~5 USDT with buffer), attempt market sell
             if notional >= 4.80 or px <= 0:
                 order_res = self.create_order(
@@ -298,20 +349,22 @@ class BinanceBroker:
                     quantity=formatted_qty if formatted_qty > 0 else free_qty,
                     order_type="MARKET"
                 )
-                if order_res.get("status") in ["SUCCESS", "FILLED"]:
-                    self.dismiss_spot_position(sym_clean)
-                    self.dismiss_spot_position(pair)
+                if order_res.get("outcome") == "PARTIALLY_FILLED":
+                    fill_px = float(order_res.get("average_fill_price") or order_res.get("avg_price") or order_res.get("price") or px)
+                    fill_qty = float(order_res.get("executed_quantity", 0.0))
+                    orig_qty = float(order_res.get("orig_quantity") or formatted_qty or free_qty)
+                    rem_qty = max(0.0, round(orig_qty - fill_qty, 8))
 
-                    fill_px = float(order_res.get("average_fill_price") or px)
-                    fill_qty = float(order_res.get("executed_quantity") or formatted_qty or free_qty)
-                    entry_px = float(self._entry_price_cache.get(pair, 0.0) or self._entry_price_cache.get(sym_clean, 0.0))
+                    # For partial fill: DO NOT dismiss spot position, DO NOT clear entry price cache!
+                    entry_estimated = False
                     if entry_px <= 0:
                         entry_px = self.get_entry_price(environment, pair)
                     if entry_px <= 0:
                         entry_px = fill_px
+                        entry_estimated = True
 
-                    gross_pnl = round((fill_px - entry_px) * fill_qty, 4)
-                    
+                    gross_pnl = round((fill_px - entry_px) * fill_qty, 4) if not entry_estimated else 0.0
+
                     # Extract exact Binance commission from fill receipt if available
                     exact_exit_fee = 0.0
                     fills = order_res.get("fills", [])
@@ -327,21 +380,24 @@ class BinanceBroker:
                                 exact_exit_fee += (c_amt * bnb_px)
                             else:
                                 exact_exit_fee += (c_amt * fill_px)
-                        fee_usd = round(exact_exit_fee + (entry_px * fill_qty * (0.00075 if exact_exit_fee < (fill_px * fill_qty * 0.0009) else 0.001)), 4)
+                        fee_usd = round(exact_exit_fee + (entry_px * fill_qty * (0.00075 if exact_exit_fee < (fill_px * fill_qty * 0.0009) else 0.001)), 4) if not entry_estimated else round(exact_exit_fee, 4)
                     else:
-                        fee_usd = round(((entry_px * fill_qty) + (fill_px * fill_qty)) * 0.001, 4)
+                        fee_usd = round(((entry_px * fill_qty) + (fill_px * fill_qty)) * 0.001, 4) if not entry_estimated else round(fill_px * fill_qty * 0.001, 4)
 
                     net_pnl = round(gross_pnl - fee_usd, 2)
                     now_str = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S")
 
                     trade_record = {
-                        "trade_id": f"TRD-BINA-{sym_clean}-{int(time.time()*1000)}",
+                        "trade_id": f"TRD-BINA-PART-{sym_clean}-{int(time.time()*1000)}",
                         "asset": pair,
                         "symbol": pair,
-                        "action": "BUY",
-                        "side": "BUY",
+                        "action": "SELL",
+                        "side": "SELL",
+                        "entry_side": "BUY",
+                        "exit_side": "SELL",
                         "entry_price": entry_px,
                         "exit_price": fill_px,
+                        "entry_price_estimated": entry_estimated,
                         "units": fill_qty,
                         "quantity": fill_qty,
                         "capital_allocated": round(entry_px * fill_qty, 2),
@@ -350,51 +406,188 @@ class BinanceBroker:
                         "fee_usd": fee_usd,
                         "net_pnl": net_pnl,
                         "pnl_usd": net_pnl,
-                        "pnl_pct": round((gross_pnl / (entry_px * fill_qty)) * 100.0, 2) if (entry_px * fill_qty) > 0 else 0.0,
+                        "pnl_pct": round((gross_pnl / (entry_px * fill_qty)) * 100.0, 2) if (entry_px * fill_qty) > 0 and not entry_estimated else 0.0,
+                        "result": "WIN" if net_pnl > 0 else "LOSS",
+                        "reason": "BINANCE_SPOT_PARTIAL_FILL",
+                        "is_partial": True,
+                        "units_remaining": rem_qty,
+                        "timestamp": now_str,
+                        "date": now_str[:10],
+                        "workspace": "CRYPTO",
+                        "source": "BINANCE_TESTNET" if is_testnet else "BINANCE_LIVE"
+                    }
+
+                    try:
+                        from execution.paper_broker import paper_broker
+                        pool = paper_broker.pools.setdefault(target_pool, {})
+                        hist = pool.setdefault("trade_history", [])
+                        hist.insert(0, trade_record)
+                        if len(hist) > 500:
+                            pool["trade_history"] = hist[:500]
+                        # Retain remaining position in pool
+                        if "positions" in pool and isinstance(pool["positions"], dict):
+                            pos = pool["positions"].get(pair) or pool["positions"].get(sym_clean)
+                            if pos:
+                                current_units = float(pos.get("units", orig_qty))
+                                new_units = max(0.0, round(current_units - fill_qty, 8))
+                                if new_units > 0:
+                                    pos["units"] = new_units
+                                    pos["quantity"] = new_units
+                                    pos["capital_allocated"] = round(entry_px * new_units, 2)
+                                else:
+                                    pool["positions"].pop(pair, None)
+                                    pool["positions"].pop(sym_clean, None)
+                        # Return margin + net pnl to cash
+                        cash_returned = round((entry_px * fill_qty) + net_pnl, 2)
+                        pool["virtual_cash"] = round(float(pool.get("virtual_cash", paper_broker.virtual_cash)) + cash_returned, 2)
+                        if paper_broker.active_pool_name == target_pool:
+                            paper_broker.virtual_cash = pool["virtual_cash"]
+                        paper_broker._save_state()
+                    except Exception as pb_err:
+                        print(f"[BINANCE CLOSE PARTIAL] paper_broker save notice: {pb_err}")
+
+                    return {
+                        "status": "PARTIALLY_FILLED",
+                        "outcome": "PARTIALLY_FILLED",
+                        "message": f"Partially sold {fill_qty} / {orig_qty} {sym_clean} on Binance Spot at {fill_px}. Net PnL: ${net_pnl:+.2f}",
+                        "order": order_res,
+                        "trade_record": trade_record,
+                        "executed_quantity": fill_qty,
+                        "remaining_quantity": rem_qty,
+                        "average_fill_price": fill_px,
+                        "client_order_id": order_res.get("client_order_id"),
+                        "provider_order_id": order_res.get("provider_order_id"),
+                        "realized_pnl": net_pnl
+                    }
+
+                elif order_res.get("outcome") in ["NEW", "ACCEPTED"]:
+                    return {
+                        "status": "PENDING",
+                        "outcome": "RESTING_ORDER",
+                        "symbol": pair,
+                        "client_order_id": order_res.get("client_order_id"),
+                        "provider_order_id": order_res.get("provider_order_id"),
+                        "order": order_res,
+                        "message": f"Order {order_res.get('client_order_id')} is resting on Binance Spot book"
+                    }
+
+                elif order_res.get("status") in ["SUCCESS", "FILLED"] and order_res.get("outcome") not in ["PARTIALLY_FILLED", "NEW", "CANCELED"]:
+                    self.dismiss_spot_position(sym_clean)
+                    self.dismiss_spot_position(pair)
+
+                    fill_px = float(order_res.get("average_fill_price") or order_res.get("avg_price") or order_res.get("price") or px)
+                    fill_qty = float(order_res.get("executed_quantity") or formatted_qty or free_qty)
+
+                    entry_estimated = False
+                    if entry_px <= 0:
+                        entry_px = self.get_entry_price(environment, pair)
+                    if entry_px <= 0:
+                        entry_px = fill_px
+                        entry_estimated = True
+
+                    gross_pnl = round((fill_px - entry_px) * fill_qty, 4) if not entry_estimated else 0.0
+
+                    # Extract exact Binance commission from fill receipt if available
+                    exact_exit_fee = 0.0
+                    fills = order_res.get("fills", [])
+                    if fills:
+                        for f in fills:
+                            c_amt = float(f.get("commission", 0.0))
+                            c_asset = str(f.get("commissionAsset", "")).upper()
+                            if c_asset in ["USDT", "BUSD", "USD"]:
+                                exact_exit_fee += c_amt
+                            elif c_asset == "BNB":
+                                bulk_px = self.get_bulk_market_data(environment=environment)
+                                bnb_px = float(bulk_px.get("BNBUSDT", {}).get("last_price", 600.0) or 600.0)
+                                exact_exit_fee += (c_amt * bnb_px)
+                            else:
+                                exact_exit_fee += (c_amt * fill_px)
+                        fee_usd = round(exact_exit_fee + (entry_px * fill_qty * (0.00075 if exact_exit_fee < (fill_px * fill_qty * 0.0009) else 0.001)), 4) if not entry_estimated else round(exact_exit_fee, 4)
+                    else:
+                        fee_usd = round(((entry_px * fill_qty) + (fill_px * fill_qty)) * 0.001, 4) if not entry_estimated else round(fill_px * fill_qty * 0.001, 4)
+
+                    net_pnl = round(gross_pnl - fee_usd, 2)
+                    now_str = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S")
+
+                    trade_record = {
+                        "trade_id": f"TRD-BINA-{sym_clean}-{int(time.time()*1000)}",
+                        "asset": pair,
+                        "symbol": pair,
+                        "action": "SELL",
+                        "side": "SELL",
+                        "entry_side": "BUY",
+                        "exit_side": "SELL",
+                        "entry_price": entry_px,
+                        "exit_price": fill_px,
+                        "entry_price_estimated": entry_estimated,
+                        "units": fill_qty,
+                        "quantity": fill_qty,
+                        "capital_allocated": round(entry_px * fill_qty, 2),
+                        "leverage": 1.0,
+                        "gross_pnl": gross_pnl,
+                        "fee_usd": fee_usd,
+                        "net_pnl": net_pnl,
+                        "pnl_usd": net_pnl,
+                        "pnl_pct": round((gross_pnl / (entry_px * fill_qty)) * 100.0, 2) if (entry_px * fill_qty) > 0 and not entry_estimated else 0.0,
                         "result": "WIN" if net_pnl > 0 else "LOSS",
                         "reason": "BINANCE_SPOT_CLOSE",
                         "timestamp": now_str,
                         "date": now_str[:10],
                         "workspace": "CRYPTO",
-                        "source": "BINANCE_LIVE"
+                        "source": "BINANCE_TESTNET" if is_testnet else "BINANCE_LIVE"
                     }
 
                     try:
                         from execution.paper_broker import paper_broker
-                        pool = paper_broker.pools.setdefault("BINANCE_LIVE_REAL", {})
+                        pool = paper_broker.pools.setdefault(target_pool, {})
                         hist = pool.setdefault("trade_history", [])
                         hist.insert(0, trade_record)
                         if len(hist) > 500:
                             pool["trade_history"] = hist[:500]
-                        # Immediate USDT sync to cash balance
-                        real_usdt = self.get_live_spot_balance("USDT")
-                        if real_usdt > 0:
-                            pool["virtual_cash"] = real_usdt
-                            paper_broker.virtual_cash = real_usdt
+                        # Purge closed position from pool
+                        if "positions" in pool and isinstance(pool["positions"], dict):
+                            pool["positions"].pop(pair, None)
+                            pool["positions"].pop(sym_clean, None)
+                        # Return margin + net pnl to cash balance
+                        cash_returned = round((entry_px * fill_qty) + net_pnl, 2)
+                        pool["virtual_cash"] = round(float(pool.get("virtual_cash", paper_broker.virtual_cash)) + cash_returned, 2)
+                        if paper_broker.active_pool_name == target_pool:
+                            paper_broker.virtual_cash = pool["virtual_cash"]
+
+                        if target_pool == "BINANCE_LIVE_REAL" and self.is_live_configured:
+                            real_usdt = self.get_live_spot_balance("USDT")
+                            if real_usdt > 0:
+                                pool["virtual_cash"] = real_usdt
+                                if paper_broker.active_pool_name == target_pool:
+                                    paper_broker.virtual_cash = real_usdt
                         paper_broker._save_state()
                     except Exception as pb_err:
                         print(f"[BINANCE CLOSE] paper_broker save notice: {pb_err}")
 
-                    if net_pnl > 0:
-                        try:
-                            from execution.profit_vault import profit_vault
-                            profit_vault.record_trade_profit("BINANCE_LIVE_REAL", net_pnl)
-                        except Exception as v_err:
-                            print(f"[BINANCE CLOSE] vault sweep notice: {v_err}")
+                    # Clean up entry price cache now that trade record is persisted
+                    if hasattr(self, "_entry_price_cache"):
+                        self._entry_price_cache.pop(pair, None)
+                        self._entry_price_cache.pop(sym_clean, None)
 
                     return {
                         "status": "SUCCESS",
+                        "outcome": "CONFIRMED_FILLED",
                         "message": f"Successfully sold {fill_qty} {sym_clean} on Binance Spot for USDT. Net PnL: ${net_pnl:+.2f}",
                         "order": order_res,
                         "trade_record": trade_record,
+                        "executed_quantity": fill_qty,
                         "realized_pnl": net_pnl
                     }
                 else:
                     err_msg = order_res.get("message") or order_res.get("raw_error") or "Binance rejected market sell order"
-                    print(f"[BINANCE CLOSE REJECTED]: {err_msg}")
+                    is_ambiguous = order_res.get("outcome") == "TIMEOUT" or "timeout" in err_msg.lower() or "connection" in err_msg.lower()
+                    outcome = "AMBIGUOUS_TIMEOUT" if is_ambiguous else "REJECTED"
+                    print(f"[BINANCE CLOSE {outcome}]: {err_msg}")
                     return {
                         "status": "ERROR",
-                        "message": f"Binance rejected SELL order: {err_msg}",
+                        "outcome": outcome,
+                        "client_order_id": order_res.get("client_order_id"),
+                        "message": f"Binance {'timeout/status unknown' if is_ambiguous else 'rejected SELL order'}: {err_msg}",
                         "order": order_res
                     }
             elif notional > 0 and notional < 4.80:
@@ -403,15 +596,27 @@ class BinanceBroker:
                 self.dismiss_spot_position(pair)
                 return {
                     "status": "DUST_DISMISSED",
+                    "outcome": "DUST_DISMISSED",
                     "message": f"{sym_clean} balance value (${notional:.2f}) is below Binance 5.00 USDT MIN_NOTIONAL. Spot market sell not permitted under $5. You can convert dust to BNB in Binance app."
                 }
         except Exception as e:
-            print(f"[BINANCE] Spot close execution error for {symbol}: {e}")
-            return {"status": "ERROR", "message": str(e)}
+            err_str = str(e)
+            is_ambiguous = "timeout" in err_str.lower() or "connection" in err_str.lower()
+            outcome = "AMBIGUOUS_TIMEOUT" if is_ambiguous else "ERROR"
+            print(f"[BINANCE] Spot close execution {outcome} for {symbol}: {e}")
+            return {
+                "status": "ERROR",
+                "outcome": outcome,
+                "message": f"Binance close exception: {err_str}"
+            }
 
         self.dismiss_spot_position(sym_clean)
         self.dismiss_spot_position(pair)
-        return {"status": "SUCCESS", "message": f"{symbol} closed and dismissed from active tracking."}
+        return {
+            "status": "SUCCESS",
+            "outcome": "DISMISSED",
+            "message": f"{symbol} closed and dismissed from active tracking."
+        }
 
     def _save_closed_spot_assets(self):
         """Persist dismissed spot positions to JSON file."""
@@ -1788,6 +1993,9 @@ class BinanceBroker:
                 prov_order_id = str(data.get("orderId"))
                 avg_price = float(data.get("price", 0.0))
                 exec_qty = float(data.get("executedQty", 0.0))
+                orig_qty = float(data.get("origQty", params.get("quantity", 0.0) or 0.0))
+                cumm_quote = float(data.get("cummulativeQuoteQty", 0.0))
+                raw_stat = str(data.get("status", "")).upper()
 
                 # If fills returned, calculate weighted average price
                 fills = data.get("fills", [])
@@ -1796,19 +2004,46 @@ class BinanceBroker:
                     if total_vol > 0:
                         avg_price = round(sum(float(f.get("price", 0.0)) * float(f.get("qty", 0.0)) for f in fills) / total_vol, 4)
                         exec_qty = total_vol
+                elif exec_qty > 0 and cumm_quote > 0:
+                    avg_price = round(cumm_quote / exec_qty, 4)
+
+                # Never report HTTP 200 alone as proof of a fully filled order!
+                if raw_stat == "FILLED" or (raw_stat == "" and orig_qty > 0 and exec_qty >= orig_qty):
+                    outcome = "FILLED"
+                    status_str = "SUCCESS"
+                elif raw_stat == "PARTIALLY_FILLED" or (raw_stat == "" and 0 < exec_qty < orig_qty):
+                    outcome = "PARTIALLY_FILLED"
+                    status_str = "PARTIALLY_FILLED"
+                elif raw_stat == "NEW" or (raw_stat == "" and exec_qty == 0 and orig_qty > 0):
+                    outcome = "NEW"
+                    status_str = "ACCEPTED"
+                elif raw_stat == "CANCELED":
+                    outcome = "CANCELED"
+                    status_str = "CANCELED"
+                elif raw_stat in ["REJECTED", "EXPIRED"]:
+                    outcome = raw_stat
+                    status_str = "ERROR"
+                else:
+                    outcome = raw_stat or "UNKNOWN"
+                    status_str = "SUCCESS" if exec_qty > 0 else "PENDING"
 
                 # Invalidate cache so balances and open positions refresh immediately
                 if hasattr(self, "_account_info_cache"):
                     self._account_info_cache.clear()
                 if hasattr(self, "_entry_price_cache"):
-                    self._entry_price_cache.pop(symbol.upper(), None)
+                    if side.upper() == "BUY" and avg_price > 0:
+                        self._entry_price_cache[symbol.upper()] = avg_price
 
                 return {
-                    "status": "SUCCESS",
+                    "status": status_str,
+                    "outcome": outcome,
                     "provider_order_id": prov_order_id,
                     "client_order_id": new_client_id,
+                    "orig_quantity": orig_qty,
                     "executed_quantity": exec_qty,
+                    "remaining_quantity": max(0.0, round(orig_qty - exec_qty, 8)),
                     "average_fill_price": avg_price,
+                    "cummulative_quote_qty": cumm_quote,
                     "fills": fills,
                     "raw_data": data
                 }
@@ -1821,12 +2056,21 @@ class BinanceBroker:
                     pass
                 return {
                     "status": "ERROR",
+                    "outcome": "REJECTED",
+                    "client_order_id": new_client_id,
                     "code": resp.status_code,
                     "message": f"Binance rejected {side} {params.get('quantity', '')} {symbol}: {err_text}",
                     "raw_error": resp.text
                 }
         except Exception as e:
-            return {"status": "ERROR", "message": str(e)}
+            err_str = str(e)
+            is_ambiguous = "timeout" in err_str.lower() or "connection" in err_str.lower()
+            return {
+                "status": "ERROR",
+                "outcome": "TIMEOUT" if is_ambiguous else "EXCEPTION",
+                "client_order_id": new_client_id,
+                "message": err_str
+            }
 
     def place_order(
         self,

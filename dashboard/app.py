@@ -1917,9 +1917,27 @@ async def close_position_endpoint(request: Request):
         if pos_product == "SPOT":
             try:
                 from execution.binance_broker import binance_broker
-                b_res = binance_broker.close_spot_position(asset, environment="BINANCE_LIVE")
+                target_env = pos.get("environment") or ("BINANCE_TESTNET" if "TESTNET" in paper_broker.active_pool_name.upper() else "BINANCE_LIVE")
+                b_res = binance_broker.close_spot_position(asset, environment=target_env)
                 if b_res:
-                    if b_res.get("status") in ["SUCCESS", "FILLED", "DUST_DISMISSED"]:
+                    if b_res.get("status") == "PARTIALLY_FILLED" or b_res.get("outcome") == "PARTIALLY_FILLED":
+                        exec_qty = float(b_res.get("executed_quantity", 0.0))
+                        rem_qty = float(b_res.get("remaining_quantity", 0.0))
+                        fill_px = float(b_res.get("average_fill_price") or b_res.get("fill_price") or 0.0)
+                        res = paper_broker.close_position(
+                            asset,
+                            exit_price=fill_px,
+                            reason="MANUAL_PARTIAL_EXIT",
+                            skip_exchange_order=True,
+                            close_units=exec_qty
+                        )
+                        return JSONResponse({
+                            "status": "PARTIALLY_FILLED",
+                            "message": f"Partially filled on Binance: {exec_qty} executed, {rem_qty} remaining.",
+                            "trade": res or b_res.get("trade_record"),
+                            "remaining_quantity": rem_qty
+                        })
+                    elif b_res.get("status") in ["SUCCESS", "FILLED", "DUST_DISMISSED"]:
                         if b_res.get("trade_record"):
                             binance_close_record = b_res["trade_record"]
                         binance_live_notice = b_res.get("message")
@@ -1945,7 +1963,8 @@ async def close_position_endpoint(request: Request):
         if pos_product == "USDT_M_FUTURES":
             try:
                 from execution.binance_broker import binance_broker
-                bf_res = binance_broker.close_futures_position(asset, environment="BINANCE_LIVE")
+                target_fut_env = pos.get("environment") or ("BINANCE_TESTNET" if "TESTNET" in paper_broker.active_pool_name.upper() else "BINANCE_LIVE")
+                bf_res = binance_broker.close_futures_position(asset, environment=target_fut_env)
                 if bf_res and bf_res.get("status") == "ERROR":
                     binance_live_notice = f"Binance Futures Notice: {bf_res.get('message', 'Failed to close futures position')}"
                     print(f"[CLOSE_FUTURES_ERROR]: {binance_live_notice}")
@@ -1957,7 +1976,8 @@ async def close_position_endpoint(request: Request):
 
         # 3. Close in paper_broker and purge from all pools
         exit_price = float(pos.get("last_price") or pos.get("entry_price") or 0.0)
-        res = paper_broker.close_position(asset, exit_price=exit_price, reason="MANUAL_TRADER_EXIT")
+        skip_exchange = (pos_product in ["SPOT", "USDT_M_FUTURES"]) or (binance_close_record is not None)
+        res = paper_broker.close_position(asset, exit_price=exit_price, reason="MANUAL_TRADER_EXIT", skip_exchange_order=skip_exchange)
         if binance_close_record and (not res or str(res.get("trade_id", "")).startswith("DISMISS-")):
             res = binance_close_record
 
@@ -7104,6 +7124,21 @@ async def disconnect_broker_endpoint(request: Request):
         from execution.broker_gateway_manager import broker_gateway_manager
         res = broker_gateway_manager.disconnect_broker(broker_id)
         return JSONResponse(res)
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+@app.post("/api/kotak/daily-totp")
+async def kotak_daily_totp_endpoint(request: Request):
+    """Authenticate today's Kotak Neo 2FA session with just the 6-digit TOTP."""
+    try:
+        data = await request.json()
+        totp = str(data.get("totp", "")).strip()
+        if not totp:
+            return JSONResponse({"status": "ERROR", "message": "Please enter today's 6-digit TOTP."}, status_code=400)
+        from execution.broker_gateway_manager import broker_gateway_manager
+        res = broker_gateway_manager.save_broker_credentials("kotak_neo_live", {"totp": totp})
+        code = 200 if res.get("status") == "SUCCESS" or res.get("connected") else 400
+        return JSONResponse(res, status_code=code)
     except Exception as e:
         return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
 

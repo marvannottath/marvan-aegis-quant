@@ -151,7 +151,7 @@ BROKER_DEFINITIONS = {
         "description": "Kotak Neo Open API (v2) for NSE & BSE Equities, F&O and Currency with zero brokerage on intraday",
         "fields": [
             {"id": "consumer_key", "label": "Kotak Consumer Key (API Key)", "type": "text", "placeholder": "Enter Kotak Neo Consumer Key", "required": True},
-            {"id": "mobile_number", "label": "Registered Mobile Number", "type": "text", "placeholder": "e.g. 9207802002", "required": True},
+            {"id": "mobile_number", "label": "Registered Mobile Number (10 digits without +91)", "type": "text", "placeholder": "e.g. 9207802002 (without +91)", "required": True},
             {"id": "ucc", "label": "Client Code / UCC (from Kotak Neo profile)", "type": "text", "placeholder": "e.g. 16MT6", "required": True},
             {"id": "mpin", "label": "Kotak Neo 6-digit MPIN", "type": "password", "placeholder": "Enter your 6-digit MPIN", "required": True},
             {"id": "totp", "label": "Current 6-digit TOTP (from Google/Microsoft Authenticator)", "type": "text", "placeholder": "Enter current 6-digit TOTP", "required": False},
@@ -434,9 +434,14 @@ class BrokerGatewayManager:
                 elif b_id in ["kotak_neo_live", "kotak_neo_demo"]:
                     from execution.kotak_neo_broker import kotak_neo_broker
                     is_k_conn = kotak_neo_broker._is_authenticated or bool(stored.get("connected"))
-                    if is_k_conn:
-                        status = "ONLINE"
-                        is_connected = True
+                    has_creds = bool(kotak_neo_broker.consumer_key and getattr(kotak_neo_broker, "_mobile_number", "") and getattr(kotak_neo_broker, "_mpin", ""))
+                    today_str = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d")
+                    saved_date = getattr(kotak_neo_broker, "_session_date", "")
+                    session_active_today = bool(kotak_neo_broker._session_token and saved_date == today_str)
+
+                    if is_k_conn or has_creds:
+                        status = "ONLINE" if session_active_today else ("NEEDS_TOTP" if has_creds else "ONLINE")
+                        is_connected = bool(session_active_today or is_k_conn)
                         k_funds = kotak_neo_broker.get_funds(environment="DEMO" if b_id == "kotak_neo_demo" else "LIVE")
                         if stored.get("balance") is not None:
                             balance = float(stored.get("balance"))
@@ -452,6 +457,15 @@ class BrokerGatewayManager:
                         balance = 0.0
                         active_account_label = "NOT_CONFIGURED"
                         ping_ms = "--"
+
+                    if b_id == "kotak_neo_live":
+                        extra_meta = {
+                            "has_stored_credentials": has_creds,
+                            "saved_ucc": kotak_neo_broker.ucc,
+                            "saved_mobile": getattr(kotak_neo_broker, "_mobile_number", ""),
+                            "needs_daily_totp": bool(has_creds and not session_active_today),
+                            "session_active_today": session_active_today
+                        }
                 elif b_id in ["aegis_demo", "paper_simulator"]:
                     status = "ACTIVE"
                     is_connected = True
@@ -492,7 +506,7 @@ class BrokerGatewayManager:
             except Exception as e:
                 print(f"[BROKER_GATEWAY] Enrichment notice for {b_id}: {e}")
 
-            res.append({
+            entry_dict = {
                 "id": b_id,
                 "name": meta["name"],
                 "venue": meta["venue"],
@@ -509,7 +523,11 @@ class BrokerGatewayManager:
                 "ping_ms": ping_ms,
                 "fields": meta["fields"],
                 "last_sync": stored.get("last_sync", "Never")
-            })
+            }
+            if 'extra_meta' in locals() and extra_meta:
+                entry_dict.update(extra_meta)
+                extra_meta = {}
+            res.append(entry_dict)
 
         return res
 
@@ -587,13 +605,13 @@ class BrokerGatewayManager:
 
         elif broker_id in ["kotak_neo_live", "kotak_neo_demo"]:
             from execution.kotak_neo_broker import kotak_neo_broker
-            consumer_key = str(payload.get("consumer_key", "")).strip()
-            consumer_secret = str(payload.get("consumer_secret", "")).strip()
-            mobile_number = str(payload.get("mobile_number", "")).strip()
-            ucc = str(payload.get("ucc", "")).strip()
-            mpin = str(payload.get("mpin", "")).strip()
+            consumer_key = str(payload.get("consumer_key", "")).strip() or kotak_neo_broker.consumer_key
+            consumer_secret = str(payload.get("consumer_secret", "")).strip() or getattr(kotak_neo_broker, "_consumer_secret", "")
+            mobile_number = str(payload.get("mobile_number", "")).strip() or getattr(kotak_neo_broker, "_mobile_number", "")
+            ucc = str(payload.get("ucc", "")).strip() or kotak_neo_broker.ucc
+            mpin = str(payload.get("mpin", "")).strip() or getattr(kotak_neo_broker, "_mpin", "")
             totp = str(payload.get("totp", "")).strip()
-            totp_secret = str(payload.get("totp_secret", payload.get("totp_key", ""))).strip()
+            totp_secret = str(payload.get("totp_secret", payload.get("totp_key", ""))).strip() or getattr(kotak_neo_broker, "_totp_secret", "")
             access_token = str(payload.get("access_token", "")).strip()
             is_demo = (broker_id == "kotak_neo_demo")
 
