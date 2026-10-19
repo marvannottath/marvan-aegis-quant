@@ -124,33 +124,8 @@ export function TradingProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // 5-Minute Inactivity Auto-Lockout Sentinel
-  useEffect(() => {
-    const handleActivity = () => {
-      lastActivityRef.current = Date.now();
-    };
-
-    window.addEventListener('mousemove', handleActivity);
-    window.addEventListener('keydown', handleActivity);
-    window.addEventListener('click', handleActivity);
-
-    const idleChecker = setInterval(() => {
-      const idleTime = Date.now() - lastActivityRef.current;
-      if (idleTime >= 5 * 60 * 1000 && !isLocked) {
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('aq_terminal_locked', 'true');
-        }
-        setIsLocked(true);
-      }
-    }, 10000);
-
-    return () => {
-      window.removeEventListener('mousemove', handleActivity);
-      window.removeEventListener('keydown', handleActivity);
-      window.removeEventListener('click', handleActivity);
-      clearInterval(idleChecker);
-    };
-  }, [isLocked]);
+  // Manual-only Lockout: Only locks when user manually clicks lock button in top header
+  // (5-minute auto-inactivity lock disabled per user preference)
 
   // 1. Authoritative Environment derivation from pathname
   const environment: Environment = useMemo(() => {

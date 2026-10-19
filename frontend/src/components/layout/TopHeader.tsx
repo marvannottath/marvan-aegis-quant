@@ -41,7 +41,6 @@ export function TopHeader() {
     unlockTerminal,
   } = useTradingContext();
 
-  const [isEnvModalOpen, setIsEnvModalOpen] = useState(false);
   const [isWsDropdownOpen, setIsWsDropdownOpen] = useState(false);
   const [isBrokerModalOpen, setIsBrokerModalOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -94,11 +93,6 @@ export function TopHeader() {
 
   const isLive = environment === 'LIVE';
   const isLiveDisconnected = isLive && (portfolio === null || portfolio.broker_connected === false || portfolio.total_equity === null || portfolio.status === 'DISCONNECTED');
-
-  const handleConfirmEnvSwitch = () => {
-    setIsEnvModalOpen(false);
-    switchEnvironment(isLive ? 'DEMO' : 'LIVE');
-  };
 
   const workspaces: Array<{ id: Workspace; label: string; icon: string }> = [
     { id: 'CRYPTO', label: 'Crypto Spot', icon: '₿' },
@@ -165,31 +159,31 @@ export function TopHeader() {
             )}
           </div>
 
-          {/* Sleek Segmented DEMO / LIVE Switcher */}
+          {/* Direct Segmented DEMO / LIVE Switcher */}
           <div className="flex items-center bg-slate-100 dark:bg-panel-light p-0.5 rounded-lg border border-line text-[11px] font-bold font-mono">
             <button
               onClick={() => {
-                if (isLive) setIsEnvModalOpen(true);
+                if (isLive) switchEnvironment('DEMO');
               }}
               className={`px-2.5 py-0.5 rounded-md transition ${
                 !isLive
                   ? 'bg-emerald-600 text-white shadow-2xs font-black'
                   : 'text-txt-muted hover:text-txt-primary cursor-pointer'
               }`}
-              title="Paper simulation pool ($19,950.55 USDT)"
+              title="Switch to Demo Paper Trading"
             >
               DEMO
             </button>
             <button
               onClick={() => {
-                if (!isLive) setIsEnvModalOpen(true);
+                if (!isLive) switchEnvironment('LIVE');
               }}
               className={`px-2.5 py-0.5 rounded-md transition ${
                 isLive
                   ? 'bg-amber-600 text-white shadow-2xs font-black'
                   : 'text-txt-muted hover:text-txt-primary cursor-pointer'
               }`}
-              title="Live broker execution desk"
+              title="Switch to Live Broker Trading"
             >
               LIVE
             </button>
@@ -254,11 +248,11 @@ export function TopHeader() {
             {isFinancialMasked ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
 
-          {/* 5-Min Idle Lock Now Button */}
+          {/* Manual Lock Terminal Button */}
           <button
             onClick={lockTerminal}
-            className="p-1.5 rounded-lg border border-line text-txt-muted hover:text-txt-primary hover:bg-slate-100 dark:hover:bg-panel-light transition"
-            title="Lock Terminal Now (5-Minute Inactivity Sentinel Active)"
+            className="p-1.5 rounded-lg border border-line text-txt-muted hover:text-txt-primary hover:bg-slate-100 dark:hover:bg-panel-light transition cursor-pointer"
+            title="Lock Terminal"
           >
             <Lock className="h-4 w-4" />
           </button>
@@ -488,61 +482,13 @@ export function TopHeader() {
         </div>
       </Modal>
 
-      {/* Explicit Environment Switch Confirmation Modal */}
-      <Modal
-        isOpen={isEnvModalOpen}
-        onClose={() => setIsEnvModalOpen(false)}
-        title={`Switch Environment: ${environment} → ${isLive ? 'DEMO' : 'LIVE'}`}
-        description="Strict execution environment boundary"
-        footer={
-          <>
-            <button
-              onClick={() => setIsEnvModalOpen(false)}
-              className="px-3 py-1.5 text-xs font-semibold rounded-md border border-line bg-white hover:bg-slate-50 text-txt-secondary transition"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleConfirmEnvSwitch}
-              className={`px-4 py-1.5 text-xs font-semibold rounded-md text-white transition ${
-                isLive
-                  ? 'bg-emerald-600 hover:bg-emerald-700'
-                  : 'bg-amber-600 hover:bg-amber-700'
-              }`}
-            >
-              Confirm Switch to {isLive ? 'DEMO' : 'LIVE'}
-            </button>
-          </>
-        }
-      >
-        <div className="space-y-3 text-xs text-txt-secondary">
-          <div className="p-3 rounded-lg border border-line bg-slate-50 flex items-center justify-between">
-            <span className="font-medium text-txt-muted">Current Environment:</span>
-            <Badge variant={isLive ? 'live' : 'demo'}>{environment}</Badge>
-          </div>
-
-          <div className="p-3 rounded-lg border border-line bg-slate-50 flex items-center justify-between">
-            <span className="font-medium text-txt-muted">Target Environment:</span>
-            <Badge variant={isLive ? 'demo' : 'live'}>{isLive ? 'DEMO' : 'LIVE'}</Badge>
-          </div>
-
-          <div className="p-3 rounded-lg bg-blue-50/70 border border-blue-100 text-blue-900 leading-relaxed">
-            <p className="font-semibold mb-1">Strict Isolation Notice:</p>
-            <ul className="list-disc list-inside space-y-1 text-[11px] text-blue-800">
-              <li>Client session state, positions, and cache will be flushed completely.</li>
-              <li>LIVE and DEMO balances, orders, and PnL never mix.</li>
-            </ul>
-          </div>
-        </div>
-      </Modal>
-
       {/* Institutional Broker Gateway Connection Modal */}
       <ConnectBrokerModal
         isOpen={isBrokerModalOpen}
         onClose={() => setIsBrokerModalOpen(false)}
       />
 
-      {/* 5-Minute Inactivity / Manual Lock Fullscreen Overlay */}
+      {/* Manual Lock Fullscreen Overlay */}
       {isLocked && (
         <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="w-full max-w-md bg-panel border border-line rounded-xl shadow-2xl p-6 space-y-5 text-center">
@@ -553,7 +499,7 @@ export function TopHeader() {
             <div>
               <h2 className="text-lg font-bold text-txt-primary">Terminal Locked</h2>
               <p className="text-xs text-txt-muted mt-1">
-                5-minute inactivity sentinel or manual privacy lock engaged. Enter your password or use biometrics to resume.
+                Manual privacy lock engaged. Enter your password or use biometrics to resume.
               </p>
             </div>
 
