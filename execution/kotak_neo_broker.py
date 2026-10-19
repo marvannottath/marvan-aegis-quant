@@ -265,8 +265,11 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
 
         try:
             h = {
+                "Authorization": self._consumer_key,
                 "Sid": sid,
+                "sid": sid,
                 "Auth": token,
+                "neo-fin-key": "neotradeapi",
                 "Content-Type": "application/x-www-form-urlencoded"
             }
             body = "seg=ALL&exch=ALL&prod=ALL"
@@ -313,8 +316,11 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
             import requests
             b_url = getattr(self, "_base_url", "https://mis.kotaksecurities.com")
             h = {
+                "Authorization": self._consumer_key,
                 "Sid": getattr(self, "_session_sid", ""),
+                "sid": getattr(self, "_session_sid", ""),
                 "Auth": self._session_token,
+                "neo-fin-key": "neotradeapi",
                 "Content-Type": "application/json"
             }
             resp = requests.get(f"{b_url}/quick/user/positions", headers=h, timeout=8)
@@ -663,7 +669,9 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
                     b_url = getattr(self, "_base_url", "https://mis.kotaksecurities.com")
                     endpoint = f"{b_url}/quick/order/rule/ms/place"
                     headers = {
+                        "Authorization": self._consumer_key,
                         "Sid": getattr(self, "_session_sid", ""),
+                        "sid": getattr(self, "_session_sid", ""),
                         "Auth": self._session_token,
                         "neo-fin-key": "neotradeapi",
                         "Content-Type": "application/x-www-form-urlencoded"
