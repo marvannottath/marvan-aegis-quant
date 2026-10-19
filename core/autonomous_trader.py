@@ -48,6 +48,157 @@ class AutonomousTrader:
             {"timestamp": now_ts, "asset": "NVDA", "action": "BUY", "price": 129.45, "amount_usd": 1000.0, "reasoning": "AI Sentiment Momentum Trade Entry (3x Lev)"}
         ]
         self.position_age: Dict[str, int] = {}
+        self.closed_cooldowns: Dict[str, float] = {}
+        from core.close_in_flight_tracker import close_in_flight_tracker
+        self.in_flight_tracker = close_in_flight_tracker
+        self.close_in_flight: Dict[str, Dict[str, Any]] = self.in_flight_tracker.in_flight_orders
+
+    def restore_and_reconcile_all_pending(self):
+        """
+        Restore pending in-flight states from disk and reconcile against exchange before
+        allowing any new order submissions.
+        """
+        self.in_flight_tracker.load()
+        self.close_in_flight = self.in_flight_tracker.in_flight_orders
+
+        if self.in_flight_tracker.is_corrupted():
+            print("[AUTONOMOUS TRADER CRITICAL] Close in-flight persistence is CORRUPTED. All close operations fail closed.")
+            return
+
+        for asset in list(self.close_in_flight.keys()):
+            try:
+                print(f"[AUTONOMOUS TRADER RESTORE] Reconciling in-flight close for {asset} on startup...")
+                res = self.reconcile_in_flight_close(asset)
+                print(f"[AUTONOMOUS TRADER RESTORE] In-flight close for {asset} reconciled: {res}")
+            except Exception as e:
+                print(f"[AUTONOMOUS TRADER RESTORE NOTICE] Failed to reconcile {asset} on startup: {e}")
+
+    def reconcile_in_flight_close(self, asset: str) -> str:
+        """
+        Reconcile an in-flight position close against the exchange.
+        Returns:
+          'CONFIRMED_FILLED': Order filled on exchange -> executes safe internal bookkeeping, clears barrier.
+          'CONFIRMED_REJECTED': Order rejected / canceled / does not exist on exchange -> keeps position active, clears barrier.
+          'STILL_UNKNOWN': Ambiguous / timeout / working on exchange -> barrier remains active, no orders submitted.
+        """
+        in_flight = self.close_in_flight.get(asset)
+        if not in_flight:
+            return ""
+
+        env = in_flight.get("environment", "BINANCE_LIVE")
+        cid = in_flight.get("client_order_id")
+        sym = in_flight.get("symbol", asset)
+        exit_price = float(in_flight.get("exit_price", 0.0))
+        close_reason = in_flight.get("reason", "RECONCILED_CLOSE")
+        already_reconciled = float(in_flight.get("already_reconciled_executed_qty", 0.0))
+
+        try:
+            from execution.binance_broker import binance_broker
+
+            if cid:
+                status_res = binance_broker.get_order_status(environment=env, symbol=sym, client_order_id=cid)
+                if status_res.get("status") == "SUCCESS":
+                    order_data = status_res.get("order", {})
+                    ord_stat = str(order_data.get("status", "")).upper()
+                    exec_qty = float(order_data.get("executedQty", 0.0))
+                    orig_qty = float(order_data.get("origQty", in_flight.get("requested_quantity", 0.0)))
+                    cumm_quote = float(order_data.get("cummulativeQuoteQty", 0.0))
+                    avg_px = float(order_data.get("price") or order_data.get("avgPrice") or 0.0)
+                    if avg_px <= 0 and exec_qty > 0 and cumm_quote > 0:
+                        avg_px = round(cumm_quote / exec_qty, 4)
+                    if avg_px <= 0:
+                        avg_px = exit_price
+
+                    incremental_qty = max(0.0, round(exec_qty - already_reconciled, 8))
+
+                    if ord_stat == "FILLED":
+                        self.broker.close_position(
+                            asset=asset,
+                            exit_price=avg_px,
+                            current_indicators={"RSI": 52.0, "Volatility": 0.008},
+                            reason=close_reason,
+                            skip_exchange_order=True,
+                            close_units=None
+                        )
+                        self.closed_cooldowns[asset] = time.time() + 60.0
+                        self.position_age.pop(asset, None)
+                        self.close_in_flight.pop(asset, None)
+                        self.in_flight_tracker.clear_in_flight(asset)
+                        self._log_action(asset, "RECONCILED_FILLED", avg_px, 0.0, f"In-flight close confirmed FILLED on exchange ({cid})")
+                        return "CONFIRMED_FILLED"
+
+                    elif ord_stat == "PARTIALLY_FILLED":
+                        if incremental_qty > 0:
+                            self.broker.close_position(
+                                asset=asset,
+                                exit_price=avg_px,
+                                current_indicators={"RSI": 52.0, "Volatility": 0.008},
+                                reason=f"{close_reason}_PARTIAL",
+                                skip_exchange_order=True,
+                                close_units=incremental_qty
+                            )
+                            in_flight["already_reconciled_executed_qty"] = exec_qty
+                            in_flight["status"] = "PARTIALLY_FILLED"
+                            self.in_flight_tracker.update_reconciled_qty(asset, exec_qty, status="PARTIALLY_FILLED")
+                            self._log_action(asset, "RECONCILED_PARTIAL", avg_px, 0.0, f"In-flight partial fill updated: {exec_qty}/{orig_qty} ({cid})")
+                        # Order is still working on exchange: barrier remains active!
+                        return "STILL_UNKNOWN"
+
+                    elif ord_stat in ["CANCELED", "EXPIRED"]:
+                        if incremental_qty > 0:
+                            self.broker.close_position(
+                                asset=asset,
+                                exit_price=avg_px,
+                                current_indicators={"RSI": 52.0, "Volatility": 0.008},
+                                reason=f"{close_reason}_CANCELED_PARTIAL",
+                                skip_exchange_order=True,
+                                close_units=incremental_qty
+                            )
+                        self.close_in_flight.pop(asset, None)
+                        self.in_flight_tracker.clear_in_flight(asset)
+                        self._log_action(asset, "RECONCILED_CANCELED", exit_price, 0.0, f"In-flight order {ord_stat} on exchange ({cid}) - barrier cleared, remaining position active")
+                        return "CONFIRMED_REJECTED"
+
+                    elif ord_stat == "REJECTED":
+                        self.close_in_flight.pop(asset, None)
+                        self.in_flight_tracker.clear_in_flight(asset)
+                        self._log_action(asset, "RECONCILED_REJECTED", exit_price, 0.0, f"In-flight close REJECTED on exchange ({cid}) - keeping position active")
+                        return "CONFIRMED_REJECTED"
+
+                    elif ord_stat == "NEW":
+                        return "STILL_UNKNOWN"
+
+                elif status_res.get("status") == "ERROR":
+                    msg = str(status_res.get("message", ""))
+                    if "-2011" in msg or "Unknown order sent" in msg or "Order does not exist" in msg:
+                        self.close_in_flight.pop(asset, None)
+                        self.in_flight_tracker.clear_in_flight(asset)
+                        self._log_action(asset, "RECONCILED_REJECTED", exit_price, 0.0, f"In-flight order not found on exchange ({cid}) - keeping position active")
+                        return "CONFIRMED_REJECTED"
+                    return "STILL_UNKNOWN"
+
+            # Fallback check on spot balance if no cid or query was inconclusive
+            clean_sym = sym.upper().replace("USDT", "").replace("BUSD", "")
+            free_bal = binance_broker.get_live_spot_balance(clean_sym)
+            if free_bal <= 0.00000001:
+                self.broker.close_position(
+                    asset=asset,
+                    exit_price=exit_price,
+                    current_indicators={"RSI": 52.0, "Volatility": 0.008},
+                    reason=close_reason,
+                    skip_exchange_order=True
+                )
+                self.closed_cooldowns[asset] = time.time() + 60.0
+                self.position_age.pop(asset, None)
+                self.close_in_flight.pop(asset, None)
+                self.in_flight_tracker.clear_in_flight(asset)
+                self._log_action(asset, "RECONCILED_FILLED", exit_price, 0.0, f"In-flight close confirmed via zero {clean_sym} spot holdings")
+                return "CONFIRMED_FILLED"
+
+            return "STILL_UNKNOWN"
+        except Exception as e:
+            print(f"[RECONCILE NOTICE]: {e}")
+            return "STILL_UNKNOWN"
 
     def start_autonomous_loop(self):
         """Start background AI trading execution thread.
@@ -85,6 +236,10 @@ class AutonomousTrader:
     def _run_loop(self):
         """Continuous AI trading loop scanning live tick quotes every 2.5 seconds."""
         step_counter = 0
+        try:
+            self.restore_and_reconcile_all_pending()
+        except Exception as e:
+            print(f"[AUTONOMOUS TRADER STARTUP] restore_and_reconcile_all_pending notice: {e}")
 
         while self.is_running:
             try:
@@ -283,6 +438,10 @@ class AutonomousTrader:
                             if opp_score < min_opp_threshold:
                                 continue
 
+                            # Respect closed position cooldown and close-in-flight barrier to prevent immediate churn / repeat execution
+                            if time.time() < self.closed_cooldowns.get(ticker, 0) or ticker in self.close_in_flight:
+                                continue
+
                             if _active_ws == "CRYPTO" or pool == "BINANCE_LIVE_REAL":
                                 if action_signal == "SELL":
                                     continue
@@ -385,13 +544,15 @@ class AutonomousTrader:
                             is_india_pool = (_active_ws == "INDIA") or pool in ["AEGIS_INDIA_INR", "UPSTOX_DEMO", "UPSTOX_LIVE", "KOTAK_NEO_LIVE"]
 
                             if pool == "BINANCE_LIVE_REAL":
-                                if working_cash < 5.20:
+                                if working_cash < 5.50:
                                     continue
                                 if working_cash < 50.0:
-                                    if working_cash >= 10.50:
-                                        size_usd = round(min(working_cash * 0.48, 6.00), 2)
+                                    if working_cash >= 11.00:
+                                        size_usd = round(min(working_cash * 0.50, 6.00), 2)
                                     else:
-                                        size_usd = round(min(working_cash * 0.95, 6.00), 2)
+                                        size_usd = round(min(working_cash * 0.95, 10.00), 2)
+                                    if size_usd < 5.50:
+                                        continue
                                 else:
                                     size_usd = min(max_cap * 0.75, self.risk_engine.calculate_position_size(working_cash, volatility, opp_score, workspace=_active_ws, environment=_engine_env))
                             elif pool in ["BINANCE_TESTNET_DEMO", "BINANCE_DEMO"] or _active_ws == "CRYPTO":
@@ -420,7 +581,7 @@ class AutonomousTrader:
                             # Risk validation
                             is_risk_valid, risk_reason = self.risk_engine.validate_order(size_usd, calc_leverage, len(self.broker.positions), workspace=_active_ws, environment=_engine_env)
                             
-                            min_threshold_ok = (size_usd >= 5.0) if not is_india_pool else (size_usd >= 50.0)
+                            min_threshold_ok = (size_usd >= 5.50) if not is_india_pool else (size_usd >= 50.0)
 
                             if is_risk_valid and min_threshold_ok:
                                 live_order_placed = False
@@ -430,7 +591,16 @@ class AutonomousTrader:
                                         from execution.binance_broker import binance_broker
                                         gate_ok, gate_msg = environment_gate.check_order_allowed("LIVE", 0.0)
                                         if gate_ok:
-                                            qty = round(size_usd / max(0.01, current_price), 6)
+                                            # Strict >= 5.50 USDT lot-size ceiling to guarantee clean Binance Spot exit
+                                            import math
+                                            flt = binance_broker.STANDARD_EXCHANGE_FILTERS.get(ticker, {})
+                                            step_sz = float(flt.get("step_size", 0.00001))
+                                            raw_qty = size_usd / max(0.01, current_price)
+                                            qty = round(math.ceil(raw_qty / step_sz) * step_sz, 8)
+                                            effective_notional = round(qty * current_price, 2)
+                                            if effective_notional < 5.50 or effective_notional > (working_cash + 0.10):
+                                                continue
+                                            size_usd = effective_notional
                                             live_result = binance_broker.place_order(
                                                 symbol=ticker, side="BUY", order_type="MARKET",
                                                 price=size_usd, quantity=qty, environment="BINANCE_LIVE_REAL"
@@ -612,7 +782,6 @@ class AutonomousTrader:
                                 pass
                             if real_px <= 0.0:
                                 try:
-                                    from core.multi_market_scanner import multi_scanner
                                     c_stat = getattr(multi_scanner, "_binance_24h_cache", {}).get(pos_asset.upper())
                                     if c_stat and float(c_stat.get("last", 0.0)) > 0:
                                         real_px = float(c_stat["last"])
@@ -731,6 +900,17 @@ class AutonomousTrader:
                     )
 
                     if should_close:
+                        # In-flight reconciliation barrier: prevent duplicate close orders while status is ambiguous or corrupted
+                        if self.in_flight_tracker.is_corrupted():
+                            print(f"[AUTONOMOUS TRADER SAFETY] Close in-flight tracker corrupted; refusing to close {pos_asset} (FAIL-CLOSED)")
+                            continue
+
+                        if pos_asset in self.close_in_flight or self.in_flight_tracker.is_blocked(pos_asset):
+                            self.reconcile_in_flight_close(pos_asset)
+                            if pos_asset in self.close_in_flight or self.in_flight_tracker.is_blocked(pos_asset):
+                                # Outcome is still UNKNOWN or PARTIALLY_FILLED on exchange -> hold barrier active, do not submit another order
+                                continue
+
                         closed_any = True
                         if is_break_even_guard:
                             close_reason = "BREAK_EVEN_RATCHET_GUARD"
@@ -751,25 +931,172 @@ class AutonomousTrader:
                                 from execution.binance_broker import binance_broker
                                 live_sell_res = binance_broker.close_spot_position(pos_asset, environment="BINANCE_LIVE")
                                 print(f"[AUTONOMOUS TRADER] Binance Live Spot Close for {pos_asset}: {live_sell_res}")
-                                if live_sell_res.get("status") in ["SUCCESS", "FILLED"]:
-                                    # Refresh available USDT free cash immediately
+                                if live_sell_res.get("outcome") == "PARTIALLY_FILLED":
+                                    cid = live_sell_res.get("client_order_id")
+                                    prov_id = live_sell_res.get("provider_order_id")
+                                    exec_qty = float(live_sell_res.get("executed_quantity", 0.0))
+                                    req_qty = float(pos.get("units", 0.0))
+                                    self.in_flight_tracker.record_in_flight(
+                                        symbol=pos_asset,
+                                        environment="BINANCE_LIVE",
+                                        client_order_id=cid,
+                                        provider_order_id=prov_id,
+                                        requested_quantity=req_qty,
+                                        already_reconciled_qty=exec_qty,
+                                        status="PARTIALLY_FILLED",
+                                        exit_price=new_live_price,
+                                        reason=close_reason
+                                    )
+                                    self.close_in_flight[pos_asset] = self.in_flight_tracker.get_in_flight(pos_asset)
+                                    self._log_action(pos_asset, "CLOSE_PARTIAL", new_live_price, pos.get("capital_allocated", 0.0), f"Partial fill ({exec_qty}/{req_qty}) (cid={cid}) - barrier active pending full execution")
+                                    continue
+                                elif live_sell_res.get("outcome") == "RESTING_ORDER":
+                                    cid = live_sell_res.get("client_order_id")
+                                    prov_id = live_sell_res.get("provider_order_id")
+                                    req_qty = float(pos.get("units", 0.0))
+                                    self.in_flight_tracker.record_in_flight(
+                                        symbol=pos_asset,
+                                        environment="BINANCE_LIVE",
+                                        client_order_id=cid,
+                                        provider_order_id=prov_id,
+                                        requested_quantity=req_qty,
+                                        already_reconciled_qty=0.0,
+                                        status="NEW",
+                                        exit_price=new_live_price,
+                                        reason=close_reason
+                                    )
+                                    self.close_in_flight[pos_asset] = self.in_flight_tracker.get_in_flight(pos_asset)
+                                    self._log_action(pos_asset, "CLOSE_RESTING", new_live_price, pos.get("capital_allocated", 0.0), f"Order resting on book ({cid}) - barrier active")
+                                    continue
+                                elif live_sell_res.get("status") in ["SUCCESS", "FILLED", "DUST_DISMISSED"] or live_sell_res.get("outcome") in ["CONFIRMED_FILLED", "ZERO_HOLDINGS", "DUST_DISMISSED"]:
                                     real_live_cash = binance_broker.get_live_spot_balance("USDT")
                                     if real_live_cash > 0:
                                         self.broker.pools.setdefault("BINANCE_LIVE_REAL", {})["virtual_cash"] = real_live_cash
                                         self.broker.virtual_cash = real_live_cash
-                                elif live_sell_res.get("status") == "ERROR":
+                                    # ZERO_HOLDINGS accounting: close at entry price with zero P&L so no phantom gain/loss is booked
+                                    exit_px_to_use = float(pos.get("entry_price") or new_live_price) if live_sell_res.get("outcome") == "ZERO_HOLDINGS" else new_live_price
+                                    close_reason_to_use = "ZERO_HOLDINGS_RECONCILED" if live_sell_res.get("outcome") == "ZERO_HOLDINGS" else close_reason
+                                    self.broker.close_position(
+                                        asset=pos_asset,
+                                        exit_price=exit_px_to_use,
+                                        current_indicators={"RSI": 52.0, "Volatility": 0.008},
+                                        sentiment_score=sentiment_score,
+                                        reason=close_reason_to_use,
+                                        skip_exchange_order=True
+                                    )
+                                    self.closed_cooldowns[pos_asset] = time.time() + 60.0
+                                    self.position_age.pop(pos_asset, None)
+                                    self.close_in_flight.pop(pos_asset, None)
+                                    self.in_flight_tracker.clear_in_flight(pos_asset)
+                                    self._log_action(pos_asset, "CLOSE", exit_px_to_use, pos.get("capital_allocated", 500.0), f"Position Closed & Swept ({close_reason_to_use})")
+                                    continue
+                                elif live_sell_res.get("outcome") == "AMBIGUOUS_TIMEOUT":
+                                    cid = live_sell_res.get("client_order_id") or (live_sell_res.get("order", {}).get("client_order_id") if isinstance(live_sell_res.get("order"), dict) else None)
+                                    req_qty = float(pos.get("units", 0.0))
+                                    self.in_flight_tracker.record_in_flight(
+                                        symbol=pos_asset,
+                                        environment="BINANCE_LIVE",
+                                        client_order_id=cid,
+                                        requested_quantity=req_qty,
+                                        already_reconciled_qty=0.0,
+                                        status="UNKNOWN",
+                                        exit_price=new_live_price,
+                                        reason=close_reason
+                                    )
+                                    self.close_in_flight[pos_asset] = self.in_flight_tracker.get_in_flight(pos_asset)
+                                    print(f"[AUTONOMOUS TRADER WARNING] Binance Live sell timed out for {pos_asset} (cid={cid}); barrier active pending reconciliation")
+                                    self._log_action(pos_asset, "CLOSE_TIMEOUT", new_live_price, pos.get("capital_allocated", 0.0), f"Live close timeout (cid={cid}) - barrier active pending reconciliation")
+                                    continue
+                                else:
                                     print(f"[AUTONOMOUS TRADER WARNING] Binance sell rejected for {pos_asset}: {live_sell_res.get('message')}")
-                                    # If real Binance sell rejected, do NOT drop position from platform tracking!
                                     self._log_action(pos_asset, "SELL_FAILED", new_live_price, pos.get("capital_allocated", 0.0), f"Binance Sell Rejected: {live_sell_res.get('message')} - Keeping position active")
                                     continue
                             except Exception as live_close_err:
                                 print(f"[AUTONOMOUS TRADER] Live close error for {pos_asset}: {live_close_err}")
+                                continue
                         elif pool == "BINANCE_TESTNET_DEMO":
                             try:
                                 from execution.binance_broker import binance_broker
-                                binance_broker.close_spot_position(pos_asset, environment="BINANCE_TESTNET")
-                            except Exception:
-                                pass
+                                testnet_sell_res = binance_broker.close_spot_position(pos_asset, environment="BINANCE_TESTNET")
+                                print(f"[AUTONOMOUS TRADER] Binance Testnet Spot Close for {pos_asset}: {testnet_sell_res}")
+                                if testnet_sell_res.get("outcome") == "PARTIALLY_FILLED":
+                                    cid = testnet_sell_res.get("client_order_id")
+                                    prov_id = testnet_sell_res.get("provider_order_id")
+                                    exec_qty = float(testnet_sell_res.get("executed_quantity", 0.0))
+                                    req_qty = float(pos.get("units", 0.0))
+                                    self.in_flight_tracker.record_in_flight(
+                                        symbol=pos_asset,
+                                        environment="BINANCE_TESTNET",
+                                        client_order_id=cid,
+                                        provider_order_id=prov_id,
+                                        requested_quantity=req_qty,
+                                        already_reconciled_qty=exec_qty,
+                                        status="PARTIALLY_FILLED",
+                                        exit_price=new_live_price,
+                                        reason=close_reason
+                                    )
+                                    self.close_in_flight[pos_asset] = self.in_flight_tracker.get_in_flight(pos_asset)
+                                    self._log_action(pos_asset, "CLOSE_PARTIAL", new_live_price, pos.get("capital_allocated", 0.0), f"Testnet partial fill ({exec_qty}/{req_qty}) (cid={cid}) - barrier active pending full execution")
+                                    continue
+                                elif testnet_sell_res.get("outcome") == "RESTING_ORDER":
+                                    cid = testnet_sell_res.get("client_order_id")
+                                    prov_id = testnet_sell_res.get("provider_order_id")
+                                    req_qty = float(pos.get("units", 0.0))
+                                    self.in_flight_tracker.record_in_flight(
+                                        symbol=pos_asset,
+                                        environment="BINANCE_TESTNET",
+                                        client_order_id=cid,
+                                        provider_order_id=prov_id,
+                                        requested_quantity=req_qty,
+                                        already_reconciled_qty=0.0,
+                                        status="NEW",
+                                        exit_price=new_live_price,
+                                        reason=close_reason
+                                    )
+                                    self.close_in_flight[pos_asset] = self.in_flight_tracker.get_in_flight(pos_asset)
+                                    self._log_action(pos_asset, "CLOSE_RESTING", new_live_price, pos.get("capital_allocated", 0.0), f"Testnet order resting on book ({cid}) - barrier active")
+                                    continue
+                                elif testnet_sell_res.get("status") in ["SUCCESS", "FILLED", "DUST_DISMISSED"] or testnet_sell_res.get("outcome") in ["CONFIRMED_FILLED", "ZERO_HOLDINGS", "DUST_DISMISSED"]:
+                                    exit_px_to_use = float(pos.get("entry_price") or new_live_price) if testnet_sell_res.get("outcome") == "ZERO_HOLDINGS" else new_live_price
+                                    close_reason_to_use = "ZERO_HOLDINGS_RECONCILED" if testnet_sell_res.get("outcome") == "ZERO_HOLDINGS" else close_reason
+                                    self.broker.close_position(
+                                        asset=pos_asset,
+                                        exit_price=exit_px_to_use,
+                                        current_indicators={"RSI": 52.0, "Volatility": 0.008},
+                                        sentiment_score=sentiment_score,
+                                        reason=close_reason_to_use,
+                                        skip_exchange_order=True
+                                    )
+                                    self.closed_cooldowns[pos_asset] = time.time() + 60.0
+                                    self.position_age.pop(pos_asset, None)
+                                    self.close_in_flight.pop(pos_asset, None)
+                                    self.in_flight_tracker.clear_in_flight(pos_asset)
+                                    self._log_action(pos_asset, "CLOSE", exit_px_to_use, pos.get("capital_allocated", 500.0), f"Position Closed & Swept ({close_reason_to_use})")
+                                    continue
+                                elif testnet_sell_res.get("outcome") == "AMBIGUOUS_TIMEOUT":
+                                    cid = testnet_sell_res.get("client_order_id") or (testnet_sell_res.get("order", {}).get("client_order_id") if isinstance(testnet_sell_res.get("order"), dict) else None)
+                                    req_qty = float(pos.get("units", 0.0))
+                                    self.in_flight_tracker.record_in_flight(
+                                        symbol=pos_asset,
+                                        environment="BINANCE_TESTNET",
+                                        client_order_id=cid,
+                                        requested_quantity=req_qty,
+                                        already_reconciled_qty=0.0,
+                                        status="UNKNOWN",
+                                        exit_price=new_live_price,
+                                        reason=close_reason
+                                    )
+                                    self.close_in_flight[pos_asset] = self.in_flight_tracker.get_in_flight(pos_asset)
+                                    print(f"[AUTONOMOUS TRADER WARNING] Binance Testnet sell timed out for {pos_asset} (cid={cid}); barrier active pending reconciliation")
+                                    self._log_action(pos_asset, "CLOSE_TIMEOUT", new_live_price, pos.get("capital_allocated", 0.0), f"Testnet close timeout (cid={cid}) - barrier active pending reconciliation")
+                                    continue
+                                else:
+                                    print(f"[AUTONOMOUS TRADER WARNING] Binance Testnet sell rejected for {pos_asset}: {testnet_sell_res.get('message')}")
+                                    self._log_action(pos_asset, "SELL_FAILED", new_live_price, pos.get("capital_allocated", 0.0), f"Testnet Sell Rejected: {testnet_sell_res.get('message')} - Keeping position active")
+                                    continue
+                            except Exception as testnet_close_err:
+                                print(f"[AUTONOMOUS TRADER] Testnet close error for {pos_asset}: {testnet_close_err}")
+                                continue
                         elif pool in ["CTRADER_LIVE", "MT5_LIVE_REAL"]:
                             try:
                                 from execution.ctrader_broker import ctrader_broker
@@ -798,8 +1125,10 @@ class AutonomousTrader:
                             exit_price=new_live_price,
                             current_indicators={"RSI": 52.0, "Volatility": 0.008},
                             sentiment_score=sentiment_score,
-                            reason=close_reason
+                            reason=close_reason,
+                            skip_exchange_order=False
                         )
+                        self.closed_cooldowns[pos_asset] = time.time() + 60.0
                         self.position_age.pop(pos_asset, None)
                         self._log_action(pos_asset, "CLOSE", new_live_price, pos.get("capital_allocated", 500.0), f"Position Closed & Swept ({close_reason})")
                         
@@ -829,10 +1158,6 @@ class AutonomousTrader:
                 # 5. Update equity and persist state
                 self.broker._update_equity()
                 self.broker._save_state()
-
-                # Fast Instant Re-entry: if a trade was closed and we have open capacity, immediately scan without delay
-                if closed_any and len(self.broker.positions) < target_capacity:
-                    continue
 
             except Exception as e:
                 import traceback
@@ -1022,3 +1347,4 @@ class AutonomousTrader:
 
 # Global Autonomous Trader Instance
 trader = AutonomousTrader(paper_broker=None, risk_engine=None)
+autonomous_trader = trader
