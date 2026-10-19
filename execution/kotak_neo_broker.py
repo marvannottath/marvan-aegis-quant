@@ -685,8 +685,12 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
                         "ts": ts_sym,
                         "tt": "B" if side == "BUY" else "S"
                     }
-                    resp = requests.post(endpoint, headers=headers, data=data_payload, timeout=12)
-                    res_json = resp.json() if resp.status_code == 200 else {}
+                    resp = requests.post(endpoint, headers=headers, data={"jData": json.dumps(data_payload)}, timeout=12)
+                    try:
+                        res_json = resp.json()
+                    except Exception:
+                        res_json = {}
+
                     if resp.status_code in (200, 201) and res_json.get("stat") != "Not_Ok":
                         data_block = res_json.get("data", res_json)
                         real_ord_id = ""
@@ -719,16 +723,18 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
                     else:
                         err_msg = ""
                         if isinstance(res_json, dict):
-                            err_msg = res_json.get("errMsg") or res_json.get("message") or str(res_json)
-                        print(f"[KOTAK_NEO] Live exchange order failed: {err_msg or resp.text}")
-                        if "session" in (err_msg or "").lower() or resp.status_code == 401:
+                            err_msg = res_json.get("errMsg") or res_json.get("message") or res_json.get("error") or ""
+                        if not err_msg:
+                            err_msg = resp.text.strip() if resp.text else f"HTTP {resp.status_code}"
+                        print(f"[KOTAK_NEO] Live exchange order failed (HTTP {resp.status_code}): {err_msg}")
+                        if "session" in err_msg.lower() or "token" in err_msg.lower() or "unauthorized" in err_msg.lower() or resp.status_code in (401, 403):
                             self._is_authenticated = False
                             self._session_token = ""
                         return {
                             "status": "REJECTED",
                             "order_id": None,
-                            "message": f"Kotak Neo Exchange Rejected: {err_msg or resp.text}",
-                            "raw": res_json
+                            "message": f"Kotak Neo Exchange Rejected (HTTP {resp.status_code}): {err_msg}",
+                            "raw": res_json or resp.text
                         }
                 except Exception as ex:
                     print(f"[KOTAK_NEO] Live API request error: {ex}")
