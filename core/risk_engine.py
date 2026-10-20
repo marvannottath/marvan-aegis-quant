@@ -8,39 +8,39 @@ RISK_STATE_FILE = Path(__file__).resolve().parent.parent / "data" / "risk_profil
 PROFILES = {
     "CONSERVATIVE": {
         "name": "CONSERVATIVE",
-        "description": "Hyper-Scalping Preservation (2x Max Leverage, 1% Risk Cap)",
-        "default_leverage": 2.0,
+        "description": "High Conviction Capital Preservation (1x Max Leverage, 1% Risk Cap)",
+        "default_leverage": 1.0,
         "max_leverage": 2.0,
         "max_risk_per_trade_pct": 1.0,
-        "max_open_positions": 4,
-        "min_open_positions": 2,
-        "circuit_breaker_drawdown_pct": 5.0,
-        "take_profit_target_pct": 0.15,
-        "stop_loss_pct": 0.4
+        "max_open_positions": 2,
+        "min_open_positions": 1,
+        "circuit_breaker_drawdown_pct": 3.0,
+        "take_profit_target_pct": 1.5,
+        "stop_loss_pct": 1.0
     },
     "MODERATE": {
         "name": "MODERATE",
-        "description": "Standard Balanced Scalping (10x Max Leverage, 2.5% Risk Cap)",
-        "default_leverage": 10.0,
-        "max_leverage": 10.0,
-        "max_risk_per_trade_pct": 2.5,
-        "max_open_positions": 8,
-        "min_open_positions": 4,
-        "circuit_breaker_drawdown_pct": 10.0,
-        "take_profit_target_pct": 0.3,
-        "stop_loss_pct": 0.8
+        "description": "Standard Fee-Guarded Growth (3x Max Leverage, 2% Risk Cap)",
+        "default_leverage": 3.0,
+        "max_leverage": 5.0,
+        "max_risk_per_trade_pct": 2.0,
+        "max_open_positions": 4,
+        "min_open_positions": 2,
+        "circuit_breaker_drawdown_pct": 5.0,
+        "take_profit_target_pct": 2.0,
+        "stop_loss_pct": 1.2
     },
     "AGGRESSIVE": {
         "name": "AGGRESSIVE",
-        "description": "High Frequency Alpha Scalping (25x Max Leverage, 5% Risk Cap)",
-        "default_leverage": 25.0,
-        "max_leverage": 25.0,
-        "max_risk_per_trade_pct": 5.0,
-        "max_open_positions": 10,
-        "min_open_positions": 6,
-        "circuit_breaker_drawdown_pct": 20.0,
-        "take_profit_target_pct": 0.5,
-        "stop_loss_pct": 1.2
+        "description": "High Reward Alpha (5x Max Leverage, 3% Risk Cap)",
+        "default_leverage": 5.0,
+        "max_leverage": 10.0,
+        "max_risk_per_trade_pct": 3.0,
+        "max_open_positions": 6,
+        "min_open_positions": 3,
+        "circuit_breaker_drawdown_pct": 8.0,
+        "take_profit_target_pct": 3.0,
+        "stop_loss_pct": 1.5
     }
 }
 
