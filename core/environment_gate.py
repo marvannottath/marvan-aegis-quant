@@ -36,8 +36,7 @@ class EnvironmentGate:
 
     ENV_STATE_FILE = Path(__file__).resolve().parent.parent / "data" / "environment_gate_state.json"
 
-    # Dynamic Live Trading ON/OFF toggle state — fail closed by default (must be explicitly enabled)
-    LIVE_TRADING_ENABLED     = os.getenv("LIVE_TRADING_ENABLED",    "false").lower() == "true"
+    # Dynamic Live Trading ON/OFF toggle state — managed dynamically via state file and property
     LIVE_WITHDRAWALS_ENABLED = os.getenv("LIVE_WITHDRAWALS_ENABLED","false").lower() == "true"
 
     STALE_THRESHOLD_SECONDS = float(os.getenv("MARKET_DATA_STALE_THRESHOLD_SECONDS", "5.0"))
@@ -46,10 +45,12 @@ class EnvironmentGate:
 
     def __init__(self):
         self._decision_log: list = []
-        self._live_trading_enabled: bool = False
+        self._live_trading_enabled: Optional[bool] = None
 
     @property
     def LIVE_TRADING_ENABLED(self) -> bool:
+        if self._live_trading_enabled is not None:
+            return self._live_trading_enabled
         if self.ENV_STATE_FILE.exists():
             try:
                 with open(self.ENV_STATE_FILE, "r") as f:
@@ -60,7 +61,7 @@ class EnvironmentGate:
                 pass
         if "LIVE_TRADING_ENABLED" in os.environ:
             return os.getenv("LIVE_TRADING_ENABLED", "false").lower() == "true"
-        return getattr(self, "_live_trading_enabled", False)
+        return False
 
     @LIVE_TRADING_ENABLED.setter
     def LIVE_TRADING_ENABLED(self, val: bool):

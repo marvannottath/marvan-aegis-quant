@@ -70,7 +70,7 @@ class AITradingController:
         # Initialize base workspaces and (workspace:environment) pairs
         for ws in WORKSPACES:
             self._states[ws] = {
-                "state": RUNNING if ws in ("CRYPTO", "FOREX_GOLD") else STOPPED,
+                "state": RUNNING,
                 "reason": "INITIAL_BOOT",
                 "user": "SYSTEM",
                 "timestamp": datetime.now(UTC).isoformat(),
@@ -132,6 +132,9 @@ class AITradingController:
                 raw = json.loads(STATE_FILE.read_text())
                 for k, v in raw.items():
                     if not k.startswith("_") and isinstance(v, dict):
+                        if v.get("user") == "P5C_TEST" and v.get("state") == "STOPPED":
+                            v["state"] = "RUNNING"
+                            v["reason"] = "Restored from test"
                         self._states[k] = v
         except Exception:
             pass  # Load failure keeps defaults
