@@ -8,15 +8,15 @@ RISK_STATE_FILE = Path(__file__).resolve().parent.parent / "data" / "risk_profil
 PROFILES = {
     "CONSERVATIVE": {
         "name": "CONSERVATIVE",
-        "description": "High Conviction Capital Preservation (1x Max Leverage, 1% Risk Cap)",
+        "description": "Fee-Guarded Nimble Scalping (1x Max Leverage, 1% Risk Cap)",
         "default_leverage": 1.0,
         "max_leverage": 2.0,
         "max_risk_per_trade_pct": 1.0,
         "max_open_positions": 2,
         "min_open_positions": 1,
         "circuit_breaker_drawdown_pct": 3.0,
-        "take_profit_target_pct": 1.5,
-        "stop_loss_pct": 1.0
+        "take_profit_target_pct": 0.5,
+        "stop_loss_pct": 0.6
     },
     "MODERATE": {
         "name": "MODERATE",
@@ -27,20 +27,20 @@ PROFILES = {
         "max_open_positions": 4,
         "min_open_positions": 2,
         "circuit_breaker_drawdown_pct": 5.0,
-        "take_profit_target_pct": 2.0,
-        "stop_loss_pct": 1.2
+        "take_profit_target_pct": 0.85,
+        "stop_loss_pct": 0.8
     },
     "AGGRESSIVE": {
         "name": "AGGRESSIVE",
-        "description": "High Reward Alpha (5x Max Leverage, 3% Risk Cap)",
+        "description": "High Conviction Alpha (5x Max Leverage, 3% Risk Cap)",
         "default_leverage": 5.0,
         "max_leverage": 10.0,
         "max_risk_per_trade_pct": 3.0,
         "max_open_positions": 6,
         "min_open_positions": 3,
         "circuit_breaker_drawdown_pct": 8.0,
-        "take_profit_target_pct": 3.0,
-        "stop_loss_pct": 1.5
+        "take_profit_target_pct": 1.2,
+        "stop_loss_pct": 1.0
     }
 }
 

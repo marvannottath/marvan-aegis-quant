@@ -830,18 +830,18 @@ class AutonomousTrader:
                     pos["highest_pnl_pct"] = highest_pnl
 
                     # ── BREAK-EVEN RATCHET (ZERO-RISK CAPITAL PRESERVATION) ───
-                    # Once trade hits +0.80% gain, lock Stop Loss at entry + fees (+0.35% net profit)
-                    if highest_pnl >= 0.0080:
+                    # Once trade gains +0.35%, lock Stop Loss above fees at +0.22% (guaranteed net green)
+                    if highest_pnl >= 0.0035:
                         pos["break_even_active"] = True
 
-                    # If ratchet active and price pulls back, exit with guaranteed net positive profit (+0.35%)
-                    is_break_even_guard = bool(pos.get("break_even_active") and pnl_pct <= 0.0035)
+                    # If ratchet active and price pulls back, exit with guaranteed net positive profit (+0.22% > 0.20% fee)
+                    is_break_even_guard = bool(pos.get("break_even_active") and pnl_pct <= 0.0022)
 
                     # ── DYNAMIC TIERED TRAILING STOP LOSS (TSL) ──────
-                    # Tier 2 (Strong Runner >= +2.0%): Trail 0.50% below peak
-                    is_tsl_tier2 = (highest_pnl >= 0.020) and (pnl_pct <= highest_pnl - 0.0050)
-                    # Tier 1 (Initial Runner >= +1.0%): Trail 0.35% below peak (guarantees >= +0.65% profit)
-                    is_tsl_tier1 = (highest_pnl >= 0.010) and (pnl_pct <= highest_pnl - 0.0035)
+                    # Tier 2 (Strong Runner >= +1.00%): Trail 0.30% below peak
+                    is_tsl_tier2 = (highest_pnl >= 0.0100) and (pnl_pct <= highest_pnl - 0.0030)
+                    # Tier 1 (Initial Runner >= +0.60%): Trail 0.20% below peak (guarantees >= +0.40% profit)
+                    is_tsl_tier1 = (highest_pnl >= 0.0060) and (pnl_pct <= highest_pnl - 0.0020)
                     is_trailing_stop = is_tsl_tier2 or is_tsl_tier1
 
                     # Derive position workspace safely
@@ -862,32 +862,33 @@ class AutonomousTrader:
                     is_zero_brokerage_venue = ("KOTAK" in pool.upper() or "KOTAK" in str(pos.get("broker", "")).upper())
                     if pool in ["MT5_LIVE_REAL", "MT5_DEMO", "CTRADER_LIVE"] or pos_ws == "FOREX_GOLD":
                         # Forex & Gold Nimble Scalp: Quick profits locked in
-                        is_fee_secured_tp = (pnl_pct >= 0.0050) or (pnl_usd >= 1.00 and pnl_pct >= 0.0035)
-                        is_milestone = (pnl_pct >= 0.0100)       # +1.00% milestone profit
-                        is_micro_harvest = (pnl_usd >= 0.75 and pnl_pct >= 0.0040)
-                        is_staggered_harvest = ((step_counter + idx) % 5 == 0) and (pnl_usd >= 0.50 and pnl_pct >= 0.0030)
+                        is_fee_secured_tp = (pnl_pct >= 0.0040) or (pnl_usd >= 0.80 and pnl_pct >= 0.0030)
+                        is_milestone = (pnl_pct >= 0.0075)       # +0.75% milestone profit
+                        is_micro_harvest = (pnl_usd >= 0.50 and pnl_pct >= 0.0030)
+                        is_staggered_harvest = ((step_counter + idx) % 5 == 0) and (pnl_usd >= 0.35 and pnl_pct >= 0.0025)
                         is_maturity_rebalance = False
                         is_stale_rotation = False               # Never close Forex/Gold at a loss on time alone
-                        is_hard_stop = (pnl_pct <= -0.012)      # 1.2% hard stop
+                        is_hard_stop = (pnl_pct <= -0.010)      # 1.0% hard stop
                     elif is_zero_brokerage_venue:
                         # Kotak Neo / Zero Brokerage: Free brokerage, but cover STT/exchange charges
-                        is_fee_secured_tp = (pnl_pct >= 0.0035)  # +0.35% clean profit after statutory charges
-                        is_milestone = (pnl_pct >= 0.0075)       # +0.75% milestone
-                        is_micro_harvest = (pnl_pct >= 0.0025)
-                        is_staggered_harvest = ((step_counter + idx) % 3 == 0) and (pnl_pct >= 0.0030)
+                        is_fee_secured_tp = (pnl_pct >= 0.0030)  # +0.30% clean profit after statutory charges
+                        is_milestone = (pnl_pct >= 0.0060)       # +0.60% milestone
+                        is_micro_harvest = (pnl_pct >= 0.0020)
+                        is_staggered_harvest = ((step_counter + idx) % 3 == 0) and (pnl_pct >= 0.0025)
                         is_maturity_rebalance = False
                         is_stale_rotation = False               # Never sell Indian equity at a loss simply on elapsed time
-                        is_hard_stop = (pnl_pct <= -0.010)      # 1.0% hard stop
+                        is_hard_stop = (pnl_pct <= -0.008)      # 0.8% hard stop
                     else:
-                        # Crypto Spot: High Conviction Capital Preservation (Binance round-trip fee: ~0.15% - 0.20%)
-                        # 1. Take Profit must be significantly higher than fees (+1.20% to +2.00%)
-                        is_fee_secured_tp = (pnl_pct >= 0.0120)  # +1.20% net green profit (covers 0.20% fees + >1.0% real gain)
-                        is_milestone = (pnl_pct >= 0.0200)       # +2.00% milestone profit
-                        is_micro_harvest = False                 # Disabled: never micro-scalp at fractions of fees
-                        is_staggered_harvest = False             # Disabled: avoid premature exits
-                        is_maturity_rebalance = False           # Disabled: spot holdings should not be dumped on holding time
+                        # Crypto Spot: Fast Closes Covering Binance Fees + ~0.25% Net Profit
+                        # Binance round-trip fee is 0.20% (0.1% Buy + 0.1% Sell).
+                        # At +0.45% price gain: 0.20% fee covered + 0.25% pure net profit in hand!
+                        is_fee_secured_tp = (pnl_pct >= 0.0045)  # +0.45% (Binance fee covered + net +0.25% cash profit)
+                        is_milestone = (pnl_pct >= 0.0085)       # +0.85% runner target
+                        is_micro_harvest = False                 # Disabled: never exit below fee coverage
+                        is_staggered_harvest = False             # Disabled: avoid chopping before fee covered
+                        is_maturity_rebalance = False           # Disabled: spot holdings not dumped on holding time
                         is_stale_rotation = False               # STRICT CAPITAL PRESERVATION: NEVER sell spot at a loss on time alone!
-                        is_hard_stop = (pnl_pct <= -0.0180)     # Catastrophic crash defense (-1.80%)
+                        is_hard_stop = (pnl_pct <= -0.0080)     # 0.80% hard stop protection against dumps
 
                     should_close = (
                         is_break_even_guard or 
