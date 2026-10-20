@@ -150,6 +150,14 @@ class PerformanceCurveEngine:
             raw_peak = agg.get("peak_equity") if ('agg' in locals() and agg) else None
             peak_eq = float(raw_peak) if raw_peak is not None else cur_equity
 
+            # STRICT ENVIRONMENT ISOLATION: Prevent Paper/Demo peak bleed into LIVE curves
+            if env_mode == "LIVE":
+                # A live micro-account ($10-$100) must NEVER inherit an $8000 paper baseline
+                if cur_equity > 0 and (peak_eq > max(cur_equity * 1.30, cur_equity + 5.0)):
+                    peak_eq = cur_equity
+                if dd_pct > 30.0 and cur_equity > 0 and peak_eq == cur_equity:
+                    dd_pct = 0.0
+
             if metric == "equity":
                 start_val = peak_eq
                 end_val = cur_equity
