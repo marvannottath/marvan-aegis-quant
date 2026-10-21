@@ -16,7 +16,7 @@ const ALL_ENGINES: { workspace: Workspace; environment: 'DEMO' | 'LIVE'; label: 
   { workspace: 'FOREX_GOLD', environment: 'DEMO', label: 'Forex & Gold (Demo)', broker: 'MT5 Demo Pool' },
   { workspace: 'FOREX_GOLD', environment: 'LIVE', label: 'Forex & Gold (Live)', broker: 'MT5 Live Broker' },
   { workspace: 'INDIA', environment: 'DEMO', label: 'Indian Equities (Demo)', broker: 'NSE Virtual Sim' },
-  { workspace: 'INDIA', environment: 'LIVE', label: 'Indian Equities (Live)', broker: 'Upstox Real Terminal' },
+  { workspace: 'INDIA', environment: 'LIVE', label: 'Indian Equities (Live)', broker: 'Kotak Neo Real Terminal' },
 ];
 
 export function AIAutoTradeControl({ variant = 'banner' }: AIAutoTradeControlProps) {

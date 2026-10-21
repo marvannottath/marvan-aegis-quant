@@ -18,8 +18,8 @@ export const DEFAULT_ACCOUNTS: Record<Workspace, Record<Environment, { broker: s
     DEMO: { broker: 'BINANCE', account_id: 'BINANCE_SPOT_DEMO', currency: 'USDT', currency_symbol: '$' },
   },
   INDIA: {
-    LIVE: { broker: 'UPSTOX', account_id: 'UPSTOX_LIVE', currency: 'INR', currency_symbol: '₹' },
-    DEMO: { broker: 'UPSTOX', account_id: 'AEGIS_INDIA_INR', currency: 'INR', currency_symbol: '₹' },
+    LIVE: { broker: 'KOTAK_NEO', account_id: '16MT6', currency: 'INR', currency_symbol: '₹' },
+    DEMO: { broker: 'KOTAK_NEO', account_id: 'AEGIS_INDIA_INR', currency: 'INR', currency_symbol: '₹' },
   },
   FOREX_GOLD: {
     LIVE: { broker: 'MT5', account_id: 'MT5_LIVE_REAL', currency: 'USD', currency_symbol: '$' },

@@ -9,6 +9,7 @@ import { MarketWatchList } from './MarketWatchList';
 import { OrdersTable } from '../orders/OrdersTable';
 import { AIAutoTradeControl } from '../common/AIAutoTradeControl';
 import { ProfitVaultOverviewCard } from './ProfitVaultOverviewCard';
+import { NextLevelSuiteCards } from './NextLevelSuiteCards';
 import { useTradingContext } from '../../context/TradingContext';
 
 export function OverviewDashboard() {
@@ -25,7 +26,10 @@ export function OverviewDashboard() {
       {/* 1. Top KPI Row */}
       <KpiHeaderRow />
 
-      {/* 2. AI Autonomous Trading Control Strip */}
+      {/* 2. Next-Level Institutional Suite (Pre-Market Bias, VWAP Scalper, Circuit Breaker, Options Setup) */}
+      <NextLevelSuiteCards />
+
+      {/* 3. AI Autonomous Trading Control Strip */}
       <AIAutoTradeControl variant="banner" />
 
       {/* 3. Secured Profit Vault & Capital Quarantine Reserve */}
