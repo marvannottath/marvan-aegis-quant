@@ -79,6 +79,31 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
             except Exception as e:
                 print(f"[KOTAK_NEO] Config read notice: {e}")
 
+        # Fallback to data/broker_connections.json for persistent reboot resilience
+        if not self._consumer_key:
+            b_file = Path(__file__).resolve().parent.parent / "data" / "broker_connections.json"
+            if b_file.exists():
+                try:
+                    with open(b_file, "r") as f:
+                        all_c = json.load(f)
+                        k_cfg = all_c.get("kotak_neo_live") or all_c.get("kotak") or {}
+                        if k_cfg.get("consumer_key"):
+                            self._consumer_key = k_cfg.get("consumer_key", "").strip()
+                            self._consumer_secret = k_cfg.get("consumer_secret", "").strip()
+                            self._mobile_number = k_cfg.get("mobile_number", "").strip()
+                            self._ucc = k_cfg.get("ucc", "").strip()
+                            self._mpin = k_cfg.get("mpin", "").strip()
+                            self._totp_secret = k_cfg.get("totp_secret", "").strip()
+                            self._server_id = k_cfg.get("server_id", "").strip()
+                            self._live_cash = float(k_cfg.get("balance", k_cfg.get("live_cash", 1000.0)))
+                            self._session_token = k_cfg.get("session_token", "").strip()
+                            self._session_sid = k_cfg.get("session_sid", "").strip()
+                            self._base_url = k_cfg.get("base_url", "https://mis.kotaksecurities.com").strip()
+                            self._session_date = k_cfg.get("session_date", "")
+                            self._is_authenticated = bool(self._consumer_key)
+                except Exception as ex2:
+                    print(f"[KOTAK_NEO] Broker connections fallback read notice: {ex2}")
+
         if self._consumer_key:
             self._is_authenticated = True
 

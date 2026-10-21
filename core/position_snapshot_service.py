@@ -265,7 +265,7 @@ class PositionSnapshotService:
             for k, v in paper_broker.positions.items():
                 if isinstance(v, dict):
                     s_name = v.get("symbol") or v.get("asset") or k
-                    if s_name not in existing_syms:
+                    if s_name not in existing_syms and workspace_manager.is_symbol_allowed(s_name, target_ws):
                         internal_pos_list.append(v)
 
         # For India Live (KOTAK_NEO_LIVE, UPSTOX_LIVE): Strictly isolate live positions from paper simulation!

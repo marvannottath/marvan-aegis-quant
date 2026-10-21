@@ -332,7 +332,7 @@ class BrokerGatewayManager:
         self._load_connections()
 
     def _load_connections(self):
-        """Load stored broker configs from JSON file."""
+        """Load stored broker configs from JSON file and automatically rehydrate all singletons."""
         if CONNECTIONS_FILE.exists():
             try:
                 with open(CONNECTIONS_FILE, "r") as f:
@@ -342,6 +342,58 @@ class BrokerGatewayManager:
                 self.connections = {}
         else:
             self.connections = {}
+
+        # Re-arm all broker instances on boot so connections never drop on server restart
+        self._rehydrate_all_brokers()
+
+    def _rehydrate_all_brokers(self):
+        """Push stored configurations directly into broker instances on startup."""
+        # 1. Kotak Neo Live
+        k_data = self.connections.get("kotak_neo_live") or self.connections.get("kotak") or {}
+        if k_data.get("consumer_key"):
+            try:
+                from execution.kotak_neo_broker import kotak_neo_broker
+                kotak_neo_broker._consumer_key = k_data.get("consumer_key", "").strip()
+                kotak_neo_broker._mobile_number = k_data.get("mobile_number", "").strip()
+                kotak_neo_broker._ucc = k_data.get("ucc", "").strip()
+                kotak_neo_broker._mpin = k_data.get("mpin", "").strip()
+                kotak_neo_broker._totp_secret = k_data.get("totp_secret", "").strip()
+                kotak_neo_broker._session_token = k_data.get("session_token", "").strip()
+                kotak_neo_broker._session_sid = k_data.get("session_sid", "").strip()
+                kotak_neo_broker._server_id = k_data.get("server_id", "").strip()
+                kotak_neo_broker._base_url = k_data.get("base_url", "https://mis.kotaksecurities.com").strip()
+                if k_data.get("balance"):
+                    kotak_neo_broker._live_cash = float(k_data["balance"])
+                kotak_neo_broker._is_authenticated = bool(kotak_neo_broker._consumer_key)
+            except Exception as e:
+                print(f"[BROKER_GATEWAY] Kotak rehydrate notice: {e}")
+
+        # 2. Binance Live
+        b_live = self.connections.get("binance_live") or self.connections.get("BINANCE") or {}
+        if b_live.get("api_key") and b_live.get("secret_key"):
+            try:
+                from execution.binance_broker import binance_broker
+                binance_broker.save_credentials(b_live["api_key"], b_live["secret_key"], testnet=False)
+            except Exception:
+                pass
+
+        # 3. MT5 Live
+        m_live = self.connections.get("mt5_live") or {}
+        if m_live.get("login") and m_live.get("server"):
+            try:
+                from execution.mt5_broker import mt5_broker
+                mt5_broker.save_credentials(int(m_live["login"]), m_live.get("password", ""), m_live["server"])
+            except Exception:
+                pass
+
+        # 4. Upstox Live
+        u_live = self.connections.get("upstox_live") or {}
+        if u_live.get("api_key"):
+            try:
+                from execution.upstox_broker import upstox_broker
+                upstox_broker.save_credentials(u_live["api_key"], u_live.get("api_secret", ""), u_live.get("access_token", ""))
+            except Exception:
+                pass
 
     def _save_connections(self):
         """Save broker configs to JSON file."""

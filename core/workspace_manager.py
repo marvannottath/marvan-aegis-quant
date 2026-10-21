@@ -32,12 +32,12 @@ class WorkspaceManager:
             'workspace': WORKSPACE_INDIA,
             'currency': 'INR',
             'currency_symbol': '₹',
-            'default_pool': 'AEGIS_INDIA_INR',
-            'allowed_pools': ['AEGIS_INDIA_INR', 'UPSTOX_DEMO', 'UPSTOX_LIVE', 'KOTAK_NEO_LIVE', 'KOTAK_NEO_DEMO', 'KOTAK_NEO_LIVE_POOL'],
-            'venue_name': 'Upstox / Kotak Neo / NSE / BSE',
+            'default_pool': 'KOTAK_NEO_LIVE',
+            'allowed_pools': ['KOTAK_NEO_LIVE', 'AEGIS_INDIA_INR', 'UPSTOX_DEMO', 'UPSTOX_LIVE', 'KOTAK_NEO_DEMO', 'KOTAK_NEO_LIVE_POOL'],
+            'venue_name': 'Kotak Neo / NSE / BSE',
             'settlement': 'T+1 Rolling',
             'regulation': 'SEBI Compliant',
-            'initial_capital': 100000.0,
+            'initial_capital': 1000.0,
             'max_leverage': 5.0,
             'instruments': [
                 'RELIANCE', 'TCS', 'HDFCBANK', 'INFY', 'ICICIBANK',
@@ -47,7 +47,7 @@ class WorkspaceManager:
             'asset_categories': ['INDIAN_STOCKS', 'INDIAN_EQUITY', 'INDIAN_ETF', 'INDIAN_INDEX'],
             'funding_methods': ['UPI', 'NetBanking', 'NEFT', 'RTGS'],
             'flag': '🇮🇳',
-            'badge_text': 'UPSTOX: NSE/BSE ACTIVE'
+            'badge_text': 'KOTAK NEO: NSE/BSE ACTIVE'
         },
         WORKSPACE_FOREX_GOLD: {
             'name': 'Forex & Commodities (Global)',
@@ -97,7 +97,7 @@ class WorkspaceManager:
         self._active_workspace: str = self.WORKSPACE_CRYPTO
         self._switch_count: int = 0
         self._active_pool_per_workspace: Dict[str, str] = {
-            self.WORKSPACE_INDIA: 'AEGIS_INDIA_INR',
+            self.WORKSPACE_INDIA: 'KOTAK_NEO_LIVE',
             self.WORKSPACE_CRYPTO: 'BINANCE_TESTNET_DEMO',
             self.WORKSPACE_FOREX_GOLD: 'MT5_DEMO'
         }

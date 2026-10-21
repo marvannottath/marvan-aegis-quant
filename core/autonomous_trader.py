@@ -467,6 +467,33 @@ class AutonomousTrader:
                             action_signal = item["ai_action"]
                             opp_score = item["opportunity_score"]
 
+                            # Multi-Strategy Time Ensemble for Indian Markets (Breakout, Mean-Reversion, Afternoon Momentum)
+                            if _active_ws == "INDIA":
+                                try:
+                                    from core.multi_strategy_ensemble import multi_strategy_ensemble
+                                    from core.vwap_scalper import vwap_scalp_engine
+                                    v_vwap = vwap_scalp_engine.update_tick(ticker, current_price, 100.0)
+                                    strat_eval = multi_strategy_ensemble.evaluate_signals(
+                                        ticker=ticker,
+                                        price=current_price,
+                                        rsi=rsi,
+                                        volatility=volatility,
+                                        vwap=v_vwap
+                                    )
+                                    if strat_eval.get("action") in ["BUY", "SELL"]:
+                                        action_signal = strat_eval["action"]
+                                        opp_score = max(opp_score, float(strat_eval["confidence"]))
+                                except Exception:
+                                    pass
+
+                            # High-Speed Rate Limiter Safeguard (Protects from Broker 429 Bans)
+                            try:
+                                from core.high_speed_async_engine import high_speed_async_engine
+                                if not high_speed_async_engine.acquire_broker_token(pool.lower()):
+                                    continue
+                            except Exception:
+                                pass
+
                             # Calibrated High-Probability Threshold for active quant execution
                             if "AGGRESSIVE" in profile_name:
                                 min_opp_threshold = 75.0
@@ -680,12 +707,13 @@ class AutonomousTrader:
                                         from execution.kotak_neo_broker import kotak_neo_broker
                                         gate_ok, gate_msg = environment_gate.check_order_allowed("LIVE", 0.0)
                                         if gate_ok:
-                                            effective_cap = size_usd * max(1.0, calc_leverage)
-                                            qty = max(1, int(effective_cap / max(1.0, current_price)))
-                                            margin_required = round((qty * current_price) / max(1.0, calc_leverage), 2)
-                                            if margin_required > working_cash:
-                                                qty = 1
-                                                margin_required = round(current_price / max(1.0, calc_leverage), 2)
+                                            from core.capital_scaling_engine import capital_scaling_engine
+                                            qty, margin_required, scale_tier = capital_scaling_engine.calculate_scaled_quantity(
+                                                symbol=ticker,
+                                                price=current_price,
+                                                working_cash=working_cash,
+                                                leverage=calc_leverage
+                                            )
 
                                             if margin_required <= working_cash:
                                                 valid_tick_price = round(round(current_price * 20.0) / 20.0, 2)
@@ -1184,6 +1212,20 @@ class AutonomousTrader:
                         try:
                             from core.daily_circuit_breaker import daily_circuit_breaker
                             daily_circuit_breaker.record_trade_result(pnl=pnl_usd)
+                        except Exception:
+                            pass
+
+                        # 30/70 Auto-Compounding and Vault Preservation
+                        try:
+                            from core.capital_scaling_engine import capital_scaling_engine
+                            capital_scaling_engine.allocate_realized_profit(pnl=pnl_usd, broker_key=pool)
+                        except Exception:
+                            pass
+
+                        # Self-Learning Walk-Forward Feedback
+                        try:
+                            from core.self_learning_optimizer import self_learning_optimizer
+                            self_learning_optimizer.record_trade_outcome(strategy_name=close_reason, pnl=pnl_usd)
                         except Exception:
                             pass
 
