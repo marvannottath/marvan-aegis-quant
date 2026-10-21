@@ -4221,6 +4221,127 @@ async def deposit_page():
     p = BASE_DIR / "templates" / "deposit_page.html"
     return HTMLResponse(p.read_text(encoding="utf-8"))
 
+@app.get("/pay/{link_id}", response_class=HTMLResponse)
+async def checkout_payment_link_view(link_id: str):
+    """Render Universal Hosted Checkout page for credit card, NFC, Apple/GPay, UPI, or Crypto."""
+    from execution.payment_link_gateway import payment_link_gateway
+    link_data = payment_link_gateway.get_payment_link(link_id)
+    if not link_data:
+        link_data = {
+            "link_id": link_id,
+            "amount": 1000.0,
+            "currency": "INR",
+            "target_broker_name": "Kotak Neo (Kotak Securities)"
+        }
+    p = BASE_DIR / "templates" / "checkout_page.html"
+    content = p.read_text(encoding="utf-8")
+    content = content.replace("{{ link_id }}", str(link_data.get("link_id", link_id)))
+    content = content.replace("{{ amount }}", f"{float(link_data.get('amount', 1000.0)):,.2f}")
+    content = content.replace("{{ currency }}", str(link_data.get("currency", "INR")))
+    content = content.replace("{{ target_broker_name }}", str(link_data.get("target_broker_name", "Kotak Neo (Kotak Securities)")))
+    return HTMLResponse(content)
+
+# ── UNIVERSAL PAYMENT GATEWAY APIS ──────────────────────────────────────────
+@app.post("/api/pay/create-link")
+async def create_payment_link_endpoint(request: Request):
+    """Generate a dynamic sharable payment link for Cards, NFC, Apple Pay, Google Pay, UPI & Crypto."""
+    try:
+        data = await request.json()
+        from execution.payment_link_gateway import payment_link_gateway
+        res = payment_link_gateway.create_payment_link(
+            amount=float(data.get("amount", 1000.0)),
+            currency=str(data.get("currency", "INR")).upper(),
+            target_broker=str(data.get("target_broker", "KOTAK_NEO_LIVE")),
+            title=str(data.get("title", "Aegis Quant Bot Capital Deposit")),
+            description=str(data.get("description", "Secure algorithmic trading capital funding")),
+            customer_name=data.get("customer_name"),
+            customer_email=data.get("customer_email"),
+        )
+        return JSONResponse(res, status_code=200 if res.get("status") == "SUCCESS" else 400)
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+@app.get("/api/pay/links")
+async def list_payment_links_endpoint():
+    """List all generated payment links."""
+    try:
+        from execution.payment_link_gateway import payment_link_gateway
+        return JSONResponse({"status": "SUCCESS", "links": payment_link_gateway.list_all_links()})
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+@app.post("/api/pay/confirm/{link_id}")
+async def confirm_payment_link_endpoint(link_id: str, request: Request):
+    """Confirm payment on link and atomically credit the target broker pool."""
+    try:
+        data = await request.json()
+        from execution.payment_link_gateway import payment_link_gateway
+        res = payment_link_gateway.confirm_payment(
+            link_id=link_id,
+            payment_method=str(data.get("method", "CARD")),
+            payment_reference=str(data.get("payment_reference", "")),
+            payer_notes=str(data.get("notes", "")),
+        )
+        return JSONResponse(res, status_code=200 if res.get("status") == "SUCCESS" else 400)
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+# ── PRE-MARKET & CIRCUIT BREAKER APIS ───────────────────────────────────────
+@app.get("/api/india/pre-market")
+async def get_pre_market_bias_endpoint():
+    """Return real-time global macro sentiment and directional bias for Indian markets."""
+    try:
+        from core.pre_market_engine import pre_market_engine
+        return JSONResponse(pre_market_engine.evaluate_global_bias())
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+@app.get("/api/circuit-breaker/status")
+async def get_circuit_breaker_status_endpoint():
+    """Fetch active session circuit breaker state and daily drawdown limit."""
+    try:
+        from core.daily_circuit_breaker import daily_circuit_breaker
+        allowed, msg = daily_circuit_breaker.check_trading_allowed()
+        return JSONResponse({
+            "status": "SUCCESS",
+            "trading_allowed": allowed,
+            "is_circuit_open": daily_circuit_breaker.is_circuit_open,
+            "lock_reason": daily_circuit_breaker.lock_reason,
+            "daily_pnl": daily_circuit_breaker.daily_pnl,
+            "consecutive_losses": daily_circuit_breaker.consecutive_losses,
+            "max_consecutive_losses": daily_circuit_breaker.MAX_CONSECUTIVE_LOSSES,
+            "max_daily_drawdown_pct": daily_circuit_breaker.MAX_DAILY_DRAWDOWN_PCT
+        })
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+@app.post("/api/circuit-breaker/reset")
+async def reset_circuit_breaker_endpoint():
+    """Manual override to unlock daily circuit breaker."""
+    try:
+        from core.daily_circuit_breaker import daily_circuit_breaker
+        return JSONResponse(daily_circuit_breaker.reset_circuit_breaker())
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+@app.post("/api/telegram/webhook")
+async def telegram_webhook_endpoint(request: Request):
+    """Receive and respond to interactive Telegram bot commands."""
+    try:
+        body = await request.json()
+        message = body.get("message", {})
+        text = str(message.get("text", "")).strip()
+        chat_id = str(message.get("chat", {}).get("id", ""))
+        if text and chat_id:
+            from core.telegram_controller import telegram_controller
+            reply = telegram_controller.process_incoming_command(text, chat_id)
+            from core.telegram_alerts import telegram_alerts
+            telegram_alerts.send_alert("Bot Response", reply)
+            return JSONResponse({"status": "SUCCESS", "reply": reply})
+        return JSONResponse({"status": "IGNORED", "reason": "No text or chat_id"})
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
 @app.get("/broker", response_class=HTMLResponse)
 async def broker_page():
     p = BASE_DIR / "templates" / "broker_page.html"

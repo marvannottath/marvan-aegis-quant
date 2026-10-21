@@ -413,6 +413,35 @@ class AutonomousTrader:
                         filtered_scanned = multi_scanner.scan_workspace(_active_ws, sentiment_score)
                         scanned_cache_this_pass[_active_ws] = filtered_scanned
 
+                    # ── NEXT-LEVEL SAFETY & RISK ENGINES ────────────────────
+                    # 1. 3:10 PM Pre-emptive Intraday Auto-Squareoff (Protects from Broker RMS Penalty)
+                    try:
+                        from core.intraday_squareoff_sentinel import intraday_squareoff_sentinel
+                        intraday_squareoff_sentinel.execute_squareoff_check(self)
+                    except Exception as sq_err:
+                        pass
+
+                    # 2. Daily Circuit Breaker (Max Drawdown / Consecutive Loss Lock)
+                    try:
+                        from core.daily_circuit_breaker import daily_circuit_breaker
+                        circuit_ok, circuit_msg = daily_circuit_breaker.check_trading_allowed()
+                        if not circuit_ok:
+                            if step_counter % 20 == 0:
+                                self._log_action("CIRCUIT_BREAKER", "LOCKED", 0.0, 0.0, f"Trading locked: {circuit_msg}")
+                            continue
+                    except Exception:
+                        pass
+
+                    # 3. Pre-Market Global Bias Filter for Indian Equities
+                    dir_filter = "ALL"
+                    if _active_ws == "INDIA":
+                        try:
+                            from core.pre_market_engine import pre_market_engine
+                            macro_bias = pre_market_engine.evaluate_global_bias()
+                            dir_filter = macro_bias.get("directional_filter", "ALL")
+                        except Exception:
+                            dir_filter = "ALL"
+
                     if len(self.broker.positions) < target_capacity and filtered_scanned:
                         for item in filtered_scanned:
                             ticker = item["ticker"]
@@ -420,6 +449,10 @@ class AutonomousTrader:
                                 continue
                             if len(self.broker.positions) >= target_capacity:
                                 break
+
+                            # Global Macro Directional Filter: Skip BUY if global macro is crashing
+                            if _active_ws == "INDIA" and dir_filter == "AVOID_BUY":
+                                continue
 
                             # Benchmark indices (NIFTY50, BANKNIFTY) require > ₹4,500 margin, skip for micro accounts
                             if _active_ws == "INDIA" and ticker in ["NIFTY50", "BANKNIFTY"]:
@@ -1148,6 +1181,30 @@ class AutonomousTrader:
                         self.position_age.pop(pos_asset, None)
                         self._log_action(pos_asset, "CLOSE", new_live_price, pos.get("capital_allocated", 500.0), f"Position Closed & Swept ({close_reason})")
                         
+                        try:
+                            from core.daily_circuit_breaker import daily_circuit_breaker
+                            daily_circuit_breaker.record_trade_result(pnl=pnl_usd)
+                        except Exception:
+                            pass
+
+                        try:
+                            from core.telegram_alerts import telegram_alerts
+                            curr_sym = "₹" if pos_ws == "INDIA" else "$"
+                            pnl_icon = "🟢" if pnl_usd >= 0 else "🔴"
+                            tg_text = (
+                                f"{pnl_icon} *TRADE CLOSED & PROFIT BOOKED*\n"
+                                f"━━━━━━━━━━━━━━━━━━━\n"
+                                f"• *Asset:* `{pos_asset}`\n"
+                                f"• *Side:* {act}\n"
+                                f"• *Exit Price:* {curr_sym}{new_live_price:,.2f}\n"
+                                f"• *Net P&L:* *{curr_sym}{pnl_usd:+,.2f}* ({pnl_pct*100:+.2f}%)\n"
+                                f"• *Reason:* _{close_reason}_\n"
+                                f"• *Venue:* {pos_ws} ({pool})\n"
+                            )
+                            telegram_alerts.send_alert("Position Closed", tg_text, event_type="TRADE_CLOSE")
+                        except Exception:
+                            pass
+
                         try:
                             from core.notification_engine import notification_engine
                             notification_engine.notify_trade_closed(

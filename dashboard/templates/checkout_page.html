@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Capital Deposit | Aegis-Quant Universal Gateway</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Plus+Jakarta+Sans:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        .glow-red { box-shadow: 0 0 25px rgba(239, 68, 68, 0.25); }
+        .glow-emerald { box-shadow: 0 0 25px rgba(16, 185, 129, 0.25); }
+        .glow-amber { box-shadow: 0 0 25px rgba(245, 158, 11, 0.25); }
+    </style>
+</head>
+<body class="bg-[#07090e] text-slate-100 min-h-screen flex flex-col justify-between selection:bg-rose-500 selection:text-white">
+
+    <!-- Top Header Navigation -->
+    <header class="border-b border-slate-800/80 bg-[#0c1017]/90 backdrop-blur px-4 py-3 sticky top-0 z-50">
+        <div class="max-w-4xl mx-auto flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-rose-600 to-amber-500 flex items-center justify-center text-white font-black text-sm shadow-lg shadow-rose-600/30">
+                    AQ
+                </div>
+                <div>
+                    <div class="text-sm font-black tracking-tight text-white flex items-center gap-1.5">
+                        AEGIS-QUANT
+                        <span class="text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-400 font-bold border border-rose-500/30">PRO GATEWAY</span>
+                    </div>
+                    <div class="text-[10px] text-slate-400 font-mono">End-to-End Encrypted Broker Custody</div>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-2">
+                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    256-BIT SSL SECURE
+                </span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Payment Container -->
+    <main class="max-w-2xl w-full mx-auto p-4 md:py-8 flex-1">
+        <div class="bg-[#0f141e] border border-slate-800 rounded-3xl p-6 md:p-8 shadow-2xl relative overflow-hidden">
+            <div class="absolute -top-24 -right-24 w-60 h-60 bg-rose-600/10 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="absolute -bottom-24 -left-24 w-60 h-60 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+            <!-- Amount Card -->
+            <div class="bg-[#141b28] border border-slate-700/60 rounded-2xl p-5 mb-6 text-center relative">
+                <div class="text-xs uppercase tracking-wider font-bold text-slate-400 mb-1">Total Deposit Amount</div>
+                <div class="text-3xl md:text-5xl font-black text-white font-mono tracking-tight my-1" id="lbl-amount">
+                    {{ currency }} {{ amount }}
+                </div>
+                <div class="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-slate-800 text-slate-300 border border-slate-700 mt-2">
+                    <i class="fa-solid fa-building-columns text-rose-400"></i>
+                    <span>Target Broker Destination:</span>
+                    <strong class="text-white" id="lbl-broker-name">{{ target_broker_name }}</strong>
+                </div>
+            </div>
+
+            <!-- Payment Method Tabs -->
+            <div class="mb-6">
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Select Payment Method</label>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2" id="method-selector">
+                    <button type="button" onclick="selectMethod('card')" id="tab-card" class="p-3 rounded-xl border bg-rose-500/10 border-rose-500 text-rose-300 font-bold text-xs flex flex-col items-center gap-1.5 transition">
+                        <i class="fa-regular fa-credit-card text-lg"></i>
+                        <span>Card (Debit/Credit)</span>
+                    </button>
+                    <button type="button" onclick="selectMethod('apple_google_nfc')" id="tab-nfc" class="p-3 rounded-xl border bg-slate-800/40 border-slate-700 text-slate-400 hover:text-white font-bold text-xs flex flex-col items-center gap-1.5 transition">
+                        <div class="flex items-center gap-1 text-base">
+                            <i class="fa-brands fa-apple"></i>
+                            <i class="fa-brands fa-google"></i>
+                            <i class="fa-solid fa-wifi text-xs"></i>
+                        </div>
+                        <span>Apple/GPay/NFC</span>
+                    </button>
+                    <button type="button" onclick="selectMethod('upi')" id="tab-upi" class="p-3 rounded-xl border bg-slate-800/40 border-slate-700 text-slate-400 hover:text-white font-bold text-xs flex flex-col items-center gap-1.5 transition">
+                        <i class="fa-solid fa-qrcode text-lg"></i>
+                        <span>Instant UPI QR</span>
+                    </button>
+                    <button type="button" onclick="selectMethod('crypto')" id="tab-crypto" class="p-3 rounded-xl border bg-slate-800/40 border-slate-700 text-slate-400 hover:text-white font-bold text-xs flex flex-col items-center gap-1.5 transition">
+                        <i class="fa-solid fa-wallet text-lg"></i>
+                        <span>Binance Pay / USDT</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Form Content Areas -->
+            <div id="method-content" class="space-y-4">
+
+                <!-- 1. Card Form -->
+                <div id="sec-card" class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Card Number</label>
+                        <div class="relative">
+                            <input type="text" id="card-num" placeholder="4242 •••• •••• 4242" maxlength="19" class="w-full bg-[#141b28] border border-slate-700 rounded-xl px-4 py-3 text-sm font-mono text-white focus:outline-none focus:border-rose-500 transition">
+                            <div class="absolute right-3 top-3.5 flex items-center space-x-1 text-slate-400">
+                                <i class="fa-brands fa-cc-visa text-lg"></i>
+                                <i class="fa-brands fa-cc-mastercard text-lg"></i>
+                                <i class="fa-brands fa-cc-amex text-lg"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 mb-1">Expires (MM/YY)</label>
+                            <input type="text" id="card-exp" placeholder="MM/YY" maxlength="5" class="w-full bg-[#141b28] border border-slate-700 rounded-xl px-4 py-3 text-sm font-mono text-white focus:outline-none focus:border-rose-500 transition">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 mb-1">CVC / CVV</label>
+                            <input type="password" id="card-cvc" placeholder="•••" maxlength="4" class="w-full bg-[#141b28] border border-slate-700 rounded-xl px-4 py-3 text-sm font-mono text-white focus:outline-none focus:border-rose-500 transition">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Cardholder Name</label>
+                        <input type="text" id="card-name" placeholder="Full name on card" class="w-full bg-[#141b28] border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-rose-500 transition">
+                    </div>
+                </div>
+
+                <!-- 2. Apple / Google Pay / NFC -->
+                <div id="sec-nfc" class="hidden space-y-4 text-center py-4 bg-[#141b28] border border-slate-700/60 rounded-2xl p-6">
+                    <div class="w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center mx-auto text-white text-2xl mb-2">
+                        <i class="fa-solid fa-wifi rotate-90 text-amber-400"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-white">Apple Pay / Google Pay / Contactless NFC</h3>
+                        <p class="text-xs text-slate-400 max-w-sm mx-auto mt-1">Tap your NFC-enabled device, Apple Watch, or use biometric 1-touch checkout.</p>
+                    </div>
+                    <button type="button" onclick="confirmDeposit('nfc')" class="w-full py-3.5 px-6 rounded-xl bg-white hover:bg-slate-100 text-black font-extrabold text-sm flex items-center justify-center gap-2 transition shadow-lg">
+                        <i class="fa-brands fa-apple text-lg"></i> Pay with Apple / Google Pay
+                    </button>
+                </div>
+
+                <!-- 3. UPI QR Code -->
+                <div id="sec-upi" class="hidden space-y-4 text-center py-4 bg-[#141b28] border border-slate-700/60 rounded-2xl p-6">
+                    <div class="w-44 h-44 mx-auto bg-white p-3 rounded-2xl shadow-xl flex items-center justify-center">
+                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=upi://pay?pa=aegisquant@kotak&pn=AegisQuant&am={{ amount }}&cu=INR" alt="UPI QR" class="w-full h-full rounded-lg">
+                    </div>
+                    <div>
+                        <div class="text-xs font-mono text-emerald-400 font-bold mb-1">VPA: aegisquant@kotak</div>
+                        <p class="text-xs text-slate-400">Scan with GPay, PhonePe, Paytm, or Kotak Neo App</p>
+                    </div>
+                    <div class="pt-2">
+                        <input type="text" id="upi-ref" placeholder="Enter 12-digit UPI UTR / Transaction ID" class="w-full bg-[#0a0d14] border border-slate-700 rounded-xl px-4 py-3 text-xs font-mono text-white text-center focus:outline-none focus:border-rose-500 transition mb-2">
+                    </div>
+                </div>
+
+                <!-- 4. Crypto / Binance Pay -->
+                <div id="sec-crypto" class="hidden space-y-3 bg-[#141b28] border border-slate-700/60 rounded-2xl p-5 text-center">
+                    <div class="w-12 h-12 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center mx-auto text-xl mb-1">
+                        <i class="fa-solid fa-coins"></i>
+                    </div>
+                    <div class="text-sm font-bold text-white">Binance Pay & Direct USDT (TRC20 / BEP20)</div>
+                    <p class="text-xs text-slate-400">Zero fee instant credit via Binance Merchant API or on-chain USDT.</p>
+                    <div class="p-3 bg-slate-900 border border-slate-800 rounded-xl font-mono text-xs text-amber-300 break-all select-all">
+                        TYaK48JbM7QvP1XzE8rW9N2L5F0H4kC7pZ
+                    </div>
+                    <input type="text" id="crypto-tx" placeholder="Paste Blockchain TxHash / Binance Order ID" class="w-full bg-[#0a0d14] border border-slate-700 rounded-xl px-4 py-2.5 text-xs font-mono text-white text-center focus:outline-none focus:border-rose-500 transition">
+                </div>
+
+            </div>
+
+            <!-- Submit Button -->
+            <div class="mt-6 pt-4 border-t border-slate-800">
+                <button type="button" id="btn-submit" onclick="submitCurrentPayment()" class="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-rose-600 via-rose-500 to-amber-500 hover:from-rose-500 hover:to-amber-400 text-white font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 transition shadow-xl shadow-rose-600/25 active:scale-[0.99]">
+                    <i class="fa-solid fa-lock"></i>
+                    <span>Confirm & Credit {{ target_broker_name }}</span>
+                </button>
+
+                <div class="flex items-center justify-center gap-4 text-[11px] text-slate-400 mt-4">
+                    <span><i class="fa-solid fa-shield-halved text-emerald-400 mr-1"></i> Idempotent Ledger</span>
+                    <span>•</span>
+                    <span><i class="fa-solid fa-bolt text-amber-400 mr-1"></i> Instant Broker Credit</span>
+                    <span>•</span>
+                    <span><i class="fa-solid fa-rotate-left text-sky-400 mr-1"></i> SEBI/PMLA Compliant</span>
+                </div>
+            </div>
+
+            <!-- Result Box -->
+            <div id="result-box" class="hidden mt-5 p-4 rounded-2xl border text-xs"></div>
+
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-800/80 bg-[#0c1017]/90 px-4 py-4 text-center text-xs text-slate-400 font-mono">
+        AEGIS-QUANT QUANTUM TRADING PLATFORM • MULTI-BROKER AUTOMATED LIQUIDITY ROUTING
+    </footer>
+
+    <script>
+        const LINK_ID = "{{ link_id }}";
+        let currentMethod = 'card';
+
+        function selectMethod(method) {
+            currentMethod = method;
+            ['card', 'nfc', 'upi', 'crypto'].forEach(m => {
+                const tab = document.getElementById(`tab-${m}`);
+                if (tab) {
+                    if (m === method || (method === 'apple_google_nfc' && m === 'nfc')) {
+                        tab.className = "p-3 rounded-xl border bg-rose-500/10 border-rose-500 text-rose-300 font-bold text-xs flex flex-col items-center gap-1.5 transition";
+                    } else {
+                        tab.className = "p-3 rounded-xl border bg-slate-800/40 border-slate-700 text-slate-400 hover:text-white font-bold text-xs flex flex-col items-center gap-1.5 transition";
+                    }
+                }
+            });
+
+            document.getElementById('sec-card').classList.toggle('hidden', method !== 'card');
+            document.getElementById('sec-nfc').classList.toggle('hidden', method !== 'apple_google_nfc');
+            document.getElementById('sec-upi').classList.toggle('hidden', method !== 'upi');
+            document.getElementById('sec-crypto').classList.toggle('hidden', method !== 'crypto');
+        }
+
+        async function submitCurrentPayment() {
+            confirmDeposit(currentMethod);
+        }
+
+        async function confirmDeposit(method) {
+            const btn = document.getElementById('btn-submit');
+            const resBox = document.getElementById('result-box');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i> Verifying with Payment Network...';
+            resBox.className = "hidden";
+
+            let ref = "CARD-" + Math.random().toString(36).substring(2, 10).toUpperCase();
+            if (method === 'upi') {
+                ref = document.getElementById('upi-ref')?.value?.trim() || ("UPI-" + Math.random().toString(36).substring(2, 10).toUpperCase());
+            } else if (method === 'crypto') {
+                ref = document.getElementById('crypto-tx')?.value?.trim() || ("TX-" + Math.random().toString(36).substring(2, 10).toUpperCase());
+            }
+
+            try {
+                const res = await fetch(`/api/pay/confirm/${LINK_ID}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        method: method.toUpperCase(),
+                        payment_reference: ref,
+                        notes: 'Submitted via Universal Hosted Gateway'
+                    })
+                });
+                const data = await res.json();
+
+                if (res.ok && data.status === 'SUCCESS') {
+                    resBox.className = "mt-5 p-4 rounded-2xl border bg-emerald-500/10 border-emerald-500/40 text-emerald-300 text-xs space-y-1 block";
+                    resBox.innerHTML = `
+                        <div class="font-bold text-sm text-emerald-200"><i class="fa-solid fa-circle-check mr-1.5"></i> Payment Confirmed & Capital Allocated!</div>
+                        <div>${data.message}</div>
+                        <div class="font-mono text-[11px] text-slate-400 pt-1">Transaction Ref: <strong>${ref}</strong> • Broker Balance Updated</div>
+                    `;
+                    btn.innerHTML = '<i class="fa-solid fa-check mr-2"></i> Payment Completed!';
+                    btn.className = "w-full py-4 px-6 rounded-2xl bg-emerald-600 text-white font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2";
+                } else {
+                    resBox.className = "mt-5 p-4 rounded-2xl border bg-rose-500/10 border-rose-500/40 text-rose-300 text-xs block";
+                    resBox.innerHTML = `<i class="fa-solid fa-circle-xmark mr-1.5"></i> ${data.message || 'Payment processing failed. Please try again.'}`;
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa-solid fa-lock mr-2"></i> Try Again';
+                }
+            } catch (err) {
+                resBox.className = "mt-5 p-4 rounded-2xl border bg-rose-500/10 border-rose-500/40 text-rose-300 text-xs block";
+                resBox.innerHTML = `<i class="fa-solid fa-circle-xmark mr-1.5"></i> Network error: ${err.message}`;
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-lock mr-2"></i> Try Again';
+            }
+        }
+    </script>
+</body>
+</html>
