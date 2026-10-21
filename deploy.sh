@@ -47,13 +47,25 @@ if [ $RESTARTED -eq 0 ]; then
     echo "✓ Process started with nohup on PORT 8888!"
 fi
 
-# Restart frontend service if present
-if [ -f /etc/systemd/system/aegis-frontend.service ]; then
-    systemctl restart aegis-frontend
-    echo "✓ Systemd service 'aegis-frontend' (Next.js) restarted successfully!"
+# Step 4: Rebuild Next.js Production Bundle to reflect all design & UI updates
+if [ -d "frontend" ]; then
+    echo "[4/6] Rebuilding Next.js frontend with latest design changes..."
+    cd frontend
+    if [ ! -d "node_modules" ]; then
+        npm install --legacy-peer-deps
+    fi
+    npm run build
+    cd ..
+    echo "✓ Next.js production build completed successfully!"
 fi
 
-echo "[4/5] Running live Multi-Broker & Kotak Neo verification..."
+# Step 5: Restart frontend service if present
+if [ -f /etc/systemd/system/aegis-frontend.service ]; then
+    systemctl restart aegis-frontend
+    echo "✓ Systemd service 'aegis-frontend' (Next.js) restarted with fresh build!"
+fi
+
+echo "[5/6] Running live Multi-Broker & Kotak Neo verification..."
 ./venv/bin/python -c "
 from execution.broker_gateway_manager import broker_gateway_manager
 from execution.kotak_neo_broker import kotak_neo_broker
@@ -68,7 +80,7 @@ print('All Gateways   :', list(broker_gateway_manager.gateways.keys()))
 print('----------------------------------------')
 "
 
-echo "[5/5] Running live Binance Broker verification..."
+echo "[6/6] Running live Binance Broker verification..."
 ./venv/bin/python -c "
 from execution.binance_broker import binance_broker
 acc = binance_broker.get_account_info('BINANCE_LIVE', force_refresh=True)
