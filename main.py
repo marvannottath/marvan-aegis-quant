@@ -58,6 +58,13 @@ def run_live_system():
     print("   Mode: Paper Trading ($100,000 Virtual Capital Default)")
     print("=" * 60)
 
+    # Launch autonomous AI trading loop
+    try:
+        from dashboard.app import trader
+        trader.start_autonomous_loop()
+    except Exception as e:
+        print(f"[STARTUP] Autonomous trader loop start notice: {e}")
+
     # Launch FastAPI web server
     import os
     port = int(os.environ.get("PORT", 8888))
