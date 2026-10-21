@@ -47,14 +47,35 @@ if [ $RESTARTED -eq 0 ]; then
     echo "✓ Process started with nohup on PORT 8888!"
 fi
 
-echo "[4/4] Running live Binance Broker verification..."
+# Restart frontend service if present
+if [ -f /etc/systemd/system/aegis-frontend.service ]; then
+    systemctl restart aegis-frontend
+    echo "✓ Systemd service 'aegis-frontend' (Next.js) restarted successfully!"
+fi
+
+echo "[4/5] Running live Multi-Broker & Kotak Neo verification..."
+./venv/bin/python -c "
+from execution.broker_gateway_manager import broker_gateway_manager
+from execution.kotak_neo_broker import kotak_neo_broker
+status = kotak_neo_broker.get_status()
+print('----------------------------------------')
+print('LIVE KOTAK NEO DIAGNOSTIC:')
+print('Connected      :', status.get('connected'))
+print('Client ID      :', status.get('client_id'))
+print('Session Active :', status.get('session_active'))
+print('Live Capital   :', status.get('capital_allocated'))
+print('All Gateways   :', list(broker_gateway_manager.gateways.keys()))
+print('----------------------------------------')
+"
+
+echo "[5/5] Running live Binance Broker verification..."
 ./venv/bin/python -c "
 from execution.binance_broker import binance_broker
 acc = binance_broker.get_account_info('BINANCE_LIVE', force_refresh=True)
 fut = binance_broker.get_futures_account_summary('BINANCE_LIVE')
 pos = binance_broker.get_open_positions('BINANCE_LIVE')
 print('----------------------------------------')
-print('LIVE DIAGNOSTIC REPORT:')
+print('LIVE BINANCE REPORT:')
 print('Total Equity          :', acc.get('total_equity'))
 print('Total Available Bal   :', acc.get('available_balance'))
 print('Futures Wallet Balance:', fut.get('total_wallet_balance'))
@@ -67,4 +88,5 @@ print('----------------------------------------')
 
 echo "=========================================="
 echo " UPDATE COMPLETE — Dashboard is Live!     "
+echo " Target: https://srv1799665.hstgr.cloud/  "
 echo "=========================================="
