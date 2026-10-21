@@ -6477,8 +6477,15 @@ async def submit_order(request: Request):
 # 8. Order List & Status
 # ------------------------------------------------------------------
 @app.get("/api/orders")
-async def get_orders_list(environment: Optional[str] = None, env: Optional[str] = None, workspace: Optional[str] = None):
-    """Return order list from order_state_machine and broker audit log filtered strictly by environment/workspace."""
+async def get_orders_list(
+    environment: Optional[str] = None, 
+    env: Optional[str] = None, 
+    workspace: Optional[str] = None,
+    limit: Optional[int] = None,
+    offset: int = 0,
+    status_filter: Optional[str] = None
+):
+    """Return order list from order_state_machine and broker audit log filtered strictly by environment/workspace with optional pagination."""
     try:
         from core.order_state_machine import order_state_machine
         from execution.paper_broker import paper_broker
@@ -6562,9 +6569,31 @@ async def get_orders_list(environment: Optional[str] = None, env: Optional[str] 
 
         # Sort descending by timestamp so newest orders appear first
         orders = sorted(orders, key=lambda x: str(x.get("created_at") or x.get("submitted_at") or x.get("updated_at") or ""), reverse=True)
-        return JSONResponse({"status": "SUCCESS", "orders": orders, "count": len(orders)})
+        
+        total_count = len(orders)
+        if status_filter and status_filter.upper() != "ALL":
+            sf = status_filter.upper()
+            if sf == "OPEN":
+                orders = [o for o in orders if o.get("status") in ('CREATED', 'RISK_PENDING', 'APPROVED', 'SUBMITTED', 'ACKNOWLEDGED')]
+            else:
+                orders = [o for o in orders if str(o.get("status")).upper() == sf]
+            total_count = len(orders)
+
+        if limit is not None and limit > 0:
+            paginated_orders = orders[offset : offset + limit]
+        else:
+            paginated_orders = orders
+
+        return JSONResponse({
+            "status": "SUCCESS", 
+            "orders": paginated_orders, 
+            "total_count": total_count,
+            "count": len(paginated_orders),
+            "offset": offset,
+            "limit": limit or len(paginated_orders)
+        })
     except Exception as e:
-        return JSONResponse({"status": "ERROR", "message": str(e), "orders": [], "count": 0}, status_code=500)
+        return JSONResponse({"status": "ERROR", "message": str(e), "orders": [], "total_count": 0, "count": 0}, status_code=500)
 
 @app.get("/api/orders/{order_id}/status")
 async def get_order_status(order_id: str):

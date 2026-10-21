@@ -198,13 +198,26 @@ export const api = {
   },
 
   // Orders & Execution
-  async getOrders(env: Environment, ws?: Workspace): Promise<OrderRecord[]> {
+  async getOrders(
+    env: Environment,
+    ws?: Workspace,
+    limit?: number,
+    offset?: number,
+    status?: string
+  ): Promise<{ orders: OrderRecord[]; total_count: number }> {
     try {
       const wsParam = ws ? `&workspace=${ws}` : '';
-      const res = await fetchJson<{ orders?: OrderRecord[] }>(`/api/orders?environment=${env}${wsParam}`);
-      return res.orders || [];
+      const limitParam = limit !== undefined ? `&limit=${limit}` : '';
+      const offsetParam = offset !== undefined ? `&offset=${offset}` : '';
+      const statusParam = status && status !== 'ALL' ? `&status_filter=${status}` : '';
+      const res = await fetchJson<{ orders?: OrderRecord[]; total_count?: number; count?: number }>(
+        `/api/orders?environment=${env}${wsParam}${limitParam}${offsetParam}${statusParam}`
+      );
+      const orders = res.orders || [];
+      const total_count = res.total_count ?? orders.length;
+      return { orders, total_count };
     } catch {
-      return [];
+      return { orders: [], total_count: 0 };
     }
   },
 

@@ -16,7 +16,7 @@ export default function OrdersPage() {
           </p>
         </div>
       </div>
-      <OrdersTable />
+      <OrdersTable initialPageSize={25} />
     </div>
   );
 }
