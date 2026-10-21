@@ -7215,7 +7215,45 @@ async def get_risk_status_endpoint(request: Request, workspace: Optional[str] = 
 async def get_trader_stream_endpoint():
     """Diagnostic endpoint exposing raw live autonomous stream log."""
     from core.autonomous_trader import trader
-    return JSONResponse({"status": "SUCCESS", "stream": trader.get_live_stream()})
+    from core.ai_trading_controller import ai_trading_controller
+    return JSONResponse({
+        "status": "SUCCESS",
+        "is_running": trader.is_running,
+        "thread_alive": trader._thread.is_alive() if trader._thread else False,
+        "step_counter": getattr(trader, "_step_counter", 0),
+        "loop_started_at": getattr(trader, "_loop_started_at", None),
+        "ai_states": {
+            "INDIA:LIVE": ai_trading_controller.get_state("INDIA", environment="LIVE"),
+            "INDIA:DEMO": ai_trading_controller.get_state("INDIA", environment="DEMO"),
+        },
+        "stream": trader.get_live_stream()
+    })
+
+
+@app.post("/api/trader/start")
+async def start_trader_endpoint():
+    """Force start the autonomous trading loop thread."""
+    from core.autonomous_trader import trader
+    trader.start_autonomous_loop()
+    return JSONResponse({
+        "status": "SUCCESS",
+        "is_running": trader.is_running,
+        "thread_alive": trader._thread.is_alive() if trader._thread else False,
+        "message": "Autonomous trading loop started."
+    })
+
+
+@app.post("/api/trader/cycle")
+async def cycle_trader_endpoint():
+    """Trigger an instant one-shot cycle of the trading engine."""
+    from core.autonomous_trader import trader
+    trader.trigger_instant_cycle()
+    return JSONResponse({
+        "status": "SUCCESS",
+        "is_running": trader.is_running,
+        "thread_alive": trader._thread.is_alive() if trader._thread else False,
+        "stream": trader.get_live_stream()[:5]
+    })
 
 
 # ------------------------------------------------------------------

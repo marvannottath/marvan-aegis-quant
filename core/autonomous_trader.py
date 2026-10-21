@@ -236,8 +236,14 @@ class AutonomousTrader:
     def _run_loop(self):
         """Continuous AI trading loop scanning live tick quotes every 2.5 seconds."""
         step_counter = 0
+        self._step_counter = 0
+        now_str = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%H:%M:%S")
+        self._loop_started_at = now_str
+        self._log_action("AI_ENGINE", "ONLINE", 0.0, 0.0, f"Autonomous trading thread active at {now_str}")
+
         try:
-            self.restore_and_reconcile_all_pending()
+            recon_th = threading.Thread(target=self.restore_and_reconcile_all_pending, daemon=True)
+            recon_th.start()
         except Exception as e:
             print(f"[AUTONOMOUS TRADER STARTUP] restore_and_reconcile_all_pending notice: {e}")
 
@@ -245,6 +251,7 @@ class AutonomousTrader:
             try:
                 time.sleep(2.5)  # Fast 2.5-second institutional tick cycle
                 step_counter += 1
+                self._step_counter = step_counter
 
                 # ── Phase 5C Gate A: AI Trading Controller & Multi-Workspace Check ───
                 from core.workspace_manager import workspace_manager as _wsm
