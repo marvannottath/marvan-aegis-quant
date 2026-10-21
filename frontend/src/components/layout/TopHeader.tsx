@@ -22,6 +22,7 @@ import {
   Activity,
   KeyRound,
   RefreshCw,
+  ArrowDownToLine,
 } from 'lucide-react';
 import { Workspace } from '../../lib/types';
 import { ConnectBrokerModal } from '../common/ConnectBrokerModal';
@@ -234,6 +235,16 @@ export function TopHeader() {
               <ChevronDown className="h-3 w-3 opacity-60" />
             </button>
           ) : null}
+
+          {/* Quick Deposit Hub Button */}
+          <Link
+            href={environment === 'DEMO' ? '/demo/deposit' : '/deposit'}
+            className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 transition cursor-pointer"
+            title="Deposit funds and view transaction ledger"
+          >
+            <ArrowDownToLine className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Deposit</span>
+          </Link>
 
           {/* Privacy Amount Masking Toggle */}
           <button

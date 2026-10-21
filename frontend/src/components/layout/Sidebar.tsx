@@ -12,6 +12,7 @@ import {
   Layers,
   ShieldAlert,
   Wallet,
+  ArrowDownToLine,
   Zap,
   LineChart,
   ChevronLeft,
@@ -64,6 +65,11 @@ export function Sidebar() {
       name: 'Portfolio & Vault',
       href: `${prefix}/portfolio`,
       icon: Wallet,
+    },
+    {
+      name: 'Deposits',
+      href: `${prefix}/deposit`,
+      icon: ArrowDownToLine,
     },
     {
       name: 'Execution',
