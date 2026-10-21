@@ -26,11 +26,27 @@ const nextConfig = {
     ];
   },
   async rewrites() {
-    const backendUrl = process.env.BACKEND_URL || 'http://localhost:8888';
+    const backendUrl = process.env.BACKEND_URL || 'http://127.0.0.1:8888';
     return [
       {
         source: '/api/:path*',
         destination: `${backendUrl}/api/:path*`,
+      },
+      {
+        source: '/pay/:path*',
+        destination: `${backendUrl}/pay/:path*`,
+      },
+      {
+        source: '/broker',
+        destination: `${backendUrl}/broker`,
+      },
+      {
+        source: '/infrastructure',
+        destination: `${backendUrl}/infrastructure`,
+      },
+      {
+        source: '/reconciliation',
+        destination: `${backendUrl}/reconciliation`,
       },
     ];
   },
