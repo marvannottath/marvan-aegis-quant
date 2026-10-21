@@ -330,10 +330,14 @@ export function ConnectBrokerModal({
     try {
       setIsSaving(true);
       setSaveResult(null);
-      const res = await api.connectBroker({
+      const payloadToSend: Record<string, any> = {
         broker_id: selectedBroker.id,
         ...formValues,
-      });
+      };
+      if (selectedBroker.id === 'kotak_neo_live' && dailyTotpInput) {
+        payloadToSend.totp = dailyTotpInput;
+      }
+      const res = await api.connectBroker(payloadToSend);
 
       if (res.status === 'SUCCESS' || res.status === 'READY') {
         setSaveResult({
@@ -716,7 +720,11 @@ export function ConnectBrokerModal({
                             maxLength={6}
                             placeholder="e.g. 582910"
                             value={dailyTotpInput}
-                            onChange={(e) => setDailyTotpInput(e.target.value.replace(/\D/g, ''))}
+                            onChange={(e) => {
+                              const val = e.target.value.replace(/\D/g, '');
+                              setDailyTotpInput(val);
+                              handleInputChange('totp', val);
+                            }}
                             className="flex-1 px-3 py-2 text-sm font-mono font-bold tracking-widest text-center bg-white border border-red-300 rounded-lg focus:border-red-600 focus:ring-2 focus:ring-red-100 outline-none transition"
                           />
                           <button
