@@ -7204,7 +7204,7 @@ async def get_risk_status_endpoint(request: Request, workspace: Optional[str] = 
     try:
         from core.workspace_manager import workspace_manager
         active_ws = workspace or workspace_manager.get_active_workspace()
-        active_env = environment or request.query_params.get("environment") or workspace_manager.get_active_environment()
+        active_env = environment or request.query_params.get("environment") or ("LIVE" if active_ws == "INDIA" else "DEMO")
         status = risk_engine.get_risk_status(workspace=active_ws, environment=active_env)
         return JSONResponse({"status": "SUCCESS", "data": status})
     except Exception as e:

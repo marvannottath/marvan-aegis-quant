@@ -317,12 +317,12 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
 
         try:
             h = {
-                "Authorization": self._consumer_key,
-                "Sid": sid,
-                "sid": sid,
+                "Sid": sid or s_id,
+                "sid": sid or s_id,
                 "Auth": token,
                 "neo-fin-key": "neotradeapi",
-                "Content-Type": "application/x-www-form-urlencoded"
+                "Content-Type": "application/x-www-form-urlencoded",
+                "accept": "application/json"
             }
             url = f"{b_url}/quick/user/limits"
             if s_id:
@@ -381,10 +381,10 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
             url = f"{b_url}/quick/user/positions"
             if s_id:
                 url = f"{url}?sId={s_id}"
+            s_id_val = s_id or getattr(self, "_session_sid", "")
             h = {
-                "Authorization": self._consumer_key,
-                "Sid": getattr(self, "_session_sid", ""),
-                "sid": getattr(self, "_session_sid", ""),
+                "Sid": s_id_val,
+                "sid": s_id_val,
                 "Auth": self._session_token,
                 "neo-fin-key": "neotradeapi",
                 "accept": "application/json"
@@ -635,7 +635,7 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
 
     def get_funds(self, environment: str = "LIVE") -> Dict[str, Any]:
         """Fetch cash and margin balances in INR."""
-        is_paper = self._paper_mode or str(environment).upper() in ["DEMO", "PAPER"]
+        is_paper = (str(environment).upper() in ["DEMO", "PAPER"]) if environment else self._paper_mode
         if is_paper:
             used_margin = sum(
                 float(p.get("quantity", 0)) * float(p.get("buy_price", 0))
@@ -666,7 +666,7 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
         return []
 
     def get_positions(self, environment: str = "LIVE") -> List[Dict[str, Any]]:
-        is_paper = self._paper_mode or str(environment).upper() in ["DEMO", "PAPER"]
+        is_paper = (str(environment).upper() in ["DEMO", "PAPER"]) if environment else self._paper_mode
         if not is_paper and self._is_authenticated:
             return self.get_live_positions()
         elif not is_paper:
