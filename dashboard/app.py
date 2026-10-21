@@ -4342,6 +4342,52 @@ async def telegram_webhook_endpoint(request: Request):
     except Exception as e:
         return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
 
+# ── NEXT-LEVEL SUITE APIS (MORNING WAKEUP, FACTSHEET, VISUAL CHARTS, OPTIONS SCALPER) ──
+@app.get("/api/morning-wakeup/check")
+async def morning_wakeup_check_endpoint(force: bool = False):
+    """Run morning 8:45 AM pre-market session readiness test and send Telegram 2FA alert if needed."""
+    try:
+        from core.morning_wakeup_bot import morning_wakeup_bot
+        return JSONResponse(morning_wakeup_bot.execute_morning_check(force=force))
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+@app.get("/api/reports/today-factsheet")
+async def get_today_factsheet_endpoint():
+    """Compile comprehensive performance metrics, win rate, and brokerage savings for today."""
+    try:
+        from core.daily_pnl_factsheet import daily_pnl_factsheet
+        return JSONResponse({"status": "SUCCESS", "factsheet": daily_pnl_factsheet.generate_today_report()})
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+@app.post("/api/reports/today-factsheet/dispatch")
+async def dispatch_today_factsheet_endpoint():
+    """Broadcast formatted daily factsheet to Telegram."""
+    try:
+        from core.daily_pnl_factsheet import daily_pnl_factsheet
+        return JSONResponse(daily_pnl_factsheet.dispatch_telegram_factsheet())
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+@app.get("/api/charts/live/{symbol}")
+async def get_visual_chart_data_endpoint(symbol: str, timeframe: str = "1m", num_candles: int = 60):
+    """Deliver 60 FPS TradingView Lightweight Chart candlesticks with Buy/Sell execution marker badges."""
+    try:
+        from core.visual_chart_service import visual_chart_service
+        return JSONResponse(visual_chart_service.get_chart_data(symbol=symbol, timeframe=timeframe, num_candles=num_candles))
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+@app.get("/api/options/micro-scalp/setup")
+async def get_options_micro_scalp_setup(index: str = "NIFTY", view: str = "BULLISH"):
+    """Identify optimal zero-brokerage weekly options strike tailored for ₹1,000 micro-capital."""
+    try:
+        from core.options_micro_scalper import options_micro_scalper
+        return JSONResponse(options_micro_scalper.find_best_micro_option_strike(index_name=index, view=view))
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
 @app.get("/broker", response_class=HTMLResponse)
 async def broker_page():
     p = BASE_DIR / "templates" / "broker_page.html"
