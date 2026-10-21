@@ -200,7 +200,9 @@ async def add_no_cache_headers(request: Request, call_next):
 
 # Shared Global Application State
 backtester = BacktestEngine()
-trader = AutonomousTrader(paper_broker, risk_engine)
+from core.autonomous_trader import trader, autonomous_trader
+trader.broker = paper_broker
+trader.risk_engine = risk_engine
 
 @app.on_event("startup")
 async def on_startup():
@@ -7090,6 +7092,12 @@ async def connect_broker_endpoint(request: Request):
         code = 200 if is_ok else 400
         if is_ok and res.get("status") != "SUCCESS":
             res["status"] = "SUCCESS"
+        if is_ok and "kotak" in broker_id:
+            try:
+                trader.start_autonomous_loop()
+                trader.trigger_instant_cycle()
+            except Exception as e:
+                print(f"[KOTAK] Instant cycle notice: {e}")
         return JSONResponse(res, status_code=code)
     except Exception as e:
         return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
@@ -7137,7 +7145,14 @@ async def kotak_daily_totp_endpoint(request: Request):
             return JSONResponse({"status": "ERROR", "message": "Please enter today's 6-digit TOTP."}, status_code=400)
         from execution.broker_gateway_manager import broker_gateway_manager
         res = broker_gateway_manager.save_broker_credentials("kotak_neo_live", {"totp": totp})
-        code = 200 if res.get("status") == "SUCCESS" or res.get("connected") else 400
+        is_ok = (res.get("status") == "SUCCESS" or res.get("connected") is True)
+        code = 200 if is_ok else 400
+        if is_ok:
+            try:
+                trader.start_autonomous_loop()
+                trader.trigger_instant_cycle()
+            except Exception as e:
+                print(f"[KOTAK_TOTP] Instant cycle notice: {e}")
         return JSONResponse(res, status_code=code)
     except Exception as e:
         return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)

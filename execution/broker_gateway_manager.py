@@ -613,6 +613,12 @@ class BrokerGatewayManager:
             totp = str(payload.get("totp", "")).strip()
             totp_secret = str(payload.get("totp_secret", payload.get("totp_key", ""))).strip() or getattr(kotak_neo_broker, "_totp_secret", "")
             access_token = str(payload.get("access_token", "")).strip()
+            if mobile_number:
+                clean_m = mobile_number.replace("+", "").replace("-", "").replace(" ", "").strip()
+                if clean_m.startswith("91") and len(clean_m) == 12:
+                    clean_m = clean_m[2:]
+                mobile_number = clean_m
+
             is_demo = (broker_id == "kotak_neo_demo")
 
             if not consumer_key:

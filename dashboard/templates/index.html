@@ -909,6 +909,25 @@
                         </div>
                     </div>
 
+                    <!-- Kotak Neo 2FA Quick Prompt Banner (Appears only when needs_daily_totp is true) -->
+                    <div id="kotak-totp-banner" class="hidden bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-amber-500/20 border-2 border-amber-500/60 p-4 rounded-2xl shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-4 animate-pulse">
+                        <div class="flex items-center space-x-3 text-amber-300">
+                            <div class="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/50 flex items-center justify-center shrink-0">
+                                <i class="fa-solid fa-key text-amber-400 text-lg"></i>
+                            </div>
+                            <div>
+                                <h4 class="text-xs font-black uppercase tracking-wider text-amber-400">Kotak Neo Live 2FA Required for Today</h4>
+                                <p class="text-[11px] text-gray-300 font-sans">Enter today's 6-digit Authenticator code to unlock live NSE execution (₹1,000 capital)</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 w-full sm:w-auto">
+                            <input id="quick-totp-input" type="text" maxlength="6" placeholder="6-digit TOTP" class="w-32 bg-gray-950 border border-amber-500/60 rounded-xl px-3 py-2 text-center text-sm font-mono font-black text-amber-300 tracking-widest focus:outline-none focus:ring-2 focus:ring-amber-500">
+                            <button onclick="submitQuickTotp()" id="btn-quick-totp" class="px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-black font-black text-xs rounded-xl transition shadow-lg cursor-pointer whitespace-nowrap">
+                                Activate Live Trading
+                            </button>
+                        </div>
+                    </div>
+
                     <!-- Hero PnL & Performance Card -->
                     <div class="bg-gradient-to-br from-darkcard via-[#0e1726] to-darkcard border border-emerald-500/20 p-6 md:p-8 rounded-3xl shadow-2xl relative overflow-hidden">
                         <div class="absolute -right-10 -bottom-10 w-60 h-60 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none"></div>
@@ -7112,9 +7131,51 @@
                 if (data && data.status === 'SUCCESS' && Array.isArray(data.brokers)) {
                     cachedBrokers = data.brokers;
                     renderBrokerCards(data.brokers);
+                    const kBroker = data.brokers.find(b => b.id === 'kotak_neo_live');
+                    const kBanner = document.getElementById('kotak-totp-banner');
+                    if (kBanner) {
+                        if (kBroker && kBroker.needs_daily_totp) {
+                            kBanner.classList.remove('hidden');
+                        } else {
+                            kBanner.classList.add('hidden');
+                        }
+                    }
                 }
             } catch (e) {
                 console.warn('Failed to load broker gateways, using pre-rendered cache:', e);
+            }
+        }
+
+        async function submitQuickTotp() {
+            const input = document.getElementById('quick-totp-input');
+            const btn = document.getElementById('btn-quick-totp');
+            const totp = input ? input.value.trim() : '';
+            if (!totp || totp.length !== 6) {
+                showNotification('Invalid TOTP', 'Please enter a valid 6-digit TOTP code', 'warning');
+                return;
+            }
+            if (btn) btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Authenticating...';
+            try {
+                const res = await fetch('/api/kotak/daily-totp', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ totp: totp })
+                });
+                const data = await res.json();
+                if (data.status === 'SUCCESS' || data.connected) {
+                    showNotification('Kotak Neo Authenticated!', data.message || 'Live trading session activated for today', 'success');
+                    const banner = document.getElementById('kotak-totp-banner');
+                    if (banner) banner.classList.add('hidden');
+                    if (input) input.value = '';
+                    await loadBrokerGateways();
+                    fetchState();
+                } else {
+                    showNotification('Authentication Failed', data.message || 'Invalid TOTP code', 'error');
+                }
+            } catch (e) {
+                showNotification('Handshake Error', e.message, 'error');
+            } finally {
+                if (btn) btn.innerHTML = 'Activate Live Trading';
             }
         }
 
@@ -7193,8 +7254,8 @@
                                     </div>
                                 </div>
                                 <div class="flex flex-col items-end">
-                                    <span class="px-2 py-0.5 rounded text-[9px] font-mono font-bold ${isConn ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-gray-800 text-gray-400 border border-gray-700'}">
-                                        ${isConn ? '<span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1 animate-pulse"></span>' : ''}${statusText}
+                                    <span class="px-2 py-0.5 rounded text-[9px] font-mono font-bold ${b.needs_daily_totp ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse' : (isConn ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-gray-800 text-gray-400 border border-gray-700')}">
+                                        ${b.needs_daily_totp ? '<i class="fa-solid fa-key mr-1 text-amber-400"></i>NEEDS 2FA' : (isConn ? '<span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1 animate-pulse"></span>' + statusText : statusText)}
                                     </span>
                                 </div>
                             </div>
@@ -7212,9 +7273,15 @@
                         </div>
 
                         <div class="pt-1">
-                            <button type="button" onclick="event.stopPropagation(); openBrokerModal('${b.id}')" class="w-full py-2 bg-gray-950 hover:bg-gray-900 border border-darkborder group-hover:border-amber-500/40 rounded-xl text-xs font-bold text-gray-300 group-hover:text-amber-400 transition flex items-center justify-center gap-1.5 shadow-sm">
-                                <i class="fa-solid fa-sliders text-xs text-amber-400"></i> Configure Gateway
-                            </button>
+                            ${b.needs_daily_totp ? `
+                                <button type="button" onclick="event.stopPropagation(); openBrokerModal('${b.id}')" class="w-full py-2 bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 rounded-xl text-xs font-black text-black transition flex items-center justify-center gap-1.5 shadow-lg shadow-amber-500/20 animate-pulse">
+                                    <i class="fa-solid fa-key text-xs"></i> Enter Today's 2FA TOTP
+                                </button>
+                            ` : `
+                                <button type="button" onclick="event.stopPropagation(); openBrokerModal('${b.id}')" class="w-full py-2 bg-gray-950 hover:bg-gray-900 border border-darkborder group-hover:border-amber-500/40 rounded-xl text-xs font-bold text-gray-300 group-hover:text-amber-400 transition flex items-center justify-center gap-1.5 shadow-sm">
+                                    <i class="fa-solid fa-sliders text-xs text-amber-400"></i> Configure Gateway
+                                </button>
+                            `}
                         </div>
                     </div>
                 `;
@@ -7258,15 +7325,44 @@
 
             // Render form fields
             if (container) {
-                container.innerHTML = (broker.fields || []).map(f => {
+                const hasStored = Boolean(broker.has_stored_credentials);
+                let bannerHtml = '';
+                if (hasStored) {
+                    bannerHtml = `
+                        <div class="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-xs text-emerald-400 mb-3 space-y-1">
+                            <div class="flex items-center gap-1.5 font-bold">
+                                <i class="fa-solid fa-shield-check"></i>
+                                <span>Credentials Stored Securely on Server</span>
+                            </div>
+                            <div class="text-[11px] text-gray-300 font-mono">
+                                Client Code: <strong class="text-white">${broker.saved_ucc || 'Configured'}</strong> | Mobile: <strong class="text-white">${broker.saved_mobile || 'Configured'}</strong>
+                            </div>
+                            ${broker.needs_daily_totp ? `
+                                <div class="mt-2 p-2.5 bg-amber-500/20 border border-amber-500/40 rounded-lg text-amber-300 font-bold flex items-center gap-2">
+                                    <i class="fa-solid fa-key text-amber-400"></i>
+                                    <span>Daily 2FA Required: Enter today's 6-digit TOTP below to activate live trading.</span>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                }
+
+                container.innerHTML = bannerHtml + (broker.fields || []).map(f => {
                     const isPassword = f.type === 'password';
+                    let initialVal = '';
+                    if (f.id === 'mobile_number' && broker.saved_mobile) initialVal = broker.saved_mobile;
+                    if (f.id === 'ucc' && broker.saved_ucc) initialVal = broker.saved_ucc;
+                    const placeholder = (hasStored && ['consumer_key', 'consumer_secret', 'mpin'].includes(f.id)) ? '(Saved on server — leave blank to keep)' : f.placeholder;
+                    const isTotpField = f.id === 'totp';
+                    const reqStar = (f.required && !hasStored) ? '<span class="text-rose-400">*</span>' : (isTotpField && broker.needs_daily_totp ? '<span class="text-amber-400 font-bold">(Today\'s 6-digit code *)</span>' : '');
+
                     return `
                         <div>
                             <label class="block text-gray-400 mb-1 text-[11px] font-sans flex items-center justify-between">
-                                <span>${f.label} ${f.required ? '<span class="text-rose-400">*</span>' : ''}</span>
+                                <span>${f.label} ${reqStar}</span>
                             </label>
                             <div class="relative">
-                                <input id="modal-inp-${f.id}" type="${f.type}" placeholder="${f.placeholder}" class="w-full bg-gray-950 border border-darkborder rounded-xl px-3 py-2 text-xs text-white focus:border-amber-500 focus:outline-none transition ${isPassword ? 'pr-10' : ''}">
+                                <input id="modal-inp-${f.id}" type="${f.type}" value="${initialVal}" placeholder="${placeholder}" class="w-full bg-gray-950 border ${isTotpField && broker.needs_daily_totp ? 'border-amber-500 ring-1 ring-amber-500/50' : 'border-darkborder'} rounded-xl px-3 py-2 text-xs text-white focus:border-amber-500 focus:outline-none transition ${isPassword ? 'pr-10' : ''}">
                                 ${isPassword ? `
                                     <button type="button" onclick="toggleInputType('modal-inp-${f.id}')" class="absolute inset-y-0 right-0 px-3 text-gray-400 hover:text-white">
                                         <i class="fa-solid fa-eye text-xs"></i>
@@ -7276,6 +7372,13 @@
                         </div>
                     `;
                 }).join('');
+
+                if (broker.needs_daily_totp) {
+                    setTimeout(() => {
+                        const totpInput = document.getElementById('modal-inp-totp');
+                        if (totpInput) totpInput.focus();
+                    }, 100);
+                }
             }
 
             if (modal) modal.classList.remove('hidden');
@@ -7340,11 +7443,17 @@
 
             const payload = { broker_id: currentModalBroker.id };
             let hasMissing = false;
+            const hasStored = Boolean(currentModalBroker.has_stored_credentials);
+
             (currentModalBroker.fields || []).forEach(f => {
                 const el = document.getElementById(`modal-inp-${f.id}`);
                 const val = el ? el.value.trim() : '';
-                if (f.required && !val) hasMissing = true;
-                payload[f.id] = val;
+                if (f.required && !val && !hasStored) {
+                    hasMissing = true;
+                }
+                if (val) {
+                    payload[f.id] = val;
+                }
             });
 
             if (hasMissing) {

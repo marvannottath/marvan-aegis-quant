@@ -183,14 +183,16 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
                 "connected": False
             }
 
-        # Mobile number dual-attempt logic:
-        # The user inputs their mobile number without +91 (10 digits).
-        # We try the exact input format first. If that fails, try the alternate format (+91 or without).
-        mobile_trials = [mob]
-        if mob.startswith("+91") and len(mob) == 13:
-            mobile_trials.append(mob[3:])
-        elif not mob.startswith("+91") and len(mob) == 10:
-            mobile_trials.append(f"+91{mob}")
+        # Mobile number formatting for Kotak Neo Trade API:
+        # Kotak Neo strictly expects 10-digit mobile number (e.g. 9207802002)
+        clean_mob = mob.replace("+", "").replace("-", "").replace(" ", "").strip()
+        if clean_mob.startswith("91") and len(clean_mob) == 12:
+            clean_mob = clean_mob[2:]
+
+        # Prioritize 10 digits, fallback to +91 only if needed
+        mobile_trials = [clean_mob]
+        if not clean_mob.startswith("+91"):
+            mobile_trials.append(f"+91{clean_mob}")
 
         try:
             # Step 1: tradeApiLogin
@@ -202,7 +204,7 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
 
             d1 = None
             r1 = None
-            used_mob = mob
+            used_mob = clean_mob
             login_err = ""
 
             for trial_mob in mobile_trials:
@@ -471,7 +473,10 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
         self._consumer_key = consumer_key.strip()
         self._consumer_secret = consumer_secret.strip()
         if mobile_number:
-            self._mobile_number = mobile_number.strip()
+            clean_m = mobile_number.replace("+", "").replace("-", "").replace(" ", "").strip()
+            if clean_m.startswith("91") and len(clean_m) == 12:
+                clean_m = clean_m[2:]
+            self._mobile_number = clean_m
         if ucc:
             self._ucc = ucc.strip()
         if mpin:
