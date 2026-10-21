@@ -7202,12 +7202,20 @@ async def get_feature_health_endpoint():
 async def get_risk_status_endpoint(request: Request, workspace: Optional[str] = None, environment: Optional[str] = None):
     """Centralized risk configuration, limits, and circuit breaker status."""
     try:
+        from core.workspace_manager import workspace_manager
         active_ws = workspace or workspace_manager.get_active_workspace()
         active_env = environment or request.query_params.get("environment") or workspace_manager.get_active_environment()
         status = risk_engine.get_risk_status(workspace=active_ws, environment=active_env)
         return JSONResponse({"status": "SUCCESS", "data": status})
     except Exception as e:
         return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+@app.get("/api/trader/stream")
+async def get_trader_stream_endpoint():
+    """Diagnostic endpoint exposing raw live autonomous stream log."""
+    from core.autonomous_trader import trader
+    return JSONResponse({"status": "SUCCESS", "stream": trader.get_live_stream()})
 
 
 # ------------------------------------------------------------------

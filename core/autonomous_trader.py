@@ -664,6 +664,7 @@ class AutonomousTrader:
                                                     pos_id = f"TRD-KNEO-{ticker}-{int(time.time()*1000)}"
                                                     pos_record = {
                                                         "trade_id": pos_id,
+                                                        "broker_position_id": pos_id,
                                                         "asset": ticker, "symbol": ticker, "action": act, "side": act,
                                                         "units": qty, "quantity": qty, "entry_price": valid_tick_price,
                                                         "last_price": valid_tick_price, "capital_allocated": margin_required,
@@ -1242,6 +1243,7 @@ class AutonomousTrader:
             ord_id = osm_order.get("order_id", ord_id)
             order_state_machine.transition(ord_id, "RISK_PENDING", reason="Automated risk pipeline check")
             order_state_machine.transition(ord_id, "APPROVED", reason="Risk engine validated")
+            order_state_machine.transition(ord_id, "SUBMITTED", reason="Order submitted to broker execution engine")
         except Exception as e:
             print(f"Order state machine error: {e}")
         t8 = time.perf_counter()
@@ -1335,6 +1337,7 @@ class AutonomousTrader:
         entry = {
             "timestamp": now_str,
             "asset": asset,
+            "symbol": asset,
             "action": action,
             "price": round(price, 4) if "USD" in asset and price < 50.0 else round(price, 2),
             "amount_usd": round(amount_usd, 2),

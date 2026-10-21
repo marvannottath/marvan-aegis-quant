@@ -710,7 +710,7 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
         order_id = f"KNEO-{int(time.time() * 1000)}"
 
         # 2. Real Live Exchange Submission via Kotak Neo Trade API
-        is_live_order = (order_request.get("environment") == "LIVE") and not self._paper_mode
+        is_live_order = (str(order_request.get("environment", "")).upper() == "LIVE")
         if is_live_order:
             # Refresh session if token expired, missing, or date changed to new trading day
             today_str = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d")
@@ -737,17 +737,17 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
                     b_url = getattr(self, "_base_url", "https://mis.kotaksecurities.com")
                     if b_url.endswith("/"):
                         b_url = b_url.rstrip("/")
-                    s_id = getattr(self, "_server_id", "")
+                    s_id = getattr(self, "_server_id", "") or getattr(self, "_session_sid", "")
                     endpoint = f"{b_url}/quick/order/rule/ms/place"
                     if s_id:
                         endpoint = f"{endpoint}?sId={s_id}"
                     headers = {
-                        "Authorization": self._consumer_key,
-                        "Sid": getattr(self, "_session_sid", ""),
-                        "sid": getattr(self, "_session_sid", ""),
+                        "Sid": s_id,
+                        "sid": s_id,
                         "Auth": self._session_token,
                         "neo-fin-key": "neotradeapi",
-                        "Content-Type": "application/x-www-form-urlencoded"
+                        "Content-Type": "application/x-www-form-urlencoded",
+                        "accept": "application/json"
                     }
                     ts_sym = f"{symbol}-EQ" if not symbol.endswith("-EQ") else symbol
                     prod = order_request.get("product", "MIS").upper()
@@ -764,8 +764,7 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
                         "rt": "DAY",
                         "tp": "0",
                         "ts": ts_sym,
-                        "tt": "B" if side == "BUY" else "S",
-                        "os": "NEOTRADEAPI"
+                        "tt": "B" if side == "BUY" else "S"
                     }
                     resp = requests.post(endpoint, headers=headers, data={"jData": json.dumps(data_payload)}, timeout=12)
                     try:

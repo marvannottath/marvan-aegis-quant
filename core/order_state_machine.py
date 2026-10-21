@@ -39,7 +39,7 @@ class OrderStateMachineError(Exception):
 ORDER_TRANSITIONS: Dict[str, List[str]] = {
     "CREATED":              ["RISK_PENDING", "CANCELLED"],
     "RISK_PENDING":         ["APPROVED", "REJECTED"],
-    "APPROVED":             ["SUBMITTED"],
+    "APPROVED":             ["SUBMITTED", "ACKNOWLEDGED"],
     "SUBMITTED":            ["ACKNOWLEDGED", "FAILED", "CANCELLED", "PENDING_VERIFICATION"],
     "PENDING_VERIFICATION": ["ACKNOWLEDGED", "FILLED", "FAILED", "CANCELLED"],
     "ACKNOWLEDGED":         ["PARTIALLY_FILLED", "FILLED", "CANCELLED", "FAILED", "CLOSED"],
