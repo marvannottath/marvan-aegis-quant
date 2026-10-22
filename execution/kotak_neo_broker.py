@@ -12,9 +12,17 @@ Architecture:
 import os
 import json
 import time
+import socket
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime, timezone, timedelta
+
+# Enforce IPv4 globally for Kotak Neo REST calls to match SEBI whitelisted IPv4
+try:
+    import urllib3.util.connection as urllib3_cn
+    urllib3_cn.allowed_gai_family = lambda: socket.AF_INET
+except Exception:
+    pass
 
 from core.broker_adapter import BrokerAdapter
 
@@ -821,6 +829,7 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
                         }
 
                         headers_urlenc = {
+                            "Authorization": self._consumer_key,
                             "Sid": self._session_sid,
                             "sid": self._session_sid,
                             "Auth": self._session_token,

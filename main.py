@@ -5,9 +5,17 @@ Supports `--mode run` (Live Paper Trading + Web Dashboard), `--mode backtest`, a
 
 import sys
 import time
+import socket
 import argparse
 import uvicorn
 from pathlib import Path
+
+# Force IPv4 resolution globally for all broker outbound API calls (Kotak Neo, Binance)
+try:
+    import urllib3.util.connection as urllib3_cn
+    urllib3_cn.allowed_gai_family = lambda: socket.AF_INET
+except Exception:
+    pass
 
 # Load .env configuration
 try:
