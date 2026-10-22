@@ -227,6 +227,29 @@ class ProfitVault:
         store = self.vault_stores.get("AEGIS_QUANT_MASTER", {"transactions": [], "withdrawals": [], "transfers": []})
         return store.get("withdrawals", [])
 
+    def deposit(self, amount: float, reason: str = "", environment: str = "AEGIS_QUANT_MASTER") -> Dict[str, Any]:
+        """Deposit swept profits into the secure profit vault."""
+        if amount <= 0:
+            return {}
+        store = self.vault_stores.setdefault(environment, {"transactions": [], "withdrawals": [], "transfers": []})
+        prev_bal = self.get_vault_balance(environment)
+        new_bal = round(prev_bal + amount, 2)
+        tx_id = f"VTX-{environment[:4]}-{int(time.time()*1000)}-{uuid.uuid4().hex[:6].upper()}"
+        tx_record = {
+            "tx_id": tx_id,
+            "type": "PROFIT_SWEEP",
+            "amount": round(amount, 2),
+            "asset": "INR" if "INDIA" in environment else "USD",
+            "reason": reason or "Auto-Compounding Sweep",
+            "environment": environment,
+            "balance_before": prev_bal,
+            "balance_after": new_bal,
+            "timestamp": get_ist_timestamp(),
+        }
+        store["transactions"].insert(0, tx_record)
+        self._save_state()
+        return tx_record
+
     def sweep_profit(self, trade_pnl: float, asset: str, exit_reason: str, source_trade_id: str = "", environment: str = "AEGIS_QUANT_MASTER") -> Dict[str, Any]:
         """
         Only REALIZED PnL from closed positions may be swept into the vault.
