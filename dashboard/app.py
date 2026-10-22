@@ -4471,6 +4471,29 @@ async def place_order_endpoint(request: Request):
                 "active_cap": risk_engine.custom_trade_cap_usd
             }, status_code=400)
 
+        # Route directly to Kotak Neo Live for India Live orders
+        if ws == "INDIA":
+            try:
+                from execution.kotak_neo_broker import kotak_neo_broker
+                if kotak_neo_broker._is_authenticated or kotak_neo_broker._session_token:
+                    kotak_res = kotak_neo_broker.place_order({
+                        "symbol": asset,
+                        "side": action,
+                        "quantity": max(1, int(round(float(body.get("quantity", 1))))),
+                        "price": float(body.get("price", 0.0)),
+                        "order_type": str(body.get("order_type", "MARKET")),
+                        "product": str(body.get("product", "MIS")),
+                        "environment": "LIVE"
+                    })
+                    if kotak_res.get("status") in ("ACCEPTED", "FILLED", "SUBMITTED", "SUCCESS"):
+                        return JSONResponse({
+                            "status": "SUCCESS",
+                            "message": kotak_res.get("message", f"Kotak Neo Live Order Executed for {asset}"),
+                            "order": kotak_res
+                        })
+            except Exception as ke:
+                print(f"[KOTAK_NEO] Live place order error: {ke}")
+
         # Execute Order via PaperBroker
         current_price = 2514.80 if "XAU" in asset else (64250.0 if "BTC" in asset else 100.0)
         if asset in paper_broker.positions:

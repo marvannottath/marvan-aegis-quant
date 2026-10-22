@@ -737,6 +737,10 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
         if price > 0:
             price = round(round(price * 20.0) / 20.0, 2)
 
+        int_qty = max(1, int(round(quantity)))
+        ts_sym = f"{symbol}-EQ" if not symbol.endswith("-EQ") else symbol
+        prod = order_request.get("product", "MIS").upper()
+
         order_id = f"KNEO-{int(time.time() * 1000)}"
 
         # 2. Real Live Exchange Submission via Kotak Neo Trade API
@@ -771,36 +775,67 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
                     endpoint = f"{b_url}/quick/order/rule/ms/place"
                     if s_id:
                         endpoint = f"{endpoint}?sId={s_id}"
-                    headers = {
+                    
+                    headers_json = {
                         "Sid": s_id,
                         "sid": s_id,
                         "Auth": self._session_token,
+                        "Authorization": f"Bearer {self._session_token}",
                         "neo-fin-key": "neotradeapi",
-                        "Content-Type": "application/x-www-form-urlencoded",
+                        "Content-Type": "application/json",
                         "accept": "application/json"
                     }
-                    ts_sym = f"{symbol}-EQ" if not symbol.endswith("-EQ") else symbol
-                    prod = order_request.get("product", "MIS").upper()
-                    data_payload = {
+                    payload_json = {
                         "am": "NO",
+                        "discQty": "0",
                         "dq": "0",
+                        "ds": "N",
                         "es": "nse_cm",
-                        "mp": "0",
+                        "exchangeSegment": "nse_cm",
                         "pc": prod,
+                        "pCode": prod,
                         "pf": "N",
+                        "price": str(price) if order_type == "LIMIT" else "0",
                         "pr": str(price) if order_type == "LIMIT" else "0",
                         "pt": "MKT" if order_type == "MARKET" else "L",
-                        "qt": str(int(quantity)),
+                        "qty": str(int_qty),
+                        "qt": str(int_qty),
+                        "rFlag": "YES",
                         "rt": "DAY",
                         "tp": "0",
+                        "symbol": ts_sym,
+                        "tradingSymbol": ts_sym,
                         "ts": ts_sym,
+                        "transType": "B" if side == "BUY" else "S",
                         "tt": "B" if side == "BUY" else "S"
                     }
-                    resp = requests.post(endpoint, headers=headers, data={"jData": json.dumps(data_payload)}, timeout=12)
+                    
+                    # Try direct JSON post first (Kotak Neo v2 standard)
+                    resp = requests.post(endpoint, headers=headers_json, json=payload_json, timeout=12)
+                    res_json = {}
                     try:
                         res_json = resp.json()
                     except Exception:
-                        res_json = {}
+                        pass
+                    
+                    # If JSON rejected or not 200, try jData urlencoded fallback
+                    if resp.status_code not in (200, 201) or res_json.get("stat") == "Not_Ok":
+                        headers_urlenc = {
+                            "Sid": s_id,
+                            "sid": s_id,
+                            "Auth": self._session_token,
+                            "neo-fin-key": "neotradeapi",
+                            "Content-Type": "application/x-www-form-urlencoded",
+                            "accept": "application/json"
+                        }
+                        resp2 = requests.post(endpoint, headers=headers_urlenc, data={"jData": json.dumps(payload_json)}, timeout=12)
+                        try:
+                            res_json2 = resp2.json()
+                            if resp2.status_code in (200, 201) and res_json2.get("stat") != "Not_Ok":
+                                resp = resp2
+                                res_json = res_json2
+                        except Exception:
+                            pass
 
                     if resp.status_code in (200, 201) and res_json.get("stat") != "Not_Ok":
                         data_block = res_json.get("data", res_json)

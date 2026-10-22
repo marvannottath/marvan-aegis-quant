@@ -715,6 +715,8 @@ class AutonomousTrader:
                                                 leverage=calc_leverage
                                             )
 
+                                            qty = max(1, int(round(qty)))
+                                            margin_required = round((qty * current_price) / max(1.0, calc_leverage), 2)
                                             if margin_required <= working_cash:
                                                 valid_tick_price = round(round(current_price * 20.0) / 20.0, 2)
                                                 prod_type = "MIS" if calc_leverage > 1.0 else "CNC"
