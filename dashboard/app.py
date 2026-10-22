@@ -6932,7 +6932,7 @@ async def get_india_broker_status():
                     "ledger_cash": avail_margin,
                     "delta": round(abs(cash_bal - avail_margin), 2),
                     "status": "RECONCILIATION_OK",
-                    "checked_at": _ist_now()
+                    "checked_at": get_ist_time()
                 }
             })
 
