@@ -495,7 +495,9 @@ class AutonomousTrader:
                                 pass
 
                             # Calibrated High-Probability Threshold for active quant execution
-                            if "AGGRESSIVE" in profile_name:
+                            if _active_ws == "INDIA":
+                                min_opp_threshold = 80.0
+                            elif "AGGRESSIVE" in profile_name:
                                 min_opp_threshold = 75.0
                             elif "MODERATE" in profile_name:
                                 min_opp_threshold = 80.0
