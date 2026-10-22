@@ -437,8 +437,11 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
                 for p in pos_list:
                     if not isinstance(p, dict):
                         continue
-                    net_qty = float(p.get("netQty", p.get("flBuyQty", 0)) or 0)
-                    if abs(net_qty) > 0:
+                    buy_qty = float(p.get("flBuyQty", 0) or 0)
+                    sell_qty = float(p.get("flSellQty", 0) or 0)
+                    net_qty = float(p.get("netQty", buy_qty - sell_qty) or 0)
+                    is_squared_off = (p.get("sqrFlg") == "Y") or (net_qty == 0)
+                    if not is_squared_off and abs(net_qty) > 0:
                         verified.append({
                             "symbol": p.get("tradingSymbol", p.get("sym", "")),
                             "quantity": abs(net_qty),
