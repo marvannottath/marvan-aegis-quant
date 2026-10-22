@@ -885,7 +885,7 @@ class PaperBroker:
                     binance_broker.close_futures_position(asset, environment="BINANCE_TESTNET")
                 except Exception as e:
                     print(f"[PAPER_BROKER -> FUTURES CLOSE NOTICE]: {e}")
-            elif self.active_pool_name in ["BINANCE_LIVE_REAL", "BINANCE_TESTNET_DEMO", "BINANCE_LIVE"] or is_crypto_asset:
+            elif self.active_pool_name in ["BINANCE_LIVE_REAL", "BINANCE_TESTNET_DEMO", "BINANCE_LIVE"] or any(asset.endswith(q) for q in ["USDT", "BTC", "ETH", "BNB"]):
                 try:
                     from execution.binance_broker import binance_broker
                     closing_side = "SELL" if act in ("BUY", "LONG") else "BUY"

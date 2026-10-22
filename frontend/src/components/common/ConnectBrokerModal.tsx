@@ -787,6 +787,28 @@ export function ConnectBrokerModal({
                     </div>
                   )}
 
+                  {/* Kotak Neo Specific Checklist */}
+                  {selectedBroker.id === 'kotak_neo' && (
+                    <div className="p-3 bg-amber-50/90 rounded-lg border border-amber-200 text-amber-950 text-[11px] space-y-1.5">
+                      <div className="font-bold flex items-center gap-1.5 text-amber-900">
+                        <Shield className="h-3.5 w-3.5 text-amber-600" />
+                        <span>Kotak Neo Trade API (SEBI Mandatory IP Whitelist):</span>
+                      </div>
+                      <ul className="list-disc list-inside space-y-1 text-slate-700 pl-0.5">
+                        <li>
+                          <strong>Required Server IP:</strong> Under SEBI rules, order placement requires your server IP to be whitelisted in Kotak Neo:{' '}
+                          <code className="bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-mono font-bold select-all">187.127.189.139</code>
+                        </li>
+                        <li>
+                          <strong>How to add:</strong> Log in to <strong>trade.kotakneo.com</strong> or Kotak Neo App &rarr; <strong>More / Trade API</strong> &rarr; <strong>API Dashboard</strong> &rarr; Click your API App &rarr; <strong>Allowed IPs</strong> &rarr; Add <code className="font-mono font-bold">187.127.189.139</code> &rarr; Save.
+                        </li>
+                        <li>
+                          <strong>Notice:</strong> Without adding this IP, session login and balance check succeed, but order execution returns <code className="font-mono text-red-700">100008 unauthorized</code>.
+                        </li>
+                      </ul>
+                    </div>
+                  )}
+
                   {/* Binance Live Specific Checklist */}
                   {selectedBroker.id === 'binance_live' && (
                     <div className="p-3 bg-blue-50/90 rounded-lg border border-blue-200 text-blue-950 text-[11px] space-y-1.5">

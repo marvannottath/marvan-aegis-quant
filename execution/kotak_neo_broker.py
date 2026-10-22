@@ -767,77 +767,84 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
 
             if self._session_token:
                 try:
-                    import requests
-                    b_url = getattr(self, "_base_url", "https://mis.kotaksecurities.com")
-                    if b_url.endswith("/"):
-                        b_url = b_url.rstrip("/")
-                    s_id = getattr(self, "_server_id", "") or getattr(self, "_session_sid", "")
-                    endpoint = f"{b_url}/quick/order/rule/ms/place"
-                    if s_id:
-                        endpoint = f"{endpoint}?sId={s_id}"
-                    
-                    headers_json = {
-                        "Sid": s_id,
-                        "sid": s_id,
-                        "Auth": self._session_token,
-                        "Authorization": f"Bearer {self._session_token}",
-                        "neo-fin-key": "neotradeapi",
-                        "Content-Type": "application/json",
-                        "accept": "application/json"
-                    }
-                    payload_json = {
-                        "am": "NO",
-                        "discQty": "0",
-                        "dq": "0",
-                        "ds": "N",
-                        "es": "nse_cm",
-                        "exchangeSegment": "nse_cm",
-                        "pc": prod,
-                        "pCode": prod,
-                        "pf": "N",
-                        "price": str(price) if order_type == "LIMIT" else "0",
-                        "pr": str(price) if order_type == "LIMIT" else "0",
-                        "pt": "MKT" if order_type == "MARKET" else "L",
-                        "qty": str(int_qty),
-                        "qt": str(int_qty),
-                        "rFlag": "YES",
-                        "rt": "DAY",
-                        "tp": "0",
-                        "symbol": ts_sym,
-                        "tradingSymbol": ts_sym,
-                        "ts": ts_sym,
-                        "transType": "B" if side == "BUY" else "S",
-                        "tt": "B" if side == "BUY" else "S"
-                    }
-                    
-                    # Try direct JSON post first (Kotak Neo v2 standard)
-                    resp = requests.post(endpoint, headers=headers_json, json=payload_json, timeout=12)
-                    res_json = {}
+                    res_json = None
+                    resp_status = 200
+
+                    # Strategy 1: Official neo_api_client SDK if available
                     try:
-                        res_json = resp.json()
-                    except Exception:
+                        from neo_api_client import NeoAPI
+                        client = NeoAPI(
+                            consumer_key=self._consumer_key,
+                            environment="prod"
+                        )
+                        # Set current session tokens onto client if available
+                        if hasattr(client, "configuration"):
+                            client.configuration.bearer_token = self._session_token
+                        sdk_res = client.place_order(
+                            exchange_segment="nse_cm",
+                            product=prod,
+                            price=str(price) if order_type == "LIMIT" else "0",
+                            order_type="MKT" if order_type == "MARKET" else "L",
+                            quantity=str(int_qty),
+                            trading_symbol=ts_sym,
+                            transaction_type="B" if side == "BUY" else "S",
+                            validity="DAY"
+                        )
+                        if isinstance(sdk_res, dict) and sdk_res.get("stCode") not in (401, 100008, 1007):
+                            res_json = sdk_res
+                    except Exception as sdk_ex:
+                        # Fallback to direct REST HTTP
                         pass
-                    
-                    # If JSON rejected or not 200, try jData urlencoded fallback
-                    if resp.status_code not in (200, 201) or res_json.get("stat") == "Not_Ok":
+
+                    # Strategy 2: Direct REST endpoint with standard 13-key jData
+                    if res_json is None:
+                        import requests
+                        b_url = getattr(self, "_base_url", "https://e22.kotaksecurities.com")
+                        if b_url.endswith("/"):
+                            b_url = b_url.rstrip("/")
+                        endpoint = f"{b_url}/quick/order/rule/ms/place"
+
+                        jdata_payload = {
+                            "am": "NO",
+                            "dq": "0",
+                            "es": "nse_cm",
+                            "mp": "0",
+                            "pc": prod,
+                            "pf": "N",
+                            "pr": str(price) if order_type == "LIMIT" else "0",
+                            "pt": "MKT" if order_type == "MARKET" else "L",
+                            "qt": str(int_qty),
+                            "rt": "DAY",
+                            "tp": "0",
+                            "ts": ts_sym,
+                            "tt": "B" if side == "BUY" else "S"
+                        }
+
                         headers_urlenc = {
-                            "Sid": s_id,
-                            "sid": s_id,
+                            "Sid": self._session_sid,
+                            "sid": self._session_sid,
                             "Auth": self._session_token,
                             "neo-fin-key": "neotradeapi",
                             "Content-Type": "application/x-www-form-urlencoded",
                             "accept": "application/json"
                         }
-                        resp2 = requests.post(endpoint, headers=headers_urlenc, data={"jData": json.dumps(payload_json)}, timeout=12)
+                        resp = requests.post(
+                            endpoint,
+                            headers=headers_urlenc,
+                            data={"jData": json.dumps(jdata_payload)},
+                            timeout=12
+                        )
+                        resp_status = resp.status_code
                         try:
-                            res_json2 = resp2.json()
-                            if resp2.status_code in (200, 201) and res_json2.get("stat") != "Not_Ok":
-                                resp = resp2
-                                res_json = res_json2
+                            res_json = resp.json()
                         except Exception:
-                            pass
+                            res_json = {"errMsg": resp.text}
 
-                    if resp.status_code in (200, 201) and res_json.get("stat") != "Not_Ok":
+                    # Evaluate response
+                    st_code = res_json.get("stCode") if isinstance(res_json, dict) else 0
+                    is_ok = (st_code in (200, 0)) or (isinstance(res_json, dict) and res_json.get("stat") in ("Ok", "success") and st_code != 100008)
+
+                    if is_ok:
                         data_block = res_json.get("data", res_json)
                         real_ord_id = ""
                         if isinstance(data_block, dict):
@@ -871,16 +878,32 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
                         if isinstance(res_json, dict):
                             err_msg = res_json.get("errMsg") or res_json.get("message") or res_json.get("error") or ""
                         if not err_msg:
-                            err_msg = resp.text.strip() if resp.text else f"HTTP {resp.status_code}"
-                        print(f"[KOTAK_NEO] Live exchange order failed (HTTP {resp.status_code}): {err_msg}")
-                        if "session" in err_msg.lower() or "token" in err_msg.lower() or "unauthorized" in err_msg.lower() or resp.status_code in (401, 403):
+                            err_msg = str(res_json)
+                        print(f"[KOTAK_NEO] Live exchange order failed: {err_msg} (stCode: {st_code})")
+
+                        # If 100008, it is specifically IP Whitelisting restriction, NOT token expiry
+                        if st_code == 100008 or "100008" in str(err_msg):
+                            return {
+                                "status": "REJECTED",
+                                "order_id": None,
+                                "message": (
+                                    "Kotak Neo Error 100008 (IP Whitelist Required): "
+                                    "Order placement blocked because Hostinger VPS IP (187.127.189.139) is not whitelisted. "
+                                    "Please log into Kotak Neo -> More -> Trade API -> API Dashboard -> Allowed IPs and add 187.127.189.139."
+                                ),
+                                "raw": res_json
+                            }
+
+                        # If genuine session expired (token invalid/expired)
+                        if "session expired" in err_msg.lower() or "token expired" in err_msg.lower():
                             self._is_authenticated = False
                             self._session_token = ""
+
                         return {
                             "status": "REJECTED",
                             "order_id": None,
-                            "message": f"Kotak Neo Exchange Rejected (HTTP {resp.status_code}): {err_msg}",
-                            "raw": res_json or resp.text
+                            "message": f"Kotak Neo Exchange Rejected: {err_msg}",
+                            "raw": res_json
                         }
                 except Exception as ex:
                     print(f"[KOTAK_NEO] Live API request error: {ex}")
