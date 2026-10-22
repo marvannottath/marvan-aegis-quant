@@ -706,6 +706,12 @@ class AutonomousTrader:
 
                                 elif pool in ["KOTAK_NEO_LIVE", "UPSTOX_LIVE"] or (_active_ws == "INDIA" and is_live_pool):
                                     try:
+                                        # End-of-Day Safety: Do not open NEW intraday positions after 14:45 IST
+                                        # Indian market closes at 15:30 IST; Kotak RMS auto-squares off at 15:15 IST
+                                        now_ist = datetime.now(timezone.utc).astimezone(IST_TZ)
+                                        if now_ist.hour > 14 or (now_ist.hour == 14 and now_ist.minute >= 45):
+                                            continue
+
                                         from execution.kotak_neo_broker import kotak_neo_broker
                                         gate_ok, gate_msg = environment_gate.check_order_allowed("LIVE", 0.0)
                                         if gate_ok:
@@ -735,10 +741,10 @@ class AutonomousTrader:
                                                     live_order_placed = True
                                                     ord_label = f"KOTAK NEO LIVE DMA: {k_order_res.get('order_id', 'ACCEPTED')}"
                                                 else:
-                                                    # Live Market Bridge Execution:
-                                                    # Executes directly on live NSE prices for user's ₹1,000 capital so trades open immediately
-                                                    live_order_placed = True
-                                                    ord_label = f"LIVE NSE EXECUTION (2FA Pending): {k_order_res.get('message', 'Active')[:40]}"
+                                                    # Do NOT create position if Kotak Neo rejected the order!
+                                                    live_order_placed = False
+                                                    self._log_action(ticker, "KOTAK_REJECTED", valid_tick_price, margin_required, f"Kotak Neo rejected: {k_order_res.get('message', 'Rejected')}")
+                                                    continue
 
                                                 pos_id = f"TRD-KNEO-{ticker}-{int(time.time()*1000)}"
                                                 pos_record = {
@@ -948,14 +954,15 @@ class AutonomousTrader:
                         is_stale_rotation = False               # Never close Forex/Gold at a loss on time alone
                         is_hard_stop = (pnl_pct <= -0.010)      # 1.0% hard stop
                     elif is_zero_brokerage_venue:
-                        # Kotak Neo / Zero Brokerage: Free brokerage, but cover STT/exchange charges
-                        is_fee_secured_tp = (pnl_pct >= 0.0030)  # +0.30% clean profit after statutory charges
-                        is_milestone = (pnl_pct >= 0.0060)       # +0.60% milestone
-                        is_micro_harvest = (pnl_pct >= 0.0020)
-                        is_staggered_harvest = ((step_counter + idx) % 3 == 0) and (pnl_pct >= 0.0025)
+                        # Kotak Neo / Zero Brokerage: Patient swing-scalp to prevent churning
+                        # Minimum holding time of 120 seconds prevents micro-tick churn
+                        is_fee_secured_tp = (pnl_pct >= 0.0050) and (time_held_sec >= 120)  # +0.50% clean profit target
+                        is_milestone = (pnl_pct >= 0.0100)       # +1.0% milestone runner
+                        is_micro_harvest = False                 # Disabled: stop churning on tick noise
+                        is_staggered_harvest = False             # Disabled: avoid premature chopping
                         is_maturity_rebalance = False
                         is_stale_rotation = False               # Never sell Indian equity at a loss simply on elapsed time
-                        is_hard_stop = (pnl_pct <= -0.008)      # 0.8% hard stop
+                        is_hard_stop = (pnl_pct <= -0.0100)     # 1.0% hard stop
                     else:
                         # Crypto Spot: Fast Closes Covering Binance Fees + ~0.25% Net Profit
                         # Binance round-trip fee is 0.20% (0.1% Buy + 0.1% Sell).

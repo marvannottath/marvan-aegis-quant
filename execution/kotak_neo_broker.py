@@ -778,6 +778,18 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
 
             if self._session_token:
                 try:
+                    # Pre-flight Margin Safety Gate:
+                    # Enforce that Kotak Neo actually has enough available funds before dispatching order
+                    live_avail = self.fetch_live_limits()
+                    est_price = price if price > 0 else 500.0
+                    est_margin = round((int_qty * est_price) / (5.0 if prod == "MIS" else 1.0), 2)
+                    if side == "BUY" and live_avail < est_margin:
+                        return {
+                            "status": "REJECTED",
+                            "order_id": None,
+                            "message": f"Pre-flight margin check: Required margin ₹{est_margin:,.2f} exceeds available cash ₹{live_avail:,.2f}. Order blocked locally to prevent RMS rejection.",
+                        }
+
                     import requests
                     b_url = getattr(self, "_base_url", "https://e22.kotaksecurities.com")
                     if b_url.endswith("/"):
@@ -971,16 +983,39 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
         symbol: str,
         quantity: float = 0,
         product: str = "MIS",
-        environment: str = "LIVE"
+        environment: str = "LIVE",
+        side: str = ""
     ) -> Dict[str, Any]:
         """
-        Close an existing open position by submitting a market SELL order to Kotak Neo exchange.
+        Close an existing open position by submitting an offsetting market order to Kotak Neo exchange.
+        Checks live positions first to determine whether to BUY or SELL and verifies position exists.
         """
         sym_clean = symbol.replace("-EQ", "").strip()
+
+        # Check live positions on Kotak Neo
+        closing_side = (side or "").upper()
+        if not closing_side and environment == "LIVE":
+            live_pos = self.get_live_positions()
+            matched = next((p for p in live_pos if sym_clean in p.get("symbol", "")), None)
+            if not matched:
+                return {
+                    "status": "ALREADY_CLOSED",
+                    "order_id": None,
+                    "message": f"Position for {sym_clean} is already closed on Kotak Neo. No order sent."
+                }
+            # If held long (BUY), offset by SELL. If held short (SELL), offset by BUY.
+            held_side = matched.get("side", "BUY")
+            closing_side = "SELL" if held_side == "BUY" else "BUY"
+            if quantity <= 0:
+                quantity = float(matched.get("quantity", 1))
+
+        if not closing_side:
+            closing_side = "SELL"
+
         close_qty = float(quantity) if quantity > 0 else 1.0
         return self.place_order({
             "symbol": sym_clean,
-            "side": "SELL",
+            "side": closing_side,
             "quantity": close_qty,
             "price": 0.0,
             "order_type": "MARKET",
