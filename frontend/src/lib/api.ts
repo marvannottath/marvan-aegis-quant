@@ -353,12 +353,20 @@ export const api = {
   },
 
   // CA Tax Audit & Investor Factsheet
-  async getTaxAudit(): Promise<any> {
-    return fetchJson('/api/reports/tax-audit');
+  async getTaxAudit(ws?: Workspace, env?: Environment): Promise<any> {
+    const params = new URLSearchParams();
+    if (ws) params.set('workspace', ws);
+    if (env) params.set('environment', env);
+    const q = params.toString() ? `?${params.toString()}` : '';
+    return fetchJson(`/api/reports/tax-audit${q}`);
   },
 
-  async getFactsheet(): Promise<any> {
-    return fetchJson('/api/reports/factsheet');
+  async getFactsheet(ws?: Workspace, env?: Environment): Promise<any> {
+    const params = new URLSearchParams();
+    if (ws) params.set('workspace', ws);
+    if (env) params.set('environment', env);
+    const q = params.toString() ? `?${params.toString()}` : '';
+    return fetchJson(`/api/reports/factsheet${q}`);
   },
 
   // AI Auto-Tuner & Walk-Forward Optimizer

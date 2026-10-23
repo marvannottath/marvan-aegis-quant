@@ -88,11 +88,20 @@ class PerformanceCurveEngine:
 
         if workspace:
             target_ws = workspace_manager._normalize_workspace(workspace)
-        elif "INDIA" in environment or "UPSTOX" in environment:
+        elif "INDIA" in environment or "UPSTOX" in environment or "KOTAK" in environment:
             target_ws = "INDIA"
         elif "FOREX" in environment or "MT5" in environment or environment == "AEGIS_QUANT_MASTER":
             target_ws = "FOREX_GOLD"
-        env_mode = "LIVE" if str(environment).upper() in ["LIVE", "BINANCE_LIVE_REAL", "MT5_LIVE_REAL", "UPSTOX_LIVE"] else "PAPER"
+        else:
+            target_ws = "CRYPTO"
+
+        is_live_env = (
+            str(environment).upper() in ["LIVE", "BINANCE_LIVE_REAL", "MT5_LIVE_REAL", "UPSTOX_LIVE", "KOTAK_NEO_LIVE", "KOTAK_NEO"]
+            or "LIVE" in str(environment).upper()
+            or "REAL" in str(environment).upper()
+        )
+        env_mode = "LIVE" if is_live_env else "PAPER"
+
         try:
             agg = position_snapshot_service.get_portfolio_aggregate(target_ws, environment=env_mode)
             raw_tot = agg.get("total_equity") if agg else None
@@ -108,9 +117,9 @@ class PerformanceCurveEngine:
             else:
                 # Strictly isolate fallback by target_ws; never bleed un-scoped paper_broker.equity
                 ws_pool_map = {
-                    "INDIA": "AEGIS_INDIA_INR",
-                    "FOREX_GOLD": "MT5_LIVE_REAL",
-                    "CRYPTO": "BINANCE_LIVE_REAL"
+                    "INDIA": "KOTAK_NEO_LIVE" if env_mode == "LIVE" else "AEGIS_INDIA_INR",
+                    "FOREX_GOLD": "MT5_LIVE_REAL" if env_mode == "LIVE" else "MT5_DEMO",
+                    "CRYPTO": "BINANCE_LIVE_REAL" if env_mode == "LIVE" else "BINANCE_TESTNET_DEMO"
                 }
                 mapped_pool = ws_pool_map.get(target_ws)
                 if mapped_pool and mapped_pool in paper_broker.pools:
@@ -122,6 +131,22 @@ class PerformanceCurveEngine:
                     cur_equity = round(p_cash + p_vault + p_margin, 2)
                 else:
                     cur_equity = round(float(opening_amt), 2)
+
+        # STRICT ISOLATION: Filter trades by target workspace & environment
+        filtered_trades = []
+        for t in trades:
+            sym = t.get("symbol") or t.get("asset", "")
+            if target_ws and not workspace_manager.is_symbol_allowed(sym, target_ws):
+                continue
+            t_env = str(t.get("environment") or t.get("pool", "")).upper()
+            if env_mode == "LIVE":
+                if "DEMO" in t_env or "PAPER" in t_env or "TESTNET" in t_env:
+                    continue
+            else:
+                if "LIVE" in t_env or "REAL" in t_env:
+                    continue
+            filtered_trades.append(t)
+        trades = filtered_trades
 
         # Build clean non-double-counted event series
         events = []

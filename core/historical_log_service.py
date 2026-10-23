@@ -172,6 +172,17 @@ class HistoricalLogService:
         exit_px = float(t.get("exit_price") or entry_px)
         units = float(t.get("units") or t.get("quantity") or 0.0)
 
+        # Authoritatively resolve workspace from symbol
+        s_upper = str(sym).upper().replace("/", "").replace("-", "")
+        if any(s_upper.endswith(q) for q in ["USDT", "BUSD", "USDC", "BTC", "ETH"]) or s_upper in ["BTC", "ETH", "SOL", "BNB", "XRP", "DOGE", "ADA", "AVAX", "LINK", "SUI"]:
+            resolved_ws = "CRYPTO"
+        elif s_upper in ["RELIANCE", "TCS", "INFY", "HDFCBANK", "ICICIBANK", "SBIN", "BHARTIARTL", "ITC", "NIFTY50", "BANKNIFTY", "TATAMOTORS"] or s_upper.endswith(".NS") or s_upper.endswith(".BO") or "NSE" in s_upper:
+            resolved_ws = "INDIA"
+        elif any(s_upper.endswith(c) for c in ["USD", "JPY", "EUR", "GBP", "CHF", "CAD", "AUD"]) or s_upper in ["XAUUSD", "GOLD", "EURUSD", "GBPUSD", "USDJPY"]:
+            resolved_ws = "FOREX_GOLD"
+        else:
+            resolved_ws = workspace or "CRYPTO"
+
         # Gross & Net PnL and Fees
         pnl = float(t.get("net_pnl") if "net_pnl" in t else (t.get("pnl_usd") or t.get("realized_pnl") or 0.0))
         fee = float(t.get("fee_usd", 0.0))
@@ -208,7 +219,7 @@ class HistoricalLogService:
             "pnl_usd": net,
             "result": res,
             "close_reason": t.get("reason") or t.get("close_reason", "EXECUTION_COMPLETE"),
-            "workspace": workspace,
+            "workspace": resolved_ws,
             "pool_name": pool_name,
             "environment": env_tag,
             "source": t.get("source", "AEGIS_LEDGER")

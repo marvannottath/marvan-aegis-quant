@@ -413,18 +413,19 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
             if b_url.endswith("/"):
                 b_url = b_url.rstrip("/")
             s_id = getattr(self, "_server_id", "")
+            s_id_val = s_id or getattr(self, "_session_sid", "")
             url = f"{b_url}/quick/user/positions"
             if s_id:
                 url = f"{url}?sId={s_id}"
-            s_id_val = s_id or getattr(self, "_session_sid", "")
             h = {
                 "Sid": s_id_val,
                 "sid": s_id_val,
                 "Auth": self._session_token,
                 "neo-fin-key": "neotradeapi",
+                "Content-Type": "application/x-www-form-urlencoded",
                 "accept": "application/json"
             }
-            resp = requests.get(url, headers=h, timeout=8)
+            resp = requests.post(url, headers=h, data="seg=ALL", timeout=8)
             if resp.status_code == 200:
                 data = resp.json()
                 pos_list = []
@@ -439,16 +440,28 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
                         continue
                     buy_qty = float(p.get("flBuyQty", 0) or 0)
                     sell_qty = float(p.get("flSellQty", 0) or 0)
-                    net_qty = float(p.get("netQty", buy_qty - sell_qty) or 0)
-                    is_squared_off = (p.get("sqrFlg") == "Y") or (net_qty == 0)
-                    if not is_squared_off and abs(net_qty) > 0:
+                    net_qty = buy_qty - sell_qty
+                    if abs(net_qty) > 0.0001:
+                        buy_amt = float(p.get("buyAmt", 0) or 0)
+                        buy_avg = round(buy_amt / buy_qty, 2) if buy_qty > 0 else 0.0
+                        sym = p.get("sym", p.get("trdSym", "").replace("-EQ", "")).upper()
+                        ltp = float(p.get("ltp", p.get("lastPrice", buy_avg)) or buy_avg)
+                        if ltp == 0.0 or ltp == buy_avg:
+                            try:
+                                from core.public_market_feed import public_market_feed
+                                q = public_market_feed.get_quote(sym)
+                                if q and q.get("price"):
+                                    ltp = float(q["price"])
+                            except Exception:
+                                pass
+                        unrealized = round((ltp - buy_avg) * net_qty, 2)
                         verified.append({
-                            "symbol": p.get("tradingSymbol", p.get("sym", "")),
+                            "symbol": sym,
                             "quantity": abs(net_qty),
                             "side": "BUY" if net_qty > 0 else "SELL",
-                            "buy_price": float(p.get("buyAvgPrc", p.get("avgPrice", 0)) or 0),
-                            "current_price": float(p.get("ltp", p.get("lastPrice", 0)) or 0),
-                            "unrealized_pnl": float(p.get("urmtom", p.get("pnl", 0)) or 0),
+                            "buy_price": buy_avg,
+                            "current_price": ltp,
+                            "unrealized_pnl": unrealized,
                         })
                 return verified
         except Exception as e:

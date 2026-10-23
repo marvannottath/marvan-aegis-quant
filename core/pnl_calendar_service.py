@@ -114,7 +114,14 @@ class PnLCalendarService:
                 d_top_asset = "-"
 
             d_pnl = round(d_pnl, 2)
-            d_pnl_inr = round(d_pnl * USD_TO_INR_RATE, 2)
+            is_india = (workspace == "INDIA")
+            if is_india:
+                d_pnl_inr = d_pnl
+                d_pnl_usd = round(d_pnl / USD_TO_INR_RATE, 2)
+            else:
+                d_pnl_usd = d_pnl
+                d_pnl_inr = round(d_pnl * USD_TO_INR_RATE, 2)
+
             d_win_rate = round((d_win_cnt / d_trades_cnt) * 100.0, 1) if d_trades_cnt > 0 else 0.0
 
             if d_pnl > 0:
@@ -147,7 +154,7 @@ class PnLCalendarService:
                 "win_count": d_win_cnt,
                 "loss_count": d_loss_cnt,
                 "win_rate": d_win_rate,
-                "net_pnl_usd": d_pnl,
+                "net_pnl_usd": d_pnl_usd,
                 "net_pnl_inr": d_pnl_inr,
                 "status": d_status,
                 "top_asset": d_top_asset,
@@ -162,12 +169,19 @@ class PnLCalendarService:
         month_dt = datetime(year, month, 1)
         month_name = month_dt.strftime("%B %Y").upper()
 
+        final_net_inr = round(total_net_pnl_usd if workspace == "INDIA" else total_net_pnl_usd * USD_TO_INR_RATE, 2)
+        final_net_usd = round(total_net_pnl_usd / USD_TO_INR_RATE if workspace == "INDIA" else total_net_pnl_usd, 2)
+
         return {
             "status": "SUCCESS",
             "year_month": year_month,
             "month_name": month_name,
             "workspace": workspace,
             "environment": environment,
+            "net_pnl_usd": final_net_usd,
+            "net_pnl_inr": final_net_inr,
+            "win_rate_pct": overall_win_rate,
+            "trading_days_count": active_days,
             "calendar_metadata": {
                 "year": year,
                 "month": month,
@@ -175,8 +189,8 @@ class PnLCalendarService:
                 "first_day_weekday": first_day_weekday
             },
             "kpis": {
-                "total_net_pnl_usd": round(total_net_pnl_usd, 2),
-                "total_net_pnl_inr": round(total_net_pnl_usd * USD_TO_INR_RATE, 2),
+                "total_net_pnl_usd": final_net_usd,
+                "total_net_pnl_inr": final_net_inr,
                 "green_days": green_days_count,
                 "red_days": red_days_count,
                 "win_day_rate": win_day_rate,

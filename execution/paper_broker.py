@@ -966,11 +966,13 @@ class PaperBroker:
         base_eq = float(pool.get("base_equity", pool.get("equity", self.equity)))
         pool["base_equity"] = round(base_eq + pnl_u, 2)
 
-        # Append to trade_history
-        self.trade_history.insert(0, trade_record)
-        if len(self.trade_history) > 500:
-            self.trade_history = self.trade_history[:500]
-        pool["trade_history"] = self.trade_history
+        # Append to pool-specific trade_history
+        pool_history = pool.setdefault("trade_history", [])
+        pool_history.insert(0, trade_record)
+        if len(pool_history) > 500:
+            pool_history = pool_history[:500]
+        pool["trade_history"] = pool_history
+        self.trade_history = pool_history
         pool["positions"] = self.positions
 
         # Safe Continuous Learning post-trade feedback loop

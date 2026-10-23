@@ -106,8 +106,8 @@ export function AnalyticsView() {
       setIsLoading(true);
       const [cal, tax, fact, tuner] = await Promise.allSettled([
         api.getPnlCalendar(selectedMonth, workspace, environment),
-        api.getTaxAudit(),
-        api.getFactsheet(),
+        api.getTaxAudit(workspace, environment),
+        api.getFactsheet(workspace, environment),
         api.getOptimizerStatus(),
       ]);
 
@@ -142,9 +142,11 @@ export function AnalyticsView() {
   };
 
   const days: DayPnl[] = calendarData?.days || [];
-  const monthNetPnl = calendarData?.net_pnl_usd ?? 0;
-  const monthWinRate = calendarData?.win_rate_pct ?? (isLive ? 0 : 99.75);
-  const totalTradingDays = calendarData?.trading_days_count ?? 10;
+  const monthNetPnl = (workspace === 'INDIA' && (calendarData as any)?.net_pnl_inr !== undefined)
+    ? (calendarData as any).net_pnl_inr
+    : (calendarData?.net_pnl_usd ?? (calendarData as any)?.kpis?.total_net_pnl_usd ?? 0);
+  const monthWinRate = calendarData?.win_rate_pct ?? (calendarData as any)?.kpis?.overall_win_rate ?? 0;
+  const totalTradingDays = calendarData?.trading_days_count ?? (days.filter(d => (d.trades_count || 0) > 0).length || 0);
 
   return (
     <div className="space-y-6">

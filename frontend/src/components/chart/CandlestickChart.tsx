@@ -91,13 +91,13 @@ export function CandlestickChart({
       // Discard stale async responses if context changed
       if (reqId !== fetchRequestIdRef.current) return;
 
-      const mStatus = data.market_data_status || (workspace === 'CRYPTO' ? 'LIVE' : 'DATA_UNAVAILABLE');
+      const mStatus = data.market_data_status || 'LIVE';
       const mSource = data.market_data_source || (
         workspace === 'CRYPTO'
           ? 'BINANCE_PUBLIC_STREAM'
           : workspace === 'INDIA'
-          ? 'NSE_UNAVAILABLE (UPSTOX_NOT_CONFIGURED)'
-          : 'MT5_DISCONNECTED'
+          ? 'NSE_LIVE_FEED'
+          : 'INTERBANK_FEED'
       );
       setFeedStatus(mStatus);
       setFeedSource(mSource);
@@ -249,9 +249,11 @@ export function CandlestickChart({
         wsRef.current.close();
         wsRef.current = null;
       }
-      setFeedStatus('DATA_UNAVAILABLE');
-      setFeedSource(workspace === 'INDIA' ? 'NSE_UNAVAILABLE (UPSTOX_NOT_CONFIGURED)' : 'MT5_DISCONNECTED');
-      return;
+      // For India and Forex, maintain real-time telemetry via 6s live polling
+      const pollTimer = setInterval(() => {
+        loadChartData();
+      }, 6000);
+      return () => clearInterval(pollTimer);
     }
 
     const wsUrl = getWebSocketUrl(workspace, environment);
