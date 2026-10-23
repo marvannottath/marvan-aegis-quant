@@ -685,6 +685,14 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
             avail = max(0.0, self._mock_cash - used_margin)
             cash_val = self._mock_cash
         else:
+            if self._is_authenticated and self._session_token:
+                now_ts = time.time()
+                if (now_ts - getattr(self, "_last_limits_fetch_ts", 0)) > 30.0:
+                    try:
+                        self.fetch_live_limits()
+                        self._last_limits_fetch_ts = now_ts
+                    except Exception:
+                        pass
             live_positions = self.get_live_positions()
             used_margin = sum(
                 float(p.get("quantity", 0)) * float(p.get("buy_price", 0))

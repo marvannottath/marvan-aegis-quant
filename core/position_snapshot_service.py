@@ -731,16 +731,19 @@ class PositionSnapshotService:
                     broker_connected = True
                     k_funds = kotak_neo_broker.get_funds(environment="LIVE")
                     live_cash = 0.0
-                    if k_conn.get("balance") is not None and float(k_conn.get("balance", 0.0)) > 0:
-                        live_cash = float(k_conn["balance"])
-                    elif float(k_funds.get("available_margin", 0.0)) > 0:
-                        live_cash = float(k_funds.get("available_margin", 0.0))
+                    if float(getattr(kotak_neo_broker, "_live_cash", 0.0)) > 0:
+                        live_cash = float(kotak_neo_broker._live_cash)
                     elif float(k_funds.get("cash", 0.0)) > 0:
                         live_cash = float(k_funds.get("cash", 0.0))
-                    elif float(getattr(kotak_neo_broker, "_live_cash", 0.0)) > 0:
-                        live_cash = float(kotak_neo_broker._live_cash)
+                    elif float(k_funds.get("available_margin", 0.0)) > 0:
+                        live_cash = float(k_funds.get("available_margin", 0.0))
+                    elif k_conn.get("balance") is not None and float(k_conn.get("balance", 0.0)) > 0:
+                        live_cash = float(k_conn["balance"])
                     else:
                         live_cash = 1000.0  # Authoritative user-deposited live capital
+
+                    if live_cash > 0 and k_conn:
+                        k_conn["balance"] = round(live_cash, 2)
 
                     if open_pos_count == 0:
                         total_exposure = 0.0
