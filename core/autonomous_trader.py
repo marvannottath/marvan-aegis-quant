@@ -427,6 +427,17 @@ class AutonomousTrader:
                     except Exception:
                         pass
 
+                    # 2b. High-Impact Macroeconomic News Lockout (CPI / FOMC / NFP Freeze)
+                    try:
+                        from sync.economic_calendar import economic_filter
+                        news_locked, news_reason = economic_filter.is_news_lockout_active()
+                        if news_locked:
+                            if step_counter % 20 == 0:
+                                self._log_action("NEWS_LOCKOUT", "PAUSED", 0.0, 0.0, news_reason)
+                            continue
+                    except Exception:
+                        pass
+
                     # 3. Pre-Market Global Bias & Institutional Session Gate for Indian Equities
                     dir_filter = "ALL"
                     if _active_ws == "INDIA":
@@ -525,6 +536,36 @@ class AutonomousTrader:
                             # Respect closed position cooldown and close-in-flight barrier to prevent immediate churn / repeat execution
                             if time.time() < self.closed_cooldowns.get(ticker, 0) or ticker in self.close_in_flight:
                                 continue
+
+                            # Institutional Relative Volume (RVOL) Gate
+                            vol = float(item.get("volume", 0.0) or 0.0)
+                            if vol > 0:
+                                try:
+                                    from core.relative_volume_filter import relative_volume_filter
+                                    rvol_ok, rvol_msg = relative_volume_filter.check_volume_confirmation(ticker, current_volume=vol)
+                                    if not rvol_ok:
+                                        continue
+                                except Exception:
+                                    pass
+
+                            # Higher-Timeframe (HTF) 4-Hour Macro Trend Gate for Crypto
+                            if _active_ws == "CRYPTO":
+                                try:
+                                    from core.htf_trend_filter import htf_trend_filter
+                                    htf_ok, htf_msg = htf_trend_filter.check_crypto_order_allowed(ticker, action_signal)
+                                    if not htf_ok:
+                                        continue
+                                except Exception:
+                                    pass
+
+                            # Portfolio Sector Concentration & Correlation Shield
+                            try:
+                                from core.correlation_shield import correlation_shield
+                                corr_ok, corr_msg = correlation_shield.check_trade_allowed(ticker, self.broker.positions, workspace=_active_ws)
+                                if not corr_ok:
+                                    continue
+                            except Exception:
+                                pass
 
                             if _active_ws == "CRYPTO" or pool == "BINANCE_LIVE_REAL":
                                 if action_signal == "SELL":
@@ -737,6 +778,23 @@ class AutonomousTrader:
                                                 working_cash=working_cash,
                                                 leverage=calc_leverage
                                             )
+
+                                            # Institutional Dynamic Position Sizer (Risk capped at 1.0% of equity)
+                                            try:
+                                                from core.dynamic_position_sizer import dynamic_position_sizer
+                                                sized = dynamic_position_sizer.calculate_position_size(
+                                                    symbol=ticker,
+                                                    price=current_price,
+                                                    equity=working_cash,
+                                                    workspace="INDIA",
+                                                    leverage=calc_leverage,
+                                                    volatility=volatility
+                                                )
+                                                if sized.get("valid") and sized.get("quantity", 0) > 0:
+                                                    qty = sized["quantity"]
+                                                    margin_required = sized["margin_required"]
+                                            except Exception:
+                                                pass
 
                                             qty = max(1, int(round(qty)))
                                             margin_required = round((qty * current_price) / max(1.0, calc_leverage), 2)
