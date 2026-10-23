@@ -233,6 +233,11 @@ class PerformanceCurveEngine:
         # Baseline equity at the beginning of all recorded history
         historical_base_equity = round(cur_equity - total_historical_pnl, 2)
 
+        # STRICT LIVE ISOLATION: A real live account ($9-$1000) must NEVER inherit a $10,000 demo baseline
+        if env_mode == "LIVE" and cur_equity > 0:
+            if historical_base_equity > (cur_equity * 1.5) or historical_base_equity < (cur_equity * 0.5):
+                historical_base_equity = cur_equity
+
         # Pre-cutoff accumulation
         pre_cutoff_pnl = 0.0
         window_events = []
@@ -246,6 +251,9 @@ class PerformanceCurveEngine:
 
         # Baseline equity at the start of the timeframe window
         start_equity = round(historical_base_equity + pre_cutoff_pnl, 2)
+        if env_mode == "LIVE" and cur_equity > 0:
+            if start_equity > (cur_equity * 1.5) or start_equity < (cur_equity * 0.5):
+                start_equity = cur_equity
         start_ts = cutoff_dt.strftime("%Y-%m-%d %H:%M:%S") if time_range != "ALL" else (events[0]["timestamp"] if events else now_str)
 
         points = []
