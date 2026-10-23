@@ -217,9 +217,13 @@ async def on_startup():
         from core.ai_trading_controller import ai_trading_controller
         from execution.profit_vault import profit_vault
         for ws in ("CRYPTO", "FOREX_GOLD", "INDIA"):
-            ai_trading_controller.set_state(ws, "RUNNING", user="SYSTEM", reason="Autonomous Cloud Active")
-            ai_trading_controller.set_state(ws, "RUNNING", environment="DEMO", user="SYSTEM", reason=f"Autonomous Cloud Active — {ws} Demo")
-            ai_trading_controller.set_state(ws, "RUNNING", environment="LIVE", user="SYSTEM", reason=f"Autonomous Cloud Active — {ws} Live")
+            cur_ws_state = ai_trading_controller.get_state(ws)
+            if cur_ws_state not in ("PAUSED", "STOPPED", "BLOCKED", "DISABLED"):
+                ai_trading_controller.set_state(ws, "RUNNING", user="SYSTEM", reason="Autonomous Cloud Active")
+            for env in ("DEMO", "LIVE"):
+                cur_env_state = ai_trading_controller.get_state(ws, environment=env)
+                if cur_env_state not in ("PAUSED", "STOPPED", "BLOCKED", "DISABLED"):
+                    ai_trading_controller.set_state(ws, "RUNNING", environment=env, user="SYSTEM", reason=f"Autonomous Cloud Active — {ws} {env}")
     except Exception as e:
         print(f"[STARTUP] Workspace init notice: {e}")
 
@@ -2043,7 +2047,7 @@ async def close_position_endpoint(request: Request):
 async def close_all_positions_endpoint(request: Request):
     """
     Emergency or operator manual close of ALL active positions for a workspace & environment.
-    Immediately liquidates positions, returns allocated margins to cash, and zeroes open positions.
+    Immediately liquidates positions on real brokers (Binance, Kotak Neo) and zeroes paper pools.
     """
     try:
         body = await request.json()
@@ -2051,25 +2055,79 @@ async def close_all_positions_endpoint(request: Request):
         body = {}
     workspace = body.get("workspace", "CRYPTO")
     environment = body.get("environment", "DEMO")
+    ws_upper = str(workspace).upper()
+    env_upper = str(environment).upper()
+
+    closed_list = []
+    errors = []
+
+    # 1. Real Exchange Spot & Futures Square-off for CRYPTO
+    if ws_upper == "CRYPTO":
+        try:
+            from execution.binance_broker import binance_broker
+            target_b_env = "BINANCE_LIVE" if ("LIVE" in env_upper or "REAL" in env_upper) else "BINANCE_TESTNET"
+            # 1a. Cancel pending orders on Binance
+            try:
+                binance_broker.cancel_all_open_orders(target_b_env)
+            except Exception as ce:
+                errors.append(f"cancel_all_orders: {ce}")
+            # 1b. Fetch active Binance open positions directly
+            try:
+                b_positions = binance_broker.get_open_positions(environment=target_b_env)
+                for bp in b_positions:
+                    sym = bp.get("symbol") or bp.get("asset")
+                    if not sym:
+                        continue
+                    try:
+                        res = binance_broker.close_spot_position(sym, environment=target_b_env)
+                        if res.get("status") in ["SUCCESS", "FILLED", "PARTIALLY_FILLED"]:
+                            if sym not in closed_list:
+                                closed_list.append(sym)
+                        else:
+                            errors.append(f"{sym}: {res.get('message')}")
+                    except Exception as b_err:
+                        errors.append(f"{sym}: {b_err}")
+            except Exception as pe:
+                errors.append(f"binance_positions: {pe}")
+        except Exception as e:
+            errors.append(f"binance_broker_init: {e}")
+
+    # 2. Real Broker Square-off for INDIA LIVE
+    elif ws_upper == "INDIA" and ("LIVE" in env_upper or "REAL" in env_upper):
+        try:
+            from execution.kotak_neo_broker import kotak_neo_broker
+            live_positions = kotak_neo_broker.get_live_positions()
+            for pos in live_positions:
+                sym = pos.get("tradingSymbol") or pos.get("symbol") or pos.get("asset")
+                net_qty = int(pos.get("netQty", 0) or pos.get("quantity", 0) or pos.get("units", 0))
+                if not sym or net_qty == 0:
+                    continue
+                side = "S" if net_qty > 0 else "B"
+                order_qty = abs(net_qty)
+                try:
+                    k_res = kotak_neo_broker.place_order({
+                        "tradingSymbol": sym,
+                        "exchangeSegment": pos.get("exchangeSegment", "nse_cm"),
+                        "transactionType": side,
+                        "quantity": order_qty,
+                        "orderType": "MKT",
+                        "product": pos.get("product", "MIS"),
+                        "validity": "DAY"
+                    })
+                    if k_res.get("status") in ("ACCEPTED", "FILLED", "SUBMITTED", "SUCCESS"):
+                        if sym not in closed_list:
+                            closed_list.append(sym)
+                    else:
+                        errors.append(f"{sym}: {k_res.get('message', 'Failed to square off')}")
+                except Exception as ke:
+                    errors.append(f"{sym}: {str(ke)}")
+        except Exception as e:
+            errors.append(f"kotak_positions: {str(e)}")
 
     from core.position_snapshot_service import position_snapshot_service
     from execution.paper_broker import paper_broker
 
-    snap = position_snapshot_service.get_snapshot(workspace, force_refresh=True, environment=environment)
-    positions = snap.get("positions", [])
-    closed_list = []
-    errors = []
-
-    for p in positions:
-        sym = p.get("symbol") or p.get("asset")
-        if sym:
-            try:
-                c_res = await close_position_endpoint({"asset": sym, "workspace": workspace})
-                closed_list.append(sym)
-            except Exception as e:
-                errors.append(f"{sym}: {str(e)}")
-
-    # Check broker pools directly for any positions that might not be in snapshot cache
+    # 3. Clean up paper pools and clear positions
     pool_mapping = {
         ("CRYPTO", "DEMO"): ["BINANCE_SPOT_DEMO", "BINANCE_TESTNET_DEMO"],
         ("CRYPTO", "LIVE"): ["BINANCE_LIVE_REAL"],
@@ -2078,18 +2136,14 @@ async def close_all_positions_endpoint(request: Request):
         ("FOREX_GOLD", "DEMO"): ["MT5_DEMO"],
         ("FOREX_GOLD", "LIVE"): ["MT5_LIVE_REAL", "CTRADER_LIVE"],
     }
-    target_pools = pool_mapping.get((workspace.upper(), environment.upper()), [])
+    target_pools = pool_mapping.get((ws_upper, env_upper), [])
     for target_pool in target_pools:
         if target_pool in paper_broker.pools:
             paper_broker.switch_pool(target_pool)
             for sym in list(paper_broker.positions.keys()):
                 if sym not in closed_list:
-                    try:
-                        await close_position_endpoint({"asset": sym, "workspace": workspace})
-                        closed_list.append(sym)
-                    except Exception as e:
-                        errors.append(f"{sym}: {str(e)}")
-            # Clear pool positions map and restore virtual cash
+                    closed_list.append(sym)
+            # Restore capital allocated to virtual cash
             for sym, pos_data in list(paper_broker.positions.items()):
                 cap_alloc = float(pos_data.get("capital_allocated", 0.0))
                 paper_broker.virtual_cash += cap_alloc
@@ -8065,55 +8119,3 @@ async def get_risk_history_endpoint(limit: int = 10):
     except Exception as e:
         return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
 
-
-
-
-
-
-# --- API ROUTE FOR SAFE POSITION CLOSING ---
-@app.post("/api/positions/close-all")
-async def close_all_positions_endpoint(request: Request):
-    """Safely cancel pending orders and close all open positions."""
-    try:
-        data = await request.json()
-        workspace = data.get("workspace", "CRYPTO").upper()
-        environment = data.get("environment", "BINANCE_TESTNET").upper()
-        
-        closed_count = 0
-        
-        # Route to Binance Broker for Crypto
-        if workspace == "CRYPTO" and "BINANCE" in environment:
-            from execution.binance_broker import BinanceBroker
-            broker = BinanceBroker()
-            
-            # 1. Fetch active positions using the context-aware environment
-            positions = broker.get_open_positions(environment=environment)
-            
-            for pos in positions:
-                symbol = pos.get("symbol")
-                qty = float(pos.get("units", pos.get("quantity", 0)))
-                
-                if qty > 0:
-                    # STEP 1: Auto-Cancel pending limit orders to unlock funds!
-                    try:
-                        broker.cancel_all_open_orders(environment=environment, symbol=symbol)
-                    except Exception:
-                        pass # Ignore if no pending orders exist
-                        
-                    # STEP 2: Market Sell to close position cleanly (Dust Fix is active)
-                    try:
-                        broker.place_order(
-                            symbol=symbol,
-                            side="SELL",
-                            order_type="MARKET",
-                            quantity=qty,
-                            environment=environment
-                        )
-                        closed_count += 1
-                    except Exception as e:
-                        print(f"Error closing {symbol}: {e}")
-                        
-        return {"status": "SUCCESS", "closed_count": closed_count, "message": f"Successfully closed {closed_count} positions and released locked funds."}
-        
-    except Exception as e:
-        return {"status": "ERROR", "message": str(e)}

@@ -258,6 +258,12 @@ class AITradingController:
                     "environment": environment.upper() if environment else ("LIVE" if ":LIVE" in k else "DEMO")
                 }
                 self._emit_audit("AI_PAUSE", k, current, PAUSED, user, reason)
+            demo_st = self._states.get(f"{ws}:DEMO", {}).get("state")
+            live_st = self._states.get(f"{ws}:LIVE", {}).get("state")
+            if demo_st in (PAUSED, STOPPED) and live_st in (PAUSED, STOPPED):
+                if ws in self._states:
+                    self._states[ws]["state"] = PAUSED
+                    self._states[ws]["reason"] = reason
             self._save_state()
             return {"ok": True, "workspace": ws, "environment": environment, "state": PAUSED, "reason": reason, "user": user}
 

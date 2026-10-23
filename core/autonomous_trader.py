@@ -269,20 +269,15 @@ class AutonomousTrader:
                             running_engines.append((w, env))
 
                 if not running_engines:
-                    _cur = _wsm.get_active_workspace()
-                    if _aic.get_state(_cur) not in ("STOPPED", "PAUSED"):
-                        _aic.set_state(_cur, "RUNNING", user="SYSTEM", reason="Autonomous Trading Loop Active")
-                        running_engines = [(_cur, "DEMO")]
-                    else:
-                        if step_counter % 12 == 0:
-                            self._log_action(
-                                asset="AI_CONTROLLER",
-                                action="PAUSED",
-                                price=0.0,
-                                amount_usd=0.0,
-                                reasoning="Autonomous trading paused — resume via header AI toggle"
-                            )
-                        continue
+                    if step_counter % 12 == 0:
+                        self._log_action(
+                            asset="AI_CONTROLLER",
+                            action="PAUSED",
+                            price=0.0,
+                            amount_usd=0.0,
+                            reasoning="Autonomous trading paused for all active engines — resume via header AI toggle"
+                        )
+                    continue
 
                 # 0. US Macro News Lockout Halt Check
                 is_news_locked, lock_reason = economic_filter.is_news_lockout_active()
