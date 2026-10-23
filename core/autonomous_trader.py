@@ -954,14 +954,16 @@ class AutonomousTrader:
                         is_stale_rotation = False               # Never close Forex/Gold at a loss on time alone
                         is_hard_stop = (pnl_pct <= -0.010)      # 1.0% hard stop
                     elif is_zero_brokerage_venue:
-                        # Kotak Neo / Zero Brokerage: Patient swing-scalp to prevent churning
-                        # Minimum holding time of 120 seconds prevents micro-tick churn
-                        is_fee_secured_tp = (pnl_pct >= 0.0050) and (time_held_sec >= 120)  # +0.50% clean profit target
-                        is_milestone = (pnl_pct >= 0.0100)       # +1.0% milestone runner
-                        is_micro_harvest = False                 # Disabled: stop churning on tick noise
-                        is_staggered_harvest = False             # Disabled: avoid premature chopping
+                        # Kotak Neo Fast-Speed Intraday Scalping Engine
+                        # Quick profit target +0.25% (Zero brokerage venue allows rapid fee-secured profit capture)
+                        is_fee_secured_tp = (pnl_pct >= 0.0025)
+                        is_milestone = (pnl_pct >= 0.0060)       # +0.60% milestone runner
+                        is_micro_harvest = (pnl_pct >= 0.0018 and time_held_sec >= 180)  # +0.18% harvest after 3 mins
+                        is_staggered_harvest = False
                         is_maturity_rebalance = False
-                        is_stale_rotation = False               # Never sell Indian equity at a loss simply on elapsed time
+                        # 15-Minute Dynamic Capital Recycling:
+                        # If held for >= 15 minutes (900s) and flat or slight gain, exit to recycle margin for fresh momentum!
+                        is_stale_rotation = (time_held_sec >= 900) and (pnl_pct >= -0.0015)
                         is_hard_stop = (pnl_pct <= -0.0100)     # 1.0% hard stop
                     else:
                         # Crypto Spot: Fast Closes Covering Binance Fees + ~0.25% Net Profit
