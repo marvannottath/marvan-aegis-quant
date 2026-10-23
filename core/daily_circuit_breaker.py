@@ -17,7 +17,7 @@ CIRCUIT_DB = Path(__file__).resolve().parent.parent / "data" / "circuit_breaker_
 
 class DailyCircuitBreaker:
     MAX_CONSECUTIVE_LOSSES = 2
-    MAX_DAILY_DRAWDOWN_PCT = 3.0  # 3% of capital
+    MAX_DAILY_DRAWDOWN_PCT = 2.0  # 2.0% strict prop-firm capital preservation limit
 
     def __init__(self):
         self.session_date: str = ""

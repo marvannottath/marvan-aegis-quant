@@ -427,9 +427,19 @@ class AutonomousTrader:
                     except Exception:
                         pass
 
-                    # 3. Pre-Market Global Bias Filter for Indian Equities
+                    # 3. Pre-Market Global Bias & Institutional Session Gate for Indian Equities
                     dir_filter = "ALL"
                     if _active_ws == "INDIA":
+                        try:
+                            from core.indian_session_timing_engine import indian_session_timing_engine
+                            session_window = indian_session_timing_engine.get_current_session_window()
+                            if not session_window.get("is_entry_allowed", False):
+                                if step_counter % 30 == 0:
+                                    self._log_action("INDIAN_SESSION_GATE", "WAIT", 0.0, 0.0, session_window.get("reason", "Outside permitted entry session"))
+                                continue
+                        except Exception:
+                            pass
+
                         try:
                             from core.pre_market_engine import pre_market_engine
                             macro_bias = pre_market_engine.evaluate_global_bias()
@@ -462,8 +472,18 @@ class AutonomousTrader:
                             action_signal = item["ai_action"]
                             opp_score = item["opportunity_score"]
 
-                            # Multi-Strategy Time Ensemble for Indian Markets (Breakout, Mean-Reversion, Afternoon Momentum)
+                            # Multi-Strategy Time Ensemble & 30m ORB Breakout for Indian Markets
                             if _active_ws == "INDIA":
+                                try:
+                                    from core.indian_session_timing_engine import indian_session_timing_engine
+                                    indian_session_timing_engine.update_tick(ticker, current_price)
+                                    orb_eval = indian_session_timing_engine.evaluate_orb_signal(ticker, current_price)
+                                    if orb_eval.get("signal") in ["BUY", "SELL"]:
+                                        action_signal = orb_eval["signal"]
+                                        opp_score = max(opp_score, 88.0)
+                                except Exception:
+                                    pass
+
                                 try:
                                     from core.multi_strategy_ensemble import multi_strategy_ensemble
                                     from core.vwap_scalper import vwap_scalp_engine
@@ -908,23 +928,9 @@ class AutonomousTrader:
                     highest_pnl = max(pos.get("highest_pnl_pct", 0.0), pnl_pct)
                     pos["highest_pnl_pct"] = highest_pnl
 
-                    # ── BREAK-EVEN RATCHET (ZERO-RISK CAPITAL PRESERVATION) ───
-                    # Once trade gains +0.35%, lock Stop Loss above fees at +0.22% (guaranteed net green)
-                    if highest_pnl >= 0.0035:
-                        pos["break_even_active"] = True
-
-                    # If ratchet active and price pulls back, exit with guaranteed net positive profit (+0.22% > 0.20% fee)
-                    is_break_even_guard = bool(pos.get("break_even_active") and pnl_pct <= 0.0022)
-
-                    # ── DYNAMIC TIERED TRAILING STOP LOSS (TSL) ──────
-                    # Tier 2 (Strong Runner >= +1.00%): Trail 0.30% below peak
-                    is_tsl_tier2 = (highest_pnl >= 0.0100) and (pnl_pct <= highest_pnl - 0.0030)
-                    # Tier 1 (Initial Runner >= +0.60%): Trail 0.20% below peak (guarantees >= +0.40% profit)
-                    is_tsl_tier1 = (highest_pnl >= 0.0060) and (pnl_pct <= highest_pnl - 0.0020)
-                    is_trailing_stop = is_tsl_tier2 or is_tsl_tier1
-
-                    # Derive position workspace safely
+                    # Derive position workspace and brokerage venue safely
                     pos_ws = "CRYPTO" if ("USDT" in pos_asset or "BUSD" in pos_asset) else ("FOREX_GOLD" if any(c in pos_asset for c in ["EUR", "GBP", "USD", "XAU"]) else "INDIA")
+                    is_zero_brokerage_venue = ("KOTAK" in pool.upper() or "KOTAK" in str(pos.get("broker", "")).upper() or pos_ws == "INDIA")
 
                     # Compute accurate elapsed holding time
                     time_held_sec = float(age * 2.5)
@@ -937,40 +943,61 @@ class AutonomousTrader:
                         except Exception:
                             pass
 
-                    # Fee-Aware & Capital Preservation Scalping Take-Profit Rules:
-                    is_zero_brokerage_venue = ("KOTAK" in pool.upper() or "KOTAK" in str(pos.get("broker", "")).upper())
-                    if pool in ["MT5_LIVE_REAL", "MT5_DEMO", "CTRADER_LIVE"] or pos_ws == "FOREX_GOLD":
-                        # Forex & Gold Nimble Scalp: Quick profits locked in
-                        is_fee_secured_tp = (pnl_pct >= 0.0040) or (pnl_usd >= 0.80 and pnl_pct >= 0.0030)
-                        is_milestone = (pnl_pct >= 0.0075)       # +0.75% milestone profit
-                        is_micro_harvest = (pnl_usd >= 0.50 and pnl_pct >= 0.0030)
-                        is_staggered_harvest = ((step_counter + idx) % 5 == 0) and (pnl_usd >= 0.35 and pnl_pct >= 0.0025)
-                        is_maturity_rebalance = False
-                        is_stale_rotation = False               # Never close Forex/Gold at a loss on time alone
-                        is_hard_stop = (pnl_pct <= -0.010)      # 1.0% hard stop
-                    elif is_zero_brokerage_venue:
-                        # Kotak Neo Fast-Speed Intraday Scalping Engine
-                        # Quick profit target +0.25% (Zero brokerage venue allows rapid fee-secured profit capture)
-                        is_fee_secured_tp = (pnl_pct >= 0.0025)
-                        is_milestone = (pnl_pct >= 0.0060)       # +0.60% milestone runner
-                        is_micro_harvest = (pnl_pct >= 0.0018 and time_held_sec >= 180)  # +0.18% harvest after 3 mins
+                    # ── ASSET-CALIBRATED BREAK-EVEN RATCHET & RISK-REWARD ENGINE ───
+                    # Guaranteed Capital Preservation: Locks Stop Loss above all execution costs once a runner forms
+                    if pos_ws == "INDIA" or is_zero_brokerage_venue:
+                        # Indian Equities (Zero Brokerage, ~0.03% STT/Taxes):
+                        # +0.50% gain engages Breakeven lock at +0.12% (guaranteed green after all taxes)
+                        if highest_pnl >= 0.0050:
+                            pos["break_even_active"] = True
+                        is_break_even_guard = bool(pos.get("break_even_active") and pnl_pct <= 0.0012)
+
+                        # Trailing Stop: Lock +0.50% profit if price surges >= +0.80%
+                        is_tsl = (highest_pnl >= 0.0080) and (pnl_pct <= highest_pnl - 0.0025)
+                        is_trailing_stop = is_tsl
+
+                        is_fee_secured_tp = (pnl_pct >= 0.0050)   # 1:1 initial target (+0.50%)
+                        is_milestone = (pnl_pct >= 0.0100)        # 1:2 Risk-Reward institutional target (+1.00%)
+                        is_micro_harvest = False
                         is_staggered_harvest = False
                         is_maturity_rebalance = False
-                        # 15-Minute Dynamic Capital Recycling:
-                        # If held for >= 15 minutes (900s) and flat or slight gain, exit to recycle margin for fresh momentum!
-                        is_stale_rotation = (time_held_sec >= 900) and (pnl_pct >= -0.0015)
-                        is_hard_stop = (pnl_pct <= -0.0100)     # 1.0% hard stop
+                        # 20-min capital recycle only if flat/green; never sell at a loss on time alone
+                        is_stale_rotation = (time_held_sec >= 1200) and (pnl_pct >= 0.0008)
+                        is_hard_stop = (pnl_pct <= -0.0060)      # Strict 0.60% stop loss
+                    elif pos_ws == "CRYPTO":
+                        # Binance Crypto Spot (0.20% Roundtrip taker fee):
+                        # +0.80% gain engages Breakeven lock at +0.30% (guaranteed net +0.10% after 0.20% fee)
+                        if highest_pnl >= 0.0080:
+                            pos["break_even_active"] = True
+                        is_break_even_guard = bool(pos.get("break_even_active") and pnl_pct <= 0.0030)
+
+                        # Trailing Stop: Lock runner profit if price surges >= +1.20%
+                        is_tsl = (highest_pnl >= 0.0120) and (pnl_pct <= highest_pnl - 0.0035)
+                        is_trailing_stop = is_tsl
+
+                        is_fee_secured_tp = (pnl_pct >= 0.0080)   # Covers 0.20% fee + 0.60% net profit
+                        is_milestone = (pnl_pct >= 0.0160)        # 1:2 R:R runner target (+1.60%)
+                        is_micro_harvest = False
+                        is_staggered_harvest = False
+                        is_maturity_rebalance = False
+                        is_stale_rotation = False                 # Never dump spot holdings at a loss on time
+                        is_hard_stop = (pnl_pct <= -0.0080)       # 0.80% stop loss
                     else:
-                        # Crypto Spot: Fast Closes Covering Binance Fees + ~0.25% Net Profit
-                        # Binance round-trip fee is 0.20% (0.1% Buy + 0.1% Sell).
-                        # At +0.45% price gain: 0.20% fee covered + 0.25% pure net profit in hand!
-                        is_fee_secured_tp = (pnl_pct >= 0.0045)  # +0.45% (Binance fee covered + net +0.25% cash profit)
-                        is_milestone = (pnl_pct >= 0.0085)       # +0.85% runner target
-                        is_micro_harvest = False                 # Disabled: never exit below fee coverage
-                        is_staggered_harvest = False             # Disabled: avoid chopping before fee covered
-                        is_maturity_rebalance = False           # Disabled: spot holdings not dumped on holding time
-                        is_stale_rotation = False               # STRICT CAPITAL PRESERVATION: NEVER sell spot at a loss on time alone!
-                        is_hard_stop = (pnl_pct <= -0.0080)     # 0.80% hard stop protection against dumps
+                        # Forex & Gold Nimble Scalp
+                        if highest_pnl >= 0.0045:
+                            pos["break_even_active"] = True
+                        is_break_even_guard = bool(pos.get("break_even_active") and pnl_pct <= 0.0018)
+
+                        is_tsl = (highest_pnl >= 0.0075) and (pnl_pct <= highest_pnl - 0.0025)
+                        is_trailing_stop = is_tsl
+
+                        is_fee_secured_tp = (pnl_pct >= 0.0050)
+                        is_milestone = (pnl_pct >= 0.0090)
+                        is_micro_harvest = (pnl_usd >= 0.50 and pnl_pct >= 0.0030)
+                        is_staggered_harvest = False
+                        is_maturity_rebalance = False
+                        is_stale_rotation = False
+                        is_hard_stop = (pnl_pct <= -0.0060)
 
                     should_close = (
                         is_break_even_guard or 
@@ -1199,7 +1226,8 @@ class AutonomousTrader:
                                     symbol=pos_asset,
                                     quantity=k_close_qty,
                                     product=k_prod,
-                                    environment="LIVE"
+                                    environment="LIVE",
+                                    side=("BUY" if str(pos.get("side", "")).upper() == "SELL" else "SELL")
                                 )
                                 print(f"[AUTONOMOUS TRADER] Kotak Neo Live Close for {pos_asset}: {live_k_res}")
                             except Exception as k_close_err:
