@@ -468,6 +468,33 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
             print(f"[KOTAK_NEO] Live positions fetch notice: {e}")
         return []
 
+    def get_trade_book(self) -> List[Dict[str, Any]]:
+        """Fetch real executed trades from Kotak Neo API trade book."""
+        if not self._is_authenticated or not self._session_token:
+            return []
+        try:
+            import requests
+            b_url = getattr(self, "_base_url", "https://mis.kotaksecurities.com").rstrip("/")
+            s_id_val = getattr(self, "_server_id", "") or getattr(self, "_session_sid", "")
+            h = {
+                "Sid": s_id_val,
+                "sid": s_id_val,
+                "Auth": self._session_token,
+                "neo-fin-key": "neotradeapi",
+                "Content-Type": "application/x-www-form-urlencoded",
+                "accept": "application/json"
+            }
+            resp = requests.get(f"{b_url}/quick/user/trades", headers=h, timeout=8)
+            if resp.status_code == 200:
+                data = resp.json()
+                if isinstance(data, dict):
+                    return data.get("data", [])
+                elif isinstance(data, list):
+                    return data
+        except Exception as e:
+            print(f"[KOTAK_NEO] get_trade_book notice: {e}")
+        return []
+
     def connect(self) -> bool:
         if not self._consumer_key:
             self._last_error = "Kotak Neo credentials not configured."

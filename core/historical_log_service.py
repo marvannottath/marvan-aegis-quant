@@ -33,44 +33,100 @@ class HistoricalLogService:
     def _load_all(self) -> None:
         trades_map: Dict[str, Dict[str, Any]] = {}
 
-        # 1. Load from paper_broker in-memory pools
+        # ── 1. REAL KOTAK NEO LIVE EXECUTION TRADES (INDIA LIVE) ──────────
         try:
-            from execution.paper_broker import paper_broker
-            for pool_name, pool in paper_broker.pools.items():
-                if isinstance(pool, dict):
-                    ws = "CRYPTO" if "BINANCE" in pool_name or "CRYPTO" in pool_name else ("INDIA" if "INDIA" in pool_name or "UPSTOX" in pool_name else "FOREX_GOLD")
-                    for t in pool.get("trade_history", []):
-                        norm = self._normalise_trade_record(t, pool_name=pool_name, workspace=ws)
-                        if norm and norm.get("trade_id"):
-                            trades_map[norm["trade_id"]] = norm
-        except Exception as e:
-            print(f"[HistoricalLogService] In-memory paper broker load notice: {e}")
+            from execution.kotak_neo_broker import kotak_neo_broker
+            kotak_raw_trades = kotak_neo_broker.get_trade_book()
+            if kotak_raw_trades:
+                by_sym: Dict[str, List[dict]] = {}
+                for kt in sorted(kotak_raw_trades, key=lambda x: str(x.get("exTm") or x.get("flTm") or "")):
+                    sym = str(kt.get("trdSym", "")).replace("-EQ", "").upper()
+                    if sym:
+                        by_sym.setdefault(sym, []).append(kt)
 
-        # 2. Load from paper_broker_state.json file
-        if self.PAPER_BROKER_STATE.is_file():
-            try:
-                with open(self.PAPER_BROKER_STATE, "r") as f:
-                    state = json.load(f)
-                pools = state.get("pools", {})
-                for pool_name, pool_data in pools.items():
-                    ws = "CRYPTO" if "BINANCE" in pool_name or "CRYPTO" in pool_name else ("INDIA" if "INDIA" in pool_name or "UPSTOX" in pool_name else "FOREX_GOLD")
-                    for t in pool_data.get("trade_history", []):
-                        norm = self._normalise_trade_record(t, pool_name=pool_name, workspace=ws)
-                        if norm and norm.get("trade_id"):
-                            trades_map[norm["trade_id"]] = norm
-                # Also check root trade_history
-                for t in state.get("trade_history", []):
-                    norm = self._normalise_trade_record(t, pool_name="AEGIS_QUANT_MASTER", workspace="FOREX_GOLD")
-                    if norm and norm.get("trade_id"):
-                        trades_map[norm["trade_id"]] = norm
-            except Exception as e:
-                print(f"[HistoricalLogService] File paper broker load notice: {e}")
+                for sym, fills in by_sym.items():
+                    buy_queue = []
+                    for f in fills:
+                        qty = float(f.get("fldQty", 0) or f.get("qty", 0) or 0)
+                        if qty <= 0:
+                            qty = float(f.get("brdLtQty", 1) or 1)
+                        price = float(f.get("avgPrc", 0.0) or 0.0)
+                        side = str(f.get("trnsTp", "")).upper()
+                        tm = str(f.get("flTm", "")).strip()
+                        dt = str(f.get("flDt", "")).strip()
+                        
+                        iso_date = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d")
+                        if dt:
+                            try:
+                                parsed_d = datetime.strptime(dt, "%d-%b-%Y")
+                                iso_date = parsed_d.strftime("%Y-%m-%d")
+                            except Exception:
+                                pass
+                        full_ts = f"{iso_date} {tm}" if tm else f"{iso_date} 00:00:00"
 
-        # 3. Load live Binance execution fills if configured
+                        if side == "B":
+                            buy_queue.append({
+                                "qty": qty,
+                                "price": price,
+                                "time": full_ts,
+                                "ordNo": f.get("nOrdNo", "")
+                            })
+                        elif side == "S":
+                            rem_qty = qty
+                            while rem_qty > 0.0001 and buy_queue:
+                                b = buy_queue[0]
+                                match_qty = min(rem_qty, b["qty"])
+                                entry_px = b["price"]
+                                exit_px = price
+                                gross = round((exit_px - entry_px) * match_qty, 2)
+                                
+                                stt = round(exit_px * match_qty * 0.00025, 2)
+                                nse_turnover = round((entry_px + exit_px) * match_qty * 0.0000297, 2)
+                                stamp = round(entry_px * match_qty * 0.00003, 2)
+                                gst = round(nse_turnover * 0.18, 2)
+                                tot_fee = max(0.20, round(stt + nse_turnover + stamp + gst, 2))
+                                net = round(gross - tot_fee, 2)
+                                
+                                tid = f"TRD-KNEO-{sym}-{f.get('nOrdNo') or int(time.time()*1000)}"
+                                res_status = "WIN" if net > 0 else ("LOSS" if net < 0 else "BREAKEVEN")
+                                exit_reason = "3:10 PM PRE_SQUAREOFF" if "14:4" in tm else ("INTRADAY_STOP_LOSS" if net < 0 else "FEE_SECURED_TAKE_PROFIT")
+                                
+                                trades_map[tid] = {
+                                    "trade_id": tid,
+                                    "timestamp": full_ts,
+                                    "date": iso_date,
+                                    "symbol": sym,
+                                    "asset": sym,
+                                    "side": "BUY",
+                                    "action": "BUY",
+                                    "entry_price": entry_px,
+                                    "exit_price": exit_px,
+                                    "quantity": match_qty,
+                                    "units": match_qty,
+                                    "capital_allocated": round(entry_px * match_qty, 2),
+                                    "leverage": 1.0,
+                                    "gross_pnl": gross,
+                                    "fee_usd": tot_fee,
+                                    "net_pnl": net,
+                                    "pnl_usd": net,
+                                    "pnl_pct": round((gross / (entry_px * match_qty)) * 100.0, 2) if (entry_px * match_qty) > 0 else 0.0,
+                                    "result": res_status,
+                                    "close_reason": exit_reason,
+                                    "workspace": "INDIA",
+                                    "environment": "LIVE",
+                                    "source": "KOTAK_NEO_LIVE"
+                                }
+                                b["qty"] -= match_qty
+                                rem_qty -= match_qty
+                                if b["qty"] <= 0.0001:
+                                    buy_queue.pop(0)
+        except Exception as ke:
+            print(f"[HistoricalLogService] Kotak Neo live trades notice: {ke}")
+
+        # ── 2. REAL BINANCE LIVE EXECUTION TRADES (CRYPTO LIVE) ───────────
         try:
             from execution.binance_broker import binance_broker
             if binance_broker.is_live_configured:
-                # Query recent trades for active symbols
                 for sym in ["BTCUSDT", "BNBUSDT", "SOLUSDT", "ETHUSDT", "XRPUSDT", "DOGEUSDT", "ADAUSDT"]:
                     try:
                         fills = binance_broker.get_execution_fills("BINANCE_LIVE", symbol=sym, limit=50)
@@ -78,7 +134,6 @@ class HistoricalLogService:
                             continue
                         fills = sorted(fills, key=lambda x: int(x.get("time", 0)))
                         
-                        # Reconstruct round-trip trades via FIFO matching
                         buy_queue = []
                         for f in fills:
                             qty = float(f.get("qty", 0.0))
@@ -88,7 +143,7 @@ class HistoricalLogService:
                             if comm_asset in ["USDT", "BUSD", "USD"]:
                                 fee_usd = comm
                             elif comm_asset == "BNB":
-                                bnb_px = float(binance_broker.get_market_data("BINANCE_LIVE", "BNBUSDT").get("last_price", 600.0) or 600.0)
+                                bnb_px = float(binance_broker.get_market_data("BINANCE_LIVE", "BNBUSDT").get("last_price", 745.0) or 745.0)
                                 fee_usd = round(comm * bnb_px, 4)
                             else:
                                 fee_usd = round(comm * price, 4)
@@ -119,7 +174,7 @@ class HistoricalLogService:
                                     net_pnl = round(gross_pnl - tot_fee, 2)
                                     dt_str = datetime.fromtimestamp(ts_ms / 1000.0, tz=timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S")
                                     sym_clean = sym.replace("USDT", "")
-                                    tid = f"TRD-BINA-{sym_clean}-{f.get('id')}"
+                                    tid = f"TRD-BINA-LIVE-{sym_clean}-{f.get('id')}"
                                     
                                     trades_map[tid] = {
                                         "trade_id": tid,
@@ -131,8 +186,8 @@ class HistoricalLogService:
                                         "action": "BUY",
                                         "entry_price": entry_px,
                                         "exit_price": exit_px,
-                                        "quantity": round(matched_qty, 6),
-                                        "units": round(matched_qty, 6),
+                                        "quantity": round(matched_qty, 4),
+                                        "units": round(matched_qty, 4),
                                         "capital_allocated": round(entry_px * matched_qty, 2),
                                         "leverage": 1.0,
                                         "gross_pnl": gross_pnl,
@@ -143,6 +198,7 @@ class HistoricalLogService:
                                         "result": "WIN" if net_pnl > 0 else ("LOSS" if net_pnl < 0 else "BREAKEVEN"),
                                         "close_reason": "BINANCE_LIVE_FILL",
                                         "workspace": "CRYPTO",
+                                        "environment": "LIVE",
                                         "source": "BINANCE_LIVE"
                                     }
                                     
@@ -155,7 +211,41 @@ class HistoricalLogService:
         except Exception as e:
             print(f"[HistoricalLogService] Binance live fills notice: {e}")
 
-        # Convert to list and sort descending by timestamp
+        # ── 3. PAPER BROKER POOLS (STRICTLY FOR DEMO ONLY!) ───────────────
+        try:
+            from execution.paper_broker import paper_broker
+            for pool_name, pool in paper_broker.pools.items():
+                if isinstance(pool, dict):
+                    # Never import simulated trades into LIVE
+                    if any(k in pool_name.upper() for k in ("LIVE", "REAL")):
+                        continue
+                    ws = "CRYPTO" if "BINANCE" in pool_name or "CRYPTO" in pool_name else ("INDIA" if "INDIA" in pool_name or "UPSTOX" in pool_name else "FOREX_GOLD")
+                    for t in pool.get("trade_history", []):
+                        norm = self._normalise_trade_record(t, pool_name=pool_name, workspace=ws)
+                        norm["environment"] = "DEMO"
+                        if norm and norm.get("trade_id") and norm["trade_id"] not in trades_map:
+                            trades_map[norm["trade_id"]] = norm
+        except Exception as e:
+            print(f"[HistoricalLogService] In-memory paper broker load notice: {e}")
+
+        # 4. Load from paper_broker_state.json file (DEMO only)
+        if self.PAPER_BROKER_STATE.is_file():
+            try:
+                with open(self.PAPER_BROKER_STATE, "r") as f:
+                    state = json.load(f)
+                pools = state.get("pools", {})
+                for pool_name, pool_data in pools.items():
+                    if any(k in pool_name.upper() for k in ("LIVE", "REAL")):
+                        continue
+                    ws = "CRYPTO" if "BINANCE" in pool_name or "CRYPTO" in pool_name else ("INDIA" if "INDIA" in pool_name or "UPSTOX" in pool_name else "FOREX_GOLD")
+                    for t in pool_data.get("trade_history", []):
+                        norm = self._normalise_trade_record(t, pool_name=pool_name, workspace=ws)
+                        norm["environment"] = "DEMO"
+                        if norm and norm.get("trade_id") and norm["trade_id"] not in trades_map:
+                            trades_map[norm["trade_id"]] = norm
+            except Exception as e:
+                print(f"[HistoricalLogService] File paper broker load notice: {e}")
+
         all_trades = list(trades_map.values())
         all_trades.sort(key=lambda t: str(t.get("timestamp", "")), reverse=True)
         self._cached_trades = all_trades
@@ -243,13 +333,11 @@ class HistoricalLogService:
                 res = [
                     t for t in res
                     if t.get("environment") == "LIVE"
-                    or any(k in str(t.get("pool_name", "")).upper() for k in ("LIVE", "REAL"))
                 ]
             elif env_clean in ("DEMO", "PAPER", "TESTNET", "SANDBOX"):
                 res = [
                     t for t in res
                     if t.get("environment") != "LIVE"
-                    and not any(k in str(t.get("pool_name", "")).upper() for k in ("LIVE", "REAL"))
                 ]
 
         if workspace and workspace.upper() != "ALL":
