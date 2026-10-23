@@ -2066,12 +2066,7 @@ async def close_all_positions_endpoint(request: Request):
         try:
             from execution.binance_broker import binance_broker
             target_b_env = "BINANCE_LIVE" if ("LIVE" in env_upper or "REAL" in env_upper) else "BINANCE_TESTNET"
-            # 1a. Cancel pending orders on Binance
-            try:
-                binance_broker.cancel_all_open_orders(target_b_env)
-            except Exception as ce:
-                errors.append(f"cancel_all_orders: {ce}")
-            # 1b. Fetch active Binance open positions directly
+            # 1a. Fetch active Binance open positions directly
             try:
                 b_positions = binance_broker.get_open_positions(environment=target_b_env)
                 for bp in b_positions:
