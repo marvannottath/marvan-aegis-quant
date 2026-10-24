@@ -427,16 +427,6 @@ class AutonomousTrader:
                     except Exception:
                         pass
 
-                    # 2b. High-Impact Macroeconomic News Lockout (CPI / FOMC / NFP Freeze)
-                    try:
-                        from sync.economic_calendar import economic_filter
-                        news_locked, news_reason = economic_filter.is_news_lockout_active()
-                        if news_locked:
-                            if step_counter % 20 == 0:
-                                self._log_action("NEWS_LOCKOUT", "PAUSED", 0.0, 0.0, news_reason)
-                            continue
-                    except Exception:
-                        pass
 
                     # 3. Pre-Market Global Bias & Institutional Session Gate for Indian Equities
                     dir_filter = "ALL"
