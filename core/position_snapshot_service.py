@@ -611,7 +611,7 @@ class PositionSnapshotService:
                         unrealized_pnl = 0.0
                         total_equity = round(live_tot if live_tot > 0 else free_cash, 2)
                     else:
-                        total_equity = round(free_cash + total_exposure + unrealized_pnl, 2)
+                        total_equity = round(live_tot if live_tot > 0 else (free_cash + total_exposure + unrealized_pnl), 2)
                     pool["virtual_cash"] = free_cash
                     pool["equity"] = total_equity
                     initial_cap = self.get_and_update_peak_equity(pool_name, max(total_equity, 1.0))
@@ -624,9 +624,9 @@ class PositionSnapshotService:
                         total_exposure = 0.0
                         used_margin = 0.0
                         unrealized_pnl = 0.0
-                        total_equity = free_cash
+                        total_equity = round(live_tot if live_tot > 0 else free_cash, 2)
                     else:
-                        total_equity = round(free_cash + total_exposure + unrealized_pnl, 2)
+                        total_equity = round(live_tot if live_tot > 0 else (free_cash + total_exposure + unrealized_pnl), 2)
                     pool["virtual_cash"] = free_cash
                     pool["equity"] = total_equity
                     initial_cap = self.get_and_update_peak_equity(pool_name, max(total_equity, 1.0))
