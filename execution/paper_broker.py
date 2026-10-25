@@ -79,9 +79,9 @@ class PaperBroker:
                 "order_stream": []
             },
             "CTRADER_LIVE": {
-                "initial_capital": 0.0,
-                "virtual_cash": 0.0,
-                "equity": 0.0,
+                "initial_capital": 100000.0,
+                "virtual_cash": 100000.0,
+                "equity": 100000.0,
                 "currency": "USD",
                 "currency_symbol": "$",
                 "positions": {},

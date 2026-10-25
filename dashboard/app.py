@@ -1204,9 +1204,12 @@ async def get_state(workspace: Optional[str] = None, request_id: Optional[str] =
 
     # Get pool account details
     pool_data = paper_broker.pools.get(active_pool, {})
-    init_cap = float(pool_data.get("initial_capital", meta.get("initial_capital", 100000.0)))
-    equity_val = float(pool_data.get("equity", init_cap))
-    cash_val = float(pool_data.get("virtual_cash", init_cap))
+    raw_init = pool_data.get("initial_capital")
+    if raw_init is None or float(raw_init) <= 0.0:
+        raw_init = meta.get("initial_capital", 100000.0)
+    init_cap = float(raw_init) if float(raw_init) > 0.0 else 100000.0
+    equity_val = float(pool_data.get("equity") or init_cap)
+    cash_val = float(pool_data.get("virtual_cash") or init_cap)
     currency = meta["currency"]
     currency_symbol = meta["currency_symbol"]
 
@@ -1425,7 +1428,7 @@ async def get_state(workspace: Optional[str] = None, request_id: Optional[str] =
         "portfolio_equity": equity_val,
         "initial_capital": init_cap,
         "realized_pnl_today": today_pnl if port_aggregate.get("broker_connected", True) else None,
-        "realized_pnl_pct": round((today_pnl / init_cap) * 100.0, 2) if port_aggregate.get("broker_connected", True) else None,
+        "realized_pnl_pct": round((today_pnl / init_cap) * 100.0, 2) if (port_aggregate.get("broker_connected", True) and init_cap > 0.0) else 0.0,
         "current_drawdown_pct": drawdown_pct if port_aggregate.get("broker_connected", True) else None,
         "virtual_cash": cash_val,
         "floating_open_pnl_usd": float(pos_snapshot.get("unrealized_pnl")) if (port_aggregate.get("broker_connected", True) and pos_snapshot.get("unrealized_pnl") is not None) else None,
