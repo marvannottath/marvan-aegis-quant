@@ -748,11 +748,36 @@ class AutonomousTrader:
                                 except Exception:
                                     pass
 
-                                # 5. Dynamic ATR Volatility Take-Profit & Stop-Loss
+                                # 5. Whale Order & Smart Money Wall Tracker
+                                try:
+                                    from core.whale_order_tracker import whale_order_tracker
+                                    wh_res = whale_order_tracker.validate_whale_support(ticker, act, _active_ws)
+                                    if not wh_res.get("allowed", True):
+                                        self._log_action(ticker, "WHALE_WALL_BLOCK", current_price, size_usd, wh_res.get("reason", "Whale Resistance"))
+                                        continue
+                                except Exception:
+                                    pass
+
+                                # 6. Funding Rate & Open Interest Squeeze Engine
+                                try:
+                                    from core.funding_oi_squeeze_engine import funding_oi_squeeze_engine
+                                    sq_res = funding_oi_squeeze_engine.get_squeeze_metrics(ticker)
+                                    if act == "BUY" and not sq_res.get("is_favorable_for_buy", True):
+                                        self._log_action(ticker, "FUNDING_SQUEEZE_RISK", current_price, size_usd, f"Overheated Long Squeeze Risk: Funding {sq_res.get('funding_rate_pct')}%")
+                                        continue
+                                except Exception:
+                                    pass
+
+                                # 7. Dynamic ATR & Market Regime Auto-Switcher
                                 try:
                                     from core.dynamic_atr_targets import dynamic_atr_targets
+                                    from core.market_regime_switcher import market_regime_switcher
+                                    reg_info = market_regime_switcher.detect_regime(ticker, _active_ws)
                                     dyn_targets = dynamic_atr_targets.get_dynamic_exit_targets(ticker, current_price, _active_ws)
-                                    pos_tp = dyn_targets["take_profit_price"]
+                                    if reg_info.get("active_regime") == "TRENDING_MOMENTUM":
+                                        pos_tp = round(current_price * (1.0 + max(0.010, dyn_targets["tp_pct"] / 100.0)), 4 if current_price < 10 else 2)
+                                    else:
+                                        pos_tp = dyn_targets["take_profit_price"]
                                     pos_sl = dyn_targets["stop_loss_price"]
                                 except Exception:
                                     pos_tp = round(current_price * 1.006, 4 if current_price < 10 else 2)

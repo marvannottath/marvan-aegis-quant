@@ -8353,4 +8353,69 @@ async def get_alpha_pipeline_status(symbol: Optional[str] = "BTCUSDT", workspace
         return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
 
 
+# -------------------------------------------------------------
+# Whale Order & Smart Money Wall Tracker Endpoint
+# -------------------------------------------------------------
+@app.get("/api/whale-tracker/status")
+async def get_whale_tracker_status(symbol: Optional[str] = "BTCUSDT", workspace: str = "CRYPTO"):
+    """
+    Returns detected Whale Support and Resistance Walls ($40,000+ notional) from Binance L2 Order Book.
+    """
+    try:
+        from core.whale_order_tracker import whale_order_tracker
+        res = whale_order_tracker.scan_whale_walls(symbol=symbol, workspace=workspace)
+        return JSONResponse(res)
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+# -------------------------------------------------------------
+# Cross-Exchange Lead-Lag Latency Arbitrage Endpoint
+# -------------------------------------------------------------
+@app.get("/api/arbitrage/lead-lag/status")
+async def get_lead_lag_arbitrage_status(symbol: Optional[str] = "BTCUSDT"):
+    """
+    Returns real-time price comparisons across Binance, Coinbase, and Bybit with lead-lag arbitrage pulses.
+    """
+    try:
+        from core.lead_lag_arbitrage_scanner import lead_lag_arbitrage_scanner
+        res = lead_lag_arbitrage_scanner.get_cross_venue_prices(symbol=symbol)
+        return JSONResponse(res)
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+# -------------------------------------------------------------
+# Funding Rate & Open Interest Squeeze Engine Endpoint
+# -------------------------------------------------------------
+@app.get("/api/funding-oi/status")
+async def get_funding_oi_status(symbol: Optional[str] = "BTCUSDT"):
+    """
+    Returns Binance Perpetual Futures Funding Rate, Open Interest, and Squeeze Regime predictions.
+    """
+    try:
+        from core.funding_oi_squeeze_engine import funding_oi_squeeze_engine
+        res = funding_oi_squeeze_engine.get_squeeze_metrics(symbol=symbol)
+        return JSONResponse(res)
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+# -------------------------------------------------------------
+# Market Regime Auto-Switcher Endpoint
+# -------------------------------------------------------------
+@app.get("/api/regime/status")
+async def get_market_regime_status(symbol: Optional[str] = "BTCUSDT", workspace: str = "CRYPTO"):
+    """
+    Returns active market regime (TRENDING_MOMENTUM | SIDEWAYS_CHOP | VOLATILITY_DEFENSE) and adaptive TP/SL targets.
+    """
+    try:
+        from core.market_regime_switcher import market_regime_switcher
+        res = market_regime_switcher.detect_regime(symbol=symbol, workspace=workspace)
+        return JSONResponse(res)
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+
 
