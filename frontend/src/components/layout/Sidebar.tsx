@@ -137,6 +137,7 @@ export function Sidebar() {
                   <Link
                     key={item.name}
                     href={item.href}
+                    prefetch={true}
                     title={isCollapsed ? item.name : undefined}
                     className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition ${
                       active
@@ -181,6 +182,7 @@ export function Sidebar() {
             <Link
               key={tab.name}
               href={tab.href}
+              prefetch={true}
               className={`flex flex-col items-center gap-1 text-[10px] font-semibold transition ${
                 active ? 'text-brand' : 'text-txt-muted hover:text-txt-primary'
               }`}

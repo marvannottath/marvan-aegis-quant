@@ -4,6 +4,7 @@ import React from 'react';
 import { usePathname } from 'next/navigation';
 import { TopHeader } from './TopHeader';
 import { Sidebar } from './Sidebar';
+import { MarketTransitionLoader } from '../common/MarketTransitionLoader';
 import { useTradingContext } from '../../context/TradingContext';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -21,6 +22,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex flex-col h-screen max-h-screen overflow-hidden bg-canvas text-txt-primary">
+      {/* Motivating Market Transition Micro-Loader */}
+      <MarketTransitionLoader />
+
       {/* Top Fixed Header */}
       <TopHeader />
 

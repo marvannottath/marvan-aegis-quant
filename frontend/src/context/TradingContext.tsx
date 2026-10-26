@@ -47,7 +47,24 @@ interface TradingContextValue {
   refreshData: () => Promise<void>;
   switchEnvironment: (targetEnv: Environment) => void;
   switchWorkspace: (targetWs: Workspace) => void;
+  isMarketTransitioning: boolean;
+  transitionTargetWs: Workspace | null;
+  motivationalThought: string;
 }
+
+const MOTIVATIONAL_THOUGHTS = [
+  "Disciplined risk management is the true edge of institutional alpha.",
+  "The market rewards patience, precision, and zero emotional hesitation.",
+  "Protect capital first; sustainable profits compound naturally.",
+  "Consistency over intensity. Systematic execution over impulse.",
+  "Calibrated algorithms execute without fear or greed.",
+  "Master the math, respect the stop loss, and let the edge play out.",
+  "In fast markets, speed is an advantage, but discipline is the moat.",
+  "Every tick is information. Every trade is calculated probability.",
+  "True confidence comes from an edge well-tested, not a single trade.",
+  "Cut losses without hesitation; give winning runners room to breathe.",
+  "Patience is the currency of the profitable quantitative trader.",
+];
 
 const TradingContext = createContext<TradingContextValue | null>(null);
 
@@ -179,6 +196,14 @@ export function TradingProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  // In-Memory Optimistic Fast Cache across Markets
+  const cacheMapRef = React.useRef<Record<string, { account: any; portfolio: any; capital: any }>>({});
+
+  // Market Transition Loader & Motivational Thoughts
+  const [isMarketTransitioning, setIsMarketTransitioning] = useState<boolean>(false);
+  const [transitionTargetWs, setTransitionTargetWs] = useState<Workspace | null>(null);
+  const [motivationalThought, setMotivationalThought] = useState<string>(MOTIVATIONAL_THOUGHTS[0]);
+
   // Authoritative State Refresh
   const refreshData = useCallback(async () => {
     try {
@@ -199,6 +224,15 @@ export function TradingProvider({ children }: { children: React.ReactNode }) {
         setMarketDataStatus(mktSt.value.feed_status);
         setMarketDataProvider(mktSt.value.provider);
       }
+
+      // Persist in optimistic memory cache for instant switching
+      if (port.status === 'fulfilled') {
+        cacheMapRef.current[`${environment}:${workspace}`] = {
+          account: acc.status === 'fulfilled' ? acc.value : null,
+          portfolio: port.value,
+          capital: cap.status === 'fulfilled' ? cap.value : null,
+        };
+      }
     } catch (err: any) {
       setError(err?.message || 'Failed to load trading context');
     } finally {
@@ -206,12 +240,17 @@ export function TradingProvider({ children }: { children: React.ReactNode }) {
     }
   }, [environment, workspace]);
 
-  // Clean state flush and reload when environment or workspace changes
+  // Clean state reload when environment or workspace changes (utilizing cache to prevent screen tear)
   useEffect(() => {
-    setIsLoading(true);
-    setAccount(null);
-    setPortfolio(null);
-    setCapital(null);
+    const cached = cacheMapRef.current[`${environment}:${workspace}`];
+    if (cached) {
+      if (cached.account) setAccount(cached.account);
+      if (cached.portfolio) setPortfolio(cached.portfolio);
+      if (cached.capital) setCapital(cached.capital);
+      setIsLoading(false);
+    } else {
+      setIsLoading(true);
+    }
     refreshData();
 
     // Smooth institutional polling (5 seconds) for live trading telemetry
@@ -223,45 +262,55 @@ export function TradingProvider({ children }: { children: React.ReactNode }) {
   const switchEnvironment = useCallback((targetEnv: Environment) => {
     if (targetEnv === environment) return;
 
-    // Flush client state first
-    setAccount(null);
-    setPortfolio(null);
-    setCapital(null);
-    setIsLoading(true);
+    // Fast optimistic hydration from cache
+    const cached = cacheMapRef.current[`${targetEnv}:${workspace}`];
+    if (cached) {
+      if (cached.account) setAccount(cached.account);
+      if (cached.portfolio) setPortfolio(cached.portfolio);
+      if (cached.capital) setCapital(cached.capital);
+    }
 
     let nextPath: string;
     if (targetEnv === 'DEMO') {
-      // LIVE -> DEMO: prepend /demo
       if (pathname === '/') {
         nextPath = '/demo';
       } else {
         nextPath = `/demo${pathname}`;
       }
     } else {
-      // DEMO -> LIVE: remove /demo prefix
       nextPath = pathname.replace(/^\/demo/, '') || '/';
     }
 
     router.push(nextPath);
-  }, [environment, pathname, router]);
+  }, [environment, workspace, pathname, router]);
 
-  // Switch Workspace: PRESERVES ENVIRONMENT
+  // Switch Workspace: PRESERVES ENVIRONMENT & ENGAGES MOTIVATING TRANSITION LOADER
   const switchWorkspace = useCallback((targetWs: Workspace) => {
+    if (targetWs === activeWorkspace) return;
+
     setActiveWorkspace(targetWs);
     if (typeof window !== 'undefined') {
       localStorage.setItem('aq_active_workspace', targetWs);
     }
 
-    // Flush client state first to force fresh fetch
-    setAccount(null);
-    setPortfolio(null);
-    setCapital(null);
-    setIsLoading(true);
+    // Pick a motivating quantitative mindset thought
+    const randomQuote = MOTIVATIONAL_THOUGHTS[Math.floor(Math.random() * MOTIVATIONAL_THOUGHTS.length)];
+    setMotivationalThought(randomQuote);
+    setTransitionTargetWs(targetWs);
+    setIsMarketTransitioning(true);
+
+    // Instant optimistic hydration from cache (zero lag / no blank screen)
+    const cached = cacheMapRef.current[`${environment}:${targetWs}`];
+    if (cached) {
+      if (cached.account) setAccount(cached.account);
+      if (cached.portfolio) setPortfolio(cached.portfolio);
+      if (cached.capital) setCapital(cached.capital);
+      setIsLoading(false);
+    }
 
     const isDemo = environment === 'DEMO';
     const wsSlug = targetWs === 'CRYPTO' ? 'crypto' : (targetWs === 'INDIA' ? 'india' : 'forex-gold');
 
-    // If on overview, navigate to the specific market overview
     const clean = pathname.replace(/^\/demo/, '');
     const isOverview = clean === '' || clean === '/' || clean === '/crypto' || clean === '/india' || clean === '/forex-gold';
 
@@ -271,7 +320,13 @@ export function TradingProvider({ children }: { children: React.ReactNode }) {
     } else {
       router.replace(`${pathname}?workspace=${wsSlug}`);
     }
-  }, [environment, pathname, router]);
+
+    // Smooth fadeout of motivating loader after comfortable reading time
+    setTimeout(() => {
+      setIsMarketTransitioning(false);
+      setTransitionTargetWs(null);
+    }, 1300);
+  }, [environment, activeWorkspace, pathname, router]);
 
   const value = useMemo(
     () => ({
@@ -294,6 +349,9 @@ export function TradingProvider({ children }: { children: React.ReactNode }) {
       refreshData,
       switchEnvironment,
       switchWorkspace,
+      isMarketTransitioning,
+      transitionTargetWs,
+      motivationalThought,
     }),
     [
       environment,
@@ -315,6 +373,9 @@ export function TradingProvider({ children }: { children: React.ReactNode }) {
       refreshData,
       switchEnvironment,
       switchWorkspace,
+      isMarketTransitioning,
+      transitionTargetWs,
+      motivationalThought,
     ]
   );
 
