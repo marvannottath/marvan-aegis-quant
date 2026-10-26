@@ -423,16 +423,17 @@ class AutonomousTrader:
                     except Exception as sq_err:
                         pass
 
-                    # 2. Daily Circuit Breaker (Max Drawdown / Consecutive Loss Lock)
-                    try:
-                        from core.daily_circuit_breaker import daily_circuit_breaker
-                        circuit_ok, circuit_msg = daily_circuit_breaker.check_trading_allowed()
-                        if not circuit_ok:
-                            if step_counter % 20 == 0:
-                                self._log_action("CIRCUIT_BREAKER", "LOCKED", 0.0, 0.0, f"Trading locked: {circuit_msg}")
-                            continue
-                    except Exception:
-                        pass
+                    # 2. Daily Circuit Breaker (Max Drawdown / Consecutive Loss Lock for Indian Equities)
+                    if _active_ws == "INDIA":
+                        try:
+                            from core.daily_circuit_breaker import daily_circuit_breaker
+                            circuit_ok, circuit_msg = daily_circuit_breaker.check_trading_allowed()
+                            if not circuit_ok:
+                                if step_counter % 20 == 0:
+                                    self._log_action("CIRCUIT_BREAKER", "LOCKED", 0.0, 0.0, f"Trading locked: {circuit_msg}")
+                                continue
+                        except Exception:
+                            pass
 
 
                     # 3. Pre-Market Global Bias & Institutional Session Gate for Indian Equities
@@ -729,9 +730,12 @@ class AutonomousTrader:
                                             raw_qty = size_usd / max(0.01, current_price)
                                             qty = round(math.ceil(raw_qty / step_sz) * step_sz, 8)
                                             effective_notional = round(qty * current_price, 2)
-                                            if effective_notional < 5.50 or effective_notional > (working_cash + 0.10):
+                                            if effective_notional > working_cash:
+                                                qty = round(math.floor(raw_qty / step_sz) * step_sz, 8)
+                                                effective_notional = round(qty * current_price, 2)
+                                            if effective_notional < 5.50 or effective_notional > working_cash:
                                                 continue
-                                            size_usd = effective_notional
+                                            size_usd = min(effective_notional, working_cash)
                                             live_result = binance_broker.place_order(
                                                 symbol=ticker, side="BUY", order_type="MARKET",
                                                 price=size_usd, quantity=qty, environment="BINANCE_LIVE_REAL"
@@ -1327,11 +1331,12 @@ class AutonomousTrader:
                         self.position_age.pop(pos_asset, None)
                         self._log_action(pos_asset, "CLOSE", new_live_price, pos.get("capital_allocated", 500.0), f"Position Closed & Swept ({close_reason})")
                         
-                        try:
-                            from core.daily_circuit_breaker import daily_circuit_breaker
-                            daily_circuit_breaker.record_trade_result(pnl=pnl_usd)
-                        except Exception:
-                            pass
+                        if _active_ws == "INDIA":
+                            try:
+                                from core.daily_circuit_breaker import daily_circuit_breaker
+                                daily_circuit_breaker.record_trade_result(pnl=pnl_usd)
+                            except Exception:
+                                pass
 
                         # 30/70 Auto-Compounding and Vault Preservation
                         try:
