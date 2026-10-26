@@ -112,20 +112,31 @@ export function SessionDetailView() {
   };
 
   const trades = sessionData?.trades || [];
-  const netPnl = sessionData?.net_pnl_usd ?? 0.0;
+  const netPnl = (workspace === 'INDIA' && sessionData?.net_pnl_inr !== undefined) ? sessionData.net_pnl_inr : (sessionData?.net_pnl_usd ?? 0.0);
   const isNetProfit = netPnl >= 0;
 
   // Compute breakdown metrics
   const totalTradesCount = sessionData?.trades_count ?? trades.length;
-  const winCount = trades.filter((t: any) => (t.net_pnl ?? t.pnl_usd ?? 0) > 0).length;
-  const lossCount = trades.filter((t: any) => (t.net_pnl ?? t.pnl_usd ?? 0) < 0).length;
+  const isTradeWin = (t: any) => {
+    if (t.result === 'WIN') return true;
+    const gross = t.gross_pnl !== undefined ? Number(t.gross_pnl) : ((Number(t.exit_price || 0) - Number(t.entry_price || 0)) * (t.side === 'SELL' ? -1 : 1));
+    return gross > 0.0001 || (Number(t.net_pnl || 0) > 0);
+  };
+  const isTradeLoss = (t: any) => {
+    if (t.result === 'LOSS') return true;
+    const gross = t.gross_pnl !== undefined ? Number(t.gross_pnl) : ((Number(t.exit_price || 0) - Number(t.entry_price || 0)) * (t.side === 'SELL' ? -1 : 1));
+    return gross < -0.0001;
+  };
+
+  const winCount = trades.filter(isTradeWin).length;
+  const lossCount = trades.filter(isTradeLoss).length;
   const grossWin = trades
-    .filter((t: any) => (t.net_pnl ?? t.pnl_usd ?? 0) > 0)
-    .reduce((acc: number, t: any) => acc + (t.net_pnl ?? t.pnl_usd ?? 0), 0);
+    .filter(isTradeWin)
+    .reduce((acc: number, t: any) => acc + Math.max(0, Number(t.gross_pnl || t.net_pnl || 0)), 0);
   const grossLoss = Math.abs(
     trades
-      .filter((t: any) => (t.net_pnl ?? t.pnl_usd ?? 0) < 0)
-      .reduce((acc: number, t: any) => acc + (t.net_pnl ?? t.pnl_usd ?? 0), 0)
+      .filter(isTradeLoss)
+      .reduce((acc: number, t: any) => acc + Math.min(0, Number(t.gross_pnl || t.net_pnl || 0)), 0)
   );
   const totalFees = trades.reduce((acc: number, t: any) => acc + (t.fee_usd ?? 0), 0);
   const winRate = totalTradesCount > 0 ? (winCount / totalTradesCount) * 100 : 0;
@@ -133,9 +144,8 @@ export function SessionDetailView() {
   const filteredTrades = trades.filter((t: any) => {
     const sym = (t.symbol || t.asset || '').toUpperCase();
     const matchesSearch = !searchTerm || sym.includes(searchTerm.toUpperCase());
-    const pnl = t.net_pnl ?? t.pnl_usd ?? 0;
-    if (statusFilter === 'WIN') return matchesSearch && pnl > 0;
-    if (statusFilter === 'LOSS') return matchesSearch && pnl < 0;
+    if (statusFilter === 'WIN') return matchesSearch && isTradeWin(t);
+    if (statusFilter === 'LOSS') return matchesSearch && isTradeLoss(t);
     return matchesSearch;
   });
 
@@ -224,7 +234,7 @@ export function SessionDetailView() {
             >
               {isFinancialMasked
                 ? '••••••'
-                : `${isNetProfit ? '+' : ''}${curr}${netPnl.toFixed(2)}`}
+                : `${netPnl > 0 ? '+' : netPnl < 0 ? '-' : ''}${curr}${Math.abs(netPnl).toFixed(2)}`}
             </span>
           </div>
         </div>
@@ -394,9 +404,12 @@ export function SessionDetailView() {
                 </tr>
               ) : (
                 filteredTrades.map((t: any, idx: number) => {
-                  const pnl = t.net_pnl ?? t.pnl_usd ?? 0;
-                  const isWin = pnl > 0;
-                  const isLoss = pnl < 0;
+                  const grossPnl = t.gross_pnl !== undefined
+                    ? Number(t.gross_pnl)
+                    : ((Number(t.exit_price || 0) - Number(t.entry_price || 0)) * (t.side === 'SELL' ? -1 : 1) * Number(t.quantity || t.units || 1));
+                  const pnl = (workspace === 'INDIA' && t.net_pnl !== undefined) ? Number(t.net_pnl) : (t.net_pnl ?? t.pnl_usd ?? 0);
+                  const isWin = (t.result === 'WIN') || (grossPnl > 0.001);
+                  const isLoss = (t.result === 'LOSS') || (grossPnl < -0.001);
                   const side = (t.side || t.action || 'BUY').toUpperCase();
 
                   return (
@@ -438,11 +451,11 @@ export function SessionDetailView() {
                         })}
                       </td>
                       <td className="py-2.5 px-3 text-right font-bold tabular-nums whitespace-nowrap">
-                        <span className={isWin ? 'text-profit' : isLoss ? 'text-loss' : 'text-txt-muted'}>
+                        <span className={pnl > 0 ? 'text-profit' : pnl < 0 ? 'text-loss' : 'text-txt-muted'}>
                           {isFinancialMasked ? (
                             '••••••'
                           ) : (
-                            `${isWin ? '+' : ''}${curr}${pnl.toFixed(2)}`
+                            `${pnl > 0 ? '+' : pnl < 0 ? '-' : ''}${curr}${Math.abs(pnl).toFixed(2)}`
                           )}
                         </span>
                       </td>

@@ -100,8 +100,8 @@ class PnLCalendarService:
 
             if day_real_trades:
                 d_trades_cnt = len(day_real_trades)
-                d_wins = [t for t in day_real_trades if float(t.get("net_pnl", 0.0) or t.get("pnl_usd", 0.0)) > 0]
-                d_losses = [t for t in day_real_trades if float(t.get("net_pnl", 0.0) or t.get("pnl_usd", 0.0)) < 0]
+                d_wins = [t for t in day_real_trades if (t.get("result") == "WIN") or float(t.get("gross_pnl", 0.0)) > 0 or float(t.get("net_pnl", 0.0) or t.get("pnl_usd", 0.0)) > 0]
+                d_losses = [t for t in day_real_trades if (t.get("result") == "LOSS") or (float(t.get("gross_pnl", 0.0)) < 0 and float(t.get("net_pnl", 0.0) or t.get("pnl_usd", 0.0)) < 0)]
                 d_win_cnt = len(d_wins)
                 d_loss_cnt = len(d_losses)
                 d_pnl = round(sum(float(t.get("net_pnl", 0.0) or t.get("pnl_usd", 0.0)) for t in day_real_trades), 2)
