@@ -375,21 +375,23 @@ class AutonomousTrader:
                         except Exception:
                             pass
 
-                    # Sync connected Binance Live balance if present (throttled every 15s to eliminate REST latency)
+                    # Sync connected Binance Live balance and live open positions (throttled every 15s to eliminate REST latency)
                     if pool == "BINANCE_LIVE_REAL":
                         try:
-                            cur_p_cash = float(self.broker.pools.get("BINANCE_LIVE_REAL", {}).get("virtual_cash", 0.0))
-                            if cur_p_cash <= 0 or (step_counter % 6 == 0):
-                                from execution.binance_broker import binance_broker
-                                from execution.broker_gateway_manager import broker_gateway_manager
-                                b_conn = broker_gateway_manager.connections.get("binance_live") or broker_gateway_manager.connections.get("BINANCE", {})
-                                real_live_cash = binance_broker.get_live_spot_balance("USDT")
-                                conn_bal = float(b_conn.get("balance", 0.0))
-                                resolved_bal = real_live_cash if real_live_cash > 0 else (conn_bal if conn_bal > 0 else 12.58)
-                                self.broker.pools.setdefault("BINANCE_LIVE_REAL", {})["virtual_cash"] = resolved_bal
-                                self.broker.pools.setdefault("BINANCE_LIVE_REAL", {})["equity"] = resolved_bal
-                                self.broker.virtual_cash = resolved_bal
-                                self.broker.equity = resolved_bal
+                            from execution.binance_broker import binance_broker
+                            real_live_cash = binance_broker.get_live_spot_balance("USDT")
+                            self.broker.pools.setdefault("BINANCE_LIVE_REAL", {})["virtual_cash"] = real_live_cash
+                            self.broker.virtual_cash = real_live_cash
+
+                            # Synchronize real open exchange positions into pool so harvest loop monitors them
+                            live_pos = binance_broker.get_open_positions("BINANCE_LIVE")
+                            pool_pos = self.broker.pools.setdefault("BINANCE_LIVE_REAL", {}).setdefault("positions", {})
+                            for lp in live_pos:
+                                sym = lp.get("symbol") or lp.get("asset")
+                                if sym and sym not in pool_pos:
+                                    pool_pos[sym] = lp
+                                    if sym not in self.broker.positions:
+                                        self.broker.positions[sym] = lp
                         except Exception:
                             pass
 
@@ -585,26 +587,12 @@ class AutonomousTrader:
                             if pool == "BINANCE_LIVE_REAL":
                                 try:
                                     from execution.binance_broker import binance_broker
-                                    from execution.broker_gateway_manager import broker_gateway_manager
                                     real_live_cash = binance_broker.get_live_spot_balance("USDT")
-                                    b_conn = broker_gateway_manager.connections.get("binance_live") or broker_gateway_manager.connections.get("BINANCE", {})
-                                    conn_bal = float(b_conn.get("balance", 0.0))
-                                    if real_live_cash > 0:
-                                        self.broker.pools.setdefault("BINANCE_LIVE_REAL", {})["virtual_cash"] = real_live_cash
-                                        self.broker.virtual_cash = real_live_cash
-                                    elif conn_bal > 0 and float(self.broker.pools.get("BINANCE_LIVE_REAL", {}).get("virtual_cash", 0.0)) <= 0:
-                                        self.broker.pools.setdefault("BINANCE_LIVE_REAL", {})["virtual_cash"] = conn_bal
-                                        self.broker.virtual_cash = conn_bal
+                                    self.broker.pools.setdefault("BINANCE_LIVE_REAL", {})["virtual_cash"] = real_live_cash
+                                    self.broker.virtual_cash = real_live_cash
+                                    current_cash = real_live_cash
                                 except Exception:
-                                    pass
-                                current_cash = float(self.broker.pools.get("BINANCE_LIVE_REAL", {}).get("virtual_cash", self.broker.virtual_cash))
-                                if current_cash < 5.20:
-                                    from execution.broker_gateway_manager import broker_gateway_manager
-                                    b_conn = broker_gateway_manager.connections.get("binance_live") or broker_gateway_manager.connections.get("BINANCE", {})
-                                    conn_bal = float(b_conn.get("balance", 0.0))
-                                    current_cash = conn_bal if conn_bal > 0 else 12.58
-                                    self.broker.pools.setdefault("BINANCE_LIVE_REAL", {})["virtual_cash"] = current_cash
-                                    self.broker.virtual_cash = current_cash
+                                    current_cash = float(self.broker.pools.get("BINANCE_LIVE_REAL", {}).get("virtual_cash", self.broker.virtual_cash))
                             elif pool == "KOTAK_NEO_LIVE" or (_active_ws == "INDIA" and is_live_pool):
                                 try:
                                     from execution.kotak_neo_broker import kotak_neo_broker
