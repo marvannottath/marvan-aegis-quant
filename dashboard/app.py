@@ -8260,3 +8260,97 @@ async def trigger_heartbeat_reconnect(request: Request):
         return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
 
 
+# -------------------------------------------------------------
+# Champion vs. Challenger Dual-Engine & Auto-Promotion Endpoints
+# -------------------------------------------------------------
+@app.get("/api/admin/champion-challenger/status")
+async def get_champion_challenger_status():
+    """
+    Returns dual engine status, comparison, superiority verdict, and promotion history.
+    """
+    try:
+        from core.champion_challenger_engine import champion_challenger_engine
+        st = champion_challenger_engine.get_status()
+        return JSONResponse({"status": "SUCCESS", "data": st})
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+@app.post("/api/admin/champion-challenger/promote")
+async def promote_champion_challenger_endpoint(request: Request):
+    """
+    Manually switches or promotes Engine A <-> Engine B.
+    """
+    try:
+        body = await request.json()
+        target_engine = body.get("target_engine", "ENGINE_B").upper()
+        reason = body.get("reason", "MANUAL_ADMIN_PROMOTION")
+        from core.champion_challenger_engine import champion_challenger_engine
+        res = champion_challenger_engine.switch_engine(target_engine, reason=reason)
+        return JSONResponse(res)
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+@app.post("/api/admin/champion-challenger/config")
+async def configure_champion_challenger_endpoint(request: Request):
+    """
+    Configure auto-promotion hurdle parameters and mode.
+    """
+    try:
+        body = await request.json()
+        auto_promo = body.get("auto_promotion_enabled")
+        min_trades = body.get("min_evaluation_trades")
+        hurdle_pct = body.get("win_rate_hurdle_pct")
+
+        from core.champion_challenger_engine import champion_challenger_engine
+        champion_challenger_engine.set_config(
+            auto_promotion=auto_promo,
+            min_trades=min_trades,
+            hurdle_pct=hurdle_pct
+        )
+        return JSONResponse({
+            "status": "SUCCESS",
+            "message": "Champion-Challenger configuration updated",
+            "data": champion_challenger_engine.get_status()
+        })
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+# -------------------------------------------------------------
+# Alpha Pipeline Health & Telemetry Status Endpoint
+# -------------------------------------------------------------
+@app.get("/api/alpha/pipeline/status")
+async def get_alpha_pipeline_status(symbol: Optional[str] = "BTCUSDT", workspace: str = "CRYPTO"):
+    """
+    Aggregates Order Book Pressure, MTF Trend, Dynamic ATR, and Drawdown Circuit Breaker telemetry.
+    """
+    try:
+        from core.order_book_pressure_detector import order_book_pressure_detector
+        from core.mtf_trend_filter import mtf_trend_filter
+        from core.dynamic_atr_targets import dynamic_atr_targets
+        from core.drawdown_circuit_breaker import drawdown_circuit_breaker
+        from core.binance_ws_order_router import binance_fast_order_router
+
+        ob_data = order_book_pressure_detector.get_order_book_pressure(symbol, workspace)
+        mtf_data = mtf_trend_filter.get_mtf_trend(symbol, workspace)
+        atr_data = dynamic_atr_targets.get_dynamic_exit_targets(symbol, ob_data.get("best_bid", 80000.0), workspace)
+        cb_data = drawdown_circuit_breaker.get_status()
+        fast_router = binance_fast_order_router.get_status()
+
+        return JSONResponse({
+            "status": "SUCCESS",
+            "symbol": symbol,
+            "workspace": workspace,
+            "order_book_pressure": ob_data,
+            "mtf_trend": mtf_data,
+            "dynamic_atr": atr_data,
+            "drawdown_circuit_breaker": cb_data,
+            "fast_order_router": fast_router
+        })
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+

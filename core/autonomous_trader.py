@@ -704,7 +704,21 @@ class AutonomousTrader:
                             min_threshold_ok = (size_usd >= 5.50) if not is_india_pool else (size_usd >= 50.0)
 
                             if is_risk_valid and min_threshold_ok:
-                                # Pre-Trade Bid-Ask Spread & Slippage Protection
+                                # 1. Daily Drawdown Circuit Breaker & Symbol Anti-Chop Cooldown
+                                try:
+                                    from core.drawdown_circuit_breaker import drawdown_circuit_breaker
+                                    cb_ok, cb_msg = drawdown_circuit_breaker.check_circuit_breaker(working_cash)
+                                    if not cb_ok:
+                                        self._log_action(ticker, "CIRCUIT_BREAKER_ACTIVE", current_price, size_usd, cb_msg)
+                                        continue
+                                    in_cool, cool_msg, _ = drawdown_circuit_breaker.is_symbol_in_cooldown(ticker)
+                                    if in_cool:
+                                        self._log_action(ticker, "SYMBOL_COOLDOWN", current_price, size_usd, cool_msg)
+                                        continue
+                                except Exception:
+                                    pass
+
+                                # 2. Pre-Trade Bid-Ask Spread & Slippage Protection
                                 try:
                                     from core.bid_ask_spread_guard import bid_ask_spread_guard
                                     spread_ok, spread_reason, _ = bid_ask_spread_guard.check_spread_allowed(ticker, _active_ws)
@@ -713,6 +727,36 @@ class AutonomousTrader:
                                         continue
                                 except Exception as sp_err:
                                     pass
+
+                                # 3. Multi-Timeframe Trend Confluence Filter (1m + 5m + 15m)
+                                try:
+                                    from core.mtf_trend_filter import mtf_trend_filter
+                                    mtf_ok, mtf_msg, _ = mtf_trend_filter.validate_trend_confluence(ticker, act, _active_ws)
+                                    if not mtf_ok:
+                                        self._log_action(ticker, "MTF_DOWNTREND_BLOCK", current_price, size_usd, mtf_msg)
+                                        continue
+                                except Exception:
+                                    pass
+
+                                # 4. Level-2 Order Book Imbalance Pressure
+                                try:
+                                    from core.order_book_pressure_detector import order_book_pressure_detector
+                                    ob_ok, ob_msg, _ = order_book_pressure_detector.validate_entry_pressure(ticker, act, _active_ws)
+                                    if not ob_ok:
+                                        self._log_action(ticker, "ORDER_BOOK_RESISTANCE", current_price, size_usd, ob_msg)
+                                        continue
+                                except Exception:
+                                    pass
+
+                                # 5. Dynamic ATR Volatility Take-Profit & Stop-Loss
+                                try:
+                                    from core.dynamic_atr_targets import dynamic_atr_targets
+                                    dyn_targets = dynamic_atr_targets.get_dynamic_exit_targets(ticker, current_price, _active_ws)
+                                    pos_tp = dyn_targets["take_profit_price"]
+                                    pos_sl = dyn_targets["stop_loss_price"]
+                                except Exception:
+                                    pos_tp = round(current_price * 1.006, 4 if current_price < 10 else 2)
+                                    pos_sl = round(current_price * 0.992, 4 if current_price < 10 else 2)
 
                                 live_order_placed = False
 
@@ -741,8 +785,10 @@ class AutonomousTrader:
                                             if live_result and live_result.get("status") not in ("ERROR", "REJECTED", "GATE_BLOCKED"):
                                                 live_order_placed = True
                                                 binance_broker.undismiss_spot_position(ticker)
-                                                pos_tp = round(current_price * 1.006, 4 if current_price < 10 else 2)
-                                                pos_sl = round(current_price * 0.992, 4 if current_price < 10 else 2)
+                                                if not pos_tp or pos_tp <= 0:
+                                                    pos_tp = round(current_price * 1.006, 4 if current_price < 10 else 2)
+                                                if not pos_sl or pos_sl <= 0:
+                                                    pos_sl = round(current_price * 0.992, 4 if current_price < 10 else 2)
                                                 pos_record = {
                                                     "trade_id": f"TRD-BINA-{ticker}-{int(time.time()*1000)}",
                                                     "asset": ticker, "symbol": ticker, "action": act, "side": act,
@@ -1352,6 +1398,21 @@ class AutonomousTrader:
                         try:
                             from core.self_learning_optimizer import self_learning_optimizer
                             self_learning_optimizer.record_trade_outcome(strategy_name=close_reason, pnl=pnl_usd)
+                        except Exception:
+                            pass
+
+                        # Update Champion-Challenger and Drawdown Circuit Breaker
+                        try:
+                            from core.champion_challenger_engine import champion_challenger_engine
+                            from core.drawdown_circuit_breaker import drawdown_circuit_breaker
+                            champion_challenger_engine.record_trade_result(
+                                champion_challenger_engine.active_engine,
+                                is_win=(pnl_usd > 0),
+                                pnl_usd=pnl_usd
+                            )
+                            drawdown_circuit_breaker.record_trade_pnl(pnl_usd, working_cash if 'working_cash' in locals() else 100.0)
+                            if pnl_usd < 0:
+                                drawdown_circuit_breaker.record_stop_loss(pos_asset, pnl_usd)
                         except Exception:
                             pass
 
