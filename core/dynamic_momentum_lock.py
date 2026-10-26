@@ -101,7 +101,7 @@ class DynamicMomentumLock:
         """
         Returns True if symbol is allowed to be traded.
         If momentum lock is disabled, all symbols are allowed.
-        If active, ONLY the locked_symbol is allowed.
+        If active, ONLY the locked_symbol is allowed, unless the locked symbol has no active signal (HOLD).
         """
         ws = workspace.upper()
         state = self._states.get(ws, {})
@@ -110,7 +110,12 @@ class DynamicMomentumLock:
         locked = state.get("locked_symbol")
         if not locked:
             return True
-        return symbol.upper() == locked.upper()
+        if symbol.upper() == locked.upper():
+            return True
+        # If the locked symbol is in HOLD, allow other symbols with active trading signals
+        if state.get("locked_action") == "HOLD":
+            return True
+        return False
 
     def get_status(self, workspace: str = "INDIA") -> Dict[str, Any]:
         ws = workspace.upper()
@@ -181,10 +186,11 @@ class DynamicMomentumLock:
         now_ts = time.time()
         now_dt_str = _now_str()
 
-        # Find top candidate by momentum / opportunity score
+        # Find top candidate with active BUY or SELL trading signal
         valid_candidates = [
             c for c in candidate_opportunities
             if float(c.get("score", 0.0) or c.get("opportunity_score", 0.0)) > 0
+            and c.get("ai_action") in ["BUY", "SELL"]
         ]
         valid_candidates.sort(
             key=lambda x: (
@@ -196,14 +202,16 @@ class DynamicMomentumLock:
 
         current_locked = state.get("locked_symbol")
 
-        # Case 1: No symbol locked yet -> Lock top runner immediately
+        # Case 1: No symbol locked yet -> Lock top runner with active signal
         if not current_locked:
             if valid_candidates:
                 top = valid_candidates[0]
                 sym = top.get("symbol") or top.get("ticker") or top.get("asset")
                 px = float(top.get("price", 0.0) or top.get("last_price", 0.0))
                 score = float(top.get("score", 0.0) or top.get("opportunity_score", 0.0))
+                act = top.get("ai_action", "BUY")
                 state["locked_symbol"] = sym
+                state["locked_action"] = act
                 state["locked_at"] = now_dt_str
                 state["locked_price"] = px
                 state["last_price"] = px
@@ -211,16 +219,45 @@ class DynamicMomentumLock:
                 state["stagnant_since"] = None
                 state["stagnant_minutes"] = 0.0
                 state["price_history"] = [{"t": now_ts, "p": px}]
-                state["switch_reason"] = f"INITIAL_TOP_RUNNER_LOCK (Score: {score:.1f}%)"
+                state["switch_reason"] = f"INITIAL_TOP_RUNNER_LOCK ({act} {score:.1f}%)"
                 self._save_state()
-                print(f"[MOMENTUM LOCK] Locked onto top runner: {sym} @ ₹{px:,.2f} ({score:.1f}%)")
+                print(f"[MOMENTUM LOCK] Locked onto top runner: {sym} @ {px:,.4f} ({act} {score:.1f}%)")
             return
 
-        # Case 2: Symbol is locked -> inspect its current quote
+        # Case 2: Symbol is locked -> inspect its current quote and signal
         locked_candidate = next(
             (c for c in candidate_opportunities if (c.get("symbol") or c.get("ticker") or c.get("asset")) == current_locked),
             None
         )
+
+        # Update current locked action
+        if locked_candidate:
+            state["locked_action"] = locked_candidate.get("ai_action", "HOLD")
+        else:
+            state["locked_action"] = "HOLD"
+
+        # If currently locked symbol entered HOLD (no action) and an active candidate exists, rotate immediately!
+        if state["locked_action"] not in ["BUY", "SELL"] and valid_candidates:
+            new_top = valid_candidates[0]
+            new_sym = new_top.get("symbol") or new_top.get("ticker") or new_top.get("asset")
+            new_px = float(new_top.get("price", 0.0) or new_top.get("last_price", 0.0))
+            new_score = float(new_top.get("score", 0.0) or new_top.get("opportunity_score", 0.0))
+            new_act = new_top.get("ai_action", "BUY")
+            old_sym = current_locked
+            state["locked_symbol"] = new_sym
+            state["locked_action"] = new_act
+            state["locked_at"] = now_dt_str
+            state["locked_price"] = new_px
+            state["last_price"] = new_px
+            state["momentum_score"] = new_score
+            state["stagnant_since"] = None
+            state["stagnant_minutes"] = 0.0
+            state["price_history"] = [{"t": now_ts, "p": new_px}]
+            state["rotation_count"] = state.get("rotation_count", 0) + 1
+            state["switch_reason"] = f"SIGNAL_SHIFT: {old_sym} entered HOLD -> Switched to active runner {new_sym} ({new_act} {new_score:.1f}%)"
+            self._save_state()
+            print(f"[MOMENTUM ROTATION] {state['switch_reason']}")
+            return
 
         cur_px = 0.0
         if locked_candidate:
