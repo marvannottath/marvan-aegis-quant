@@ -23,6 +23,7 @@ import {
   KeyRound,
   RefreshCw,
   ArrowDownToLine,
+  Wallet,
 } from 'lucide-react';
 import { Workspace } from '../../lib/types';
 import { ConnectBrokerModal } from '../common/ConnectBrokerModal';
@@ -200,21 +201,18 @@ export function TopHeader() {
           {isLiveDisconnected ? (
             <button
               onClick={() => setIsBrokerModalOpen(true)}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 hover:bg-red-100 text-xs font-semibold shadow-2xs transition cursor-pointer"
+              className="flex items-center gap-1.5 px-2 py-1 rounded-lg border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 hover:bg-red-100 text-xs font-semibold shadow-2xs transition cursor-pointer"
               title="Click to authenticate real exchange credentials"
             >
-              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
-              <span className="text-xs">Connect Broker</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
+              <Link2 className="h-3.5 w-3.5" />
             </button>
           ) : isLive ? (
             <button
               onClick={() => setIsBrokerModalOpen(true)}
-              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-300 text-xs font-semibold hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition cursor-pointer"
-              title="Click to view connected accounts and switch broker"
-            >
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span>
-                {portfolio?.pool_name?.includes('CTRADER')
+              className="flex items-center gap-1.5 p-1.5 px-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 transition cursor-pointer shadow-2xs"
+              title={`${
+                portfolio?.pool_name?.includes('CTRADER')
                   ? 'cTrader Live'
                   : portfolio?.pool_name?.includes('BINANCE')
                   ? 'Binance Live'
@@ -224,26 +222,30 @@ export function TopHeader() {
                   ? 'Kotak Neo Live'
                   : portfolio?.pool_name?.includes('UPSTOX')
                   ? 'Upstox Live'
-                  : portfolio?.pool_name?.includes('ZERODHA')
-                  ? 'Zerodha Live'
-                  : portfolio?.pool_name?.includes('ANGEL')
-                  ? 'Angel One Live'
-                  : portfolio?.pool_name?.includes('DHAN')
-                  ? 'Dhan Live'
-                  : 'Broker Active'}
-              </span>
-              <ChevronDown className="h-3 w-3 opacity-60" />
+                  : 'Live Broker'
+              } Connected (Click to switch broker)`}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              <Link2 className="h-3.5 w-3.5" />
             </button>
           ) : null}
 
-          {/* Quick Deposit Hub Button */}
+          {/* Quick Deposit & Free Cash Amount Hub Button */}
           <Link
             href={environment === 'DEMO' ? '/demo/deposit' : '/deposit'}
-            className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 transition cursor-pointer"
-            title="Deposit funds and view transaction ledger"
+            className="flex items-center gap-1.5 px-2 py-1 text-xs font-semibold rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 transition cursor-pointer"
+            title="Free Cash & Deposit Hub"
           >
-            <ArrowDownToLine className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Deposit</span>
+            <Wallet className="h-3.5 w-3.5" />
+            <span className="font-mono font-bold text-[11px]">
+              {isFinancialMasked
+                ? '••••'
+                : portfolio?.free_cash != null
+                ? `${portfolio?.currency_symbol || '$'}${Number(portfolio.free_cash).toFixed(2)}`
+                : portfolio?.total_equity != null
+                ? `${portfolio?.currency_symbol || '$'}${Number(portfolio.total_equity).toFixed(2)}`
+                : 'Deposit'}
+            </span>
           </Link>
 
           {/* Privacy Amount Masking Toggle */}

@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useTradingContext } from '../../context/TradingContext';
 import { api } from '../../lib/api';
 import { Workspace } from '../../lib/types';
-import { Play, Pause, AlertOctagon, CheckCircle2, ShieldAlert, Cpu, RefreshCw, LayoutGrid, ChevronDown, ChevronUp, Zap } from 'lucide-react';
+import { Play, Pause, AlertOctagon, CheckCircle2, ShieldAlert, Cpu, RefreshCw, LayoutGrid, ChevronDown, ChevronUp, Zap, Lock, Target } from 'lucide-react';
 
 interface AIAutoTradeControlProps {
   variant?: 'banner' | 'compact' | 'matrix';
@@ -75,8 +75,8 @@ export function AIAutoTradeControl({ variant = 'banner' }: AIAutoTradeControlPro
       }
       setMessage({
         text: nextState
-          ? `⚡ Dynamic Momentum Lock ENGAGED: Scanning & locking onto highest-momentum asset with auto-rotation on 15m stagnation!`
-          : `⚡ Dynamic Momentum Lock DISENGAGED: Returned to multi-asset scanning.`,
+          ? `Momentum Lock active: Scanning and focusing on highest-momentum asset.`
+          : `Momentum Lock disengaged: Multi-asset continuous scanning resumed.`,
         type: 'success',
       });
       await fetchStatus();
@@ -182,26 +182,28 @@ export function AIAutoTradeControl({ variant = 'banner' }: AIAutoTradeControlPro
           disabled={isTogglingLock}
           title={
             momentumLock.enabled
-              ? `Dynamic Momentum Lock is ON (Locked on ${momentumLock.locked_symbol || 'scanning runner'}). Click to unlock.`
-              : 'Click to Enable Dynamic Momentum Lock (locks onto highest mover and auto-rotates on 15m stagnation)'
+              ? `Dynamic Momentum Lock active (Locked on ${momentumLock.locked_symbol || 'scanning'}). Click to disengage.`
+              : 'Click to engage Dynamic Momentum Lock'
           }
-          className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-lg border transition shadow-2xs cursor-pointer ${
+          className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg border transition shadow-2xs cursor-pointer ${
             momentumLock.enabled
-              ? 'bg-purple-600 text-white border-purple-700 hover:bg-purple-700 shadow-purple-500/25 ring-1 ring-purple-400/40'
-              : 'bg-surface hover:bg-slate-100 dark:hover:bg-slate-800 text-txt-primary border-line hover:border-purple-400/60'
+              ? 'bg-purple-500/10 border-purple-500/30 text-purple-600 dark:text-purple-300 hover:bg-purple-500/20'
+              : 'bg-slate-50 dark:bg-panel-light border-line text-txt-secondary hover:text-txt-primary hover:bg-slate-100 dark:hover:bg-panel-light/80'
           }`}
         >
           {isTogglingLock ? (
-            <RefreshCw className="h-3 w-3 animate-spin text-purple-400" />
+            <RefreshCw className="h-3 w-3 animate-spin text-purple-500" />
+          ) : momentumLock.enabled ? (
+            <Lock className="h-3 w-3 text-purple-600 dark:text-purple-400" />
           ) : (
-            <Zap className={`h-3 w-3 ${momentumLock.enabled ? 'text-amber-300 fill-amber-300 animate-pulse' : 'text-purple-500'}`} />
+            <Target className="h-3 w-3 text-txt-muted" />
           )}
           <span>
             {momentumLock.enabled
               ? momentumLock.locked_symbol
-                ? `⚡ Lock: ${momentumLock.locked_symbol}`
-                : '⚡ Lock: Scanning...'
-              : 'Enable Momentum Lock'}
+                ? `Lock: ${momentumLock.locked_symbol}`
+                : 'Lock: Scanning...'
+              : 'Momentum Lock'}
           </span>
         </button>
       </div>
@@ -271,23 +273,6 @@ export function AIAutoTradeControl({ variant = 'banner' }: AIAutoTradeControlPro
             )}
             <span>{isCurrentRunning ? `Pause ${environment}` : `Start ${environment}`}</span>
           </button>
-
-          {/* Close All Open Positions (Emergency / Flat Out) */}
-          {positions && positions.length > 0 && (
-            <button
-              onClick={handleCloseAll}
-              disabled={isClosingAll}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border border-rose-300 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/60 transition shadow-xs cursor-pointer"
-              title="Immediately close all open positions and return margin to cash"
-            >
-              {isClosingAll ? (
-                <RefreshCw className="h-3 w-3 animate-spin" />
-              ) : (
-                <AlertOctagon className="h-3 w-3" />
-              )}
-              <span>Close All ({positions.length})</span>
-            </button>
-          )}
 
           {/* Toggle All 6 Engines Matrix */}
           <button

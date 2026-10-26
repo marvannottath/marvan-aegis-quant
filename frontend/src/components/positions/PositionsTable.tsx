@@ -14,7 +14,7 @@ interface PositionsTableProps {
 
 export function PositionsTable({
   positions: customPositions,
-  showCloseAction = true,
+  showCloseAction = false,
 }: PositionsTableProps) {
   const { portfolio, environment, workspace, refreshData } = useTradingContext();
   const [expandedRow, setExpandedRow] = useState<string | null>(null);

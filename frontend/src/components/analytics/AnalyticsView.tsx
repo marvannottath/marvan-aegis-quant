@@ -26,6 +26,7 @@ import {
   TrendingDown,
   CheckCircle2,
   Cpu,
+  ArrowLeft,
 } from 'lucide-react';
 
 interface DayPnl {
@@ -229,6 +230,13 @@ export function AnalyticsView() {
       <div className="card-panel overflow-hidden">
         <div className="px-5 py-3.5 border-b border-line bg-slate-50/50 dark:bg-panel-light/30 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.back()}
+              className="p-1.5 rounded-lg border border-line bg-white hover:bg-slate-100 dark:bg-panel dark:hover:bg-panel-light text-txt-muted hover:text-txt-primary transition cursor-pointer shadow-2xs"
+              title="Go Back"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </button>
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4 text-brand" />
               <h3 className="text-xs font-bold uppercase tracking-wider text-txt-primary">
