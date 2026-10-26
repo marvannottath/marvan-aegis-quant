@@ -145,7 +145,7 @@ export function AIAutoTradeControl({ variant = 'banner' }: AIAutoTradeControlPro
   if (variant === 'compact') {
     const isBusy = loadingKey === currentKey;
     return (
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-2">
         <button
           onClick={() => handleToggleEngine(workspace, environment, isCurrentRunning)}
           disabled={isBusy}
@@ -174,6 +174,35 @@ export function AIAutoTradeControl({ variant = 'banner' }: AIAutoTradeControlPro
               <span className="hidden md:inline">Start {workspace} ({environment})</span>
             </>
           )}
+        </button>
+
+        {/* Global Dynamic Momentum Lock Button (Sticky in TopHeader across all pages) */}
+        <button
+          onClick={handleToggleMomentumLock}
+          disabled={isTogglingLock}
+          title={
+            momentumLock.enabled
+              ? `Dynamic Momentum Lock is ON (Locked on ${momentumLock.locked_symbol || 'scanning runner'}). Click to unlock.`
+              : 'Click to Enable Dynamic Momentum Lock (locks onto highest mover and auto-rotates on 15m stagnation)'
+          }
+          className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-lg border transition shadow-2xs cursor-pointer ${
+            momentumLock.enabled
+              ? 'bg-purple-600 text-white border-purple-700 hover:bg-purple-700 shadow-purple-500/25 ring-1 ring-purple-400/40'
+              : 'bg-surface hover:bg-slate-100 dark:hover:bg-slate-800 text-txt-primary border-line hover:border-purple-400/60'
+          }`}
+        >
+          {isTogglingLock ? (
+            <RefreshCw className="h-3 w-3 animate-spin text-purple-400" />
+          ) : (
+            <Zap className={`h-3 w-3 ${momentumLock.enabled ? 'text-amber-300 fill-amber-300 animate-pulse' : 'text-purple-500'}`} />
+          )}
+          <span>
+            {momentumLock.enabled
+              ? momentumLock.locked_symbol
+                ? `⚡ Lock: ${momentumLock.locked_symbol}`
+                : '⚡ Lock: Scanning...'
+              : 'Enable Momentum Lock'}
+          </span>
         </button>
       </div>
     );
