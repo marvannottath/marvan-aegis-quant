@@ -122,13 +122,18 @@ class MultiTimeframeTrendFilter:
         self._cache[sym_clean] = {"epoch": now, "data": result}
         return result
 
-    def validate_trend_confluence(self, symbol: str, side: str = "BUY", workspace: str = "CRYPTO") -> Tuple[bool, str, Dict[str, Any]]:
+    def validate_trend_confluence(self, symbol: str, side: str = "BUY", workspace: str = "CRYPTO", profile_name: str = "CONSERVATIVE") -> Tuple[bool, str, Dict[str, Any]]:
         """
         Validates if multi-timeframe confluence allows trade entry.
+        In AGGRESSIVE mode, permits 1m Bullish reversal scalps even during 5m/15m pullbacks.
         """
         metrics = self.get_mtf_trend(symbol, workspace)
+        is_aggressive = "AGGRESSIVE" in profile_name.upper()
 
         if side == "BUY" and not metrics["is_buy_confluent"]:
+            tf1 = metrics.get("timeframes", {}).get("1m", {}).get("trend")
+            if is_aggressive and tf1 == "BULLISH":
+                return True, f"MTF_AGGRESSIVE_SCALP: 1m Bullish reversal permitted in {profile_name} mode", metrics
             return False, f"MTF_TREND_BLOCK: 5m and 15m macro structure is BEARISH for {symbol}. Counter-trend BUY prohibited.", metrics
 
         return True, f"MTF_TREND_PASS: Confluence is {metrics['confluence']}", metrics

@@ -731,7 +731,7 @@ class AutonomousTrader:
                                 # 3. Multi-Timeframe Trend Confluence Filter (1m + 5m + 15m)
                                 try:
                                     from core.mtf_trend_filter import mtf_trend_filter
-                                    mtf_ok, mtf_msg, _ = mtf_trend_filter.validate_trend_confluence(ticker, act, _active_ws)
+                                    mtf_ok, mtf_msg, _ = mtf_trend_filter.validate_trend_confluence(ticker, act, _active_ws, profile_name=profile_name)
                                     if not mtf_ok:
                                         self._log_action(ticker, "MTF_DOWNTREND_BLOCK", current_price, size_usd, mtf_msg)
                                         continue
