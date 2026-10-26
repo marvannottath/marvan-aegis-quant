@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useTradingContext } from '../../context/TradingContext';
 import { api } from '../../lib/api';
 import { Workspace } from '../../lib/types';
-import { Play, Pause, AlertOctagon, CheckCircle2, ShieldAlert, Cpu, RefreshCw, LayoutGrid, ChevronDown, ChevronUp } from 'lucide-react';
+import { Play, Pause, AlertOctagon, CheckCircle2, ShieldAlert, Cpu, RefreshCw, LayoutGrid, ChevronDown, ChevronUp, Zap } from 'lucide-react';
 
 interface AIAutoTradeControlProps {
   variant?: 'banner' | 'compact' | 'matrix';
@@ -28,6 +28,26 @@ export function AIAutoTradeControl({ variant = 'banner' }: AIAutoTradeControlPro
   const [isClosingAll, setIsClosingAll] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
+  const [momentumLock, setMomentumLock] = useState<{
+    enabled: boolean;
+    locked_symbol: string | null;
+    locked_at: string | null;
+    locked_price?: number;
+    current_price?: number;
+    momentum_score?: number;
+    stagnant_minutes: number;
+    stagnant_threshold_minutes: number;
+    switch_reason?: string;
+  }>({
+    enabled: false,
+    locked_symbol: null,
+    locked_at: null,
+    momentum_score: 0,
+    stagnant_minutes: 0,
+    stagnant_threshold_minutes: 15,
+  });
+  const [isTogglingLock, setIsTogglingLock] = useState(false);
+
   const handleCloseAll = async () => {
     if (!window.confirm(`Are you sure you want to CLOSE ALL ${positions.length} open positions for ${workspace} (${environment})? All active trades will be liquidated immediately.`)) {
       return;
@@ -45,16 +65,44 @@ export function AIAutoTradeControl({ variant = 'banner' }: AIAutoTradeControlPro
     }
   };
 
+  const handleToggleMomentumLock = async () => {
+    setIsTogglingLock(true);
+    try {
+      const nextState = !momentumLock.enabled;
+      const res = await api.toggleMomentumLock(nextState, workspace);
+      if (res && res.data) {
+        setMomentumLock(res.data);
+      }
+      setMessage({
+        text: nextState
+          ? `⚡ Dynamic Momentum Lock ENGAGED: Scanning & locking onto highest-momentum asset with auto-rotation on 15m stagnation!`
+          : `⚡ Dynamic Momentum Lock DISENGAGED: Returned to multi-asset scanning.`,
+        type: 'success',
+      });
+      await fetchStatus();
+    } catch (err: any) {
+      setMessage({ text: err.message || 'Failed to toggle Momentum Lock', type: 'error' });
+    } finally {
+      setIsTogglingLock(false);
+    }
+  };
+
   const fetchStatus = useCallback(async () => {
     try {
-      const res = await api.getAiStatus();
-      if (res && res.ai_states) {
-        setAllStates(res.ai_states);
+      const [aiRes, lockRes] = await Promise.allSettled([
+        api.getAiStatus(),
+        api.getMomentumLockStatus(workspace),
+      ]);
+      if (aiRes.status === 'fulfilled' && aiRes.value?.ai_states) {
+        setAllStates(aiRes.value.ai_states);
+      }
+      if (lockRes.status === 'fulfilled' && lockRes.value?.data) {
+        setMomentumLock(lockRes.value.data);
       }
     } catch (err) {
       // Quiet fail fallback
     }
-  }, []);
+  }, [workspace]);
 
   useEffect(() => {
     fetchStatus();
@@ -222,6 +270,70 @@ export function AIAutoTradeControl({ variant = 'banner' }: AIAutoTradeControlPro
             {showMatrix ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
           </button>
         </div>
+      </div>
+
+      {/* Dynamic Momentum Runner Lock Strip */}
+      <div className="mt-3 pt-3 border-t border-line flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/60 dark:bg-panel-light/30 -mx-3 -mb-3 sm:-mx-4 sm:-mb-4 p-3 sm:p-3.5 rounded-b-xl">
+        <div className="flex items-center gap-2.5">
+          <div className={`p-2 rounded-lg border flex items-center justify-center shrink-0 ${
+            momentumLock.enabled
+              ? 'bg-purple-500/15 border-purple-500/30 text-purple-600 dark:text-purple-400'
+              : 'bg-white dark:bg-panel border-line text-txt-muted'
+          }`}>
+            <Zap className="h-4 w-4" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-bold text-txt-primary">
+                Dynamic Momentum Runner Lock
+              </span>
+              {momentumLock.enabled ? (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-500/40">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500"></span>
+                  </span>
+                  {momentumLock.locked_symbol ? `LOCKED: ${momentumLock.locked_symbol}` : 'SCANNING FOR TOP RUNNER'}
+                </span>
+              ) : (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-slate-200 dark:bg-panel text-txt-muted border border-line">
+                  OFF • MULTI-ASSET SCANNING
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] text-txt-muted mt-0.5">
+              {momentumLock.enabled ? (
+                momentumLock.locked_symbol ? (
+                  <span>
+                    Focusing 100% execution on <strong className="text-txt-primary font-mono">{momentumLock.locked_symbol}</strong>. Auto-shifts if stagnant for &ge;{momentumLock.stagnant_threshold_minutes}m (Stagnant: {momentumLock.stagnant_minutes}m).
+                  </span>
+                ) : (
+                  'Identifying top-velocity mover in the market to lock and trade exclusively...'
+                )
+              ) : (
+                'Locks onto the single highest-momentum asset and trades it repeatedly. Auto-rotates if price movement stalls for 15 minutes.'
+              )}
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={handleToggleMomentumLock}
+          disabled={isTogglingLock}
+          className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-lg border transition shadow-xs cursor-pointer shrink-0 ${
+            momentumLock.enabled
+              ? 'bg-purple-600 text-white border-purple-700 hover:bg-purple-700 shadow-purple-500/20'
+              : 'bg-white hover:bg-slate-100 dark:bg-panel dark:hover:bg-panel-light text-txt-primary border-line'
+          }`}
+          title="Toggle Dynamic Momentum Lock"
+        >
+          {isTogglingLock ? (
+            <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Zap className="h-3.5 w-3.5" />
+          )}
+          <span>{momentumLock.enabled ? 'Unlock (Multi-Asset)' : 'Enable Momentum Lock'}</span>
+        </button>
       </div>
 
       {/* Status Feedback Toast/Notification */}

@@ -185,6 +185,31 @@ export const api = {
     });
   },
 
+  async getMomentumLockStatus(workspace: Workspace): Promise<{
+    status: string;
+    data: {
+      enabled: boolean;
+      locked_symbol: string | null;
+      locked_at: string | null;
+      locked_price: number;
+      current_price: number;
+      momentum_score: number;
+      stagnant_minutes: number;
+      stagnant_threshold_minutes: number;
+      switch_reason: string;
+      rotation_count: number;
+    };
+  }> {
+    return fetchJson(`/api/momentum-lock/status?workspace=${workspace}`);
+  },
+
+  async toggleMomentumLock(enabled: boolean, workspace: Workspace): Promise<any> {
+    return fetchJson('/api/momentum-lock/toggle', {
+      method: 'POST',
+      body: JSON.stringify({ enabled, workspace }),
+    });
+  },
+
   async triggerEmergencyKillSwitch(): Promise<any> {
     return fetchJson('/api/emergency-kill-switch/toggle', {
       method: 'POST',

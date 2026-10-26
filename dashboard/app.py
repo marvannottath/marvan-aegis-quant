@@ -1743,6 +1743,33 @@ async def toggle_paper_broker_override(request: Request):
         return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=400)
 
 
+@app.get("/api/momentum-lock/status")
+async def get_momentum_lock_status(workspace: str = "INDIA"):
+    """Return Dynamic Momentum Runner Lock status and locked target."""
+    from core.dynamic_momentum_lock import dynamic_momentum_lock
+    return JSONResponse({
+        "status": "SUCCESS",
+        "data": dynamic_momentum_lock.get_status(workspace)
+    })
+
+
+@app.post("/api/momentum-lock/toggle")
+async def toggle_momentum_lock_endpoint(request: Request):
+    """Toggle Dynamic Momentum Runner Lock ON/OFF for workspace."""
+    from core.dynamic_momentum_lock import dynamic_momentum_lock
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    enabled = body.get("enabled", False)
+    workspace = body.get("workspace", "INDIA")
+    res = dynamic_momentum_lock.toggle(enabled, workspace)
+    return JSONResponse({
+        "status": "SUCCESS",
+        "data": res
+    })
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # PHASE 5C — UNIFIED OPERATIONAL STATUS PANEL
 # ═══════════════════════════════════════════════════════════════════════════════

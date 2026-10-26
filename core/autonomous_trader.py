@@ -408,6 +408,13 @@ class AutonomousTrader:
                         filtered_scanned = multi_scanner.scan_workspace(_active_ws, sentiment_score)
                         scanned_cache_this_pass[_active_ws] = filtered_scanned
 
+                    # Dynamic Momentum Runner Lock: Continuously evaluate top runner & detect stagnation
+                    try:
+                        from core.dynamic_momentum_lock import dynamic_momentum_lock
+                        dynamic_momentum_lock.update_cycle(filtered_scanned, _active_ws)
+                    except Exception:
+                        pass
+
                     # ── NEXT-LEVEL SAFETY & RISK ENGINES ────────────────────
                     # 1. 3:10 PM Pre-emptive Intraday Auto-Squareoff (Protects from Broker RMS Penalty)
                     try:
@@ -526,6 +533,15 @@ class AutonomousTrader:
                             # Respect closed position cooldown and close-in-flight barrier to prevent immediate churn / repeat execution
                             if time.time() < self.closed_cooldowns.get(ticker, 0) or ticker in self.close_in_flight:
                                 continue
+
+                            # Dynamic Momentum Runner Lock: When active, trade ONLY the locked top runner!
+                            try:
+                                from core.dynamic_momentum_lock import dynamic_momentum_lock
+                                if dynamic_momentum_lock.is_active(_active_ws):
+                                    if not dynamic_momentum_lock.allows_symbol(ticker, _active_ws):
+                                        continue
+                            except Exception:
+                                pass
 
                             # Institutional Relative Volume (RVOL) Gate
                             vol = float(item.get("volume", 0.0) or 0.0)
@@ -787,6 +803,15 @@ class AutonomousTrader:
                                                 pass
 
                                             qty = max(1, int(round(qty)))
+                                            try:
+                                                from core.dynamic_momentum_lock import dynamic_momentum_lock
+                                                if dynamic_momentum_lock.is_active(_active_ws):
+                                                    focus_margin = working_cash * 0.75
+                                                    focus_qty = max(1, int(round((focus_margin * calc_leverage) / current_price)))
+                                                    if focus_qty > qty and ((focus_qty * current_price) / max(1.0, calc_leverage)) <= working_cash:
+                                                        qty = focus_qty
+                                            except Exception:
+                                                pass
                                             margin_required = round((qty * current_price) / max(1.0, calc_leverage), 2)
                                             if margin_required <= working_cash:
                                                 valid_tick_price = round(round(current_price * 20.0) / 20.0, 2)
