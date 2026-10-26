@@ -39,13 +39,17 @@ interface DayPnl {
   loss_count?: number;
   win_rate?: number;
   net_pnl_usd: number;
+  net_pnl_inr?: number;
   status: 'PROFIT' | 'LOSS' | 'NEUTRAL' | 'FUTURE';
+  top_asset?: string;
   trades?: any[];
 }
 
 interface CalendarData {
-  month: string;
+  month?: string;
+  year_month?: string;
   net_pnl_usd: number;
+  net_pnl_inr?: number;
   win_rate_pct: number;
   trading_days_count: number;
   days: DayPnl[];
@@ -258,7 +262,7 @@ export function AnalyticsView() {
             <div>
               <span className="text-txt-muted mr-1.5">Net PnL:</span>
               <span className={`font-bold ${monthNetPnl >= 0 ? 'text-profit' : 'text-loss'}`}>
-                {isFinancialMasked ? '••••••' : `${monthNetPnl >= 0 ? '+' : ''}$${monthNetPnl.toFixed(2)}`}
+                {isFinancialMasked ? '••••••' : `${monthNetPnl > 0 ? '+' : monthNetPnl < 0 ? '-' : ''}${curr}${Math.abs(monthNetPnl).toFixed(2)}`}
               </span>
             </div>
             <div>
@@ -298,8 +302,9 @@ export function AnalyticsView() {
             ))}
 
             {days.map((day) => {
-              const isGreen = day.status === 'PROFIT' || day.net_pnl_usd > 0;
-              const isRed = day.status === 'LOSS' || day.net_pnl_usd < 0;
+              const dayPnl = (workspace === 'INDIA' && day.net_pnl_inr !== undefined) ? day.net_pnl_inr : day.net_pnl_usd;
+              const isGreen = day.status === 'PROFIT' || dayPnl > 0;
+              const isRed = day.status === 'LOSS' || dayPnl < 0;
               const isFuture = day.is_future;
 
               return (
@@ -332,18 +337,18 @@ export function AnalyticsView() {
                   </div>
 
                   <div className="text-right">
-                    {!isFuture && (day.trades_count > 0 || day.net_pnl_usd !== 0) ? (
+                    {!isFuture && (day.trades_count > 0 || dayPnl !== 0) ? (
                       <span className="text-xs font-bold block">
                         {isFinancialMasked ? (
                           '••••••'
                         ) : (
-                          `${day.net_pnl_usd >= 0 ? '+' : ''}$${day.net_pnl_usd.toFixed(2)}`
+                          `${dayPnl > 0 ? '+' : dayPnl < 0 ? '-' : ''}${curr}${Math.abs(dayPnl).toFixed(2)}`
                         )}
                       </span>
                     ) : isFuture ? (
                       <span className="text-[10px] text-txt-subtle">—</span>
                     ) : (
-                      <span className="text-[10px] text-txt-subtle">$0.00</span>
+                      <span className="text-[10px] text-txt-subtle">{curr}0.00</span>
                     )}
                   </div>
                 </div>
@@ -382,15 +387,22 @@ export function AnalyticsView() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div className="card-panel p-3">
                 <span className="text-[10px] uppercase font-mono text-txt-muted block">Session PnL</span>
-                <span
-                  className={`text-base font-bold font-mono ${
-                    selectedDay.net_pnl_usd >= 0 ? 'text-profit' : 'text-loss'
-                  }`}
-                >
-                  {isFinancialMasked
-                    ? '••••••'
-                    : `${selectedDay.net_pnl_usd >= 0 ? '+' : ''}$${selectedDay.net_pnl_usd.toFixed(2)}`}
-                </span>
+                {(() => {
+                  const selPnl = (workspace === 'INDIA' && (selectedDay as any).net_pnl_inr !== undefined)
+                    ? (selectedDay as any).net_pnl_inr
+                    : selectedDay.net_pnl_usd;
+                  return (
+                    <span
+                      className={`text-base font-bold font-mono ${
+                        selPnl >= 0 ? 'text-profit' : 'text-loss'
+                      }`}
+                    >
+                      {isFinancialMasked
+                        ? '••••••'
+                        : `${selPnl > 0 ? '+' : selPnl < 0 ? '-' : ''}${curr}${Math.abs(selPnl).toFixed(2)}`}
+                    </span>
+                  );
+                })()}
               </div>
 
               <div className="card-panel p-3">
@@ -458,13 +470,13 @@ export function AnalyticsView() {
                               </span>
                             </td>
                             <td className="p-2">{tr.qty || tr.quantity || tr.units || '—'}</td>
-                            <td className="p-2">${tr.price || tr.entry_price || '—'}</td>
+                            <td className="p-2">{curr}{tr.price || tr.entry_price || '—'}</td>
                             <td
                               className={`p-2 text-right font-bold ${
                                 trPnl >= 0 ? 'text-profit' : 'text-loss'
                               }`}
                             >
-                              {trPnl >= 0 ? '+' : ''}${trPnl.toFixed(2)}
+                              {trPnl > 0 ? '+' : trPnl < 0 ? '-' : ''}{curr}{Math.abs(trPnl).toFixed(2)}
                             </td>
                           </tr>
                         );

@@ -89,7 +89,17 @@ class HistoricalLogService:
                                 
                                 tid = f"TRD-KNEO-{sym}-{f.get('nOrdNo') or int(time.time()*1000)}"
                                 res_status = "WIN" if net > 0 else ("LOSS" if net < 0 else "BREAKEVEN")
-                                exit_reason = "3:10 PM PRE_SQUAREOFF" if "14:4" in tm else ("INTRADAY_STOP_LOSS" if net < 0 else "FEE_SECURED_TAKE_PROFIT")
+                                pnl_pct_calc = round((gross / (entry_px * match_qty)) * 100.0, 2) if (entry_px * match_qty) > 0 else 0.0
+                                if "14:4" in tm or "15:0" in tm:
+                                    exit_reason = "3:10 PM PRE_SQUAREOFF"
+                                elif net > 0:
+                                    exit_reason = "FEE_SECURED_TAKE_PROFIT"
+                                elif gross >= 0 and net < 0:
+                                    exit_reason = "REGULATORY_COST_COVERAGE"
+                                elif pnl_pct_calc <= -0.50:
+                                    exit_reason = "INTRADAY_STOP_LOSS"
+                                else:
+                                    exit_reason = "MARKET_SPREAD_EXIT"
                                 
                                 trades_map[tid] = {
                                     "trade_id": tid,

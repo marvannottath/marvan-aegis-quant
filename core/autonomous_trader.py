@@ -916,7 +916,16 @@ class AutonomousTrader:
 
                         # Market-specific live price resolution
                         is_crypto_sym = "USDT" in pos_asset or "BUSD" in pos_asset
-                        is_india_sym = any(pos_asset.startswith(ind_s) for ind_s in ["RELIANCE", "TCS", "HDFCBANK", "INFY", "ICICIBANK", "SBIN", "BHARTIARTL", "ITC", "KOTAKBANK", "LT", "TATAMOTORS", "SUNPHARMA", "MARUTI", "AXISBANK", "TITAN", "BAJFINANCE"])
+                        is_india_sym = (
+                            pos.get("environment") == "KOTAK_NEO_LIVE"
+                            or "INDIA" in str(pos.get("workspace", ""))
+                            or any(pos_asset.startswith(ind_s) for ind_s in [
+                                "GOLDBEES", "NIFTYBEES", "BANKBEES", "ITBEES", "JUNIORBEES", "LICI",
+                                "RELIANCE", "TCS", "HDFCBANK", "INFY", "ICICIBANK", "SBIN",
+                                "BHARTIARTL", "ITC", "KOTAKBANK", "LT", "TATAMOTORS",
+                                "SUNPHARMA", "MARUTI", "AXISBANK", "TITAN", "BAJFINANCE"
+                            ])
+                        )
 
                         if is_crypto_sym:
                             real_px = 0.0
@@ -1144,7 +1153,7 @@ class AutonomousTrader:
                                         reason=close_reason_to_use,
                                         skip_exchange_order=True
                                     )
-                                    self.closed_cooldowns[pos_asset] = time.time() + 60.0
+                                    self.closed_cooldowns[pos_asset] = time.time() + (300.0 if "KOTAK" in pool.upper() or _active_ws == "INDIA" else 60.0)
                                     self.position_age.pop(pos_asset, None)
                                     self.close_in_flight.pop(pos_asset, None)
                                     self.in_flight_tracker.clear_in_flight(pos_asset)
@@ -1227,7 +1236,7 @@ class AutonomousTrader:
                                         reason=close_reason_to_use,
                                         skip_exchange_order=True
                                     )
-                                    self.closed_cooldowns[pos_asset] = time.time() + 60.0
+                                    self.closed_cooldowns[pos_asset] = time.time() + (300.0 if "KOTAK" in pool.upper() or _active_ws == "INDIA" else 60.0)
                                     self.position_age.pop(pos_asset, None)
                                     self.close_in_flight.pop(pos_asset, None)
                                     self.in_flight_tracker.clear_in_flight(pos_asset)
@@ -1289,7 +1298,7 @@ class AutonomousTrader:
                             reason=close_reason,
                             skip_exchange_order=False
                         )
-                        self.closed_cooldowns[pos_asset] = time.time() + 60.0
+                        self.closed_cooldowns[pos_asset] = time.time() + (300.0 if "KOTAK" in pool.upper() or _active_ws == "INDIA" else 60.0)
                         self.position_age.pop(pos_asset, None)
                         self._log_action(pos_asset, "CLOSE", new_live_price, pos.get("capital_allocated", 500.0), f"Position Closed & Swept ({close_reason})")
                         
