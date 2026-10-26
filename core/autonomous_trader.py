@@ -743,6 +743,8 @@ class AutonomousTrader:
                                             if live_result and live_result.get("status") not in ("ERROR", "REJECTED", "GATE_BLOCKED"):
                                                 live_order_placed = True
                                                 binance_broker.undismiss_spot_position(ticker)
+                                                pos_tp = round(current_price * 1.006, 4 if current_price < 10 else 2)
+                                                pos_sl = round(current_price * 0.992, 4 if current_price < 10 else 2)
                                                 pos_record = {
                                                     "trade_id": f"TRD-BINA-{ticker}-{int(time.time()*1000)}",
                                                     "asset": ticker, "symbol": ticker, "action": act, "side": act,
@@ -750,6 +752,7 @@ class AutonomousTrader:
                                                     "last_price": current_price, "capital_allocated": size_usd,
                                                     "margin": size_usd, "leverage": 1.0, "market_value": size_usd,
                                                     "pnl_usd": 0.0, "pnl_pct": 0.0, "unrealized_pnl": 0.0,
+                                                    "take_profit": pos_tp, "stop_loss": pos_sl,
                                                     "product": "SPOT", "status": "ACTIVE", "environment": "BINANCE_LIVE",
                                                     "source": "BINANCE_SPOT_LIVE",
                                                     "timestamp": datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S")
@@ -1051,23 +1054,25 @@ class AutonomousTrader:
                         is_stale_rotation = (time_held_sec >= 1200) and (pnl_pct >= 0.0008)
                         is_hard_stop = (pnl_pct <= -0.0060)      # Strict 0.60% stop loss
                     elif pos_ws == "CRYPTO":
-                        # Binance Crypto Spot (0.20% Roundtrip taker fee):
-                        # +0.80% gain engages Breakeven lock at +0.30% (guaranteed net +0.10% after 0.20% fee)
-                        if highest_pnl >= 0.0080:
+                        # Binance Crypto Spot:
+                        # +0.50% gain engages Breakeven ratchet (protects capital above roundtrip fee)
+                        if highest_pnl >= 0.0050:
                             pos["break_even_active"] = True
-                        is_break_even_guard = bool(pos.get("break_even_active") and pnl_pct <= 0.0030)
+                        is_break_even_guard = bool(pos.get("break_even_active") and pnl_pct <= 0.0020)
 
-                        # Trailing Stop: Lock runner profit if price surges >= +1.20%
-                        is_tsl = (highest_pnl >= 0.0120) and (pnl_pct <= highest_pnl - 0.0035)
+                        # Trailing Stop: Lock runner profit if price surges >= +0.90%
+                        is_tsl = (highest_pnl >= 0.0090) and (pnl_pct <= highest_pnl - 0.0025)
                         is_trailing_stop = is_tsl
 
-                        is_fee_secured_tp = (pnl_pct >= 0.0080)   # Covers 0.20% fee + 0.60% net profit
-                        is_milestone = (pnl_pct >= 0.0160)        # 1:2 R:R runner target (+1.60%)
-                        is_micro_harvest = False
+                        # Take Profit: Target +0.60% (covers fees + nets profit) or explicit TP level crossed
+                        is_tp_price_hit = bool(pos.get("take_profit", 0.0) > 0 and (new_live_price >= pos["take_profit"] if act == "BUY" else new_live_price <= pos["take_profit"]))
+                        is_fee_secured_tp = (pnl_pct >= 0.0060) or is_tp_price_hit
+                        is_milestone = (pnl_pct >= 0.0120)        # 1:2 R:R runner target (+1.20%)
+                        is_micro_harvest = (pnl_pct >= 0.0050 and pnl_usd >= 0.03)
                         is_staggered_harvest = False
                         is_maturity_rebalance = False
                         is_stale_rotation = False                 # Never dump spot holdings at a loss on time
-                        is_hard_stop = (pnl_pct <= -0.0080)       # 0.80% stop loss
+                        is_hard_stop = (pnl_pct <= -0.0080) or bool(pos.get("stop_loss", 0.0) > 0 and (new_live_price <= pos["stop_loss"] if act == "BUY" else new_live_price >= pos["stop_loss"]))
                     else:
                         # Forex & Gold Nimble Scalp
                         if highest_pnl >= 0.0045:

@@ -421,13 +421,15 @@ class PositionSnapshotService:
                     unrealized = 0.0
                     pnl_pct = 0.0
 
-                # Compute stop loss and take profit
+                # Compute stop loss and take profit aligned with execution engine
                 sl_val = float(pos.get("stop_loss", 0.0))
                 tp_val = float(pos.get("take_profit", 0.0))
                 if sl_val <= 0.0 and entry_px > 0:
-                    sl_val = round(entry_px * 0.985 if side == "BUY" else entry_px * 1.015, 4 if entry_px < 10 else 2)
+                    sl_mult = 0.992 if target_ws == "CRYPTO" else 0.985
+                    sl_val = round(entry_px * sl_mult if side == "BUY" else entry_px * (2.0 - sl_mult), 4 if entry_px < 10 else 2)
                 if tp_val <= 0.0 and entry_px > 0:
-                    tp_val = round(entry_px * 1.004 if side == "BUY" else entry_px * 0.996, 4 if entry_px < 10 else 2)
+                    tp_mult = 1.006 if target_ws == "CRYPTO" else 1.005
+                    tp_val = round(entry_px * tp_mult if side == "BUY" else entry_px * (2.0 - tp_mult), 4 if entry_px < 10 else 2)
 
                 verified_positions.append({
                     "workspace": target_ws,
