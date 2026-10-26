@@ -704,6 +704,16 @@ class AutonomousTrader:
                             min_threshold_ok = (size_usd >= 5.50) if not is_india_pool else (size_usd >= 50.0)
 
                             if is_risk_valid and min_threshold_ok:
+                                # Pre-Trade Bid-Ask Spread & Slippage Protection
+                                try:
+                                    from core.bid_ask_spread_guard import bid_ask_spread_guard
+                                    spread_ok, spread_reason, _ = bid_ask_spread_guard.check_spread_allowed(ticker, _active_ws)
+                                    if not spread_ok:
+                                        self._log_action(ticker, "SPREAD_GUARD_LOCK", current_price, size_usd, spread_reason)
+                                        continue
+                                except Exception as sp_err:
+                                    pass
+
                                 live_order_placed = False
 
                                 if pool == "BINANCE_LIVE_REAL":

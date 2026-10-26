@@ -234,6 +234,19 @@ async def on_startup():
     except Exception as e:
         print(f"[STARTUP] Crypto streamer notice: {e}")
 
+    try:
+        from core.kotak_websocket_streamer import kotak_websocket_streamer
+        kotak_websocket_streamer.set_broadcast_callback(manager.broadcast)
+        kotak_websocket_streamer.start()
+    except Exception as e:
+        print(f"[STARTUP] Kotak streamer notice: {e}")
+
+    try:
+        from core.stream_heartbeat_sentinel import stream_heartbeat_sentinel
+        stream_heartbeat_sentinel.start()
+    except Exception as e:
+        print(f"[STARTUP] Stream heartbeat sentinel notice: {e}")
+
     trader.start_autonomous_loop()
 
 INDEX_HTML_PATH = BASE_DIR / "templates" / "index.html"
@@ -8143,4 +8156,107 @@ async def get_risk_history_endpoint(limit: int = 10):
         return JSONResponse({"status": "SUCCESS", "history": history})
     except Exception as e:
         return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+# -------------------------------------------------------------
+# Bid-Ask Spread & Slippage Protection Guard Endpoints (Item 1)
+# -------------------------------------------------------------
+@app.get("/api/spread-guard/status")
+async def get_spread_guard_status(symbol: Optional[str] = None, workspace: str = "CRYPTO"):
+    """
+    Returns current spread protection thresholds and live market spread metrics.
+    """
+    try:
+        from core.bid_ask_spread_guard import bid_ask_spread_guard
+        metrics = {}
+        if symbol:
+            metrics = bid_ask_spread_guard.get_market_spread(symbol, workspace)
+
+        return JSONResponse({
+            "status": "SUCCESS",
+            "thresholds": bid_ask_spread_guard.thresholds,
+            "checked_symbol_metrics": metrics,
+            "cached_checks": list(bid_ask_spread_guard.last_check_cache.values())[-10:],
+            "checked_at": get_ist_time()
+        })
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+@app.post("/api/spread-guard/config")
+async def update_spread_guard_config(request: Request):
+    """
+    Update maximum allowable spread percentage per market workspace.
+    """
+    try:
+        body = await request.json()
+        workspace = body.get("workspace", "CRYPTO").upper()
+        max_spread = float(body.get("max_spread_pct", 0.0))
+
+        if max_spread <= 0 or max_spread > 5.0:
+            return JSONResponse({"status": "ERROR", "message": "max_spread_pct must be between 0.01% and 5.00%"}, status_code=400)
+
+        from core.bid_ask_spread_guard import bid_ask_spread_guard
+        bid_ask_spread_guard.set_threshold(workspace, max_spread)
+        return JSONResponse({
+            "status": "SUCCESS",
+            "message": f"Spread threshold for {workspace} updated to {max_spread:.3f}%",
+            "thresholds": bid_ask_spread_guard.thresholds
+        })
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+# -------------------------------------------------------------
+# Indian Kotak Neo WebSocket Streamer Status (Item 2)
+# -------------------------------------------------------------
+@app.get("/api/kotak/stream/status")
+async def get_kotak_stream_status():
+    """
+    Returns Indian Market Kotak Neo live tick streamer connection health & session.
+    """
+    try:
+        from core.kotak_websocket_streamer import kotak_websocket_streamer
+        from core.indian_market_data import indian_market_data
+        stream_st = kotak_websocket_streamer.get_status()
+        session_info = indian_market_data.get_market_session()
+        return JSONResponse({
+            "status": "SUCCESS",
+            "stream": stream_st,
+            "session": session_info
+        })
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+# -------------------------------------------------------------
+# Stream Auto-Heartbeat & Instant Reconnect Sentinel (Item 4)
+# -------------------------------------------------------------
+@app.get("/api/heartbeat/status")
+async def get_stream_heartbeat_status():
+    """
+    Returns live health telemetry across all streaming WebSocket pipelines.
+    """
+    try:
+        from core.stream_heartbeat_sentinel import stream_heartbeat_sentinel
+        st = stream_heartbeat_sentinel.get_status()
+        return JSONResponse({"status": "SUCCESS", "telemetry": st})
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+@app.post("/api/heartbeat/reconnect")
+async def trigger_heartbeat_reconnect(request: Request):
+    """
+    Manually triggers soft zero-downtime reconnect for a specific stream.
+    """
+    try:
+        body = await request.json()
+        stream_name = body.get("stream", "BINANCE_CRYPTO_WS")
+        from core.stream_heartbeat_sentinel import stream_heartbeat_sentinel
+        res = stream_heartbeat_sentinel.trigger_reconnect(stream_name)
+        return JSONResponse(res)
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
 
