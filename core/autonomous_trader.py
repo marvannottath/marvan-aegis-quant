@@ -783,6 +783,27 @@ class AutonomousTrader:
                                     pos_tp = round(current_price * 1.006, 4 if current_price < 10 else 2)
                                     pos_sl = round(current_price * 0.992, 4 if current_price < 10 else 2)
 
+                                # 8. AI Post-Mortem Learner & Toxic Hours Gate
+                                try:
+                                    from core.trade_postmortem_learner import trade_postmortem_learner
+                                    diag = trade_postmortem_learner.evaluate_recent_trades()
+                                    if diag.get("is_toxic_hour", False) and score < 75.0:
+                                        self._log_action(ticker, "TOXIC_HOUR_AVOIDANCE", current_price, size_usd, f"Toxic liquidity hour {diag.get('current_hour_ist')}:00 IST")
+                                        continue
+                                    pos_tp = round(pos_tp * diag.get("adaptive_tp_scalar", 1.0), 4 if current_price < 10 else 2)
+                                except Exception:
+                                    pass
+
+                                # 9. Liquidity Wick Sniper Confluence
+                                try:
+                                    from core.liquidity_wick_sniper import liquidity_wick_sniper
+                                    wick_ok, wick_data = liquidity_wick_sniper.should_snipe_wick(ticker, _active_ws)
+                                    if wick_ok:
+                                        self._log_action(ticker, "WICK_SNIPE_CONFLUENCE", current_price, size_usd, f"Absorption wick: {wick_data.get('drop_depth_pct')}% drop absorbed")
+                                        pos_sl = min(pos_sl, wick_data.get("recommended_sl", pos_sl))
+                                except Exception:
+                                    pass
+
                                 live_order_placed = False
 
                                 if pool == "BINANCE_LIVE_REAL":
@@ -1416,6 +1437,13 @@ class AutonomousTrader:
                         try:
                             from core.capital_scaling_engine import capital_scaling_engine
                             capital_scaling_engine.allocate_realized_profit(pnl=pnl_usd, broker_key=pool)
+                        except Exception:
+                            pass
+
+                        # AI Trade Post-Mortem Learner
+                        try:
+                            from core.trade_postmortem_learner import trade_postmortem_learner
+                            trade_postmortem_learner.record_closed_trade(pos_asset, pos.get("side", "BUY"), pnl_usd)
                         except Exception:
                             pass
 

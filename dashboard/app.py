@@ -8417,5 +8417,80 @@ async def get_market_regime_status(symbol: Optional[str] = "BTCUSDT", workspace:
         return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
 
 
+# -------------------------------------------------------------
+# Liquidity Wick & Flash Crash Sniper Endpoint
+# -------------------------------------------------------------
+@app.get("/api/wick-sniper/status")
+async def get_wick_sniper_status(symbol: Optional[str] = "BTCUSDT", workspace: str = "CRYPTO"):
+    """
+    Returns detected liquidity absorption wicks, lower wick ratio, and fast scalp entry/exit targets.
+    """
+    try:
+        from core.liquidity_wick_sniper import liquidity_wick_sniper
+        res = liquidity_wick_sniper.scan_wick_opportunity(symbol=symbol, workspace=workspace)
+        return JSONResponse(res)
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+# -------------------------------------------------------------
+# Smart DCA & Whale-Wall Accumulator ("Dip Hunter") Endpoint
+# -------------------------------------------------------------
+@app.get("/api/smart-dca/plan")
+async def get_smart_dca_plan(
+    symbol: Optional[str] = "BTCUSDT",
+    total_allocation: float = 200.0,
+    current_price: float = 0.0,
+    workspace: str = "CRYPTO"
+):
+    """
+    Returns 3-tranche Whale-Confluent DCA accumulation plan and blended VWAP profit targets.
+    """
+    try:
+        from core.smart_dca_accumulator import smart_dca_accumulator
+        res = smart_dca_accumulator.calculate_accumulation_plan(
+            symbol=symbol,
+            total_allocation_usd=total_allocation,
+            current_price=current_price,
+            workspace=workspace
+        )
+        return JSONResponse(res)
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+# -------------------------------------------------------------
+# AI Trade Post-Mortem & Self-Correction Learner Endpoint
+# -------------------------------------------------------------
+@app.get("/api/postmortem-learner/status")
+async def get_postmortem_learner_status():
+    """
+    Returns rolling win rate, toxic hour avoidance flags, confidence multipliers, and adaptive TP scalars.
+    """
+    try:
+        from core.trade_postmortem_learner import trade_postmortem_learner
+        res = trade_postmortem_learner.evaluate_recent_trades()
+        return JSONResponse(res)
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+# -------------------------------------------------------------
+# Top-Gainer & High-Volume Multi-Asset Screener Endpoint
+# -------------------------------------------------------------
+@app.get("/api/screener/top-momentum")
+async def get_top_momentum_screener(limit: int = 8):
+    """
+    Returns top liquid USDT momentum runners and breakout assets from Binance.
+    """
+    try:
+        from core.multi_asset_momentum_screener import multi_asset_momentum_screener
+        res = multi_asset_momentum_screener.get_top_momentum_assets(limit=limit)
+        return JSONResponse(res)
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+
 
 
