@@ -376,6 +376,26 @@ class SignalEnsembleEngine:
             # Strong institutional price action confirmation
             pass
 
+        # ── Proprietary Alpha Weapon Check: Liquidity Sweep Trap
+        try:
+            from core.institutional_alpha_weapons import liquidity_hunt_trap_engine
+            sweep_chk = liquidity_hunt_trap_engine.evaluate_sweep(
+                symbol=sym_upper,
+                current_price=current_price,
+                candle_high=metrics["high"],
+                candle_low=metrics["low"],
+                candle_open=metrics["prev_close"],
+                candle_close=current_price
+            )
+            if sweep_res_det := sweep_chk.get("detected"):
+                if sweep_chk["action"] == "SELL":
+                    shields_passed -= 90
+                    failed_reasons.append("Bearish Liquidity Hunt (Bull Trap: retail buyers trapped at top)")
+                elif sweep_chk["action"] == "BUY":
+                    weighted_confidence = min(99.0, weighted_confidence + 6.0)
+        except Exception:
+            pass
+
         shields_passed = max(0, min(1000, shields_passed))
 
         # Directional Consensus: institutional trend continuation OR mean-reversion dip buying

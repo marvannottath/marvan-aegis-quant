@@ -569,6 +569,56 @@ class AutonomousTrader:
                                 except Exception:
                                     pass
 
+                            # ── PROPRIETARY INSTITUTIONAL ALPHA WEAPONS ───
+                            # 1. Stop Sweep & Liquidity Hunt Reversal
+                            try:
+                                from core.institutional_alpha_weapons import liquidity_hunt_trap_engine
+                                sweep_res = liquidity_hunt_trap_engine.evaluate_sweep(
+                                    symbol=ticker,
+                                    current_price=current_price,
+                                    candle_high=float(item.get("high") or current_price * 1.002),
+                                    candle_low=float(item.get("low") or current_price * 0.998),
+                                    candle_open=float(item.get("open") or current_price),
+                                    candle_close=current_price
+                                )
+                                if sweep_res.get("detected"):
+                                    if sweep_res["action"] == "BUY":
+                                        action_signal = "BUY"
+                                        opp_score = max(opp_score, 92.0)
+                                    elif sweep_res["action"] == "SELL" and action_signal in ("BUY", "LONG"):
+                                        # Bearish liquidity sweep (bull trap): block buying trapped retail
+                                        continue
+                            except Exception:
+                                pass
+
+                            # 2. 2:15 - 2:45 PM Forced Short-Covering Squeeze
+                            if _active_ws == "INDIA":
+                                try:
+                                    from core.institutional_alpha_weapons import short_covering_surge_engine
+                                    sc_res = short_covering_surge_engine.evaluate_short_covering_opportunity(
+                                        symbol=ticker,
+                                        current_price=current_price,
+                                        day_low=float(item.get("low") or current_price * 0.99),
+                                        change_24h=float(item.get("change_24h") or 0.0),
+                                        relative_volume=float(item.get("rvol", 1.5))
+                                    )
+                                    if sc_res.get("active"):
+                                        action_signal = "BUY"
+                                        opp_score = max(opp_score, 93.0)
+                                except Exception:
+                                    pass
+
+                            # 4. 09:08 AM Pre-Market Shadow Accumulation Priority
+                            if _active_ws == "INDIA":
+                                try:
+                                    from core.institutional_alpha_weapons import pre_market_shadow_scanner
+                                    shadow_burst = pre_market_shadow_scanner.get_opening_burst_priority(ticker)
+                                    if shadow_burst:
+                                        action_signal = "BUY"
+                                        opp_score = max(opp_score, 94.0)
+                                except Exception:
+                                    pass
+
                             # High-Speed Rate Limiter Safeguard (Protects from Broker 429 Bans)
                             try:
                                 from core.high_speed_async_engine import high_speed_async_engine
@@ -794,6 +844,21 @@ class AutonomousTrader:
                                         self._log_action(ticker, "SPREAD_GUARD_LOCK", current_price, size_usd, spread_reason)
                                         continue
                                 except Exception as sp_err:
+                                    pass
+
+                                # Institutional Alpha Weapon 3: Toxic Liquidity & Spread Expansion Defense
+                                try:
+                                    from core.institutional_alpha_weapons import toxic_flow_evacuation_guard
+                                    from core.bid_ask_spread_guard import bid_ask_spread_guard
+                                    sp_data = bid_ask_spread_guard.get_market_spread(ticker, _active_ws)
+                                    cur_b = float(sp_data.get("bid", 0.0))
+                                    cur_a = float(sp_data.get("ask", 0.0))
+                                    if cur_b > 0 and cur_a > cur_b:
+                                        toxic_res = toxic_flow_evacuation_guard.record_and_evaluate_spread(ticker, cur_b, cur_a)
+                                        if toxic_res.get("is_toxic"):
+                                            self._log_action(ticker, "TOXIC_FLOW_EVACUATION", current_price, size_usd, toxic_res.get("description", "Predatory spread widening detected"))
+                                            continue
+                                except Exception:
                                     pass
 
                                 # 3. Multi-Timeframe Trend Confluence Filter (1m + 5m + 15m)
@@ -1200,6 +1265,20 @@ class AutonomousTrader:
                     # Minimum Holding Buffer: Require at least 180s (3 minutes) before soft trailing/breakeven triggers,
                     # ensuring positions have time to develop into full profit targets without dying to bid-ask chop!
                     has_minimum_tenure = (time_held_sec >= 180.0)
+
+                    # Toxic Flow Guard: If predatory spread widening occurs on open holding, tighten trailing stop!
+                    try:
+                        from core.institutional_alpha_weapons import toxic_flow_evacuation_guard
+                        from core.bid_ask_spread_guard import bid_ask_spread_guard
+                        h_sp = bid_ask_spread_guard.get_market_spread(pos_asset, pos_ws)
+                        if float(h_sp.get("bid", 0)) > 0 and float(h_sp.get("ask", 0)) > float(h_sp.get("bid", 0)):
+                            h_toxic = toxic_flow_evacuation_guard.record_and_evaluate_spread(pos_asset, float(h_sp["bid"]), float(h_sp["ask"]))
+                            if h_toxic.get("is_toxic"):
+                                # Instantly lock profit / pull stop closer to prevent slippage erosion
+                                pos["dynamic_trailing_floor"] = max(pos.get("dynamic_trailing_floor", 0.0), pnl_pct - 0.0010)
+                                pos["fee_secured_active"] = True
+                    except Exception:
+                        pass
 
                     if pos_ws == "INDIA" or is_zero_brokerage_venue:
                         # Indian Equities Multi-Stage Fee-Secured Trailing Ratchet:
