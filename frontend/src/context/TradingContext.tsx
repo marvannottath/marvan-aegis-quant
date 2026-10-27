@@ -253,8 +253,9 @@ export function TradingProvider({ children }: { children: React.ReactNode }) {
     }
     refreshData();
 
-    // Smooth institutional polling (5 seconds) for live trading telemetry
-    const interval = setInterval(refreshData, 5000);
+    // High-responsiveness live polling (1.5s in LIVE, 3.5s in DEMO) for real-time tick and PnL updates
+    const pollInterval = environment === 'LIVE' ? 1500 : 3500;
+    const interval = setInterval(refreshData, pollInterval);
     return () => clearInterval(interval);
   }, [environment, workspace, refreshData]);
 

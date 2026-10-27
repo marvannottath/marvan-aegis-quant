@@ -230,7 +230,8 @@ class PositionSnapshotService:
             self._snapshot_cache = {}
             self._snapshot_cache_ts = {}
 
-        if not force_refresh and (now - self._snapshot_cache_ts.get(cache_key, 0)) < 5.0:
+        cache_ttl = 1.5 if (target_ws == "INDIA" or environment == "LIVE") else 5.0
+        if not force_refresh and (now - self._snapshot_cache_ts.get(cache_key, 0)) < cache_ttl:
             cached = self._snapshot_cache.get(cache_key)
             if cached:
                 return cached
@@ -402,6 +403,21 @@ class PositionSnapshotService:
                                 live_px = float(bulk[sym]["last_price"])
                         except Exception:
                             pass
+                elif target_ws == "INDIA":
+                    try:
+                        from execution.kotak_neo_broker import kotak_neo_broker
+                        if hasattr(kotak_neo_broker, "_cached_live_ltp") and sym in kotak_neo_broker._cached_live_ltp:
+                            live_px = float(kotak_neo_broker._cached_live_ltp[sym])
+                    except Exception:
+                        pass
+                    if live_px <= 0.0:
+                        try:
+                            from core.public_market_feed import public_market_feed
+                            q = public_market_feed.get_quote(sym)
+                            if q and q.get("price"):
+                                live_px = float(q["price"])
+                        except Exception:
+                            pass
 
                 if live_px > 0.0:
                     last_px = live_px
@@ -543,7 +559,8 @@ class PositionSnapshotService:
             self._agg_cache = {}
             self._agg_cache_ts = {}
 
-        if not force_refresh and (now - self._agg_cache_ts.get(cache_key, 0)) < 5.0:
+        agg_cache_ttl = 1.5 if (target_ws == "INDIA" or environment == "LIVE") else 5.0
+        if not force_refresh and (now - self._agg_cache_ts.get(cache_key, 0)) < agg_cache_ttl:
             cached = self._agg_cache.get(cache_key)
             if cached:
                 return cached

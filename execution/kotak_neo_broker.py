@@ -434,7 +434,9 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
                 elif isinstance(data, dict) and isinstance(data.get("data"), list):
                     pos_list = data["data"]
 
-                verified = []
+                # 1. Filter out active open positions and extract tokens for live quote lookup
+                open_items = []
+                token_queries = []
                 for p in pos_list:
                     if not isinstance(p, dict):
                         continue
@@ -442,29 +444,79 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
                     sell_qty = float(p.get("flSellQty", 0) or 0)
                     net_qty = buy_qty - sell_qty
                     if abs(net_qty) > 0.0001:
-                        buy_amt = float(p.get("buyAmt", 0) or 0)
-                        buy_avg = round(buy_amt / buy_qty, 2) if buy_qty > 0 else 0.0
-                        sym = p.get("sym", p.get("trdSym", "").replace("-EQ", "")).upper()
-                        ltp = float(p.get("ltp", p.get("lastPrice", buy_avg)) or buy_avg)
-                        if ltp == 0.0 or ltp == buy_avg:
-                            try:
-                                from core.public_market_feed import public_market_feed
-                                q = public_market_feed.get_quote(sym)
-                                if q and q.get("price"):
-                                    ltp = float(q["price"])
-                            except Exception:
-                                pass
-                        unrealized = round((ltp - buy_avg) * net_qty, 2)
-                        pos_prod = str(p.get("prod", "MIS")).upper()
-                        verified.append({
-                            "symbol": sym,
-                            "quantity": abs(net_qty),
-                            "side": "BUY" if net_qty > 0 else "SELL",
-                            "buy_price": buy_avg,
-                            "current_price": ltp,
-                            "unrealized_pnl": unrealized,
-                            "product": pos_prod,
-                        })
+                        open_items.append((p, net_qty))
+                        tok = str(p.get("tok", "")).strip()
+                        ex_seg = str(p.get("exSeg", "nse_cm")).strip()
+                        if tok:
+                            token_queries.append(f"{ex_seg}|{tok}")
+
+                # 2. Fetch live real-time LTP quotes directly from Kotak Neo script-details API
+                live_ltp_map = {}
+                if token_queries:
+                    try:
+                        q_url = f"{b_url}/script-details/1.0/quotes/neosymbol/{','.join(token_queries)}/all"
+                        q_resp = requests.get(q_url, headers=h, timeout=4)
+                        if q_resp.status_code == 200:
+                            q_data = q_resp.json()
+                            if isinstance(q_data, list):
+                                for item in q_data:
+                                    e_tok = str(item.get("exchange_token", ""))
+                                    d_sym = str(item.get("display_symbol", "")).replace("-EQ", "").upper()
+                                    try:
+                                        cur_ltp = float(item.get("ltp", 0.0))
+                                        if cur_ltp > 0:
+                                            live_ltp_map[e_tok] = cur_ltp
+                                            live_ltp_map[d_sym] = cur_ltp
+                                    except (ValueError, TypeError):
+                                        pass
+                    except Exception as q_err:
+                        print(f"[KOTAK_NEO] Live quote fetch notice: {q_err}")
+
+                # Cache live LTP on adapter for fast access across services
+                if not hasattr(self, "_cached_live_ltp"):
+                    self._cached_live_ltp = {}
+                self._cached_live_ltp.update(live_ltp_map)
+
+                verified = []
+                for p, net_qty in open_items:
+                    buy_qty = float(p.get("flBuyQty", 0) or 0)
+                    buy_amt = float(p.get("buyAmt", 0) or 0)
+                    buy_avg = round(buy_amt / buy_qty, 2) if buy_qty > 0 else 0.0
+                    sym = p.get("sym", p.get("trdSym", "").replace("-EQ", "")).upper()
+                    tok = str(p.get("tok", "")).strip()
+
+                    # Exact Kotak Neo live LTP
+                    ltp = live_ltp_map.get(tok) or live_ltp_map.get(sym) or float(p.get("ltp", 0.0) or 0.0)
+                    if ltp <= 0.0 or ltp == buy_avg:
+                        try:
+                            from core.public_market_feed import public_market_feed
+                            q = public_market_feed.get_quote(sym)
+                            if q and q.get("price"):
+                                ltp = float(q["price"])
+                        except Exception:
+                            pass
+                    if ltp <= 0.0:
+                        ltp = buy_avg
+
+                    unrealized = round((ltp - buy_avg) * net_qty, 2)
+                    pnl_pct = round(((ltp - buy_avg) / buy_avg) * 100.0, 2) if buy_avg > 0 else 0.0
+                    pos_prod = str(p.get("prod", "MIS")).upper()
+                    verified.append({
+                        "symbol": sym,
+                        "quantity": abs(net_qty),
+                        "units": abs(net_qty),
+                        "side": "BUY" if net_qty > 0 else "SELL",
+                        "buy_price": buy_avg,
+                        "entry_price": buy_avg,
+                        "last_price": ltp,
+                        "current_price": ltp,
+                        "unrealized_pnl": unrealized,
+                        "pnl_usd": unrealized,
+                        "pnl_pct": pnl_pct,
+                        "market_value": round(ltp * abs(net_qty), 2),
+                        "capital_allocated": round(buy_avg * abs(net_qty), 2),
+                        "product": pos_prod,
+                    })
                 return verified
         except Exception as e:
             print(f"[KOTAK_NEO] Live positions fetch notice: {e}")
