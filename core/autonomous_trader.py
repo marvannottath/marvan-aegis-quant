@@ -581,9 +581,11 @@ class AutonomousTrader:
                             if _active_ws == "INDIA":
                                 min_opp_threshold = 85.0  # High conviction threshold to eliminate low-probability chop
                             elif "AGGRESSIVE" in profile_name:
-                                min_opp_threshold = 78.0
+                                min_opp_threshold = 76.0
                             elif "MODERATE" in profile_name:
-                                min_opp_threshold = 82.0
+                                min_opp_threshold = 78.0
+                            elif _engine_env == "DEMO" or _active_ws == "FOREX_GOLD":
+                                min_opp_threshold = 80.0  # Calibrated institutional threshold for 24-hr Forex & Gold demo
                             else:
                                 min_opp_threshold = 85.0
 
