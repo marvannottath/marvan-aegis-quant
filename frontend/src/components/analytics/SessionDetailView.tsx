@@ -374,8 +374,9 @@ export function SessionDetailView() {
                 <th className="py-2.5 px-3 text-right">Quantity</th>
                 <th className="py-2.5 px-3 text-right">Entry Price</th>
                 <th className="py-2.5 px-3 text-right">Exit Price</th>
-                <th className="py-2.5 px-3 text-right">Net PnL</th>
+                <th className="py-2.5 px-3 text-right">Gross PnL</th>
                 <th className="py-2.5 px-3 text-right">Fee</th>
+                <th className="py-2.5 px-3 text-right">Net PnL</th>
                 <th className="py-2.5 px-3 text-center">Status</th>
                 <th className="py-2.5 px-3">Exit Reason</th>
               </tr>
@@ -383,14 +384,14 @@ export function SessionDetailView() {
             <tbody className="divide-y divide-line">
               {isLoading ? (
                 <tr>
-                  <td colSpan={10} className="py-12 text-center text-txt-muted">
+                  <td colSpan={11} className="py-12 text-center text-txt-muted">
                     <RefreshCw className="w-6 h-6 animate-spin mx-auto text-brand mb-2" />
                     <span>Loading session executions...</span>
                   </td>
                 </tr>
               ) : filteredTrades.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-12 text-center text-txt-muted">
+                  <td colSpan={11} className="py-12 text-center text-txt-muted">
                     <div className="flex flex-col items-center justify-center gap-1.5">
                       <Layers className="h-7 w-7 text-txt-subtle" />
                       <span className="font-semibold text-xs text-txt-primary">
@@ -408,6 +409,7 @@ export function SessionDetailView() {
                     ? Number(t.gross_pnl)
                     : ((Number(t.exit_price || 0) - Number(t.entry_price || 0)) * (t.side === 'SELL' ? -1 : 1) * Number(t.quantity || t.units || 1));
                   const pnl = (workspace === 'INDIA' && t.net_pnl !== undefined) ? Number(t.net_pnl) : (t.net_pnl ?? t.pnl_usd ?? 0);
+                  const feeVal = Number(t.fee_usd ?? 0);
                   const isWin = (t.result === 'WIN') || (grossPnl > 0.001);
                   const isLoss = (t.result === 'LOSS') || (grossPnl < -0.001);
                   const side = (t.side || t.action || 'BUY').toUpperCase();
@@ -450,7 +452,23 @@ export function SessionDetailView() {
                           maximumFractionDigits: 4,
                         })}
                       </td>
-                      <td className="py-2.5 px-3 text-right font-bold tabular-nums whitespace-nowrap">
+                      {/* Gross PnL (Price difference x Quantity) */}
+                      <td className="py-2.5 px-3 text-right font-mono tabular-nums whitespace-nowrap">
+                        <span className={grossPnl > 0 ? 'text-profit' : grossPnl < 0 ? 'text-loss' : 'text-txt-muted'}>
+                          {isFinancialMasked ? (
+                            '••••••'
+                          ) : (
+                            `${grossPnl > 0 ? '+' : grossPnl < 0 ? '-' : ''}${curr}${Math.abs(grossPnl).toFixed(2)}`
+                          )}
+                        </span>
+                      </td>
+                      {/* Exchange / Broker Fees */}
+                      <td className="py-2.5 px-3 text-right text-txt-muted tabular-nums font-mono">
+                        {curr}
+                        {feeVal.toFixed(4)}
+                      </td>
+                      {/* Net PnL (Gross PnL - Fees) */}
+                      <td className="py-2.5 px-3 text-right font-bold tabular-nums whitespace-nowrap font-mono">
                         <span className={pnl > 0 ? 'text-profit' : pnl < 0 ? 'text-loss' : 'text-txt-muted'}>
                           {isFinancialMasked ? (
                             '••••••'
@@ -458,10 +476,6 @@ export function SessionDetailView() {
                             `${pnl > 0 ? '+' : pnl < 0 ? '-' : ''}${curr}${Math.abs(pnl).toFixed(2)}`
                           )}
                         </span>
-                      </td>
-                      <td className="py-2.5 px-3 text-right text-txt-muted tabular-nums">
-                        {curr}
-                        {Number(t.fee_usd || 0).toFixed(4)}
                       </td>
                       <td className="py-2.5 px-3 text-center">
                         <span
