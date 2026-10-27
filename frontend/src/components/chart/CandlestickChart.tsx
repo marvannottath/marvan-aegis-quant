@@ -37,7 +37,7 @@ export function CandlestickChart({
   // Expanded available symbols by workspace
   const defaultSymbols = {
     CRYPTO: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'DOGEUSDT', 'ADAUSDT', 'AVAXUSDT', 'LINKUSDT', 'SUIUSDT'],
-    INDIA: ['NIFTY50', 'RELIANCE', 'TCS', 'HDFCBANK', 'INFY', 'ICICIBANK', 'SBIN', 'BHARTIARTL'],
+    INDIA: ['NIFTY50', 'RELIANCE', 'LICI', 'BHARTIARTL', 'TCS', 'HDFCBANK', 'INFY', 'ICICIBANK', 'SBIN', 'ITC'],
     FOREX_GOLD: ['XAUUSD', 'EURUSD', 'GBPUSD', 'USDJPY', 'AUDUSD', 'USDCAD'],
   }[workspace] || ['BTCUSDT'];
 
@@ -66,18 +66,22 @@ export function CandlestickChart({
     }
   }, [initialSymbol]);
 
-  // When workspace changes, reset selected symbol to default
+  // When workspace changes, reset selected symbol to default for that workspace
+  const prevWorkspaceRef = useRef(workspace);
   useEffect(() => {
-    const symbols = {
-      CRYPTO: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'DOGEUSDT'],
-      INDIA: ['NIFTY50', 'RELIANCE', 'TCS', 'HDFCBANK'],
-      FOREX_GOLD: ['XAUUSD', 'EURUSD', 'GBPUSD'],
-    }[workspace] || ['BTCUSDT'];
-
-    if (!symbols.includes(selectedSymbol)) {
+    if (prevWorkspaceRef.current !== workspace) {
+      prevWorkspaceRef.current = workspace;
+      const symbols = {
+        CRYPTO: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'DOGEUSDT'],
+        INDIA: ['NIFTY50', 'RELIANCE', 'LICI', 'BHARTIARTL', 'TCS', 'HDFCBANK'],
+        FOREX_GOLD: ['XAUUSD', 'EURUSD', 'GBPUSD'],
+      }[workspace] || ['BTCUSDT'];
       setSelectedSymbol(symbols[0]);
+      if (onSymbolChange) {
+        onSymbolChange(symbols[0]);
+      }
     }
-  }, [workspace, selectedSymbol]);
+  }, [workspace, onSymbolChange]);
 
   // Load historical candlestick data via REST
   const loadChartData = useCallback(async () => {
@@ -569,28 +573,56 @@ export function CandlestickChart({
 
           {/* Quick Search Popover */}
           {showSearch && (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleSelectSymbol(searchQuery);
-              }}
-              className="flex items-center gap-1 bg-white p-1 rounded-md border border-brand shadow-sm animate-in fade-in duration-150"
-            >
-              <input
-                type="text"
-                placeholder={workspace === 'CRYPTO' ? 'e.g. DOGE, XRP, PEPE' : workspace === 'INDIA' ? 'e.g. RELIANCE, TCS' : 'e.g. EURUSD, GOLD'}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value.toUpperCase())}
-                autoFocus
-                className="px-2 py-0.5 text-xs font-mono font-bold uppercase w-36 outline-none bg-transparent"
-              />
-              <button
-                type="submit"
-                className="px-2 py-0.5 bg-brand text-white rounded text-[11px] font-semibold hover:bg-brand-hover"
+            <div className="absolute top-12 left-2 z-50 bg-white p-3 rounded-lg border border-line shadow-lg w-80 animate-in fade-in duration-150">
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleSelectSymbol(searchQuery);
+                }}
+                className="flex items-center gap-1.5 mb-2"
               >
-                Load
-              </button>
-            </form>
+                <div className="relative flex-1">
+                  <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-txt-muted" />
+                  <input
+                    type="text"
+                    placeholder={workspace === 'CRYPTO' ? 'Search symbol (e.g. DOGE, XRP)' : workspace === 'INDIA' ? 'Search NSE (e.g. LICI, TATAMOTORS)' : 'e.g. XAUUSD, EURUSD'}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value.toUpperCase())}
+                    autoFocus
+                    className="pl-8 pr-2 py-1.5 text-xs font-mono font-bold uppercase w-full rounded border border-line focus:border-brand outline-none bg-slate-50 focus:bg-white"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="px-3 py-1.5 bg-brand text-white rounded text-xs font-semibold hover:bg-brand-hover transition"
+                >
+                  Load
+                </button>
+              </form>
+
+              {/* Quick Suggestion Pills */}
+              <div className="text-[11px] font-medium text-txt-muted mb-1.5">Quick Select:</div>
+              <div className="flex flex-wrap gap-1 max-h-40 overflow-y-auto">
+                {({
+                  INDIA: ['LICI', 'BHARTIARTL', 'RELIANCE', 'TCS', 'HDFCBANK', 'INFY', 'ICICIBANK', 'SBIN', 'ITC', 'TATAMOTORS', 'POWERGRID', 'COALINDIA', 'NTPC', 'LT', 'NIFTYBEES', 'GOLDBEES'],
+                  CRYPTO: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'DOGEUSDT', 'ADAUSDT', 'AVAXUSDT', 'LINKUSDT', 'SUIUSDT'],
+                  FOREX_GOLD: ['XAUUSD', 'EURUSD', 'GBPUSD', 'USDJPY', 'AUDUSD', 'USDCAD']
+                }[workspace] || []).map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => handleSelectSymbol(s)}
+                    className={`px-2 py-0.5 text-[11px] font-mono font-medium rounded transition ${
+                      selectedSymbol === s
+                        ? 'bg-slate-900 text-white'
+                        : 'bg-slate-100 hover:bg-slate-200 text-txt-secondary'
+                    }`}
+                  >
+                    {s.replace('USDT', '')}
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
 
           {/* Real-time ticker price & change */}
