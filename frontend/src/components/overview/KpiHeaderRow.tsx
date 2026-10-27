@@ -52,7 +52,7 @@ export function KpiHeaderRow() {
     : capital?.tradeable_capital !== null && capital?.tradeable_capital !== undefined
     ? capital.tradeable_capital
     : typeof availableCash === 'number'
-    ? Math.max(0, availableCash - (typeof vaultBalance === 'number' ? vaultBalance : 0))
+    ? availableCash
     : 'UNAVAILABLE';
 
   const unrealizedPnL = isLiveDisconnected

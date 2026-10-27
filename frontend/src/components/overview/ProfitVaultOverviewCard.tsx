@@ -37,7 +37,7 @@ export function ProfitVaultOverviewCard() {
     typeof portfolio?.total_equity === 'number' ? portfolio.total_equity : 0.0;
   const freeCash =
     typeof portfolio?.free_cash === 'number' ? portfolio.free_cash : 0.0;
-  const workingCapital = isLive ? freeCash : Math.max(0, freeCash - vaultBalance);
+  const workingCapital = freeCash;
 
   useEffect(() => {
     let isMounted = true;

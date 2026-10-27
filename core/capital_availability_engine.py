@@ -138,8 +138,14 @@ class CapitalAvailabilityEngine:
 
         # Deployable Tradeable Capital Calculation
         # Raw available cash minus safety reserve, pending orders, and locked funds
+        # If available_cash is already net of reserved_cash (e.g. available_cash + reserved_cash ~= total_equity),
+        # do NOT double deduct reserved_cash!
+        additional_reserved = 0.0
+        if reserved_cash > 0 and available_cash > max(0.0, total_equity - reserved_cash + 1.0):
+            additional_reserved = max(0.0, reserved_cash - (total_equity - available_cash))
+
         deductions = (
-            max(0.0, reserved_cash) +
+            additional_reserved +
             max(0.0, open_orders_reserved) +
             max(0.0, residual_dust_capital) +
             safety_buffer

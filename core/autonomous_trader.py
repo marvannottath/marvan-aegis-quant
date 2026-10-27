@@ -710,12 +710,19 @@ class AutonomousTrader:
 
                             # Quarantined Profit Vault Invariant:
                             # Autonomous AI trader sizes trades strictly using active working capital, NEVER touching quarantined vault profits.
+                            # In paper_broker, pool virtual_cash is ALREADY net unencumbered liquid cash (vault is tracked separately).
                             try:
                                 from execution.profit_vault import profit_vault
                                 vault_locked = float(profit_vault.get_vault_balance(pool))
                             except Exception:
                                 vault_locked = 0.0
-                            working_cash = max(0.0, round(current_cash - vault_locked, 2))
+
+                            # Only deduct vault_locked if current_cash erroneously includes it
+                            p_equity = float(self.broker.pools.get(pool, {}).get("equity", current_cash))
+                            if current_cash > max(0.0, p_equity - vault_locked + 1.0):
+                                working_cash = max(0.0, round(current_cash - vault_locked, 2))
+                            else:
+                                working_cash = max(0.0, round(current_cash, 2))
 
                             calc_leverage = base_lev
                             if pool in ["AEGIS_INDIA_INR", "UPSTOX_DEMO", "UPSTOX_LIVE", "KOTAK_NEO_LIVE"] or _active_ws == "INDIA":

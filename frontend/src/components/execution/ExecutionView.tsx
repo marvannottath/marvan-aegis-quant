@@ -36,9 +36,28 @@ export function ExecutionView() {
 
       {/* Main Execution Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left: Quick Execution Console */}
+        {/* Left: Autonomous Execution Status Banner (Manual Console Retired) */}
         <div className="lg:col-span-1">
-          <QuickOrderConsole />
+          <div className="card-panel p-5 space-y-4">
+            <div className="flex items-center gap-2 pb-3 border-b border-line">
+              <ShieldCheck className="h-5 w-5 text-emerald-500" />
+              <h3 className="text-sm font-bold text-txt-primary">100% Autonomous AI Execution</h3>
+            </div>
+            <p className="text-xs text-txt-secondary leading-relaxed">
+              Manual quick order execution has been retired per your system configuration. The autonomous 8-Agent ensemble operates continuously with 1,000 Protective Shields, 15-minute Opening Range Breakouts, VWAP dynamic anchors, and fee-secured trailing stops.
+            </p>
+            <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+              <div className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                ACTIVE TRADING SAFEGUARDS
+              </div>
+              <ul className="text-[11px] text-txt-muted mt-1 space-y-1">
+                <li>• 50% Take-Profit Scalp Harvest</li>
+                <li>• VWAP Support & Reclaim Filter</li>
+                <li>• 2-Consecutive Loss 30m Cool-Off</li>
+                <li>• 2% Maximum Daily Loss Protection</li>
+              </ul>
+            </div>
+          </div>
         </div>
 
         {/* Right: Clean Account & Execution Route Summary */}

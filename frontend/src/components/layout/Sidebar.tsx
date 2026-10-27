@@ -72,11 +72,6 @@ export function Sidebar() {
       icon: ArrowDownToLine,
     },
     {
-      name: 'Execution',
-      href: `${prefix}/execution`,
-      icon: Zap,
-    },
-    {
       name: 'Analytics',
       href: `${prefix}/analytics`,
       icon: LineChart,
