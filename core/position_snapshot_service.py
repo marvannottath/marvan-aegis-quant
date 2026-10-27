@@ -336,10 +336,29 @@ class PositionSnapshotService:
                             else:
                                 for p in internal_pos_list:
                                     if (p.get("symbol") or p.get("asset")) == sym_name:
+                                        # Preserve ratcheted stop loss and fee-secured tracking
+                                        cur_sl = float(p.get("stop_loss", 0.0))
+                                        new_sl = float(lp.get("stop_loss", 0.0))
+                                        side_is_buy = str(p.get("side", p.get("action", "BUY"))).upper() == "BUY"
+                                        tighter_sl = max(cur_sl, new_sl) if side_is_buy else (min(cur_sl, new_sl) if cur_sl > 0 else new_sl)
+                                        max_h_pnl = max(float(p.get("highest_pnl_pct", 0.0)), float(lp.get("highest_pnl_pct", 0.0)))
+                                        be_act = p.get("cost_breakeven_active") or lp.get("cost_breakeven_active")
+                                        fee_act = p.get("fee_secured_active") or lp.get("fee_secured_active")
+                                        floor_val = max(float(p.get("dynamic_trailing_floor", 0.0)), float(lp.get("dynamic_trailing_floor", 0.0)))
+
                                         p.update(lp)
+                                        if tighter_sl > 0:
+                                            p["stop_loss"] = tighter_sl
+                                        p["highest_pnl_pct"] = max_h_pnl
+                                        if be_act:
+                                            p["cost_breakeven_active"] = True
+                                        if fee_act:
+                                            p["fee_secured_active"] = True
+                                        if floor_val > 0:
+                                            p["dynamic_trailing_floor"] = floor_val
                                         break
                                 if sym_name in paper_broker.positions:
-                                    paper_broker.positions[sym_name].update(lp)
+                                    paper_broker.positions[sym_name].update(p)
             except Exception as e:
                 print(f"[POSITION_SNAPSHOT] Live position sync notice: {e}")
 

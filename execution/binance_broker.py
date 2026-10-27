@@ -2682,14 +2682,32 @@ class BinanceBroker:
             formatted_qty = round(total_qty, qty_decimals)
 
             orig_ts = None
+            inherited_sl = 0.0
+            inherited_tp = 0.0
+            inherited_highest_pnl = 0.0
+            inherited_be_active = False
+            inherited_fee_active = False
+            inherited_floor = 0.0
             try:
                 from execution.paper_broker import paper_broker
-                pos_obj = paper_broker.positions.get(ticker_symbol) or paper_broker.pools.get("BINANCE_LIVE_REAL", {}).get("positions", {}).get(ticker_symbol)
-                if pos_obj and pos_obj.get("timestamp"):
-                    orig_ts = str(pos_obj.get("timestamp"))
+                pos_obj = paper_broker.positions.get(ticker_symbol) or paper_broker.pools.get("BINANCE_LIVE_REAL", {}).get("positions", {}).get(ticker_symbol) or paper_broker.pools.get("BINANCE_TESTNET_DEMO", {}).get("positions", {}).get(ticker_symbol)
+                if pos_obj:
+                    if pos_obj.get("timestamp"):
+                        orig_ts = str(pos_obj.get("timestamp"))
+                    inherited_sl = float(pos_obj.get("stop_loss", 0.0))
+                    inherited_tp = float(pos_obj.get("take_profit", 0.0))
+                    inherited_highest_pnl = float(pos_obj.get("highest_pnl_pct", 0.0))
+                    inherited_be_active = bool(pos_obj.get("cost_breakeven_active", False))
+                    inherited_fee_active = bool(pos_obj.get("fee_secured_active", False))
+                    inherited_floor = float(pos_obj.get("dynamic_trailing_floor", 0.0))
             except Exception:
                 pass
             pos_ts = orig_ts if orig_ts else datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S IST")
+
+            # Default initial SL & TP if not yet established
+            decimals = 2 if cur_price > 10.0 else 4
+            final_sl = inherited_sl if inherited_sl > 0 else round(entry_price * 0.992, decimals)
+            final_tp = inherited_tp if inherited_tp > 0 else round(entry_price * 1.006, decimals)
 
             positions.append({
                 "trade_id": f"TRD-{environment[:4]}-{asset}",
@@ -2708,6 +2726,12 @@ class BinanceBroker:
                 "margin": capital_allocated,
                 "market_value": val_usd,
                 "leverage": 1.0,
+                "stop_loss": final_sl,
+                "take_profit": final_tp,
+                "highest_pnl_pct": inherited_highest_pnl,
+                "cost_breakeven_active": inherited_be_active,
+                "fee_secured_active": inherited_fee_active,
+                "dynamic_trailing_floor": inherited_floor,
                 "pnl_usd": unrealized_pnl,
                 "pnl_pct": pnl_pct,
                 "unrealized_pnl": unrealized_pnl,
