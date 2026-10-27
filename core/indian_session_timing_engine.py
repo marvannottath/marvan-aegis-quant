@@ -98,18 +98,18 @@ class IndianSessionTimingEngine:
                 "reason": "NSE Pre-market auction session (09:00 - 09:15 AM IST)",
                 "time_ist": now.strftime("%H:%M:%S IST")
             }
-        elif 915 <= time_val < 945:
+        elif 915 <= time_val < 930:
             return {
                 "session": "ORB_FORMATION_WINDOW",
                 "is_entry_allowed": False,
-                "reason": "Opening Volatility / 30-min ORB Formation (09:15 - 09:45 AM IST). Building High/Low ranges to prevent whipsaws.",
+                "reason": "Opening Volatility / 15-min ORB Formation (09:15 - 09:30 AM IST). Building High/Low ranges to prevent whipsaws.",
                 "time_ist": now.strftime("%H:%M:%S IST")
             }
-        elif 945 <= time_val < 1145:
+        elif 930 <= time_val < 1145:
             return {
                 "session": "MORNING_TREND_WINDOW",
                 "is_entry_allowed": True,
-                "reason": "Prime Morning Trend Session (09:45 - 11:45 AM IST). Institutional momentum active.",
+                "reason": "Prime Morning Trend Session (09:30 - 11:45 AM IST). Institutional momentum active.",
                 "time_ist": now.strftime("%H:%M:%S IST")
             }
         elif 1145 <= time_val < 1315:
