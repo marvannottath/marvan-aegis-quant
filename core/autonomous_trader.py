@@ -120,7 +120,7 @@ class AutonomousTrader:
                             skip_exchange_order=True,
                             close_units=None
                         )
-                        self.closed_cooldowns[asset] = time.time() + 60.0
+                        self.closed_cooldowns[asset] = time.time() + 30.0
                         self.position_age.pop(asset, None)
                         self.close_in_flight.pop(asset, None)
                         self.in_flight_tracker.clear_in_flight(asset)
@@ -414,14 +414,16 @@ class AutonomousTrader:
                                     entry_px = float(kp.get("buy_price", kp.get("entry_price", 0.0)))
                                     cur_px = float(kp.get("current_price", entry_px))
                                     cap = round(qty * entry_px, 2)
+                                    # For intraday MIS equities, Kotak blocks 1/5th (20%) margin with 5x leverage
+                                    mis_margin = round(cap / 5.0, 2)
                                     pos_record = {
                                         "trade_id": f"TRD-KNEO-{sym}-{int(time.time()*1000)}",
                                         "asset": sym, "symbol": sym, "action": kp.get("side", "BUY"), "side": kp.get("side", "BUY"),
                                         "units": qty, "quantity": qty, "entry_price": entry_px,
-                                        "last_price": cur_px, "current_price": cur_px, "capital_allocated": cap,
-                                        "margin": cap, "leverage": 1.0, "market_value": round(qty * cur_px, 2),
+                                        "last_price": cur_px, "current_price": cur_px, "capital_allocated": mis_margin,
+                                        "margin": mis_margin, "leverage": 5.0, "market_value": round(qty * cur_px, 2),
                                         "pnl_usd": round(float(kp.get("unrealized_pnl", 0.0)), 2),
-                                        "take_profit": round(entry_px * 1.015, 2), "stop_loss": round(entry_px * 0.988, 2),
+                                        "take_profit": round(entry_px * 1.020, 2), "stop_loss": round(entry_px * 0.984, 2),
                                         "product": "MIS", "status": "ACTIVE", "environment": "LIVE", "workspace": "INDIA",
                                         "source": "KOTAK_NEO_LIVE",
                                         "timestamp": datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S")
@@ -817,8 +819,15 @@ class AutonomousTrader:
                                         pos_tp = dyn_targets["take_profit_price"]
                                     pos_sl = dyn_targets["stop_loss_price"]
                                 except Exception:
-                                    pos_tp = round(current_price * 1.006, 4 if current_price < 10 else 2)
-                                    pos_sl = round(current_price * 0.992, 4 if current_price < 10 else 2)
+                                    if _active_ws == "INDIA":
+                                        pos_tp = round(current_price * 1.018, 4 if current_price < 10 else 2)
+                                        pos_sl = round(current_price * 0.984, 4 if current_price < 10 else 2)
+                                    elif _active_ws == "CRYPTO":
+                                        pos_tp = round(current_price * 1.025, 4 if current_price < 10 else 2)
+                                        pos_sl = round(current_price * 0.978, 4 if current_price < 10 else 2)
+                                    else:
+                                        pos_tp = round(current_price * 1.015, 4 if current_price < 10 else 2)
+                                        pos_sl = round(current_price * 0.986, 4 if current_price < 10 else 2)
 
                                 # 8. AI Post-Mortem Learner & Toxic Hours Gate
                                 try:
@@ -1160,62 +1169,68 @@ class AutonomousTrader:
                             pass
 
                     # ── ASSET-CALIBRATED BREAK-EVEN RATCHET & RISK-REWARD ENGINE ───
-                    # Guaranteed Capital Preservation: Locks Stop Loss above all execution costs once a runner forms
+                    # Guaranteed Capital Preservation with Market-Noise Breathing Room
                     if pos_ws == "INDIA" or is_zero_brokerage_venue:
-                        # Indian Equities (Zero Brokerage, ~0.03% STT/Taxes):
-                        # +0.50% gain engages Breakeven lock at +0.12% (guaranteed green after all taxes)
-                        if highest_pnl >= 0.0050:
+                        # Indian Equities (Intraday MIS with proper market noise breathing room):
+                        # Break-even engages only once a solid +1.20% gain is achieved, securing +0.30%
+                        if highest_pnl >= 0.0120:
                             pos["break_even_active"] = True
-                        is_break_even_guard = bool(pos.get("break_even_active") and pnl_pct <= 0.0012)
+                        is_break_even_guard = bool(pos.get("break_even_active") and pnl_pct <= 0.0030)
 
-                        # Trailing Stop: Lock +0.50% profit if price surges >= +0.80%
-                        is_tsl = (highest_pnl >= 0.0080) and (pnl_pct <= highest_pnl - 0.0025)
+                        # Trailing Stop: Lock profit once runner exceeds +1.80%, trailing by 0.50%
+                        is_tsl = (highest_pnl >= 0.0180) and (pnl_pct <= highest_pnl - 0.0050)
                         is_trailing_stop = is_tsl
 
-                        is_fee_secured_tp = (pnl_pct >= 0.0050)   # 1:1 initial target (+0.50%)
-                        is_milestone = (pnl_pct >= 0.0100)        # 1:2 Risk-Reward institutional target (+1.00%)
+                        # Take Profit: Target +1.60% (standard intraday swing target) or explicit TP level crossed
+                        is_tp_price_hit = bool(pos.get("take_profit", 0.0) > 0 and (new_live_price >= pos["take_profit"] if act == "BUY" else new_live_price <= pos["take_profit"]))
+                        is_fee_secured_tp = (pnl_pct >= 0.0160) or is_tp_price_hit
+                        is_milestone = (pnl_pct >= 0.0250)        # 1:1.5 institutional runner target (+2.50%)
                         is_micro_harvest = False
                         is_staggered_harvest = False
                         is_maturity_rebalance = False
-                        # 20-min capital recycle only if flat/green; never sell at a loss on time alone
-                        is_stale_rotation = (time_held_sec >= 1200) and (pnl_pct >= 0.0008)
-                        is_hard_stop = (pnl_pct <= -0.0060)      # Strict 0.60% stop loss
+                        # 45-min capital recycle only if flat/green; never sell at a loss on time alone
+                        is_stale_rotation = (time_held_sec >= 2700) and (pnl_pct >= 0.0020)
+                        # Calibrated 1.60% stop loss (gives room beyond intraday noise/ATR) or explicit SL hit
+                        is_sl_price_hit = bool(pos.get("stop_loss", 0.0) > 0 and (new_live_price <= pos["stop_loss"] if act == "BUY" else new_live_price >= pos["stop_loss"]))
+                        is_hard_stop = (pnl_pct <= -0.0160) or is_sl_price_hit
                     elif pos_ws == "CRYPTO":
                         # Binance Crypto Spot:
-                        # +0.50% gain engages Breakeven ratchet (protects capital above roundtrip fee)
-                        if highest_pnl >= 0.0050:
+                        # Break-even engages at +1.50% gain, securing +0.40%
+                        if highest_pnl >= 0.0150:
                             pos["break_even_active"] = True
-                        is_break_even_guard = bool(pos.get("break_even_active") and pnl_pct <= 0.0020)
+                        is_break_even_guard = bool(pos.get("break_even_active") and pnl_pct <= 0.0040)
 
-                        # Trailing Stop: Lock runner profit if price surges >= +0.90%
-                        is_tsl = (highest_pnl >= 0.0090) and (pnl_pct <= highest_pnl - 0.0025)
+                        # Trailing Stop: Lock runner profit if price surges >= +2.00%, trailing by 0.70%
+                        is_tsl = (highest_pnl >= 0.0200) and (pnl_pct <= highest_pnl - 0.0070)
                         is_trailing_stop = is_tsl
 
-                        # Take Profit: Target +0.60% (covers fees + nets profit) or explicit TP level crossed
+                        # Take Profit: Target +2.20% or explicit TP level crossed
                         is_tp_price_hit = bool(pos.get("take_profit", 0.0) > 0 and (new_live_price >= pos["take_profit"] if act == "BUY" else new_live_price <= pos["take_profit"]))
-                        is_fee_secured_tp = (pnl_pct >= 0.0060) or is_tp_price_hit
-                        is_milestone = (pnl_pct >= 0.0120)        # 1:2 R:R runner target (+1.20%)
-                        is_micro_harvest = (pnl_pct >= 0.0050 and pnl_usd >= 0.03)
+                        is_fee_secured_tp = (pnl_pct >= 0.0220) or is_tp_price_hit
+                        is_milestone = (pnl_pct >= 0.0350)        # Institutional runner target (+3.50%)
+                        is_micro_harvest = (pnl_pct >= 0.0180 and pnl_usd >= 0.15)
                         is_staggered_harvest = False
                         is_maturity_rebalance = False
                         is_stale_rotation = False                 # Never dump spot holdings at a loss on time
-                        is_hard_stop = (pnl_pct <= -0.0080) or bool(pos.get("stop_loss", 0.0) > 0 and (new_live_price <= pos["stop_loss"] if act == "BUY" else new_live_price >= pos["stop_loss"]))
+                        # Calibrated 2.20% stop loss (prevents crypto noise stopouts) or explicit SL hit
+                        is_sl_price_hit = bool(pos.get("stop_loss", 0.0) > 0 and (new_live_price <= pos["stop_loss"] if act == "BUY" else new_live_price >= pos["stop_loss"]))
+                        is_hard_stop = (pnl_pct <= -0.0220) or is_sl_price_hit
                     else:
                         # Forex & Gold Nimble Scalp
-                        if highest_pnl >= 0.0045:
+                        if highest_pnl >= 0.0080:
                             pos["break_even_active"] = True
-                        is_break_even_guard = bool(pos.get("break_even_active") and pnl_pct <= 0.0018)
+                        is_break_even_guard = bool(pos.get("break_even_active") and pnl_pct <= 0.0025)
 
-                        is_tsl = (highest_pnl >= 0.0075) and (pnl_pct <= highest_pnl - 0.0025)
+                        is_tsl = (highest_pnl >= 0.0120) and (pnl_pct <= highest_pnl - 0.0040)
                         is_trailing_stop = is_tsl
 
-                        is_fee_secured_tp = (pnl_pct >= 0.0050)
-                        is_milestone = (pnl_pct >= 0.0090)
-                        is_micro_harvest = (pnl_usd >= 0.50 and pnl_pct >= 0.0030)
+                        is_fee_secured_tp = (pnl_pct >= 0.0120)
+                        is_milestone = (pnl_pct >= 0.0180)
+                        is_micro_harvest = (pnl_usd >= 0.50 and pnl_pct >= 0.0060)
                         is_staggered_harvest = False
                         is_maturity_rebalance = False
                         is_stale_rotation = False
-                        is_hard_stop = (pnl_pct <= -0.0060)
+                        is_hard_stop = (pnl_pct <= -0.0120)
 
                     should_close = (
                         is_break_even_guard or 

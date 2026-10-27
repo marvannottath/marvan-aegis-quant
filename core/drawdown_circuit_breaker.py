@@ -14,9 +14,9 @@ from datetime import datetime, timezone, timedelta
 
 IST_TZ = timezone(timedelta(hours=5, minutes=30))
 
-COOLDOWN_DURATION_SEC = 900.0  # 15 minutes
-MAX_DAILY_DRAWDOWN_PCT = 2.50   # 2.5% maximum daily loss ceiling
-CIRCUIT_TRIP_DURATION_SEC = 14400.0  # 4 hours halt
+COOLDOWN_DURATION_SEC = 180.0  # 3 minutes anti-chop cooldown (prevents 15m paralysis)
+MAX_DAILY_DRAWDOWN_PCT = 3.50   # 3.5% maximum daily loss ceiling
+CIRCUIT_TRIP_DURATION_SEC = 7200.0  # 2 hours halt
 
 class DrawdownCircuitBreaker:
     def __init__(self):
@@ -45,7 +45,7 @@ class DrawdownCircuitBreaker:
         sym_clean = symbol.upper().replace("/", "").strip()
         expire_at = time.time() + COOLDOWN_DURATION_SEC
         self._symbol_cooldowns[sym_clean] = expire_at
-        self._cooldown_reasons[sym_clean] = f"Hit Stop-Loss (${abs(loss_amount_usd):.2f}). 15m anti-chop cooldown engaged."
+        self._cooldown_reasons[sym_clean] = f"Hit Stop-Loss (${abs(loss_amount_usd):.2f}). 3m anti-chop cooldown engaged."
 
     def is_symbol_in_cooldown(self, symbol: str) -> Tuple[bool, str, float]:
         """Check if symbol is currently in cooldown."""

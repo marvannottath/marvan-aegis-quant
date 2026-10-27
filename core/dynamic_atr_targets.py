@@ -75,10 +75,10 @@ class DynamicATRTargets:
             raw_sl = atr_pct * 1.0
 
             # Clamp boundaries:
-            # TP between 0.35% and 2.50%
-            tp_pct = round(max(0.35, min(2.50, raw_tp)), 2)
-            # SL between 0.40% and 1.20%
-            sl_pct = round(max(0.40, min(1.20, raw_sl)), 2)
+            # TP between 1.50% and 4.00% (ensures meaningful reward)
+            tp_pct = round(max(1.50, min(4.00, raw_tp)), 2)
+            # SL between 1.20% and 2.50% (gives trade breathing room beyond noise)
+            sl_pct = round(max(1.20, min(2.50, raw_sl)), 2)
 
             if atr_pct > 0.80:
                 regime = "HIGH_VOLATILITY_EXPANSION"
@@ -87,11 +87,18 @@ class DynamicATRTargets:
             else:
                 regime = "NORMAL_TREND"
         else:
-            # Fallback to standard calibrated baseline
-            tp_pct = 0.60
-            sl_pct = 0.80
+            # Fallback to calibrated institutional baseline with proper breathing room
+            if workspace == "INDIA":
+                tp_pct = 1.80
+                sl_pct = 1.50
+            elif workspace == "CRYPTO":
+                tp_pct = 2.50
+                sl_pct = 2.00
+            else:
+                tp_pct = 1.60
+                sl_pct = 1.40
             atr = 0.0
-            regime = "BASELINE"
+            regime = "BASELINE_CALIBRATED"
 
         tp_price = round(entry_price * (1.0 + tp_pct / 100.0), 4 if entry_price < 10 else 2)
         sl_price = round(entry_price * (1.0 - sl_pct / 100.0), 4 if entry_price < 10 else 2)
