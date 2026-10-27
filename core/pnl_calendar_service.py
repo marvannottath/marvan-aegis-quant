@@ -59,6 +59,7 @@ class PnLCalendarService:
         days_list: List[Dict[str, Any]] = []
 
         total_net_pnl_usd = 0.0
+        total_net_pnl_inr = 0.0
         total_gross_wins = 0.0
         total_gross_losses = 0.0
         total_trades = 0
@@ -100,46 +101,63 @@ class PnLCalendarService:
 
             if day_real_trades:
                 d_trades_cnt = len(day_real_trades)
-                d_wins = [t for t in day_real_trades if (t.get("result") == "WIN") or float(t.get("gross_pnl", 0.0)) > 0 or float(t.get("net_pnl", 0.0) or t.get("pnl_usd", 0.0)) > 0]
-                d_losses = [t for t in day_real_trades if (t.get("result") == "LOSS") or (float(t.get("gross_pnl", 0.0)) < 0 and float(t.get("net_pnl", 0.0) or t.get("pnl_usd", 0.0)) < 0)]
-                d_win_cnt = len(d_wins)
-                d_loss_cnt = len(d_losses)
-                d_pnl = round(sum(float(t.get("net_pnl", 0.0) or t.get("pnl_usd", 0.0)) for t in day_real_trades), 2)
+                day_usd_pnl = 0.0
+                day_inr_pnl = 0.0
+                d_win_cnt = 0
+                d_loss_cnt = 0
+
+                for t in day_real_trades:
+                    raw_pnl = float(t.get("net_pnl") if "net_pnl" in t else (t.get("pnl_usd") or t.get("realized_pnl") or 0.0))
+                    t_ws = str(t.get("workspace", "")).upper()
+                    t_sym = str(t.get("symbol") or t.get("asset") or "").upper()
+                    is_india_trade = (t_ws == "INDIA") or any(k in t_sym for k in ["LICI", "RELIANCE", "INFY", "TCS", "HDFC", "GOLDBEES", "NIFTY", "BEES", ".NS"])
+
+                    if raw_pnl > 0.0001:
+                        d_win_cnt += 1
+                    elif raw_pnl < -0.0001:
+                        d_loss_cnt += 1
+
+                    if is_india_trade:
+                        d_trade_inr = raw_pnl
+                        d_trade_usd = raw_pnl / USD_TO_INR_RATE
+                    else:
+                        d_trade_usd = raw_pnl
+                        d_trade_inr = raw_pnl * USD_TO_INR_RATE
+
+                    day_usd_pnl += d_trade_usd
+                    day_inr_pnl += d_trade_inr
+
+                d_pnl_usd = round(day_usd_pnl, 2)
+                d_pnl_inr = round(day_inr_pnl, 2)
                 d_top_asset = day_real_trades[0].get("symbol") or day_real_trades[0].get("asset") or "BTCUSDT"
             else:
-                d_pnl = 0.0
+                d_pnl_usd = 0.0
+                d_pnl_inr = 0.0
                 d_trades_cnt = 0
                 d_win_cnt = 0
                 d_loss_cnt = 0
                 d_top_asset = "-"
 
-            d_pnl = round(d_pnl, 2)
-            is_india = (workspace == "INDIA")
-            if is_india:
-                d_pnl_inr = d_pnl
-                d_pnl_usd = round(d_pnl / USD_TO_INR_RATE, 2)
-            else:
-                d_pnl_usd = d_pnl
-                d_pnl_inr = round(d_pnl * USD_TO_INR_RATE, 2)
-
+            d_pnl = d_pnl_inr if workspace == "INDIA" else d_pnl_usd
             d_win_rate = round((d_win_cnt / d_trades_cnt) * 100.0, 1) if d_trades_cnt > 0 else 0.0
 
-            if d_pnl > 0:
+            if d_pnl > 0.001:
                 d_status = "PROFIT"
                 green_days_count += 1
-                total_gross_wins += d_pnl
-                if d_pnl > best_day["pnl_usd"]:
-                    best_day = {"date": date_str, "pnl_usd": d_pnl}
-            elif d_pnl < 0:
+                total_gross_wins += d_pnl_usd
+                if d_pnl_usd > best_day["pnl_usd"]:
+                    best_day = {"date": date_str, "pnl_usd": d_pnl_usd}
+            elif d_pnl < -0.001:
                 d_status = "LOSS"
                 red_days_count += 1
-                total_gross_losses += abs(d_pnl)
-                if d_pnl < worst_day["pnl_usd"]:
-                    worst_day = {"date": date_str, "pnl_usd": d_pnl}
+                total_gross_losses += abs(d_pnl_usd)
+                if d_pnl_usd < worst_day["pnl_usd"]:
+                    worst_day = {"date": date_str, "pnl_usd": d_pnl_usd}
             else:
                 d_status = "NEUTRAL"
 
-            total_net_pnl_usd += d_pnl
+            total_net_pnl_usd += d_pnl_usd
+            total_net_pnl_inr += d_pnl_inr
             total_trades += d_trades_cnt
             total_win_trades += d_win_cnt
             total_loss_trades += d_loss_cnt
@@ -169,8 +187,8 @@ class PnLCalendarService:
         month_dt = datetime(year, month, 1)
         month_name = month_dt.strftime("%B %Y").upper()
 
-        final_net_inr = round(total_net_pnl_usd if workspace == "INDIA" else total_net_pnl_usd * USD_TO_INR_RATE, 2)
-        final_net_usd = round(total_net_pnl_usd / USD_TO_INR_RATE if workspace == "INDIA" else total_net_pnl_usd, 2)
+        final_net_usd = round(total_net_pnl_usd, 2)
+        final_net_inr = round(total_net_pnl_inr, 2)
 
         return {
             "status": "SUCCESS",

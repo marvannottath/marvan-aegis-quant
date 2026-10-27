@@ -850,7 +850,7 @@ async def read_dashboard(request: Request):
     pnl_calendar_grid_html = ""
     try:
         from core.pnl_calendar_service import pnl_calendar_service
-        cal_data = pnl_calendar_service.get_monthly_calendar("2026-10", workspace=active_ws)
+        cal_data = pnl_calendar_service.get_monthly_calendar("2026-10", workspace=active_ws, environment=("DEMO" if is_demo else "LIVE"))
         first_weekday = cal_data.get("calendar_metadata", {}).get("first_day_weekday", 3)
         leading_blanks = (first_weekday + 1) % 7
         cal_html_parts = []
@@ -862,7 +862,10 @@ async def read_dashboard(request: Request):
             status = d.get("status", "NEUTRAL")
             bg_cls = "bg-gray-950/20 border-dashed border-gray-800/40 opacity-40" if is_fut else ("bg-gradient-to-br from-emerald-950/25 via-darkcard to-gray-950 border-emerald-500/30" if status == "PROFIT" else ("bg-gradient-to-br from-rose-950/25 via-darkcard to-gray-950 border-rose-500/30" if status == "LOSS" else "bg-gray-950/40 border-gray-800/60 text-gray-400"))
             pnl_cls = "text-gray-600" if is_fut else ("text-emerald-400 font-bold" if status == "PROFIT" else ("text-rose-400 font-bold" if status == "LOSS" else "text-gray-500"))
-            pnl_txt = "—" if is_fut else f"{'+' if pnl_val > 0 else ''}${abs(pnl_val):.2f}"
+            curr_sym = "₹" if active_ws == "INDIA" else "$"
+            pnl_val_curr = d.get("net_pnl_inr", 0.0) if active_ws == "INDIA" else pnl_val
+            pnl_sign = "+" if pnl_val_curr > 0 else ("-" if pnl_val_curr < 0 else "")
+            pnl_txt = "—" if is_fut else f"{pnl_sign}{curr_sym}{abs(pnl_val_curr):.2f}"
             sub_txt = "UPCOMING" if is_fut else (f"{d.get('trades_count', 0)} trds · {d.get('win_rate', 0)}%" if d.get('trades_count', 0) > 0 else ("Weekend" if d.get('is_weekend') else "Flat Cash"))
             top_asset_badge = f'<span class="text-[8px] font-mono px-1 py-0.2 rounded bg-gray-900 border border-gray-800 text-gray-400">{d.get("top_asset")}</span>' if d.get("top_asset") and d.get("top_asset") != "-" else ""
             cal_html_parts.append(f"""

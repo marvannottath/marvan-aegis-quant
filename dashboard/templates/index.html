@@ -10710,7 +10710,11 @@
                 const targetMonth = month || currentPnLMonth;
                 if (targetMonth) currentPnLMonth = targetMonth;
                 const ws = window.activeMarketVenue || 'CRYPTO';
-                const url = targetMonth ? `/api/analytics/pnl-calendar?month=${encodeURIComponent(targetMonth)}&workspace=${encodeURIComponent(ws)}` : `/api/analytics/pnl-calendar?workspace=${encodeURIComponent(ws)}`;
+                const isDemo = window.location.pathname.startsWith('/demo') || window.location.search.includes('demo=true');
+                const env = isDemo ? 'DEMO' : 'LIVE';
+                const url = targetMonth 
+                    ? `/api/analytics/pnl-calendar?month=${encodeURIComponent(targetMonth)}&workspace=${encodeURIComponent(ws)}&environment=${encodeURIComponent(env)}` 
+                    : `/api/analytics/pnl-calendar?workspace=${encodeURIComponent(ws)}&environment=${encodeURIComponent(env)}`;
                 const res = await fetch(url);
                 const data = await res.json();
                 if (data && data.status === 'SUCCESS') {
@@ -10724,20 +10728,29 @@
         function renderPnLCalendar(data) {
             if (!data || !data.days) return;
             const kpis = data.kpis || {};
+            const ws = data.workspace || window.activeMarketVenue || 'CRYPTO';
+            const currSym = (ws === 'INDIA') ? '₹' : '$';
             
             // Badge & KPIs
             const badge = document.getElementById('pnl-cal-month-badge');
-            if (badge) badge.textContent = (data.month_name || 'SEPTEMBER 2026').toUpperCase();
+            if (badge) badge.textContent = (data.month_name || 'OCTOBER 2026').toUpperCase();
 
             const netPnlEl = document.getElementById('cal-kpi-net-pnl');
             if (netPnlEl) {
-                const net = kpis.total_net_pnl_usd || 0;
-                netPnlEl.textContent = (net >= 0 ? '+' : '') + '$' + net.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                const net = (ws === 'INDIA' && kpis.total_net_pnl_inr !== undefined) ? kpis.total_net_pnl_inr : (kpis.total_net_pnl_usd || 0);
+                const pnlSign = net > 0 ? '+' : (net < 0 ? '-' : '');
+                netPnlEl.textContent = `${pnlSign}${currSym}${Math.abs(net).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
                 netPnlEl.className = net >= 0 ? 'text-sm font-black text-emerald-400 mt-1 block' : 'text-sm font-black text-rose-400 mt-1 block';
             }
 
             const inrEl = document.getElementById('cal-kpi-net-inr');
-            if (inrEl) inrEl.textContent = '₹' + (kpis.total_net_pnl_inr || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            if (inrEl) {
+                if (ws === 'INDIA') {
+                    inrEl.textContent = `₹${(kpis.total_net_pnl_inr || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                } else {
+                    inrEl.textContent = `₹${(kpis.total_net_pnl_inr || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Equiv`;
+                }
+            }
 
             const ratioEl = document.getElementById('cal-kpi-days-ratio');
             if (ratioEl) ratioEl.innerHTML = `<span class="text-emerald-400">${kpis.green_days || 0}W</span> - <span class="text-rose-400">${kpis.red_days || 0}L</span>`;
@@ -10755,12 +10768,18 @@
             if (pfEl) pfEl.textContent = `${kpis.profit_factor || 0}`;
 
             const bestEl = document.getElementById('cal-kpi-best-day');
-            if (bestEl) bestEl.textContent = '+$' + (kpis.best_day?.pnl_usd || 0).toFixed(2);
+            if (bestEl) {
+                const bestVal = (ws === 'INDIA') ? (kpis.best_day?.pnl_usd || 0) * 87.50 : (kpis.best_day?.pnl_usd || 0);
+                bestEl.textContent = `+${currSym}${bestVal.toFixed(2)}`;
+            }
             const bestDateEl = document.getElementById('cal-kpi-best-date');
             if (bestDateEl) bestDateEl.textContent = kpis.best_day?.date || '-';
 
             const worstEl = document.getElementById('cal-kpi-worst-day');
-            if (worstEl) worstEl.textContent = '-$' + Math.abs(kpis.worst_day?.pnl_usd || 0).toFixed(2);
+            if (worstEl) {
+                const worstVal = (ws === 'INDIA') ? Math.abs(kpis.worst_day?.pnl_usd || 0) * 87.50 : Math.abs(kpis.worst_day?.pnl_usd || 0);
+                worstEl.textContent = `-${currSym}${worstVal.toFixed(2)}`;
+            }
             const worstDateEl = document.getElementById('cal-kpi-worst-date');
             if (worstDateEl) worstDateEl.textContent = kpis.worst_day?.date || '-';
 
@@ -10807,8 +10826,9 @@
                 cell.className = `p-2.5 rounded-xl border flex flex-col justify-between h-20 transition-all cursor-pointer ${bgClasses}`;
                 cell.onclick = () => selectPnLDay(day);
 
-                const pnlSign = day.net_pnl_usd > 0 ? '+' : '';
-                const pnlText = isFuture ? '—' : `${pnlSign}$${Math.abs(day.net_pnl_usd).toFixed(2)}`;
+                const dayPnlVal = (ws === 'INDIA' && day.net_pnl_inr !== undefined) ? day.net_pnl_inr : day.net_pnl_usd;
+                const pnlSign = dayPnlVal > 0 ? '+' : (dayPnlVal < 0 ? '-' : '');
+                const pnlText = isFuture ? '—' : `${pnlSign}${currSym}${Math.abs(dayPnlVal).toFixed(2)}`;
                 const subText = isFuture ? 'UPCOMING' : (day.trades_count > 0 ? `${day.trades_count} trds · ${day.win_rate}%` : (day.is_weekend ? 'Weekend' : 'Flat Cash'));
 
                 cell.innerHTML = `
