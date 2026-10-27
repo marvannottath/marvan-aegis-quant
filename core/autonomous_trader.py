@@ -49,6 +49,8 @@ class AutonomousTrader:
         ]
         self.position_age: Dict[str, int] = {}
         self.closed_cooldowns: Dict[str, float] = {}
+        self._daily_symbol_trade_counts: Dict[str, int] = {}
+        self._daily_trade_counts_date: str = ""
         from core.close_in_flight_tracker import close_in_flight_tracker
         self.in_flight_tracker = close_in_flight_tracker
         self.close_in_flight: Dict[str, Dict[str, Any]] = self.in_flight_tracker.in_flight_orders
@@ -561,15 +563,28 @@ class AutonomousTrader:
 
                             # Calibrated High-Probability Threshold for active quant execution
                             if _active_ws == "INDIA":
-                                min_opp_threshold = 80.0
+                                min_opp_threshold = 85.0  # High conviction threshold to eliminate low-probability chop
                             elif "AGGRESSIVE" in profile_name:
-                                min_opp_threshold = 75.0
+                                min_opp_threshold = 78.0
                             elif "MODERATE" in profile_name:
-                                min_opp_threshold = 80.0
+                                min_opp_threshold = 82.0
                             else:
                                 min_opp_threshold = 85.0
 
                             if opp_score < min_opp_threshold:
+                                continue
+
+                            # Anti-Overtrading Shield: Limit each symbol to max 3 roundtrip trades per day
+                            # This completely stops fee bleeding and repetitive churning on a single stock
+                            today_date_str = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d")
+                            if self._daily_trade_counts_date != today_date_str:
+                                self._daily_trade_counts_date = today_date_str
+                                self._daily_symbol_trade_counts.clear()
+
+                            trades_today_for_sym = self._daily_symbol_trade_counts.get(ticker, 0)
+                            if _active_ws == "INDIA" and trades_today_for_sym >= 3:
+                                if step_counter % 30 == 0:
+                                    self._log_action(ticker, "DAILY_CAP_REACHED", current_price, 0.0, f"Daily limit reached ({trades_today_for_sym}/3 trades today). Preventing overtrading & fee erosion.")
                                 continue
 
                             # Respect closed position cooldown and close-in-flight barrier to prevent immediate churn / repeat execution
@@ -1119,19 +1134,17 @@ class AutonomousTrader:
                                 new_live_price = max(0.0001, base_price * (1.0 + delta_pct))
                         elif is_india_sym:
                             try:
-                                from core.indian_market_data import indian_market_data
-                                q = indian_market_data.get_quote(pos_asset)
-                                if q and float(q.get("last_price", 0.0)) > 0:
-                                    new_live_price = float(q["last_price"])
+                                from core.public_market_feed import public_market_feed
+                                q = public_market_feed.get_quote(pos_asset)
+                                if q and float(q.get("price", 0.0)) > 0:
+                                    new_live_price = float(q["price"])
                                 else:
-                                    base_price = pos.get("last_price", pos["entry_price"])
-                                    new_live_price = max(0.05, base_price * (1.0 + delta_pct))
+                                    new_live_price = float(pos.get("last_price", pos["entry_price"]))
                             except Exception:
-                                base_price = pos.get("last_price", pos["entry_price"])
-                                new_live_price = max(0.05, base_price * (1.0 + delta_pct))
+                                new_live_price = float(pos.get("last_price", pos["entry_price"]))
                         else:
                             base_price = pos.get("last_price", pos["entry_price"])
-                            new_live_price = max(0.0001, base_price * (1.0 + delta_pct))
+                            new_live_price = base_price
 
                     if "USD" in pos_asset and new_live_price < 50.0:
                         pos["last_price"] = round(new_live_price, 4)
@@ -1170,21 +1183,25 @@ class AutonomousTrader:
 
                     # ── ASSET-CALIBRATED BREAK-EVEN RATCHET & RISK-REWARD ENGINE ───
                     # Guaranteed Capital Preservation with Market-Noise Breathing Room
+                    # Minimum Holding Buffer: Require at least 180s (3 minutes) before soft trailing/breakeven triggers,
+                    # ensuring positions have time to develop into full profit targets without dying to bid-ask chop!
+                    has_minimum_tenure = (time_held_sec >= 180.0)
+
                     if pos_ws == "INDIA" or is_zero_brokerage_venue:
                         # Indian Equities (Intraday MIS with proper market noise breathing room):
                         # Break-even engages only once a solid +1.20% gain is achieved, securing +0.30%
                         if highest_pnl >= 0.0120:
                             pos["break_even_active"] = True
-                        is_break_even_guard = bool(pos.get("break_even_active") and pnl_pct <= 0.0030)
+                        is_break_even_guard = bool(has_minimum_tenure and pos.get("break_even_active") and pnl_pct <= 0.0030)
 
                         # Trailing Stop: Lock profit once runner exceeds +1.80%, trailing by 0.50%
-                        is_tsl = (highest_pnl >= 0.0180) and (pnl_pct <= highest_pnl - 0.0050)
+                        is_tsl = bool(has_minimum_tenure and (highest_pnl >= 0.0180) and (pnl_pct <= highest_pnl - 0.0050))
                         is_trailing_stop = is_tsl
 
-                        # Take Profit: Target +1.60% (standard intraday swing target) or explicit TP level crossed
+                        # Take Profit: Target +1.80% (standard intraday swing target) or explicit TP level crossed
                         is_tp_price_hit = bool(pos.get("take_profit", 0.0) > 0 and (new_live_price >= pos["take_profit"] if act == "BUY" else new_live_price <= pos["take_profit"]))
-                        is_fee_secured_tp = (pnl_pct >= 0.0160) or is_tp_price_hit
-                        is_milestone = (pnl_pct >= 0.0250)        # 1:1.5 institutional runner target (+2.50%)
+                        is_fee_secured_tp = (pnl_pct >= 0.0180) or is_tp_price_hit
+                        is_milestone = (pnl_pct >= 0.0280)        # 1:1.5 institutional runner target (+2.80%)
                         is_micro_harvest = False
                         is_staggered_harvest = False
                         is_maturity_rebalance = False
@@ -1474,6 +1491,7 @@ class AutonomousTrader:
                             reason=close_reason,
                             skip_exchange_order=False
                         )
+                        self._daily_symbol_trade_counts[pos_asset] = self._daily_symbol_trade_counts.get(pos_asset, 0) + 1
                         self.closed_cooldowns[pos_asset] = time.time() + (300.0 if "KOTAK" in pool.upper() or _active_ws == "INDIA" else 60.0)
                         self.position_age.pop(pos_asset, None)
                         self._log_action(pos_asset, "CLOSE", new_live_price, pos.get("capital_allocated", 500.0), f"Position Closed & Swept ({close_reason})")

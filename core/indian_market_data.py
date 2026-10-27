@@ -216,6 +216,20 @@ class IndianMarketDataEngine:
             "quotes": results
         }
 
+    def get_quote(self, symbol: str) -> Dict[str, Any]:
+        """Fetch quote for a single symbol using public_market_feed or internal tick cache."""
+        sym_clean = symbol.upper().replace("-EQ", "").strip()
+        try:
+            from core.public_market_feed import public_market_feed
+            q = public_market_feed.get_quote(sym_clean)
+            if q and float(q.get("price", 0.0)) > 0:
+                q["ltp"] = float(q["price"])
+                q["last_price"] = float(q["price"])
+                return q
+        except Exception:
+            pass
+        return self._last_ticks.get(sym_clean, {})
+
     def get_top_instruments(self) -> List[Dict[str, Any]]:
         """Return master instrument list for Indian markets."""
         return [
