@@ -395,6 +395,43 @@ class AutonomousTrader:
                         except Exception:
                             pass
 
+                    # Sync connected Kotak Neo Live balance and live open positions
+                    if pool == "KOTAK_NEO_LIVE" or (_active_ws == "INDIA" and is_live_pool):
+                        try:
+                            from execution.kotak_neo_broker import kotak_neo_broker
+                            k_funds = kotak_neo_broker.get_funds(environment="LIVE")
+                            k_cash = float(k_funds.get("available_margin", k_funds.get("cash", 0.0)))
+                            if k_cash > 0:
+                                self.broker.pools.setdefault("KOTAK_NEO_LIVE", {})["virtual_cash"] = k_cash
+                                self.broker.virtual_cash = k_cash
+
+                            k_live_pos = kotak_neo_broker.get_positions("LIVE")
+                            pool_pos = self.broker.pools.setdefault("KOTAK_NEO_LIVE", {}).setdefault("positions", {})
+                            for kp in k_live_pos:
+                                sym = kp.get("symbol") or kp.get("asset")
+                                if sym and sym not in pool_pos:
+                                    qty = float(kp.get("quantity", kp.get("units", 1)))
+                                    entry_px = float(kp.get("buy_price", kp.get("entry_price", 0.0)))
+                                    cur_px = float(kp.get("current_price", entry_px))
+                                    cap = round(qty * entry_px, 2)
+                                    pos_record = {
+                                        "trade_id": f"TRD-KNEO-{sym}-{int(time.time()*1000)}",
+                                        "asset": sym, "symbol": sym, "action": kp.get("side", "BUY"), "side": kp.get("side", "BUY"),
+                                        "units": qty, "quantity": qty, "entry_price": entry_px,
+                                        "last_price": cur_px, "current_price": cur_px, "capital_allocated": cap,
+                                        "margin": cap, "leverage": 1.0, "market_value": round(qty * cur_px, 2),
+                                        "pnl_usd": round(float(kp.get("unrealized_pnl", 0.0)), 2),
+                                        "take_profit": round(entry_px * 1.015, 2), "stop_loss": round(entry_px * 0.988, 2),
+                                        "product": "MIS", "status": "ACTIVE", "environment": "LIVE", "workspace": "INDIA",
+                                        "source": "KOTAK_NEO_LIVE",
+                                        "timestamp": datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S")
+                                    }
+                                    pool_pos[sym] = pos_record
+                                    if sym not in self.broker.positions:
+                                        self.broker.positions[sym] = pos_record
+                        except Exception:
+                            pass
+
                     # 2. Risk profile & Capacity
                     venue_prof = self.risk_engine.get_profile(_active_ws, _engine_env)
                     profile_name = venue_prof.get("name", "CONSERVATIVE")
