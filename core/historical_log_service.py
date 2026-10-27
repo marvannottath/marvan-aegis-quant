@@ -40,14 +40,14 @@ class HistoricalLogService:
             try:
                 with open(self.AUTHORITATIVE_ARCHIVE, "r") as f:
                     archived = json.load(f)
-                    if isinstance(archived, list):
-                        for t in archived:
-                            if isinstance(t, dict) and t.get("trade_id"):
-                                trades_map[t["trade_id"]] = t
-                    elif isinstance(archived, dict):
-                        for tid, t in archived.items():
-                            if isinstance(t, dict):
-                                trades_map[tid] = t
+                    items = archived if isinstance(archived, list) else list(archived.values())
+                    for t in items:
+                        if isinstance(t, dict) and t.get("trade_id"):
+                            # Filter out mock/simulated trades that were mistakenly tagged as LIVE
+                            if t.get("environment") == "LIVE":
+                                if t.get("source") not in ("KOTAK_NEO_LIVE", "BINANCE_LIVE") or "179308" in str(t.get("trade_id")):
+                                    t["environment"] = "DEMO"
+                            trades_map[t["trade_id"]] = t
             except Exception as ae:
                 print(f"[HistoricalLogService] Authoritative archive load notice: {ae}")
 
@@ -302,6 +302,8 @@ class HistoricalLogService:
                         )
                         for t in pool_data.get("trade_history", []):
                             norm = self._normalise_trade_record(t, pool_name=pool_name, workspace=ws)
+                            # Any trade from paper broker file is strictly DEMO
+                            norm["environment"] = "DEMO"
                             if norm and norm.get("trade_id") and norm["trade_id"] not in trades_map:
                                 trades_map[norm["trade_id"]] = norm
                 except Exception as e:
@@ -319,6 +321,7 @@ class HistoricalLogService:
                     )
                     for t in pool.get("trade_history", []):
                         norm = self._normalise_trade_record(t, pool_name=pool_name, workspace=ws)
+                        norm["environment"] = "DEMO"
                         if norm and norm.get("trade_id") and norm["trade_id"] not in trades_map:
                             trades_map[norm["trade_id"]] = norm
         except Exception as e:
