@@ -30,7 +30,8 @@ class SignalEnsembleEngine:
     def __init__(self):
         self.sub_agents = [
             "Trend_AI", "Momentum_AI", "Mean_Reversion_AI", 
-            "Volatility_AI", "Sentiment_AI", "Macro_AI", "Order_Flow_AI"
+            "Volatility_AI", "Sentiment_AI", "Macro_AI", "Order_Flow_AI",
+            "Candlestick_AI"
         ]
         self.precision_mode = "HIGH_CONVICTION"
         self.min_confidence_threshold = 80.0
@@ -272,6 +273,37 @@ class SignalEnsembleEngine:
         # Order Flow AI: Liquidity depth and spread quality
         order_flow_score = (92.0 if range_pos >= 0.50 else 82.0) if session_active and not is_news_locked else 55.0
 
+        # Candlestick AI: 8th Sub-Agent — Japanese Candlestick Recognition Engine
+        candle_score = 65.0
+        detected_pattern = "STANDARD_PRICE_ACTION"
+        candle_desc = "Normal candle flow"
+        try:
+            from core.candlestick_pattern_engine import candlestick_pattern_engine
+            c_open = metrics["prev_close"] if metrics["prev_close"] > 0 else current_price * (1.0 - pct_24h / 100.0)
+            c_high = metrics["high"]
+            c_low = metrics["low"]
+            c_close = current_price
+
+            p_open = c_open * 0.998 if pct_24h >= 0 else c_open * 1.002
+            p_close = c_open
+            p_high = max(p_open, p_close) * 1.002
+            p_low = min(p_open, p_close) * 0.998
+
+            sample_candles = [
+                {"open": p_open, "high": p_high, "low": p_low, "close": p_close},
+                {"open": c_open, "high": c_high, "low": c_low, "close": c_close}
+            ]
+            c_res = candlestick_pattern_engine.analyze_candles(sample_candles)
+            detected_pattern = c_res.get("pattern", "STANDARD_PRICE_ACTION")
+            candle_desc = c_res.get("description", "")
+            raw_c_score = float(c_res.get("score", 65.0))
+            if raw_c_score > 0:
+                candle_score = min(99.0, max(30.0, raw_c_score))
+            else:
+                candle_score = max(20.0, 50.0 + raw_c_score / 2.0)
+        except Exception:
+            pass
+
         agent_scores = {
             "Trend_AI": round(float(trend_score), 1),
             "Momentum_AI": round(float(momentum_score), 1),
@@ -279,18 +311,20 @@ class SignalEnsembleEngine:
             "Volatility_AI": round(float(volatility_score), 1),
             "Volume_AI": round(float(vol_ai_score), 1),
             "Macro_AI": round(float(macro_score), 1),
-            "Order_Flow_AI": round(float(order_flow_score), 1)
+            "Order_Flow_AI": round(float(order_flow_score), 1),
+            "Candlestick_AI": round(float(candle_score), 1)
         }
 
-        # Weighted aggregate confidence
+        # Weighted aggregate confidence across all 8 AI sub-agents
         weights = {
-            "Trend_AI": 0.22,
-            "Momentum_AI": 0.20,
-            "Macro_AI": 0.15,
-            "Order_Flow_AI": 0.13,
-            "Volatility_AI": 0.11,
-            "Volume_AI": 0.11,
-            "Mean_Reversion_AI": 0.08
+            "Trend_AI": 0.20,
+            "Momentum_AI": 0.18,
+            "Candlestick_AI": 0.15,
+            "Macro_AI": 0.13,
+            "Order_Flow_AI": 0.12,
+            "Volatility_AI": 0.08,
+            "Volume_AI": 0.07,
+            "Mean_Reversion_AI": 0.07
         }
         weighted_confidence = round(sum(agent_scores[k] * weights[k] for k in agent_scores), 1)
 
@@ -334,6 +368,13 @@ class SignalEnsembleEngine:
         if vol < 0.003 and abs(pct_24h) < 0.1:
             shields_passed -= 50
             failed_reasons.append("Flat Market — Insufficient amplitude to comfortably clear trading fees")
+
+        if detected_pattern in ("BEARISH_SHOOTING_STAR", "BEARISH_ENGULFING"):
+            shields_passed -= 85
+            failed_reasons.append(f"Bearish Candlestick Rejection ({detected_pattern})")
+        elif detected_pattern in ("BULLISH_ENGULFING", "BULLISH_HAMMER", "MORNING_STAR"):
+            # Strong institutional price action confirmation
+            pass
 
         shields_passed = max(0, min(1000, shields_passed))
 
@@ -406,6 +447,8 @@ class SignalEnsembleEngine:
             "rr": f"{calc_rr:.2f}",
             "volatility_regime": f"NORMAL ({vol*100:.2f}%)" if vol <= 0.025 else f"ELEVATED ({vol*100:.2f}%)",
             "rsi": round(rsi, 1),
+            "candlestick_pattern": detected_pattern,
+            "candlestick_description": candle_desc,
             "sub_agent_breakdown": agent_scores,
             "fortress_shields_passed": shields_passed,
             "fortress_shields_total": 1000,

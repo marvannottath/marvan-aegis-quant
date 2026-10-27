@@ -7,6 +7,7 @@ Resets automatically at 08:00 AM IST for each fresh trading day.
 """
 
 import json
+import time
 from pathlib import Path
 from typing import Dict, Any, Tuple
 from datetime import datetime, timezone, timedelta
@@ -16,13 +17,15 @@ CIRCUIT_DB = Path(__file__).resolve().parent.parent / "data" / "circuit_breaker_
 
 
 class DailyCircuitBreaker:
-    MAX_CONSECUTIVE_LOSSES = 4
-    MAX_DAILY_DRAWDOWN_PCT = 3.0  # 3.0% strict prop-firm capital preservation limit
+    MAX_CONSECUTIVE_LOSSES = 2
+    COOL_OFF_DURATION_SECONDS = 1800  # 30-minute institutional cooling period
+    MAX_DAILY_DRAWDOWN_PCT = 2.0      # 2.0% strict prop-firm capital preservation limit
 
     def __init__(self):
         self.session_date: str = ""
         self.daily_pnl: float = 0.0
         self.consecutive_losses: int = 0
+        self.cool_off_until: float = 0.0
         self.is_circuit_open: bool = False  # True means TRADING LOCKED
         self.lock_reason: str = ""
         self._load_state()
@@ -38,6 +41,7 @@ class DailyCircuitBreaker:
                         self.session_date = today
                         self.daily_pnl = float(data.get("daily_pnl", 0.0))
                         self.consecutive_losses = int(data.get("consecutive_losses", 0))
+                        self.cool_off_until = float(data.get("cool_off_until", 0.0))
                         self.is_circuit_open = bool(data.get("is_circuit_open", False))
                         self.lock_reason = data.get("lock_reason", "")
                         return
@@ -48,6 +52,7 @@ class DailyCircuitBreaker:
         self.session_date = today
         self.daily_pnl = 0.0
         self.consecutive_losses = 0
+        self.cool_off_until = 0.0
         self.is_circuit_open = False
         self.lock_reason = ""
         self._save_state()
@@ -60,6 +65,7 @@ class DailyCircuitBreaker:
                     "session_date": self.session_date,
                     "daily_pnl": round(self.daily_pnl, 2),
                     "consecutive_losses": self.consecutive_losses,
+                    "cool_off_until": round(self.cool_off_until, 2),
                     "is_circuit_open": self.is_circuit_open,
                     "lock_reason": self.lock_reason,
                     "updated_at": datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S IST"),
@@ -69,17 +75,24 @@ class DailyCircuitBreaker:
             print(f"[CIRCUIT_BREAKER] Save notice: {e}")
 
     def check_trading_allowed(self) -> Tuple[bool, str]:
-        """Verify if orders are allowed or locked by circuit breaker."""
+        """Verify if orders are allowed or locked by circuit breaker or cool-off."""
         today = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d")
         if self.session_date != today:
             self._load_state()
 
         if self.is_circuit_open:
             return False, f"CIRCUIT_LOCKED: {self.lock_reason}"
+
+        now_sec = time.time()
+        if self.cool_off_until > now_sec:
+            rem_sec = int(self.cool_off_until - now_sec)
+            rem_min = max(1, (rem_sec + 59) // 60)
+            return False, f"COOL_OFF_ACTIVE: 30-min cool-off active after {self.consecutive_losses} consecutive losses ({rem_min}m remaining)"
+
         return True, "CIRCUIT_OK: Trading allowed"
 
     def record_trade_result(self, pnl: float, capital_base: float = 1000.0) -> Dict[str, Any]:
-        """Record trade outcome and update circuit breaker thresholds."""
+        """Record trade outcome and update circuit breaker / cool-off thresholds."""
         today = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d")
         if self.session_date != today:
             self._load_state()
@@ -88,23 +101,24 @@ class DailyCircuitBreaker:
 
         if pnl < 0:
             self.consecutive_losses += 1
+            if self.consecutive_losses >= self.MAX_CONSECUTIVE_LOSSES:
+                self.cool_off_until = time.time() + self.COOL_OFF_DURATION_SECONDS
+                print(f"[CIRCUIT_BREAKER] 🛑 {self.consecutive_losses} consecutive losses reached. 30-min cool-off engaged until {datetime.fromtimestamp(self.cool_off_until, tz=IST_TZ).strftime('%H:%M:%S IST')}")
         else:
             self.consecutive_losses = 0
-            # If the session is profitable or back in green, clear consecutive loss lock!
+            self.cool_off_until = 0.0
+            # If the session is profitable or back in green, clear circuit lock
             if self.daily_pnl >= 0:
                 self.is_circuit_open = False
                 self.lock_reason = ""
 
-        # Check thresholds
+        # Check maximum daily drawdown threshold (2.0%)
         drawdown_pct = abs(min(0.0, self.daily_pnl)) / max(100.0, capital_base) * 100.0
 
-        if self.consecutive_losses >= self.MAX_CONSECUTIVE_LOSSES:
+        if drawdown_pct >= self.MAX_DAILY_DRAWDOWN_PCT:
             self.is_circuit_open = True
-            self.lock_reason = f"Max consecutive losses reached ({self.consecutive_losses}/{self.MAX_CONSECUTIVE_LOSSES}). Capital preservation lock engaged."
-
-        elif drawdown_pct >= self.MAX_DAILY_DRAWDOWN_PCT:
-            self.is_circuit_open = True
-            self.lock_reason = f"Max daily drawdown limit reached (-{drawdown_pct:.1f}% >= -{self.MAX_DAILY_DRAWDOWN_PCT}%). Session halted."
+            self.lock_reason = f"Max daily loss cap reached (-{drawdown_pct:.1f}% >= -{self.MAX_DAILY_DRAWDOWN_PCT}%). Session halted to protect capital."
+            print(f"[CIRCUIT_BREAKER] 🚨 {self.lock_reason}")
 
         self._save_state()
 

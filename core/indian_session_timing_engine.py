@@ -168,8 +168,8 @@ class IndianSessionTimingEngine:
         else:
             rec = self.orb_ranges[clean_sym]
             rec["last"] = price
-            # Only expand ORB high/low during 09:15 to 09:45 AM
-            if 915 <= time_val <= 945:
+            # Only expand ORB high/low during 09:15 to 09:30 AM (15-min Opening Range)
+            if 915 <= time_val < 930:
                 rec["high"] = max(rec["high"], price)
                 rec["low"] = min(rec["low"], price)
 
@@ -179,14 +179,14 @@ class IndianSessionTimingEngine:
 
     def evaluate_orb_signal(self, symbol: str, current_price: float) -> Dict[str, Any]:
         """
-        Check if current price has cleanly broken out of the 30-min Opening Range.
+        Check if current price has cleanly broken out of the 15-min Opening Range.
         Returns:
           signal: 'BUY' (Breakout above High) | 'SELL' (Breakout below Low) | 'NEUTRAL'
         """
         clean_sym = symbol.replace("-EQ", "").upper()
         rec = self.orb_ranges.get(clean_sym)
         if not rec:
-            return {"signal": "NEUTRAL", "reason": "No ORB range established"}
+            return {"signal": "NEUTRAL", "reason": "No 15-min ORB range established"}
 
         high = rec["high"]
         low = rec["low"]
@@ -207,7 +207,7 @@ class IndianSessionTimingEngine:
                 "orb_low": low,
                 "current_price": current_price,
                 "breakout_pct": round((current_price - high) / high * 100.0, 2),
-                "reason": f"ORB Bullish Breakout above 30m High ₹{high:,.2f}"
+                "reason": f"ORB Bullish Breakout above 15m High ₹{high:,.2f}"
             }
         elif current_price < (low - breakout_buffer):
             return {
@@ -216,7 +216,7 @@ class IndianSessionTimingEngine:
                 "orb_low": low,
                 "current_price": current_price,
                 "breakout_pct": round((low - current_price) / low * 100.0, 2),
-                "reason": f"ORB Bearish Breakdown below 30m Low ₹{low:,.2f}"
+                "reason": f"ORB Bearish Breakdown below 15m Low ₹{low:,.2f}"
             }
 
         return {
@@ -224,7 +224,7 @@ class IndianSessionTimingEngine:
             "orb_high": high,
             "orb_low": low,
             "current_price": current_price,
-            "reason": f"Inside 30m Opening Range (₹{low:,.2f} - ₹{high:,.2f})"
+            "reason": f"Inside 15m Opening Range (₹{low:,.2f} - ₹{high:,.2f})"
         }
 
 

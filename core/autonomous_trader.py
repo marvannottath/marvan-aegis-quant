@@ -6,6 +6,7 @@ Engineered for Non-Stop Institutional Multi-Asset Scalping & Streaming Profit Sw
 """
 
 import time
+import math
 import threading
 import numpy as np
 from datetime import datetime, timezone, timedelta
@@ -524,15 +525,19 @@ class AutonomousTrader:
                             action_signal = item["ai_action"]
                             opp_score = item["opportunity_score"]
 
-                            # Multi-Strategy Time Ensemble & 30m ORB Breakout for Indian Markets
+                            # Multi-Strategy Time Ensemble, 15m ORB Breakout & VWAP Anchor for Indian Markets
                             if _active_ws == "INDIA":
                                 try:
                                     from core.indian_session_timing_engine import indian_session_timing_engine
                                     indian_session_timing_engine.update_tick(ticker, current_price)
                                     orb_eval = indian_session_timing_engine.evaluate_orb_signal(ticker, current_price)
-                                    if orb_eval.get("signal") in ["BUY", "SELL"]:
-                                        action_signal = orb_eval["signal"]
-                                        opp_score = max(opp_score, 88.0)
+                                    if orb_eval.get("signal") == "BUY":
+                                        action_signal = "BUY"
+                                        opp_score = max(opp_score, 90.0)
+                                    elif orb_eval.get("signal") == "SELL":
+                                        # Below 15m opening low: block any long buy entries
+                                        if action_signal in ("BUY", "LONG"):
+                                            continue
                                 except Exception:
                                     pass
 
@@ -550,6 +555,17 @@ class AutonomousTrader:
                                     if strat_eval.get("action") in ["BUY", "SELL"]:
                                         action_signal = strat_eval["action"]
                                         opp_score = max(opp_score, float(strat_eval["confidence"]))
+
+                                    # VWAP Dynamic Institutional Anchor Filter:
+                                    # Never buy a stock crashing >0.8% below institutional VWAP!
+                                    if v_vwap > 0 and action_signal in ("BUY", "LONG"):
+                                        vwap_dev = (current_price - v_vwap) / v_vwap * 100.0
+                                        if vwap_dev < -0.80:
+                                            # Below institutional VWAP by >0.8%: block BUY to prevent catching falling knife
+                                            continue
+                                        elif abs(vwap_dev) <= 0.30 or current_price >= v_vwap:
+                                            # Reclaiming or bouncing from VWAP: institutional support confirmed!
+                                            opp_score = min(99.0, opp_score + 6.0)
                                 except Exception:
                                     pass
 
@@ -1297,6 +1313,50 @@ class AutonomousTrader:
                         is_stale_rotation = False
                         is_sl_price_hit = bool(pos.get("stop_loss", 0.0) > 0 and (new_live_price <= pos["stop_loss"] if act == "BUY" else new_live_price >= pos["stop_loss"]))
                         is_hard_stop = (pnl_pct <= -0.0080) or is_sl_price_hit
+
+                    # ── TACTIC 1: PARTIAL PROFIT BOOKING (50% Scalp Harvest) ───
+                    # Bank 50% profit at +0.50% (+0.70% in Crypto), ride remaining 50% with fee-secured trailing ratchet!
+                    harvest_threshold = 0.0070 if pos_ws == "CRYPTO" else 0.0050
+                    if pnl_pct >= harvest_threshold and not pos.get("partial_harvested"):
+                        curr_qty = float(pos.get("quantity") or pos.get("units") or 1.0)
+                        can_split_equity = (pos_ws == "INDIA" and curr_qty >= 2.0)
+                        can_split_crypto = (pos_ws == "CRYPTO" and curr_qty > 0.0001)
+                        can_split_forex = (pos_ws == "FOREX_GOLD" and curr_qty >= 0.02)
+
+                        if can_split_equity or can_split_crypto or can_split_forex:
+                            if pos_ws == "INDIA":
+                                units_to_harvest = float(math.floor(curr_qty / 2.0))
+                            else:
+                                units_to_harvest = round(curr_qty * 0.5, 6)
+
+                            if units_to_harvest > 0:
+                                pos["partial_harvested"] = True
+                                pos["fee_secured_active"] = True
+                                pos["dynamic_trailing_floor"] = max(pos.get("dynamic_trailing_floor", 0.0), 0.0025)
+                                # Execute partial close on broker
+                                self.broker.close_position(
+                                    asset=pos_asset,
+                                    exit_price=new_live_price,
+                                    current_indicators={"RSI": 55.0, "Volatility": 0.01},
+                                    reason="PARTIAL_PROFIT_HARVEST_50PCT",
+                                    skip_exchange_order=False,
+                                    close_units=units_to_harvest
+                                )
+                                self._log_action(
+                                    pos_asset, "PARTIAL_HARVEST_50PCT", new_live_price, round(pnl_usd * 0.5, 2),
+                                    f"50% partial profit booked ({units_to_harvest} units @ ₹{new_live_price} / +{pnl_pct*100:.2f}%). Remaining running risk-free under trailing stop!"
+                                )
+                                continue
+                        else:
+                            # Single share equity or minimum lot: cannot fractionally split on exchange
+                            # Secure 100% of the position with fee-secured green trailing floor!
+                            pos["partial_harvested"] = True
+                            pos["fee_secured_active"] = True
+                            pos["dynamic_trailing_floor"] = max(pos.get("dynamic_trailing_floor", 0.0), 0.0030)
+                            self._log_action(
+                                pos_asset, "FEE_SECURED_GREEN_LOCK", new_live_price, pnl_usd,
+                                f"Single share green lock engaged (+{pnl_pct*100:.2f}%). Trailing stop locked at +0.30% net profit floor!"
+                            )
 
                     should_close = (
                         is_break_even_guard or 
