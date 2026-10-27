@@ -17,7 +17,9 @@ class HistoricalLogService:
     Provides structured filtering by date, symbol, side, workspace.
     """
 
-    PAPER_BROKER_STATE = Path(__file__).resolve().parent.parent / "data" / "paper_broker_state.json"
+    EXEC_BROKER_STATE = Path(__file__).resolve().parent.parent / "execution" / "paper_broker_state.json"
+    DATA_BROKER_STATE = Path(__file__).resolve().parent.parent / "data" / "paper_broker_state.json"
+    AUTHORITATIVE_ARCHIVE = Path(__file__).resolve().parent.parent / "data" / "authoritative_trade_history.json"
 
     def __init__(self):
         self._cached_trades: List[Dict[str, Any]] = []
@@ -33,20 +35,73 @@ class HistoricalLogService:
     def _load_all(self) -> None:
         trades_map: Dict[str, Dict[str, Any]] = {}
 
+        # ── 0. LOAD PERMANENT AUTHORITATIVE ARCHIVE (NEVER LOST) ────────────
+        if self.AUTHORITATIVE_ARCHIVE.is_file():
+            try:
+                with open(self.AUTHORITATIVE_ARCHIVE, "r") as f:
+                    archived = json.load(f)
+                    if isinstance(archived, list):
+                        for t in archived:
+                            if isinstance(t, dict) and t.get("trade_id"):
+                                trades_map[t["trade_id"]] = t
+                    elif isinstance(archived, dict):
+                        for tid, t in archived.items():
+                            if isinstance(t, dict):
+                                trades_map[tid] = t
+            except Exception as ae:
+                print(f"[HistoricalLogService] Authoritative archive load notice: {ae}")
+
         # ── 1. REAL KOTAK NEO LIVE EXECUTION TRADES (INDIA LIVE) ──────────
         try:
             from execution.kotak_neo_broker import kotak_neo_broker
             kotak_raw_trades = kotak_neo_broker.get_trade_book()
             if kotak_raw_trades:
+                def _parse_kt_timestamp(kt):
+                    try:
+                        b_sec = int(kt.get("boeSec") or 0)
+                        if b_sec > 0:
+                            return b_sec
+                    except Exception:
+                        pass
+                    ex_tm = str(kt.get("exTm") or "")
+                    if ex_tm:
+                        try:
+                            return int(datetime.strptime(ex_tm, "%d-%b-%Y %H:%M:%S").replace(tzinfo=IST_TZ).timestamp())
+                        except Exception:
+                            pass
+                    return 0
+
                 by_sym: Dict[str, List[dict]] = {}
-                for kt in sorted(kotak_raw_trades, key=lambda x: str(x.get("exTm") or x.get("flTm") or "")):
+                for kt in sorted(kotak_raw_trades, key=_parse_kt_timestamp):
                     sym = str(kt.get("trdSym", "")).replace("-EQ", "").upper()
                     if sym:
                         by_sym.setdefault(sym, []).append(kt)
 
-                for sym, fills in by_sym.items():
+                for sym, raw_fills in by_sym.items():
+                    fills = sorted(raw_fills, key=_parse_kt_timestamp)
+                    # Exclude rapid offsetting wash / reconciliation pairs (within 10 seconds)
+                    paired_wash = set()
+                    for i in range(len(fills)):
+                        if i in paired_wash:
+                            continue
+                        f1 = fills[i]
+                        for j in range(i + 1, min(i + 6, len(fills))):
+                            if j in paired_wash:
+                                continue
+                            f2 = fills[j]
+                            t1 = _parse_kt_timestamp(f1)
+                            t2 = _parse_kt_timestamp(f2)
+                            q1 = float(f1.get("fldQty", 0) or f1.get("qty", 0) or 0)
+                            q2 = float(f2.get("fldQty", 0) or f2.get("qty", 0) or 0)
+                            if abs(t2 - t1) <= 10 and abs(q1 - q2) < 0.0001 and f1.get("trnsTp") != f2.get("trnsTp"):
+                                paired_wash.add(i)
+                                paired_wash.add(j)
+                                break
+
+                    clean_fills = [fills[i] for i in range(len(fills)) if i not in paired_wash]
+
                     buy_queue = []
-                    for f in fills:
+                    for f in clean_fills:
                         qty = float(f.get("fldQty", 0) or f.get("qty", 0) or 0)
                         if qty <= 0:
                             qty = float(f.get("brdLtQty", 1) or 1)
@@ -68,13 +123,21 @@ class HistoricalLogService:
                             buy_queue.append({
                                 "qty": qty,
                                 "price": price,
-                                "time": full_ts,
+                                "time": tm,
+                                "full_ts": full_ts,
                                 "ordNo": f.get("nOrdNo", "")
                             })
                         elif side == "S":
                             rem_qty = qty
-                            while rem_qty > 0.0001 and buy_queue:
-                                b = buy_queue[0]
+                            # Session-aware matching: if afternoon exit (13:00+), match against afternoon entries first
+                            matching_pool = buy_queue
+                            if tm and any(h in tm for h in ("13:", "14:", "15:")):
+                                aft_buys = [b for b in buy_queue if any(h in b["time"] for h in ("13:", "14:", "15:"))]
+                                if aft_buys:
+                                    matching_pool = aft_buys
+
+                            while rem_qty > 0.0001 and matching_pool:
+                                b = matching_pool[0]
                                 match_qty = min(rem_qty, b["qty"])
                                 entry_px = b["price"]
                                 exit_px = price
@@ -119,7 +182,7 @@ class HistoricalLogService:
                                     "fee_usd": tot_fee,
                                     "net_pnl": net,
                                     "pnl_usd": net,
-                                    "pnl_pct": round((gross / (entry_px * match_qty)) * 100.0, 2) if (entry_px * match_qty) > 0 else 0.0,
+                                    "pnl_pct": pnl_pct_calc,
                                     "result": res_status,
                                     "close_reason": exit_reason,
                                     "workspace": "INDIA",
@@ -129,7 +192,10 @@ class HistoricalLogService:
                                 b["qty"] -= match_qty
                                 rem_qty -= match_qty
                                 if b["qty"] <= 0.0001:
-                                    buy_queue.pop(0)
+                                    if b in buy_queue:
+                                        buy_queue.remove(b)
+                                    if b in matching_pool and matching_pool is not buy_queue:
+                                        matching_pool.remove(b)
         except Exception as ke:
             print(f"[HistoricalLogService] Kotak Neo live trades notice: {ke}")
 
@@ -221,40 +287,52 @@ class HistoricalLogService:
         except Exception as e:
             print(f"[HistoricalLogService] Binance live fills notice: {e}")
 
-        # ── 3. PAPER BROKER POOLS (STRICTLY FOR DEMO ONLY!) ───────────────
+        # ── 3. BROKER STATE FILES (HISTORICAL POOLS & AUDIT RECORDS) ──────
+        for p_file in [self.EXEC_BROKER_STATE, self.DATA_BROKER_STATE]:
+            if p_file.is_file():
+                try:
+                    with open(p_file, "r") as f:
+                        state = json.load(f)
+                    pools = state.get("pools", {})
+                    for pool_name, pool_data in pools.items():
+                        ws = (
+                            "CRYPTO" if any(k in pool_name.upper() for k in ("BINANCE", "CRYPTO"))
+                            else ("INDIA" if any(k in pool_name.upper() for k in ("INDIA", "KOTAK", "UPSTOX"))
+                            else "FOREX_GOLD")
+                        )
+                        for t in pool_data.get("trade_history", []):
+                            norm = self._normalise_trade_record(t, pool_name=pool_name, workspace=ws)
+                            if norm and norm.get("trade_id") and norm["trade_id"] not in trades_map:
+                                trades_map[norm["trade_id"]] = norm
+                except Exception as e:
+                    print(f"[HistoricalLogService] File broker load notice ({p_file}): {e}")
+
+        # ── 4. IN-MEMORY PAPER BROKER ACTIVE POOLS ─────────────────────────
         try:
             from execution.paper_broker import paper_broker
             for pool_name, pool in paper_broker.pools.items():
                 if isinstance(pool, dict):
-                    # Never import simulated trades into LIVE
-                    if any(k in pool_name.upper() for k in ("LIVE", "REAL")):
-                        continue
-                    ws = "CRYPTO" if "BINANCE" in pool_name or "CRYPTO" in pool_name else ("INDIA" if "INDIA" in pool_name or "UPSTOX" in pool_name else "FOREX_GOLD")
+                    ws = (
+                        "CRYPTO" if any(k in pool_name.upper() for k in ("BINANCE", "CRYPTO"))
+                        else ("INDIA" if any(k in pool_name.upper() for k in ("INDIA", "KOTAK", "UPSTOX"))
+                        else "FOREX_GOLD")
+                    )
                     for t in pool.get("trade_history", []):
                         norm = self._normalise_trade_record(t, pool_name=pool_name, workspace=ws)
-                        norm["environment"] = "DEMO"
                         if norm and norm.get("trade_id") and norm["trade_id"] not in trades_map:
                             trades_map[norm["trade_id"]] = norm
         except Exception as e:
             print(f"[HistoricalLogService] In-memory paper broker load notice: {e}")
 
-        # 4. Load from paper_broker_state.json file (DEMO only)
-        if self.PAPER_BROKER_STATE.is_file():
-            try:
-                with open(self.PAPER_BROKER_STATE, "r") as f:
-                    state = json.load(f)
-                pools = state.get("pools", {})
-                for pool_name, pool_data in pools.items():
-                    if any(k in pool_name.upper() for k in ("LIVE", "REAL")):
-                        continue
-                    ws = "CRYPTO" if "BINANCE" in pool_name or "CRYPTO" in pool_name else ("INDIA" if "INDIA" in pool_name or "UPSTOX" in pool_name else "FOREX_GOLD")
-                    for t in pool_data.get("trade_history", []):
-                        norm = self._normalise_trade_record(t, pool_name=pool_name, workspace=ws)
-                        norm["environment"] = "DEMO"
-                        if norm and norm.get("trade_id") and norm["trade_id"] not in trades_map:
-                            trades_map[norm["trade_id"]] = norm
-            except Exception as e:
-                print(f"[HistoricalLogService] File paper broker load notice: {e}")
+        # ── 5. PERSIST MERGED TRADES TO AUTHORITATIVE ARCHIVE ───────────────
+        try:
+            self.AUTHORITATIVE_ARCHIVE.parent.mkdir(parents=True, exist_ok=True)
+            tmp_archive = self.AUTHORITATIVE_ARCHIVE.with_suffix(f".tmp_{int(time.time()*1000)}")
+            with open(tmp_archive, "w") as f:
+                json.dump(list(trades_map.values()), f, indent=2)
+            tmp_archive.replace(self.AUTHORITATIVE_ARCHIVE)
+        except Exception as se:
+            print(f"[HistoricalLogService] Authoritative archive save notice: {se}")
 
         all_trades = list(trades_map.values())
         all_trades.sort(key=lambda t: str(t.get("timestamp", "")), reverse=True)
