@@ -1188,28 +1188,43 @@ class AutonomousTrader:
                     has_minimum_tenure = (time_held_sec >= 180.0)
 
                     if pos_ws == "INDIA" or is_zero_brokerage_venue:
-                        # Indian Equities (Intraday MIS with proper market noise breathing room):
-                        # Break-even engages only once a solid +1.20% gain is achieved, securing +0.30%
-                        if highest_pnl >= 0.0120:
-                            pos["break_even_active"] = True
-                        is_break_even_guard = bool(has_minimum_tenure and pos.get("break_even_active") and pnl_pct <= 0.0030)
+                        # Indian Equities Multi-Stage Fee-Secured Trailing Ratchet:
+                        # Tier 1 (Cost Breakeven): At +0.20% gain, move Stop Loss to Cost (Entry Price) -> 0% Risk!
+                        if highest_pnl >= 0.0020:
+                            pos["cost_breakeven_active"] = True
 
-                        # Trailing Stop: Lock profit once runner exceeds +1.80%, trailing by 0.50%
-                        is_tsl = bool(has_minimum_tenure and (highest_pnl >= 0.0180) and (pnl_pct <= highest_pnl - 0.0050))
-                        is_trailing_stop = is_tsl
+                        # Tier 2 (Fee-Secured Green Lock): At +0.35% gain, lock Stop Loss at +0.15% (all taxes covered + net profit)
+                        if highest_pnl >= 0.0035:
+                            pos["fee_secured_active"] = True
 
-                        # Take Profit: Target +1.80% (standard intraday swing target) or explicit TP level crossed
+                        # Tier 3 (Dynamic Trailing Ratchet): As price surges higher (>= +0.50%), lock dynamic trailing floor behind peak
+                        if highest_pnl >= 0.0050:
+                            trailing_floor = highest_pnl - 0.0025
+                            pos["dynamic_trailing_floor"] = max(pos.get("dynamic_trailing_floor", 0.0), trailing_floor)
+
+                        # Check ratchet triggers (highest secured floor takes precedence)
+                        is_trailing_stop = False
+                        if pos.get("dynamic_trailing_floor") and pnl_pct <= pos["dynamic_trailing_floor"]:
+                            is_trailing_stop = True
+                        elif pos.get("fee_secured_active") and pnl_pct <= 0.0015:
+                            is_trailing_stop = True
+                        elif pos.get("cost_breakeven_active") and pnl_pct <= 0.0002:
+                            is_trailing_stop = True
+
+                        is_break_even_guard = is_trailing_stop
+
+                        # Take Profit: Target +1.50% (intraday swing target) or explicit TP level crossed
                         is_tp_price_hit = bool(pos.get("take_profit", 0.0) > 0 and (new_live_price >= pos["take_profit"] if act == "BUY" else new_live_price <= pos["take_profit"]))
-                        is_fee_secured_tp = (pnl_pct >= 0.0180) or is_tp_price_hit
-                        is_milestone = (pnl_pct >= 0.0280)        # 1:1.5 institutional runner target (+2.80%)
+                        is_fee_secured_tp = (pnl_pct >= 0.0150) or is_tp_price_hit
+                        is_milestone = (pnl_pct >= 0.0250)
                         is_micro_harvest = False
                         is_staggered_harvest = False
                         is_maturity_rebalance = False
                         # 45-min capital recycle only if flat/green; never sell at a loss on time alone
                         is_stale_rotation = (time_held_sec >= 2700) and (pnl_pct >= 0.0020)
-                        # Calibrated 1.60% stop loss (gives room beyond intraday noise/ATR) or explicit SL hit
+                        # Calibrated 0.80% initial stop loss (tight risk protection before breakeven kicks in) or explicit SL hit
                         is_sl_price_hit = bool(pos.get("stop_loss", 0.0) > 0 and (new_live_price <= pos["stop_loss"] if act == "BUY" else new_live_price >= pos["stop_loss"]))
-                        is_hard_stop = (pnl_pct <= -0.0160) or is_sl_price_hit
+                        is_hard_stop = (pnl_pct <= -0.0080) or is_sl_price_hit
                     elif pos_ws == "CRYPTO":
                         # Binance Crypto Spot:
                         # Break-even engages at +1.50% gain, securing +0.40%
