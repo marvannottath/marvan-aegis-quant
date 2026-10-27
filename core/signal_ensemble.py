@@ -396,6 +396,40 @@ class SignalEnsembleEngine:
         except Exception:
             pass
 
+        # ── Proprietary Alpha Matrix: Judas Trap, London Fix & Cointegration
+        try:
+            from core.institutional_quant_matrix import (
+                session_open_judas_trap_engine,
+                london_fix_benchmark_engine
+            )
+            # 1. Session Open Judas Trap (London / NY open false breakout)
+            judas_res = session_open_judas_trap_engine.evaluate_judas_swing(
+                symbol=sym_upper,
+                current_price=current_price,
+                asian_high=metrics["high"] * 0.998,
+                asian_low=metrics["low"] * 1.002,
+                candle_high=metrics["high"],
+                candle_low=metrics["low"],
+                candle_close=current_price
+            )
+            if judas_res.get("active"):
+                if judas_res["action"] == "BUY":
+                    weighted_confidence = min(99.0, weighted_confidence + judas_res.get("confidence_boost", 7.0))
+                elif judas_res["action"] == "SELL":
+                    shields_passed -= 100
+                    failed_reasons.append(f"Institutional Judas Trap Active: {judas_res.get('reason')}")
+
+            # 2. London 16:00 Fix VWAP Rebalance Magnet
+            fix_res = london_fix_benchmark_engine.evaluate_fix_drift(
+                symbol=sym_upper,
+                current_price=current_price,
+                day_vwap=metrics.get("vwap", current_price)
+            )
+            if fix_res.get("active") and fix_res.get("action") == "BUY_DRIFT_TO_VWAP":
+                weighted_confidence = min(99.0, weighted_confidence + 6.0)
+        except Exception:
+            pass
+
         shields_passed = max(0, min(1000, shields_passed))
 
         # Directional Consensus: institutional trend continuation OR mean-reversion dip buying

@@ -39,25 +39,43 @@ class TWAPOrderSlicer:
             }
 
         slices = []
-        base_slice = total_amount_usd / num_slices
-        remaining = total_amount_usd
-        interval_ms = int((horizon_seconds * 1000) / num_slices)
+        try:
+            from core.institutional_quant_matrix import poisson_stealth_execution_slicer
+            poisson_plan = poisson_stealth_execution_slicer.generate_stealth_schedule(
+                total_quantity=total_amount_usd,
+                num_slices=num_slices,
+                avg_delay_seconds=horizon_seconds / max(1, num_slices)
+            )
+            accum_delay_ms = 0
+            for item in poisson_plan:
+                delay_ms = int(item["delay_sec"] * 1000)
+                slices.append({
+                    "slice_id": item["slice_index"],
+                    "amount_usd": item["qty"],
+                    "target_delay_ms": accum_delay_ms,
+                    "poisson_jitter_sec": item["delay_sec"],
+                    "status": "QUEUED"
+                })
+                accum_delay_ms += delay_ms
+        except Exception:
+            base_slice = total_amount_usd / num_slices
+            remaining = total_amount_usd
+            interval_ms = int((horizon_seconds * 1000) / num_slices)
 
-        for i in range(num_slices):
-            if i == num_slices - 1:
-                slice_amt = round(remaining, 2)
-            else:
-                # Add +- 15% randomization jitter
-                jitter = random.uniform(0.85, 1.15)
-                slice_amt = round(base_slice * jitter, 2)
-                remaining -= slice_amt
+            for i in range(num_slices):
+                if i == num_slices - 1:
+                    slice_amt = round(remaining, 2)
+                else:
+                    jitter = random.uniform(0.85, 1.15)
+                    slice_amt = round(base_slice * jitter, 2)
+                    remaining -= slice_amt
 
-            slices.append({
-                "slice_id": i + 1,
-                "amount_usd": slice_amt,
-                "target_delay_ms": i * interval_ms,
-                "status": "QUEUED"
-            })
+                slices.append({
+                    "slice_id": i + 1,
+                    "amount_usd": slice_amt,
+                    "target_delay_ms": i * interval_ms,
+                    "status": "QUEUED"
+                })
 
         return {
             "needs_slicing": True,

@@ -624,6 +624,85 @@ class AutonomousTrader:
                             except Exception:
                                 pass
 
+                            # 5. Institutional Quant Matrix: Lead-Lag, Stoikov Micro-Price, Judas Trap & Cointegration
+                            try:
+                                from core.institutional_quant_matrix import (
+                                    cross_asset_lead_lag_engine,
+                                    session_open_judas_trap_engine,
+                                    pairs_cointegration_engine,
+                                    anti_spoofing_guard,
+                                    stoikov_micro_price_engine
+                                )
+
+                                # A. Cross-Asset Lead-Lag Front-Running (BTC -> ETH/Alts, DXY -> Gold)
+                                if _active_ws == "CRYPTO":
+                                    if ticker == "BTCUSDT":
+                                        cross_asset_lead_lag_engine.record_leader_price("BTCUSDT", current_price)
+                                    else:
+                                        lead_res = cross_asset_lead_lag_engine.evaluate_lead_lag(
+                                            follower_symbol=ticker,
+                                            follower_price=current_price,
+                                            leader_symbol="BTCUSDT",
+                                            workspace=_active_ws,
+                                            lookback_seconds=45.0
+                                        )
+                                        if lead_res.get("edge_active"):
+                                            if lead_res["lead_signal"] == "BUY":
+                                                action_signal = "BUY"
+                                                opp_score = max(opp_score, 93.5)
+                                            elif lead_res["lead_signal"] == "SELL" and action_signal in ("BUY", "LONG"):
+                                                continue
+                                elif _active_ws == "FOREX_GOLD" and ("XAU" in ticker or "GOLD" in ticker):
+                                    lead_res = cross_asset_lead_lag_engine.evaluate_lead_lag(
+                                        follower_symbol=ticker,
+                                        follower_price=current_price,
+                                        leader_symbol="DXY",
+                                        workspace=_active_ws,
+                                        lookback_seconds=30.0
+                                    )
+                                    if lead_res.get("edge_active") and lead_res["lead_signal"] == "BUY":
+                                        action_signal = "BUY"
+                                        opp_score = max(opp_score, 93.0)
+
+                                # B. Session Open Judas Swing Trapper (London 13:30 IST / NY 18:30 IST)
+                                judas_chk = session_open_judas_trap_engine.evaluate_judas_swing(
+                                    symbol=ticker,
+                                    current_price=current_price,
+                                    asian_high=float(item.get("high") or current_price * 1.002),
+                                    asian_low=float(item.get("low") or current_price * 0.998),
+                                    candle_high=float(item.get("high") or current_price * 1.002),
+                                    candle_low=float(item.get("low") or current_price * 0.998),
+                                    candle_close=current_price
+                                )
+                                if judas_chk.get("active"):
+                                    if judas_chk["action"] == "BUY":
+                                        action_signal = "BUY"
+                                        opp_score = max(opp_score, 94.5)
+                                    elif judas_chk["action"] == "SELL" and action_signal in ("BUY", "LONG"):
+                                        continue
+
+                                # C. Statistical Arbitrage Cointegration Snap-Back
+                                if ticker == "ETHUSDT":
+                                    btc_p = next((x["price"] for x in filtered_scanned if x.get("ticker") == "BTCUSDT"), 0.0)
+                                    if btc_p > 0:
+                                        pair_eval = pairs_cointegration_engine.evaluate_pair("ETH/BTC", current_price, btc_p)
+                                        if pair_eval.get("action") == "BUY":
+                                            action_signal = "BUY"
+                                            opp_score = max(opp_score, 92.5)
+
+                                # D. Order Book Micro-Price Drift (if depth bids/asks available)
+                                if item.get("bids") and item.get("asks"):
+                                    micro_res = stoikov_micro_price_engine.evaluate_micro_price(
+                                        bids=item["bids"],
+                                        asks=item["asks"]
+                                    )
+                                    if micro_res.get("signal") == "BULLISH_DRIFT":
+                                        opp_score = min(99.0, opp_score + micro_res.get("confidence_boost", 5.0))
+                                    elif micro_res.get("signal") == "BEARISH_DRIFT" and action_signal in ("BUY", "LONG"):
+                                        opp_score -= 8.0
+                            except Exception:
+                                pass
+
                             # High-Speed Rate Limiter Safeguard (Protects from Broker 429 Bans)
                             try:
                                 from core.high_speed_async_engine import high_speed_async_engine
