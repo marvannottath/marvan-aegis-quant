@@ -634,7 +634,7 @@ class AutonomousTrader:
                                     stoikov_micro_price_engine
                                 )
 
-                                # A. Cross-Asset Lead-Lag Front-Running (BTC -> ETH/Alts, DXY -> Gold)
+                                # A. Cross-Asset Lead-Lag Front-Running (Universal All Workspaces)
                                 if _active_ws == "CRYPTO":
                                     if ticker == "BTCUSDT":
                                         cross_asset_lead_lag_engine.record_leader_price("BTCUSDT", current_price)
@@ -652,17 +652,34 @@ class AutonomousTrader:
                                                 opp_score = max(opp_score, 93.5)
                                             elif lead_res["lead_signal"] == "SELL" and action_signal in ("BUY", "LONG"):
                                                 continue
-                                elif _active_ws == "FOREX_GOLD" and ("XAU" in ticker or "GOLD" in ticker):
-                                    lead_res = cross_asset_lead_lag_engine.evaluate_lead_lag(
-                                        follower_symbol=ticker,
-                                        follower_price=current_price,
-                                        leader_symbol="DXY",
-                                        workspace=_active_ws,
-                                        lookback_seconds=30.0
-                                    )
-                                    if lead_res.get("edge_active") and lead_res["lead_signal"] == "BUY":
-                                        action_signal = "BUY"
-                                        opp_score = max(opp_score, 93.0)
+                                elif _active_ws == "FOREX_GOLD":
+                                    if "EURUSD" in ticker:
+                                        cross_asset_lead_lag_engine.record_leader_price("EURUSD", current_price)
+                                    elif "XAU" in ticker or "GOLD" in ticker or "GBPUSD" in ticker:
+                                        lead_res = cross_asset_lead_lag_engine.evaluate_lead_lag(
+                                            follower_symbol=ticker,
+                                            follower_price=current_price,
+                                            leader_symbol="EURUSD",
+                                            workspace=_active_ws,
+                                            lookback_seconds=30.0
+                                        )
+                                        if lead_res.get("edge_active") and lead_res["lead_signal"] == "BUY":
+                                            action_signal = "BUY"
+                                            opp_score = max(opp_score, 93.0)
+                                elif _active_ws == "INDIA":
+                                    if ticker in ("RELIANCE", "HDFCBANK"):
+                                        cross_asset_lead_lag_engine.record_leader_price("RELIANCE", current_price)
+                                    else:
+                                        lead_res = cross_asset_lead_lag_engine.evaluate_lead_lag(
+                                            follower_symbol=ticker,
+                                            follower_price=current_price,
+                                            leader_symbol="RELIANCE",
+                                            workspace=_active_ws,
+                                            lookback_seconds=60.0
+                                        )
+                                        if lead_res.get("edge_active") and lead_res["lead_signal"] == "BUY":
+                                            action_signal = "BUY"
+                                            opp_score = max(opp_score, 92.0)
 
                                 # B. Session Open Judas Swing Trapper (London 13:30 IST / NY 18:30 IST)
                                 judas_chk = session_open_judas_trap_engine.evaluate_judas_swing(
@@ -681,13 +698,28 @@ class AutonomousTrader:
                                     elif judas_chk["action"] == "SELL" and action_signal in ("BUY", "LONG"):
                                         continue
 
-                                # C. Statistical Arbitrage Cointegration Snap-Back
-                                if ticker == "ETHUSDT":
+                                # C. Statistical Arbitrage Cointegration Snap-Back (Universal All Workspaces)
+                                if _active_ws == "CRYPTO" and ticker == "ETHUSDT":
                                     btc_p = next((x["price"] for x in filtered_scanned if x.get("ticker") == "BTCUSDT"), 0.0)
                                     if btc_p > 0:
                                         pair_eval = pairs_cointegration_engine.evaluate_pair("ETH/BTC", current_price, btc_p)
                                         if pair_eval.get("action") == "BUY":
                                             action_signal = "BUY"
+                                            opp_score = max(opp_score, 92.5)
+                                elif _active_ws == "INDIA" and ticker in ("INFY", "TCS"):
+                                    tcs_p = next((x["price"] for x in filtered_scanned if x.get("ticker") in ("TCS", "INFY")), 0.0)
+                                    if tcs_p > 0:
+                                        pair_eval = pairs_cointegration_engine.evaluate_pair("INFY/TCS", current_price, tcs_p)
+                                        if pair_eval.get("action") == "BUY":
+                                            action_signal = "BUY"
+                                            opp_score = max(opp_score, 92.0)
+                                elif _active_ws == "FOREX_GOLD" and ("GBPUSD" in ticker or "EURUSD" in ticker):
+                                    eur_p = next((x["price"] for x in filtered_scanned if "EURUSD" in x.get("ticker", "")), 0.0)
+                                    if eur_p > 0:
+                                        pair_eval = pairs_cointegration_engine.evaluate_pair("GBP/EUR", current_price, eur_p)
+                                        if pair_eval.get("action") == "BUY":
+                                            action_signal = "BUY"
+                                            opp_score = max(opp_score, 92.5)
                                             opp_score = max(opp_score, 92.5)
 
                                 # D. Order Book Micro-Price Drift (if depth bids/asks available)
