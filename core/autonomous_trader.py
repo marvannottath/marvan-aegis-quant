@@ -647,18 +647,12 @@ class AutonomousTrader:
                             if opp_score < min_opp_threshold:
                                 continue
 
-                            # Anti-Overtrading Shield: Limit each symbol to max 3 roundtrip trades per day
-                            # This completely stops fee bleeding and repetitive churning on a single stock
+                            # Unlimited High-Conviction Trades: No arbitrary daily trade count cap.
+                            # As long as risk shields pass, the bot is free to capture all high-probability market opportunities!
                             today_date_str = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d")
                             if self._daily_trade_counts_date != today_date_str:
                                 self._daily_trade_counts_date = today_date_str
                                 self._daily_symbol_trade_counts.clear()
-
-                            trades_today_for_sym = self._daily_symbol_trade_counts.get(ticker, 0)
-                            if _active_ws == "INDIA" and trades_today_for_sym >= 3:
-                                if step_counter % 30 == 0:
-                                    self._log_action(ticker, "DAILY_CAP_REACHED", current_price, 0.0, f"Daily limit reached ({trades_today_for_sym}/3 trades today). Preventing overtrading & fee erosion.")
-                                continue
 
                             # Respect closed position cooldown and close-in-flight barrier to prevent immediate churn / repeat execution
                             if time.time() < self.closed_cooldowns.get(ticker, 0) or ticker in self.close_in_flight:
@@ -1562,7 +1556,7 @@ class AutonomousTrader:
                                         reason=close_reason_to_use,
                                         skip_exchange_order=True
                                     )
-                                    self.closed_cooldowns[pos_asset] = time.time() + (300.0 if "KOTAK" in pool.upper() or _active_ws == "INDIA" else 60.0)
+                                    self.closed_cooldowns[pos_asset] = time.time() + 60.0
                                     self.position_age.pop(pos_asset, None)
                                     self.close_in_flight.pop(pos_asset, None)
                                     self.in_flight_tracker.clear_in_flight(pos_asset)
@@ -1645,7 +1639,7 @@ class AutonomousTrader:
                                         reason=close_reason_to_use,
                                         skip_exchange_order=True
                                     )
-                                    self.closed_cooldowns[pos_asset] = time.time() + (300.0 if "KOTAK" in pool.upper() or _active_ws == "INDIA" else 60.0)
+                                    self.closed_cooldowns[pos_asset] = time.time() + 60.0
                                     self.position_age.pop(pos_asset, None)
                                     self.close_in_flight.pop(pos_asset, None)
                                     self.in_flight_tracker.clear_in_flight(pos_asset)
@@ -1709,7 +1703,7 @@ class AutonomousTrader:
                             skip_exchange_order=False
                         )
                         self._daily_symbol_trade_counts[pos_asset] = self._daily_symbol_trade_counts.get(pos_asset, 0) + 1
-                        self.closed_cooldowns[pos_asset] = time.time() + (300.0 if "KOTAK" in pool.upper() or _active_ws == "INDIA" else 60.0)
+                        self.closed_cooldowns[pos_asset] = time.time() + 60.0
                         self.position_age.pop(pos_asset, None)
                         self._log_action(pos_asset, "CLOSE", new_live_price, pos.get("capital_allocated", 500.0), f"Position Closed & Swept ({close_reason})")
                         
