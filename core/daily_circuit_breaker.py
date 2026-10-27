@@ -16,8 +16,8 @@ CIRCUIT_DB = Path(__file__).resolve().parent.parent / "data" / "circuit_breaker_
 
 
 class DailyCircuitBreaker:
-    MAX_CONSECUTIVE_LOSSES = 2
-    MAX_DAILY_DRAWDOWN_PCT = 2.0  # 2.0% strict prop-firm capital preservation limit
+    MAX_CONSECUTIVE_LOSSES = 4
+    MAX_DAILY_DRAWDOWN_PCT = 3.0  # 3.0% strict prop-firm capital preservation limit
 
     def __init__(self):
         self.session_date: str = ""
@@ -90,6 +90,10 @@ class DailyCircuitBreaker:
             self.consecutive_losses += 1
         else:
             self.consecutive_losses = 0
+            # If the session is profitable or back in green, clear consecutive loss lock!
+            if self.daily_pnl >= 0:
+                self.is_circuit_open = False
+                self.lock_reason = ""
 
         # Check thresholds
         drawdown_pct = abs(min(0.0, self.daily_pnl)) / max(100.0, capital_base) * 100.0
