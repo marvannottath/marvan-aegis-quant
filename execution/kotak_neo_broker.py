@@ -455,6 +455,7 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
                             except Exception:
                                 pass
                         unrealized = round((ltp - buy_avg) * net_qty, 2)
+                        pos_prod = str(p.get("prod", "MIS")).upper()
                         verified.append({
                             "symbol": sym,
                             "quantity": abs(net_qty),
@@ -462,6 +463,7 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
                             "buy_price": buy_avg,
                             "current_price": ltp,
                             "unrealized_pnl": unrealized,
+                            "product": pos_prod,
                         })
                 return verified
         except Exception as e:
@@ -1042,24 +1044,28 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
 
         # Check live positions on Kotak Neo
         closing_side = (side or "").upper()
-        if not closing_side and environment == "LIVE":
+        detected_prod = "MIS"
+        if environment == "LIVE":
             live_pos = self.get_live_positions()
-            matched = next((p for p in live_pos if sym_clean in p.get("symbol", "")), None)
-            if not matched:
+            matched = next((p for p in live_pos if sym_clean == p.get("symbol", "").replace("-EQ", "")), None)
+            if not matched and not closing_side:
                 return {
                     "status": "ALREADY_CLOSED",
                     "order_id": None,
                     "message": f"Position for {sym_clean} is already closed on Kotak Neo. No order sent."
                 }
-            # If held long (BUY), offset by SELL. If held short (SELL), offset by BUY.
-            held_side = matched.get("side", "BUY")
-            closing_side = "SELL" if held_side == "BUY" else "BUY"
-            if quantity <= 0:
-                quantity = float(matched.get("quantity", 1))
+            if matched:
+                held_side = matched.get("side", "BUY")
+                if not closing_side:
+                    closing_side = "SELL" if held_side == "BUY" else "BUY"
+                if quantity <= 0:
+                    quantity = float(matched.get("quantity", 1))
+                detected_prod = matched.get("product", "MIS")
 
         if not closing_side:
             closing_side = "SELL"
 
+        final_prod = detected_prod if detected_prod else (product or "MIS")
         close_qty = float(quantity) if quantity > 0 else 1.0
         return self.place_order({
             "symbol": sym_clean,
@@ -1067,7 +1073,7 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
             "quantity": close_qty,
             "price": 0.0,
             "order_type": "MARKET",
-            "product": product or "MIS",
+            "product": final_prod,
             "environment": environment
         })
 

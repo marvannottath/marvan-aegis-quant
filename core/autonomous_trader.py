@@ -1471,7 +1471,8 @@ class AutonomousTrader:
                             try:
                                 from execution.kotak_neo_broker import kotak_neo_broker
                                 k_close_qty = float(pos.get("quantity", pos.get("units", 1)))
-                                k_prod = str(pos.get("product", "MIS"))
+                                # For Indian intraday equities, Kotak Neo requires 'MIS' to offset and square off open intraday positions
+                                k_prod = "MIS"
                                 live_k_res = kotak_neo_broker.close_position(
                                     symbol=pos_asset,
                                     quantity=k_close_qty,
