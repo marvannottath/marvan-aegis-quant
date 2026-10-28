@@ -917,7 +917,7 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
                     live_avail = self.fetch_live_limits()
                     est_price = price if price > 0 else 500.0
                     est_margin = round((int_qty * est_price) / (5.0 if prod == "MIS" else 1.0), 2)
-                    is_closing = bool(order.get("is_close", False))
+                    is_closing = bool(order_request.get("is_close", False))
                     if not is_closing and side == "BUY" and live_avail < est_margin:
                         return {
                             "status": "REJECTED",
