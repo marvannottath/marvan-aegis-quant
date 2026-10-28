@@ -1489,20 +1489,21 @@ class AutonomousTrader:
                         is_hard_stop = (pnl_pct <= -0.0080) or is_sl_hit
                     elif pos_ws == "CRYPTO":
                         # Binance Crypto Spot Multi-Stage Fee-Secured Trailing Ratchet:
-                        # Tier 1 (Cost Breakeven): At +0.25% gain (covers Binance roundtrip fee ~0.15%), move SL to Entry Price -> 0% Risk!
-                        if highest_pnl >= 0.0025:
+                        # Binance Spot charges 0.10% buy + 0.10% sell = 0.20% roundtrip fee.
+                        # Tier 1 (Cost Breakeven): At +0.40% gain, move SL to +0.22% -> Real 0% Risk covering all fees!
+                        if highest_pnl >= 0.0040:
                             pos["cost_breakeven_active"] = True
-                            be_px = round(entry * 1.0005, px_dec)
+                            be_px = round(entry * 1.0022, px_dec)
                             pos["stop_loss"] = max(cur_sl, be_px)
 
-                        # Tier 2 (Fee-Secured Green Lock): At +0.35% gain, lock Stop Loss at +0.15% (all exchange fees covered + guaranteed green profit)
-                        if highest_pnl >= 0.0035:
+                        # Tier 2 (Fee-Secured Green Lock): At +0.60% gain, lock Stop Loss at +0.35% (all fees covered + pure green profit)
+                        if highest_pnl >= 0.0060:
                             pos["fee_secured_active"] = True
-                            green_px = round(entry * 1.0015, px_dec)
+                            green_px = round(entry * 1.0035, px_dec)
                             pos["stop_loss"] = max(float(pos.get("stop_loss", 0.0)), green_px)
 
-                        # Tier 3 (Dynamic Trailing Ratchet): As price surges (>= +0.50%), lock dynamic trailing floor behind peak (trailing by 0.25%)
-                        if highest_pnl >= 0.0050:
+                        # Tier 3 (Dynamic Trailing Ratchet): As price surges (>= +0.80%), lock dynamic trailing floor behind peak (trailing by 0.25%)
+                        if highest_pnl >= 0.0080:
                             trailing_floor = highest_pnl - 0.0025
                             pos["dynamic_trailing_floor"] = max(pos.get("dynamic_trailing_floor", 0.0), trailing_floor)
                             trail_px = round(entry * (1.0 + trailing_floor), px_dec)
@@ -1515,16 +1516,16 @@ class AutonomousTrader:
                             is_trailing_stop = True
                         elif pos.get("dynamic_trailing_floor") and pnl_pct <= pos["dynamic_trailing_floor"]:
                             is_trailing_stop = True
-                        elif pos.get("fee_secured_active") and pnl_pct <= 0.0015:
+                        elif pos.get("fee_secured_active") and pnl_pct <= 0.0035:
                             is_trailing_stop = True
-                        elif pos.get("cost_breakeven_active") and pnl_pct <= 0.0005:
+                        elif pos.get("cost_breakeven_active") and pnl_pct <= 0.0022:
                             is_trailing_stop = True
 
                         is_break_even_guard = is_trailing_stop
 
-                        # User Rule: 5-Minute Peak Plateau Harvester for Crypto
+                        # User Rule: 5-Minute Peak Plateau Harvester for Crypto (Requires >= 0.50% to clear 0.20% fee)
                         is_peak_stagnation = bool(
-                            pnl_pct >= 0.0035 and time_at_peak >= 300.0 and (highest_pnl - pnl_pct) <= 0.0025
+                            pnl_pct >= 0.0050 and time_at_peak >= 300.0 and (highest_pnl - pnl_pct) <= 0.0025
                         )
 
                         # Take Profit: Target +2.20% or explicit TP level crossed
@@ -1571,9 +1572,10 @@ class AutonomousTrader:
 
                         is_break_even_guard = is_trailing_stop
 
-                        # User Rule: 5-Minute Peak Plateau Harvester for Forex / Gold
+                        # User Rule: 5-Minute Peak Plateau Harvester (Requires >=0.50% in Crypto to comfortably clear 0.20% roundtrip Binance fees)
+                        min_stagnation_thresh = 0.0050 if pos_ws == "CRYPTO" else 0.0020
                         is_peak_stagnation = bool(
-                            pnl_pct >= 0.0020 and time_at_peak >= 300.0 and (highest_pnl - pnl_pct) <= 0.0020
+                            pnl_pct >= min_stagnation_thresh and time_at_peak >= 300.0 and (highest_pnl - pnl_pct) <= 0.0020
                         )
 
                         is_tp_price_hit = bool(pos.get("take_profit", 0.0) > 0 and (new_live_price >= pos["take_profit"] if act == "BUY" else new_live_price <= pos["take_profit"]))
