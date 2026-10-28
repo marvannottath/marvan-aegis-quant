@@ -1115,20 +1115,6 @@ class AutonomousTrader:
 
                                 elif pool in ["KOTAK_NEO_LIVE", "UPSTOX_LIVE"] or (_active_ws == "INDIA" and is_live_pool):
                                     try:
-                                        # Strict Kotak Live Guard: requires explicit KOTAK_LIVE_TRADING_ENABLED=true in .env
-                                        kotak_live_flag = os.getenv("KOTAK_LIVE_TRADING_ENABLED", "false").lower() == "true"
-                                        if not kotak_live_flag:
-                                            if step_counter % 20 == 0:
-                                                self._log_action(ticker, "KOTAK_LIVE_LOCKED", current_price, size_usd, "Kotak live trading strictly locked (KOTAK_LIVE_TRADING_ENABLED=false). Set to true to allow.")
-                                            continue
-
-                                        # Capital Preservation Guard: Max 2 Indian trades per day to eliminate broker fees & tax drag
-                                        today_india_trades = sum(v for k, v in self._daily_symbol_trade_counts.items())
-                                        if today_india_trades >= 2:
-                                            if step_counter % 20 == 0:
-                                                self._log_action(ticker, "DAILY_TRADE_LIMIT_REACHED", current_price, size_usd, f"Max daily Indian trades limit reached ({today_india_trades}/2). Capital protected.")
-                                            continue
-
                                         # End-of-Day Safety: Do not open NEW intraday positions after 14:30 IST
                                         # Indian market closes at 15:30 IST; Kotak RMS auto-squares off at 15:15 IST
                                         now_ist = datetime.now(timezone.utc).astimezone(IST_TZ)
@@ -1840,7 +1826,9 @@ class AutonomousTrader:
                             skip_exchange_order=False
                         )
                         self._daily_symbol_trade_counts[pos_asset] = self._daily_symbol_trade_counts.get(pos_asset, 0) + 1
-                        self.closed_cooldowns[pos_asset] = time.time() + 60.0
+                        # 5-min cooldown for Indian equities to ride swings and avoid instant re-entry churn; 60s for Crypto/Forex
+                        sym_cool = 300.0 if (_active_ws == "INDIA" or "KOTAK" in pool) else 60.0
+                        self.closed_cooldowns[pos_asset] = time.time() + sym_cool
                         self.position_age.pop(pos_asset, None)
                         self._log_action(pos_asset, "CLOSE", new_live_price, pos.get("capital_allocated", 500.0), f"Position Closed & Swept ({close_reason})")
                         
