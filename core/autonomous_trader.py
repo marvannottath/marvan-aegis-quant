@@ -412,16 +412,19 @@ class AutonomousTrader:
                             pool_pos = self.broker.pools.setdefault("KOTAK_NEO_LIVE", {}).setdefault("positions", {})
                             for kp in k_live_pos:
                                 sym = kp.get("symbol") or kp.get("asset")
-                                if sym and sym not in pool_pos:
-                                    qty = float(kp.get("quantity", kp.get("units", 1)))
-                                    entry_px = float(kp.get("buy_price", kp.get("entry_price", 0.0)))
-                                    cur_px = float(kp.get("current_price", entry_px))
-                                    cap = round(qty * entry_px, 2)
-                                    # For intraday MIS equities, Kotak blocks 1/5th (20%) margin with 5x leverage
-                                    mis_margin = round(cap / 5.0, 2)
-                                    side_act = str(kp.get("side", "BUY")).upper()
-                                    tp_price = round(entry_px * (0.980 if side_act == "SELL" else 1.020), 2)
-                                    sl_price = round(entry_px * (1.016 if side_act == "SELL" else 0.984), 2)
+                                if not sym:
+                                    continue
+                                qty = float(kp.get("quantity", kp.get("units", 1)))
+                                entry_px = float(kp.get("entry_price", kp.get("buy_price", 0.0)))
+                                cur_px = float(kp.get("current_price", entry_px))
+                                cap = round(qty * entry_px, 2)
+                                # For intraday MIS equities, Kotak blocks 1/5th (20%) margin with 5x leverage
+                                mis_margin = round(cap / 5.0, 2)
+                                side_act = str(kp.get("side", "BUY")).upper()
+                                tp_price = round(entry_px * (0.980 if side_act == "SELL" else 1.020), 2)
+                                sl_price = round(entry_px * (1.016 if side_act == "SELL" else 0.984), 2)
+
+                                if sym not in pool_pos or float(pool_pos[sym].get("entry_price", 0.0)) <= 0.0 or not pool_pos[sym].get("stop_loss"):
                                     pos_record = {
                                         "trade_id": f"TRD-KNEO-{sym}-{int(time.time()*1000)}",
                                         "asset": sym, "symbol": sym, "action": side_act, "side": side_act,
@@ -435,8 +438,15 @@ class AutonomousTrader:
                                         "timestamp": datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S")
                                     }
                                     pool_pos[sym] = pos_record
-                                    if sym not in self.broker.positions:
-                                        self.broker.positions[sym] = pos_record
+                                    self.broker.positions[sym] = pos_record
+                                else:
+                                    if entry_px > 0 and float(pool_pos[sym].get("entry_price", 0.0)) <= 0:
+                                        pool_pos[sym]["entry_price"] = entry_px
+                                        pool_pos[sym]["take_profit"] = tp_price
+                                        pool_pos[sym]["stop_loss"] = sl_price
+                                    pool_pos[sym]["current_price"] = cur_px
+                                    pool_pos[sym]["last_price"] = cur_px
+                                    pool_pos[sym]["pnl_usd"] = round(float(kp.get("unrealized_pnl", 0.0)), 2)
                         except Exception:
                             pass
 
