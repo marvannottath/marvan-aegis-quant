@@ -1336,12 +1336,17 @@ class AutonomousTrader:
                                 new_live_price = max(0.0001, base_price * (1.0 + delta_pct))
                         elif is_india_sym:
                             try:
-                                from core.public_market_feed import public_market_feed
-                                q = public_market_feed.get_quote(pos_asset)
-                                if q and float(q.get("price", 0.0)) > 0:
-                                    new_live_price = float(q["price"])
+                                from execution.kotak_neo_broker import kotak_neo_broker
+                                k_ltp = getattr(kotak_neo_broker, "_cached_live_ltp", {}).get(pos_asset)
+                                if k_ltp and float(k_ltp) > 0:
+                                    new_live_price = float(k_ltp)
                                 else:
-                                    new_live_price = float(pos.get("last_price", pos["entry_price"]))
+                                    from core.public_market_feed import public_market_feed
+                                    q = public_market_feed.get_quote(pos_asset)
+                                    if q and float(q.get("price", 0.0)) > 0:
+                                        new_live_price = float(q["price"])
+                                    else:
+                                        new_live_price = float(pos.get("last_price", pos["entry_price"]))
                             except Exception:
                                 new_live_price = float(pos.get("last_price", pos["entry_price"]))
                         else:

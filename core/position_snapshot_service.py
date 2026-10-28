@@ -284,6 +284,23 @@ class PositionSnapshotService:
                 if k_conn.get("connected") or kotak_neo_broker._is_authenticated or bool(kotak_neo_broker.consumer_key):
                     live_k_pos = kotak_neo_broker.get_live_positions()
                     if live_k_pos is not None and isinstance(live_k_pos, list):
+                        live_pool_pos = pool.get("positions", {})
+                        for kp in live_k_pos:
+                            s_name = kp.get("symbol") or kp.get("asset")
+                            tracked = live_pool_pos.get(s_name) or paper_broker.positions.get(s_name) or {}
+                            if tracked:
+                                if tracked.get("stop_loss"):
+                                    kp["stop_loss"] = tracked["stop_loss"]
+                                if tracked.get("take_profit"):
+                                    kp["take_profit"] = tracked["take_profit"]
+                                if tracked.get("highest_pnl_pct"):
+                                    kp["highest_pnl_pct"] = tracked["highest_pnl_pct"]
+                                if tracked.get("cost_breakeven_active"):
+                                    kp["cost_breakeven_active"] = tracked["cost_breakeven_active"]
+                                if tracked.get("fee_secured_active"):
+                                    kp["fee_secured_active"] = tracked["fee_secured_active"]
+                                if tracked.get("dynamic_trailing_floor"):
+                                    kp["dynamic_trailing_floor"] = tracked["dynamic_trailing_floor"]
                         internal_pos_list = list(live_k_pos)
             except Exception as e:
                 print(f"[POSITION_SNAPSHOT] Kotak live position sync notice: {e}")
@@ -459,6 +476,15 @@ class PositionSnapshotService:
                 # Compute stop loss and take profit aligned with execution engine
                 sl_val = float(pos.get("stop_loss", 0.0))
                 tp_val = float(pos.get("take_profit", 0.0))
+
+                # Reflect dynamic fee-secured green lock & cost breakeven ratchets in snapshot
+                if pos.get("fee_secured_active") and entry_px > 0:
+                    fee_px = round(entry_px * (0.9985 if side == "SELL" else 1.0015), 2)
+                    sl_val = min(sl_val, fee_px) if (side == "SELL" and sl_val > 0) else max(sl_val, fee_px)
+                elif pos.get("cost_breakeven_active") and entry_px > 0:
+                    be_px = round(entry_px * (0.9998 if side == "SELL" else 1.0002), 2)
+                    sl_val = min(sl_val, be_px) if (side == "SELL" and sl_val > 0) else max(sl_val, be_px)
+
                 if sl_val <= 0.0 and entry_px > 0:
                     sl_mult = 0.992 if target_ws == "CRYPTO" else 0.985
                     sl_val = round(entry_px * sl_mult if side == "BUY" else entry_px * (2.0 - sl_mult), 4 if entry_px < 10 else 2)

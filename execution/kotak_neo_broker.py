@@ -418,6 +418,7 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
             if s_id:
                 url = f"{url}?sId={s_id}"
             h = {
+                "Authorization": self._consumer_key,
                 "Sid": s_id_val,
                 "sid": s_id_val,
                 "Auth": self._session_token,
@@ -454,8 +455,9 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
                 live_ltp_map = {}
                 if token_queries:
                     try:
-                        q_url = f"{b_url}/script-details/1.0/quotes/neosymbol/{','.join(token_queries)}/all"
-                        q_resp = requests.get(q_url, headers=h, timeout=4)
+                        quote_base = getattr(self, "_base_url", "https://e22.kotaksecurities.com").rstrip("/")
+                        q_url = f"{quote_base}/script-details/1.0/quotes/neosymbol/{','.join(token_queries)}/all"
+                        q_resp = requests.get(q_url, headers=h, timeout=6)
                         if q_resp.status_code == 200:
                             q_data = q_resp.json()
                             if isinstance(q_data, list):
