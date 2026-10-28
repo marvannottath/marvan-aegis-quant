@@ -101,6 +101,7 @@ class HistoricalLogService:
                     clean_fills = [fills[i] for i in range(len(fills)) if i not in paired_wash]
 
                     buy_queue = []
+                    sell_queue = []
                     for f in clean_fills:
                         qty = float(f.get("fldQty", 0) or f.get("qty", 0) or 0)
                         if qty <= 0:
@@ -120,13 +121,75 @@ class HistoricalLogService:
                         full_ts = f"{iso_date} {tm}" if tm else f"{iso_date} 00:00:00"
 
                         if side == "B":
-                            buy_queue.append({
-                                "qty": qty,
-                                "price": price,
-                                "time": tm,
-                                "full_ts": full_ts,
-                                "ordNo": f.get("nOrdNo", "")
-                            })
+                            rem_qty = qty
+                            # If there are open short sells in sell_queue, this BUY covers and closes them!
+                            while rem_qty > 0.0001 and sell_queue:
+                                s = sell_queue[0]
+                                match_qty = min(rem_qty, s["qty"])
+                                entry_px = s["price"]
+                                exit_px = price
+                                gross = round((entry_px - exit_px) * match_qty, 2)
+                                
+                                stt = round(exit_px * match_qty * 0.00025, 2)
+                                nse_turnover = round((entry_px + exit_px) * match_qty * 0.0000297, 2)
+                                stamp = round(entry_px * match_qty * 0.00003, 2)
+                                gst = round(nse_turnover * 0.18, 2)
+                                tot_fee = max(0.20, round(stt + nse_turnover + stamp + gst, 2))
+                                net = round(gross - tot_fee, 2)
+                                
+                                tid = f"TRD-KNEO-{sym}-{f.get('nOrdNo') or int(time.time()*1000)}"
+                                res_status = "WIN" if gross > 0 else ("BREAKEVEN" if gross == 0 else "LOSS")
+                                pnl_pct_calc = round((gross / (entry_px * match_qty)) * 100.0, 2) if (entry_px * match_qty) > 0 else 0.0
+                                if "14:4" in tm or "15:0" in tm:
+                                    exit_reason = "3:10 PM PRE_SQUAREOFF"
+                                elif gross > 0:
+                                    exit_reason = "PROFIT_TARGET_EXIT"
+                                elif gross == 0:
+                                    exit_reason = "BREAKEVEN_EXIT"
+                                elif pnl_pct_calc <= -0.50:
+                                    exit_reason = "INTRADAY_STOP_LOSS"
+                                else:
+                                    exit_reason = "MARKET_SPREAD_EXIT"
+                                
+                                trades_map[tid] = {
+                                    "trade_id": tid,
+                                    "timestamp": full_ts,
+                                    "date": iso_date,
+                                    "symbol": sym,
+                                    "asset": sym,
+                                    "side": "SELL",
+                                    "action": "SELL",
+                                    "entry_price": entry_px,
+                                    "exit_price": exit_px,
+                                    "quantity": match_qty,
+                                    "units": match_qty,
+                                    "capital_allocated": round(entry_px * match_qty, 2),
+                                    "leverage": 1.0,
+                                    "gross_pnl": gross,
+                                    "fee_usd": tot_fee,
+                                    "net_pnl": net,
+                                    "pnl_usd": net,
+                                    "pnl_pct": pnl_pct_calc,
+                                    "result": res_status,
+                                    "close_reason": exit_reason,
+                                    "workspace": "INDIA",
+                                    "environment": "LIVE",
+                                    "source": "KOTAK_NEO_LIVE"
+                                }
+                                s["qty"] -= match_qty
+                                rem_qty -= match_qty
+                                if s["qty"] <= 0.0001:
+                                    sell_queue.pop(0)
+
+                            if rem_qty > 0.0001:
+                                buy_queue.append({
+                                    "qty": rem_qty,
+                                    "price": price,
+                                    "time": tm,
+                                    "full_ts": full_ts,
+                                    "ordNo": f.get("nOrdNo", "")
+                                })
+
                         elif side == "S":
                             rem_qty = qty
                             # Session-aware matching: if afternoon exit (13:00+), match against afternoon entries first
@@ -196,6 +259,15 @@ class HistoricalLogService:
                                         buy_queue.remove(b)
                                     if b in matching_pool and matching_pool is not buy_queue:
                                         matching_pool.remove(b)
+
+                            if rem_qty > 0.0001:
+                                sell_queue.append({
+                                    "qty": rem_qty,
+                                    "price": price,
+                                    "time": tm,
+                                    "full_ts": full_ts,
+                                    "ordNo": f.get("nOrdNo", "")
+                                })
         except Exception as ke:
             print(f"[HistoricalLogService] Kotak Neo live trades notice: {ke}")
 
