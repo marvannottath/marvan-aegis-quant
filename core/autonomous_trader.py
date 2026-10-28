@@ -419,14 +419,17 @@ class AutonomousTrader:
                                     cap = round(qty * entry_px, 2)
                                     # For intraday MIS equities, Kotak blocks 1/5th (20%) margin with 5x leverage
                                     mis_margin = round(cap / 5.0, 2)
+                                    side_act = str(kp.get("side", "BUY")).upper()
+                                    tp_price = round(entry_px * (0.980 if side_act == "SELL" else 1.020), 2)
+                                    sl_price = round(entry_px * (1.016 if side_act == "SELL" else 0.984), 2)
                                     pos_record = {
                                         "trade_id": f"TRD-KNEO-{sym}-{int(time.time()*1000)}",
-                                        "asset": sym, "symbol": sym, "action": kp.get("side", "BUY"), "side": kp.get("side", "BUY"),
+                                        "asset": sym, "symbol": sym, "action": side_act, "side": side_act,
                                         "units": qty, "quantity": qty, "entry_price": entry_px,
                                         "last_price": cur_px, "current_price": cur_px, "capital_allocated": mis_margin,
                                         "margin": mis_margin, "leverage": 5.0, "market_value": round(qty * cur_px, 2),
                                         "pnl_usd": round(float(kp.get("unrealized_pnl", 0.0)), 2),
-                                        "take_profit": round(entry_px * 1.020, 2), "stop_loss": round(entry_px * 0.984, 2),
+                                        "take_profit": tp_price, "stop_loss": sl_price,
                                         "product": "MIS", "status": "ACTIVE", "environment": "LIVE", "workspace": "INDIA",
                                         "source": "KOTAK_NEO_LIVE",
                                         "timestamp": datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S")

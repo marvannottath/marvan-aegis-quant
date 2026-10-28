@@ -481,13 +481,14 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
                 for p, net_qty in open_items:
                     buy_qty = float(p.get("flBuyQty", 0) or 0)
                     buy_amt = float(p.get("buyAmt", 0) or 0)
-                    buy_avg = round(buy_amt / buy_qty, 2) if buy_qty > 0 else 0.0
+                    sell_qty = float(p.get("flSellQty", 0) or 0)
+                    sell_amt = float(p.get("sellAmt", 0) or 0)
                     sym = p.get("sym", p.get("trdSym", "").replace("-EQ", "")).upper()
                     tok = str(p.get("tok", "")).strip()
 
                     # Exact Kotak Neo live LTP
                     ltp = live_ltp_map.get(tok) or live_ltp_map.get(sym) or float(p.get("ltp", 0.0) or 0.0)
-                    if ltp <= 0.0 or ltp == buy_avg:
+                    if ltp <= 0.0:
                         try:
                             from core.public_market_feed import public_market_feed
                             q = public_market_feed.get_quote(sym)
@@ -495,26 +496,39 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
                                 ltp = float(q["price"])
                         except Exception:
                             pass
-                    if ltp <= 0.0:
-                        ltp = buy_avg
 
-                    unrealized = round((ltp - buy_avg) * net_qty, 2)
-                    pnl_pct = round(((ltp - buy_avg) / buy_avg) * 100.0, 2) if buy_avg > 0 else 0.0
+                    is_long = (net_qty > 0)
+                    if is_long:
+                        entry_price = round(buy_amt / buy_qty, 2) if buy_qty > 0 else (ltp if ltp > 0 else 0.0)
+                        if ltp <= 0.0:
+                            ltp = entry_price
+                        unrealized = round((ltp - entry_price) * abs(net_qty), 2)
+                        pnl_pct = round(((ltp - entry_price) / entry_price) * 100.0, 2) if entry_price > 0 else 0.0
+                    else:
+                        entry_price = round(sell_amt / sell_qty, 2) if sell_qty > 0 else (ltp if ltp > 0 else 0.0)
+                        if ltp <= 0.0:
+                            ltp = entry_price
+                        unrealized = round((entry_price - ltp) * abs(net_qty), 2)
+                        pnl_pct = round(((entry_price - ltp) / entry_price) * 100.0, 2) if entry_price > 0 else 0.0
+
                     pos_prod = str(p.get("prod", "MIS")).upper()
+                    # For intraday MIS equities, margin blocked is 1/5th (20%) of entry value with 5x leverage
+                    calc_margin = round((entry_price * abs(net_qty)) / (5.0 if pos_prod == "MIS" else 1.0), 2)
                     verified.append({
                         "symbol": sym,
                         "quantity": abs(net_qty),
                         "units": abs(net_qty),
-                        "side": "BUY" if net_qty > 0 else "SELL",
-                        "buy_price": buy_avg,
-                        "entry_price": buy_avg,
+                        "side": "BUY" if is_long else "SELL",
+                        "buy_price": entry_price,
+                        "entry_price": entry_price,
                         "last_price": ltp,
                         "current_price": ltp,
                         "unrealized_pnl": unrealized,
                         "pnl_usd": unrealized,
                         "pnl_pct": pnl_pct,
                         "market_value": round(ltp * abs(net_qty), 2),
-                        "capital_allocated": round(buy_avg * abs(net_qty), 2),
+                        "capital_allocated": calc_margin,
+                        "margin": calc_margin,
                         "product": pos_prod,
                     })
                 return verified
