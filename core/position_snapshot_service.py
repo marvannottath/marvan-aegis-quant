@@ -478,12 +478,18 @@ class PositionSnapshotService:
                 tp_val = float(pos.get("take_profit", 0.0))
 
                 # Reflect dynamic fee-secured green lock & cost breakeven ratchets in snapshot
-                if pos.get("fee_secured_active") and entry_px > 0:
-                    fee_px = round(entry_px * (0.9985 if side == "SELL" else 1.0015), 2)
-                    sl_val = min(sl_val, fee_px) if (side == "SELL" and sl_val > 0) else max(sl_val, fee_px)
-                elif pos.get("cost_breakeven_active") and entry_px > 0:
-                    be_px = round(entry_px * (0.9998 if side == "SELL" else 1.0002), 2)
-                    sl_val = min(sl_val, be_px) if (side == "SELL" and sl_val > 0) else max(sl_val, be_px)
+                side_act = side
+                entry_val = entry_px
+                gain_pct = pnl_pct if pnl_pct is not None else 0.0
+                is_fee_secured = pos.get("fee_secured_active") or (gain_pct >= 0.35) or (float(pos.get("highest_pnl_pct", 0.0)) >= 0.0035)
+                is_cost_be = pos.get("cost_breakeven_active") or (gain_pct >= 0.20) or (float(pos.get("highest_pnl_pct", 0.0)) >= 0.0020)
+
+                if is_fee_secured and entry_val > 0:
+                    fee_px = round(entry_val * (0.9985 if side_act == "SELL" else 1.0015), 2)
+                    sl_val = min(sl_val, fee_px) if (side_act == "SELL" and sl_val > 0) else max(sl_val, fee_px)
+                elif is_cost_be and entry_val > 0:
+                    be_px = round(entry_val * (0.9998 if side_act == "SELL" else 1.0002), 2)
+                    sl_val = min(sl_val, be_px) if (side_act == "SELL" and sl_val > 0) else max(sl_val, be_px)
 
                 if sl_val <= 0.0 and entry_px > 0:
                     sl_mult = 0.992 if target_ws == "CRYPTO" else 0.985
