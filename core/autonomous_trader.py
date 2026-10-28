@@ -464,17 +464,6 @@ class AutonomousTrader:
                     target_capacity = int(venue_prof.get("max_open_positions", 4))
                     if _active_ws == "CRYPTO":
                         target_capacity = max(3, target_capacity)
-                    elif _active_ws == "INDIA":
-                        # Micro-Account Capital Concentration Shield:
-                        # Accounts with < ₹1,500 balance must focus 100% margin on 1 single top runner
-                        # to prevent fragmenting capital across multiple stocks.
-                        try:
-                            from execution.kotak_neo_broker import kotak_neo_broker
-                            live_lim = kotak_neo_broker.fetch_live_limits()
-                            if live_lim < 1500.0:
-                                target_capacity = 1
-                        except Exception:
-                            target_capacity = 1
                     base_lev = float(venue_prof.get("default_leverage", 2.0))
 
                     # 3. Scan workspace opportunities (cached per pass)
