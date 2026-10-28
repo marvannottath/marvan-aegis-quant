@@ -305,8 +305,8 @@ class PositionSnapshotService:
             except Exception as e:
                 print(f"[POSITION_SNAPSHOT] Kotak live position sync notice: {e}")
 
-            # If Kotak exchange positions list is empty, also check if pool has authentic live positions (never TRD-AEGI paper positions)
-            if not internal_pos_list:
+            # If Kotak API failed to connect (live_k_pos is None), fallback to internal store
+            if live_k_pos is None and not internal_pos_list:
                 live_pool_pos = pool.get("positions", {})
                 if isinstance(live_pool_pos, dict):
                     for p in live_pool_pos.values():
