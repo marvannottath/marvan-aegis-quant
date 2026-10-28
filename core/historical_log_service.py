@@ -79,26 +79,8 @@ class HistoricalLogService:
 
                 for sym, raw_fills in by_sym.items():
                     fills = sorted(raw_fills, key=_parse_kt_timestamp)
-                    # Exclude rapid offsetting wash / reconciliation pairs (within 10 seconds)
-                    paired_wash = set()
-                    for i in range(len(fills)):
-                        if i in paired_wash:
-                            continue
-                        f1 = fills[i]
-                        for j in range(i + 1, min(i + 6, len(fills))):
-                            if j in paired_wash:
-                                continue
-                            f2 = fills[j]
-                            t1 = _parse_kt_timestamp(f1)
-                            t2 = _parse_kt_timestamp(f2)
-                            q1 = float(f1.get("fldQty", 0) or f1.get("qty", 0) or 0)
-                            q2 = float(f2.get("fldQty", 0) or f2.get("qty", 0) or 0)
-                            if abs(t2 - t1) <= 10 and abs(q1 - q2) < 0.0001 and f1.get("trnsTp") != f2.get("trnsTp"):
-                                paired_wash.add(i)
-                                paired_wash.add(j)
-                                break
-
-                    clean_fills = [fills[i] for i in range(len(fills)) if i not in paired_wash]
+                    # All exchange fills returned by Kotak Neo trade book are authentic executions
+                    clean_fills = fills
 
                     buy_queue = []
                     sell_queue = []
