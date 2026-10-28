@@ -103,6 +103,8 @@ class DynamicMomentumLock:
         If momentum lock is disabled, all symbols are allowed.
         If active, ONLY the locked_symbol is allowed, unless the locked symbol has no active signal (HOLD).
         """
+        if not symbol:
+            return False
         ws = workspace.upper()
         state = self._states.get(ws, {})
         if not state.get("enabled", False):
@@ -110,7 +112,7 @@ class DynamicMomentumLock:
         locked = state.get("locked_symbol")
         if not locked:
             return True
-        if symbol.upper() == locked.upper():
+        if str(symbol).upper() == str(locked).upper():
             return True
         # If the locked symbol is in HOLD, allow other symbols with active trading signals
         if state.get("locked_action") == "HOLD":
@@ -186,12 +188,28 @@ class DynamicMomentumLock:
         now_ts = time.time()
         now_dt_str = _now_str()
 
-        # Find top candidate with active BUY or SELL trading signal
-        valid_candidates = [
-            c for c in candidate_opportunities
-            if float(c.get("score", 0.0) or c.get("opportunity_score", 0.0)) > 0
-            and c.get("ai_action") in ["BUY", "SELL"]
-        ]
+        # Available capital affordability filter for Indian equities
+        avail_cap = 0.0
+        if ws == "INDIA":
+            try:
+                from execution.kotak_neo_broker import kotak_neo_broker
+                avail_cap = float(kotak_neo_broker.fetch_live_limits() or 0.0)
+            except Exception:
+                pass
+
+        # Find top candidate with active BUY or SELL trading signal within account margin
+        valid_candidates = []
+        for c in candidate_opportunities:
+            sc = float(c.get("score", 0.0) or c.get("opportunity_score", 0.0))
+            act = c.get("ai_action")
+            if sc > 0 and act in ["BUY", "SELL"]:
+                px = float(c.get("price", 0.0) or c.get("last_price", 0.0))
+                if ws == "INDIA" and avail_cap > 0 and px > 0:
+                    req_margin = px / 5.0
+                    if req_margin > avail_cap:
+                        continue  # Skip unaffordable stocks whose 1-share margin exceeds account funds (e.g. LT @ ₹765 > ₹708)
+                valid_candidates.append(c)
+
         valid_candidates.sort(
             key=lambda x: (
                 float(x.get("score", 0.0) or x.get("opportunity_score", 0.0)),
@@ -201,6 +219,19 @@ class DynamicMomentumLock:
         )
 
         current_locked = state.get("locked_symbol")
+
+        # If currently locked symbol is unaffordable in this account, clear it immediately so it rotates!
+        if current_locked and ws == "INDIA" and avail_cap > 0:
+            locked_cand = next(
+                (c for c in candidate_opportunities if (c.get("symbol") or c.get("ticker") or c.get("asset")) == current_locked),
+                None
+            )
+            cur_l_px = float((locked_cand.get("price", 0.0) or locked_cand.get("last_price", 0.0)) if locked_cand else state.get("locked_price", 0.0))
+            if cur_l_px > 0 and (cur_l_px / 5.0) > avail_cap:
+                old_unaff = current_locked
+                current_locked = None
+                state["locked_symbol"] = None
+                state["switch_reason"] = f"CAPITAL_FILTER: {old_unaff} margin exceeds balance -> Unlocked"
 
         # Case 1: No symbol locked yet -> Lock top runner with active signal
         if not current_locked:
