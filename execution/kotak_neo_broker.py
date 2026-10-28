@@ -479,6 +479,10 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
                     self._cached_live_ltp = {}
                 self._cached_live_ltp.update(live_ltp_map)
 
+                if not hasattr(self, "_position_first_seen"):
+                    self._position_first_seen = {}
+
+                current_live_syms = set()
                 verified = []
                 for p, net_qty in open_items:
                     buy_qty = float(p.get("flBuyQty", 0) or 0)
@@ -487,6 +491,11 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
                     sell_amt = float(p.get("sellAmt", 0) or 0)
                     sym = p.get("sym", p.get("trdSym", "").replace("-EQ", "")).upper()
                     tok = str(p.get("tok", "")).strip()
+                    current_live_syms.add(sym)
+
+                    if sym not in self._position_first_seen:
+                        self._position_first_seen[sym] = _ist_now()
+                    pos_ts = self._position_first_seen[sym]
 
                     # Exact Kotak Neo live LTP
                     ltp = live_ltp_map.get(tok) or live_ltp_map.get(sym) or float(p.get("ltp", 0.0) or 0.0)
@@ -521,6 +530,7 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
                         "quantity": abs(net_qty),
                         "units": abs(net_qty),
                         "side": "BUY" if is_long else "SELL",
+                        "action": "BUY" if is_long else "SELL",
                         "buy_price": entry_price,
                         "entry_price": entry_price,
                         "last_price": ltp,
@@ -532,7 +542,13 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
                         "capital_allocated": calc_margin,
                         "margin": calc_margin,
                         "product": pos_prod,
+                        "timestamp": pos_ts,
                     })
+
+                # Prune old closed positions from first_seen tracker
+                for old_s in list(self._position_first_seen.keys()):
+                    if old_s not in current_live_syms:
+                        self._position_first_seen.pop(old_s, None)
                 return verified
         except Exception as e:
             print(f"[KOTAK_NEO] Live positions fetch notice: {e}")
@@ -901,7 +917,8 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
                     live_avail = self.fetch_live_limits()
                     est_price = price if price > 0 else 500.0
                     est_margin = round((int_qty * est_price) / (5.0 if prod == "MIS" else 1.0), 2)
-                    if side == "BUY" and live_avail < est_margin:
+                    is_closing = bool(order.get("is_close", False))
+                    if not is_closing and side == "BUY" and live_avail < est_margin:
                         return {
                             "status": "REJECTED",
                             "order_id": None,
@@ -1142,7 +1159,8 @@ class KotakNeoBrokerAdapter(BrokerAdapter):
             "price": 0.0,
             "order_type": "MARKET",
             "product": final_prod,
-            "environment": environment
+            "environment": environment,
+            "is_close": True
         })
 
     def get_trades(self) -> List[Dict[str, Any]]:

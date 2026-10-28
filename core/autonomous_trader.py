@@ -410,10 +410,12 @@ class AutonomousTrader:
 
                             k_live_pos = kotak_neo_broker.get_positions("LIVE")
                             pool_pos = self.broker.pools.setdefault("KOTAK_NEO_LIVE", {}).setdefault("positions", {})
+                            live_k_syms = set()
                             for kp in k_live_pos:
                                 sym = kp.get("symbol") or kp.get("asset")
                                 if not sym:
                                     continue
+                                live_k_syms.add(sym)
                                 qty = float(kp.get("quantity", kp.get("units", 1)))
                                 entry_px = float(kp.get("entry_price", kp.get("buy_price", 0.0)))
                                 cur_px = float(kp.get("current_price", entry_px))
@@ -435,7 +437,7 @@ class AutonomousTrader:
                                         "take_profit": tp_price, "stop_loss": sl_price,
                                         "product": "MIS", "status": "ACTIVE", "environment": "LIVE", "workspace": "INDIA",
                                         "source": "KOTAK_NEO_LIVE",
-                                        "timestamp": datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S")
+                                        "timestamp": kp.get("timestamp") or datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S")
                                     }
                                     pool_pos[sym] = pos_record
                                     self.broker.positions[sym] = pos_record
@@ -447,6 +449,12 @@ class AutonomousTrader:
                                     pool_pos[sym]["current_price"] = cur_px
                                     pool_pos[sym]["last_price"] = cur_px
                                     pool_pos[sym]["pnl_usd"] = round(float(kp.get("unrealized_pnl", 0.0)), 2)
+
+                            # Prune positions that no longer exist on Kotak Neo exchange
+                            for st_s in list(pool_pos.keys()):
+                                if st_s not in live_k_syms:
+                                    pool_pos.pop(st_s, None)
+                                    self.broker.positions.pop(st_s, None)
                         except Exception:
                             pass
 
@@ -1292,7 +1300,7 @@ class AutonomousTrader:
                     for idx, (pos_asset, pos) in enumerate(list(pool_positions.items())):
                         self.position_age[pos_asset] = self.position_age.get(pos_asset, 0) + 1
                         age = self.position_age[pos_asset]
-                        act = pos.get("action", "BUY")
+                        act = (pos.get("action") or pos.get("side") or "BUY").upper()
 
                         # Directional Alpha Trajectory (1000-Shield Quantum Guardian Alignment)
                         drift_direction = 1.0 if act == "BUY" else -1.0
@@ -1373,6 +1381,19 @@ class AutonomousTrader:
                     highest_pnl = max(pos.get("highest_pnl_pct", 0.0), pnl_pct)
                     pos["highest_pnl_pct"] = highest_pnl
 
+                    # Peak Plateau Stagnation Tracker (5-Minute Profit Harvester)
+                    cur_now_ts = time.time()
+                    if pnl_pct > float(pos.get("peak_pnl_pct", -999.0)) + 0.0003:
+                        pos["peak_pnl_pct"] = pnl_pct
+                        pos["peak_price"] = new_live_price
+                        pos["peak_time"] = cur_now_ts
+                    elif "peak_time" not in pos:
+                        pos["peak_pnl_pct"] = pnl_pct
+                        pos["peak_price"] = new_live_price
+                        pos["peak_time"] = cur_now_ts
+
+                    time_at_peak = cur_now_ts - float(pos.get("peak_time", cur_now_ts))
+
                     # Derive position workspace and brokerage venue safely
                     pos_ws = "CRYPTO" if ("USDT" in pos_asset or "BUSD" in pos_asset) else ("FOREX_GOLD" if any(c in pos_asset for c in ["EUR", "GBP", "USD", "XAU"]) else "INDIA")
                     is_zero_brokerage_venue = ("KOTAK" in pool.upper() or "KOTAK" in str(pos.get("broker", "")).upper() or pos_ws == "INDIA")
@@ -1446,6 +1467,13 @@ class AutonomousTrader:
 
                         is_break_even_guard = is_trailing_stop
 
+                        # User Rule: 5-Minute Peak Stagnation Profit Harvester
+                        # When a position reaches >= +0.20% gain and consolidates near its top plateau for >= 5 minutes (300s)
+                        # without making higher highs, lock in profit and exit so margin is released for the next opportunity!
+                        is_peak_stagnation = bool(
+                            pnl_pct >= 0.0020 and time_at_peak >= 300.0 and (highest_pnl - pnl_pct) <= 0.0025
+                        )
+
                         # Take Profit: Target +1.50% (intraday swing target) or explicit TP level crossed
                         is_tp_price_hit = bool(pos.get("take_profit", 0.0) > 0 and (new_live_price >= pos["take_profit"] if act == "BUY" else new_live_price <= pos["take_profit"]))
                         is_fee_secured_tp = (pnl_pct >= 0.0150) or is_tp_price_hit
@@ -1453,7 +1481,11 @@ class AutonomousTrader:
                         is_micro_harvest = False
                         is_staggered_harvest = False
                         is_maturity_rebalance = False
-                        is_stale_rotation = (time_held_sec >= 2700) and (pnl_pct >= 0.0020)
+                        # Stale Capital Rotation:
+                        # 1) If in loss (<= -0.50%) and held >= 30 mins (1800s), cut loss to liberate margin.
+                        # 2) If held >= 45 mins (2700s) without progress, rotate.
+                        is_stale_loss_exit = bool(time_held_sec >= 1800.0 and pnl_pct <= -0.0050)
+                        is_stale_rotation = is_stale_loss_exit or (time_held_sec >= 2700)
                         is_hard_stop = (pnl_pct <= -0.0080) or is_sl_hit
                     elif pos_ws == "CRYPTO":
                         # Binance Crypto Spot Multi-Stage Fee-Secured Trailing Ratchet:
@@ -1489,6 +1521,11 @@ class AutonomousTrader:
                             is_trailing_stop = True
 
                         is_break_even_guard = is_trailing_stop
+
+                        # User Rule: 5-Minute Peak Plateau Harvester for Crypto
+                        is_peak_stagnation = bool(
+                            pnl_pct >= 0.0035 and time_at_peak >= 300.0 and (highest_pnl - pnl_pct) <= 0.0025
+                        )
 
                         # Take Profit: Target +2.20% or explicit TP level crossed
                         is_tp_price_hit = bool(pos.get("take_profit", 0.0) > 0 and (new_live_price >= pos["take_profit"] if act == "BUY" else new_live_price <= pos["take_profit"]))
@@ -1533,6 +1570,11 @@ class AutonomousTrader:
                             is_trailing_stop = True
 
                         is_break_even_guard = is_trailing_stop
+
+                        # User Rule: 5-Minute Peak Plateau Harvester for Forex / Gold
+                        is_peak_stagnation = bool(
+                            pnl_pct >= 0.0020 and time_at_peak >= 300.0 and (highest_pnl - pnl_pct) <= 0.0020
+                        )
 
                         is_tp_price_hit = bool(pos.get("take_profit", 0.0) > 0 and (new_live_price >= pos["take_profit"] if act == "BUY" else new_live_price <= pos["take_profit"]))
                         is_fee_secured_tp = (pnl_pct >= 0.0120) or is_tp_price_hit
@@ -1599,6 +1641,7 @@ class AutonomousTrader:
 
                     should_close = (
                         is_eod_square_off or
+                        is_peak_stagnation or
                         is_break_even_guard or 
                         is_fee_secured_tp or 
                         is_milestone or 
@@ -1625,6 +1668,8 @@ class AutonomousTrader:
                         closed_any = True
                         if is_eod_square_off:
                             close_reason = "EOD_MANDATORY_SQUARE_OFF_1500_IST"
+                        elif is_peak_stagnation:
+                            close_reason = "PEAK_STAGNATION_PROFIT_HARVEST"
                         elif is_break_even_guard:
                             close_reason = "BREAK_EVEN_RATCHET_GUARD"
                         elif is_trailing_stop:
@@ -1818,7 +1863,7 @@ class AutonomousTrader:
                                     ctrader_broker.close_position(str(pos_id))
                             except Exception as c_err:
                                 print(f"[AUTONOMOUS TRADER] cTrader close error for {pos_asset}: {c_err}")
-                        elif pool in ["KOTAK_NEO_LIVE", "UPSTOX_LIVE"] or (_active_ws == "INDIA" and is_live_pool):
+                        elif pool in ["KOTAK_NEO_LIVE", "UPSTOX_LIVE"] or pos_ws == "INDIA" or ("KOTAK" in pool):
                             try:
                                 from execution.kotak_neo_broker import kotak_neo_broker
                                 k_close_qty = float(pos.get("quantity", pos.get("units", 1)))
@@ -1829,7 +1874,7 @@ class AutonomousTrader:
                                     quantity=k_close_qty,
                                     product=k_prod,
                                     environment="LIVE",
-                                    side=("BUY" if str(pos.get("side", "")).upper() == "SELL" else "SELL")
+                                    side=("BUY" if (pos.get("action") or pos.get("side") or "").upper() == "SELL" else "SELL")
                                 )
                                 print(f"[AUTONOMOUS TRADER] Kotak Neo Live Close for {pos_asset}: {live_k_res}")
                             except Exception as k_close_err:
