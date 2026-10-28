@@ -1115,10 +1115,24 @@ class AutonomousTrader:
 
                                 elif pool in ["KOTAK_NEO_LIVE", "UPSTOX_LIVE"] or (_active_ws == "INDIA" and is_live_pool):
                                     try:
-                                        # End-of-Day Safety: Do not open NEW intraday positions after 14:45 IST
+                                        # Strict Kotak Live Guard: requires explicit KOTAK_LIVE_TRADING_ENABLED=true in .env
+                                        kotak_live_flag = os.getenv("KOTAK_LIVE_TRADING_ENABLED", "false").lower() == "true"
+                                        if not kotak_live_flag:
+                                            if step_counter % 20 == 0:
+                                                self._log_action(ticker, "KOTAK_LIVE_LOCKED", current_price, size_usd, "Kotak live trading strictly locked (KOTAK_LIVE_TRADING_ENABLED=false). Set to true to allow.")
+                                            continue
+
+                                        # Capital Preservation Guard: Max 2 Indian trades per day to eliminate broker fees & tax drag
+                                        today_india_trades = sum(v for k, v in self._daily_symbol_trade_counts.items())
+                                        if today_india_trades >= 2:
+                                            if step_counter % 20 == 0:
+                                                self._log_action(ticker, "DAILY_TRADE_LIMIT_REACHED", current_price, size_usd, f"Max daily Indian trades limit reached ({today_india_trades}/2). Capital protected.")
+                                            continue
+
+                                        # End-of-Day Safety: Do not open NEW intraday positions after 14:30 IST
                                         # Indian market closes at 15:30 IST; Kotak RMS auto-squares off at 15:15 IST
                                         now_ist = datetime.now(timezone.utc).astimezone(IST_TZ)
-                                        if now_ist.hour > 14 or (now_ist.hour == 14 and now_ist.minute >= 45):
+                                        if now_ist.hour > 14 or (now_ist.hour == 14 and now_ist.minute >= 30):
                                             continue
 
                                         from execution.kotak_neo_broker import kotak_neo_broker
@@ -1570,7 +1584,17 @@ class AutonomousTrader:
                                 f"Single share green lock engaged (+{pnl_pct*100:.2f}%). Trailing stop locked at +0.30% net profit floor!"
                             )
 
+                    # MANDATORY Indian Intraday Auto-Square Off Guard at 15:00 IST
+                    # Closes open MIS positions 15 mins before Kotak RMS 15:15 cutoff, completely eliminating broker penalty charges (₹59/order)
+                    is_india_pos = (pos_ws == "INDIA") or ("KOTAK" in pool) or (pos.get("environment") == "KOTAK_NEO_LIVE")
+                    is_eod_square_off = False
+                    if is_india_pos:
+                        now_ist = datetime.now(timezone.utc).astimezone(IST_TZ)
+                        if now_ist.hour > 14 or (now_ist.hour == 14 and now_ist.minute >= 58):
+                            is_eod_square_off = True
+
                     should_close = (
+                        is_eod_square_off or
                         is_break_even_guard or 
                         is_fee_secured_tp or 
                         is_milestone or 
@@ -1595,7 +1619,9 @@ class AutonomousTrader:
                                 continue
 
                         closed_any = True
-                        if is_break_even_guard:
+                        if is_eod_square_off:
+                            close_reason = "EOD_MANDATORY_SQUARE_OFF_1500_IST"
+                        elif is_break_even_guard:
                             close_reason = "BREAK_EVEN_RATCHET_GUARD"
                         elif is_trailing_stop:
                             close_reason = "TRAILING_STOP_LOSS_LOCKED"
