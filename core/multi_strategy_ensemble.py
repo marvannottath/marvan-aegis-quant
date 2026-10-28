@@ -64,7 +64,10 @@ class MultiStrategyEnsemble:
                 action = "BUY"
                 confidence = 88.0 + min(10.0, volume_surge_pct * 0.1)
                 reason = "Morning Opening Range Breakout: Price holding firmly above VWAP with rising momentum"
-            elif rsi <= 45.0 and price < vwap:
+            elif 40.0 <= rsi <= 45.0 and price < vwap:
+                # Anti-Gap-Down Trap Protection:
+                # Never short deeply oversold stocks (RSI < 40) at morning open,
+                # as morning gap-downs in large caps typically trigger sharp mean-reversion gap fills!
                 action = "SELL"
                 confidence = 85.0
                 reason = "Morning Breakdown: Price failed VWAP hurdle with aggressive opening selling"

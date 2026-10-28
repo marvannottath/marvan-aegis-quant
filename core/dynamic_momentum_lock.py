@@ -114,9 +114,7 @@ class DynamicMomentumLock:
             return True
         if str(symbol).upper() == str(locked).upper():
             return True
-        # If the locked symbol is in HOLD, allow other symbols with active trading signals
-        if state.get("locked_action") == "HOLD":
-            return True
+        # Strict single-runner focus: do not leak into random non-locked stocks
         return False
 
     def get_status(self, workspace: str = "INDIA") -> Dict[str, Any]:
