@@ -149,6 +149,8 @@ class DailyCircuitBreaker:
         self.is_circuit_open = False
         self.lock_reason = ""
         self.consecutive_losses = 0
+        self.daily_pnl = 0.0
+        self.cool_off_until = 0.0
         self._save_state()
         return {"status": "SUCCESS", "message": "Circuit breaker reset. Trading unlocked."}
 

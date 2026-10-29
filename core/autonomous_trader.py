@@ -1952,7 +1952,7 @@ class AutonomousTrader:
                         self.position_age.pop(pos_asset, None)
                         self._log_action(pos_asset, "CLOSE", new_live_price, pos.get("capital_allocated", 500.0), f"Position Closed & Swept ({close_reason})")
                         
-                        if _active_ws == "INDIA":
+                        if is_india_sym(pos_asset):
                             try:
                                 from core.daily_circuit_breaker import daily_circuit_breaker
                                 daily_circuit_breaker.record_trade_result(pnl=pnl_usd)
