@@ -114,9 +114,9 @@ class IndianSessionTimingEngine:
             }
         elif 1145 <= time_val < 1315:
             return {
-                "session": "LUNCH_CHOP_WINDOW",
-                "is_entry_allowed": False,
-                "reason": "Midday Lunch Lull / Chop Zone (11:45 AM - 01:15 PM IST). New entries blocked to eliminate false breakouts.",
+                "session": "MIDDAY_ACTIVE_WINDOW",
+                "is_entry_allowed": True,
+                "reason": "Midday Active Trading Session (11:45 AM - 01:15 PM IST). Momentum entries permitted.",
                 "time_ist": now.strftime("%H:%M:%S IST")
             }
         elif 1315 <= time_val < 1445:

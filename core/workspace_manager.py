@@ -42,6 +42,8 @@ class WorkspaceManager:
             'instruments': [
                 'RELIANCE', 'TCS', 'HDFCBANK', 'INFY', 'ICICIBANK',
                 'SBIN', 'BHARTIARTL', 'ITC', 'LICI', 'LT',
+                'TATAMOTORS', 'TATASTEEL', 'COALINDIA', 'ONGC', 'BPCL',
+                'POWERGRID', 'NTPC',
                 'NIFTY50', 'BANKNIFTY', 'NIFTYBEES', 'GOLDBEES', 'BANKBEES', 'ITBEES'
             ],
             'asset_categories': ['INDIAN_STOCKS', 'INDIAN_EQUITY', 'INDIAN_ETF', 'INDIAN_INDEX'],

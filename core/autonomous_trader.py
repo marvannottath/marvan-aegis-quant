@@ -1328,7 +1328,8 @@ class AutonomousTrader:
                                 "GOLDBEES", "NIFTYBEES", "BANKBEES", "ITBEES", "JUNIORBEES", "LICI",
                                 "RELIANCE", "TCS", "HDFCBANK", "INFY", "ICICIBANK", "SBIN",
                                 "BHARTIARTL", "ITC", "KOTAKBANK", "LT", "TATAMOTORS",
-                                "SUNPHARMA", "MARUTI", "AXISBANK", "TITAN", "BAJFINANCE"
+                                "SUNPHARMA", "MARUTI", "AXISBANK", "TITAN", "BAJFINANCE",
+                                "POWERGRID", "NTPC", "COALINDIA", "ONGC", "BPCL", "TATASTEEL"
                             ])
                         )
 
@@ -1446,126 +1447,17 @@ class AutonomousTrader:
 
                     if pos_ws == "INDIA" or is_zero_brokerage_venue:
                         # Indian Equities Multi-Stage Fee-Secured Trailing Ratchet:
-                        # Tier 1 (Cost Breakeven): At +0.20% gain, move Stop Loss to Cost (Entry Price) -> 0% Risk!
-                        if highest_pnl >= 0.0020:
+                        # User Rule: At +0.25% gain, ratchet Stop Loss to Cost (Entry Price + 0.06% to cover all STT/NSE/GST)
+                        # The stop loss only moves UP and can NEVER decrease ("pinneed kurayaan paadilla")!
+                        if highest_pnl >= 0.0025:
                             pos["cost_breakeven_active"] = True
-                            be_px = round(entry * 1.0002, px_dec) if act == "BUY" else round(entry * 0.9998, px_dec)
+                            be_px = round(entry * 1.0006, px_dec) if act == "BUY" else round(entry * 0.9994, px_dec)
                             pos["stop_loss"] = max(cur_sl, be_px) if act == "BUY" else (min(cur_sl, be_px) if cur_sl > 0 else be_px)
 
-                        # Tier 2 (Fee-Secured Green Lock): At +0.35% gain, lock Stop Loss at +0.15% (all taxes covered + net profit)
-                        if highest_pnl >= 0.0035:
-                            pos["fee_secured_active"] = True
-                            green_px = round(entry * 1.0015, px_dec) if act == "BUY" else round(entry * 0.9985, px_dec)
-                            pos["stop_loss"] = max(float(pos.get("stop_loss", 0.0)), green_px) if act == "BUY" else (min(float(pos.get("stop_loss", 999999.0)), green_px) if float(pos.get("stop_loss", 0.0)) > 0 else green_px)
-
-                        # Tier 3 (Dynamic Trailing Ratchet): As price surges higher (>= +0.50%), lock dynamic trailing floor behind peak
-                        if highest_pnl >= 0.0050:
-                            trailing_floor = highest_pnl - 0.0025
-                            pos["dynamic_trailing_floor"] = max(pos.get("dynamic_trailing_floor", 0.0), trailing_floor)
-                            trail_px = round(entry * (1.0 + trailing_floor), px_dec) if act == "BUY" else round(entry * (1.0 - trailing_floor), px_dec)
-                            pos["stop_loss"] = max(float(pos.get("stop_loss", 0.0)), trail_px) if act == "BUY" else (min(float(pos.get("stop_loss", 999999.0)), trail_px) if float(pos.get("stop_loss", 0.0)) > 0 else trail_px)
-
-                        # Check ratchet triggers (highest secured floor / price level takes precedence)
-                        is_trailing_stop = False
-                        is_sl_hit = (new_live_price <= pos["stop_loss"]) if act == "BUY" else (new_live_price >= pos["stop_loss"])
-                        if (pos.get("cost_breakeven_active") or pos.get("fee_secured_active") or pos.get("dynamic_trailing_floor")) and is_sl_hit:
-                            is_trailing_stop = True
-                        elif pos.get("dynamic_trailing_floor") and pnl_pct <= pos["dynamic_trailing_floor"]:
-                            is_trailing_stop = True
-                        elif pos.get("fee_secured_active") and pnl_pct <= 0.0015:
-                            is_trailing_stop = True
-                        elif pos.get("cost_breakeven_active") and pnl_pct <= 0.0002:
-                            is_trailing_stop = True
-
-                        is_break_even_guard = is_trailing_stop
-
-                        # User Rule: 5-Minute Peak Stagnation Profit Harvester
-                        # When a position reaches >= +0.20% gain and consolidates near its top plateau for >= 5 minutes (300s)
-                        # without making higher highs, lock in profit and exit so margin is released for the next opportunity!
-                        is_peak_stagnation = bool(
-                            pnl_pct >= 0.0020 and time_at_peak >= 300.0 and (highest_pnl - pnl_pct) <= 0.0025
-                        )
-
-                        # Take Profit: Target +1.50% (intraday swing target) or explicit TP level crossed
-                        is_tp_price_hit = bool(pos.get("take_profit", 0.0) > 0 and (new_live_price >= pos["take_profit"] if act == "BUY" else new_live_price <= pos["take_profit"]))
-                        is_fee_secured_tp = (pnl_pct >= 0.0150) or is_tp_price_hit
-                        is_milestone = (pnl_pct >= 0.0250)
-                        is_micro_harvest = False
-                        is_staggered_harvest = False
-                        is_maturity_rebalance = False
-                        # Stale Capital Rotation:
-                        # 1) If in loss (<= -0.50%) and held >= 30 mins (1800s), cut loss to liberate margin.
-                        # 2) If held >= 45 mins (2700s) without progress, rotate.
-                        is_stale_loss_exit = bool(time_held_sec >= 1800.0 and pnl_pct <= -0.0050)
-                        is_stale_rotation = is_stale_loss_exit or (time_held_sec >= 2700)
-                        is_hard_stop = (pnl_pct <= -0.0080) or is_sl_hit
-                    elif pos_ws == "CRYPTO":
-                        # Binance Crypto Spot Multi-Stage Fee-Secured Trailing Ratchet:
-                        # Binance Spot charges 0.10% buy + 0.10% sell = 0.20% roundtrip fee.
-                        # Tier 1 (Cost Breakeven): At +0.40% gain, move SL to +0.22% -> Real 0% Risk covering all fees!
-                        if highest_pnl >= 0.0040:
-                            pos["cost_breakeven_active"] = True
-                            be_px = round(entry * 1.0022, px_dec)
-                            pos["stop_loss"] = max(cur_sl, be_px)
-
-                        # Tier 2 (Fee-Secured Green Lock): At +0.60% gain, lock Stop Loss at +0.35% (all fees covered + pure green profit)
-                        if highest_pnl >= 0.0060:
-                            pos["fee_secured_active"] = True
-                            green_px = round(entry * 1.0035, px_dec)
-                            pos["stop_loss"] = max(float(pos.get("stop_loss", 0.0)), green_px)
-
-                        # Tier 3 (Dynamic Trailing Ratchet): As price surges (>= +0.80%), lock dynamic trailing floor behind peak (trailing by 0.25%)
-                        if highest_pnl >= 0.0080:
-                            trailing_floor = highest_pnl - 0.0025
-                            pos["dynamic_trailing_floor"] = max(pos.get("dynamic_trailing_floor", 0.0), trailing_floor)
-                            trail_px = round(entry * (1.0 + trailing_floor), px_dec)
-                            pos["stop_loss"] = max(float(pos.get("stop_loss", 0.0)), trail_px)
-
-                        # Check ratchet triggers (highest secured floor takes precedence)
-                        is_trailing_stop = False
-                        is_sl_hit = bool(pos.get("stop_loss", 0.0) > 0 and new_live_price <= pos["stop_loss"])
-                        if (pos.get("cost_breakeven_active") or pos.get("fee_secured_active") or pos.get("dynamic_trailing_floor")) and is_sl_hit:
-                            is_trailing_stop = True
-                        elif pos.get("dynamic_trailing_floor") and pnl_pct <= pos["dynamic_trailing_floor"]:
-                            is_trailing_stop = True
-                        elif pos.get("fee_secured_active") and pnl_pct <= 0.0035:
-                            is_trailing_stop = True
-                        elif pos.get("cost_breakeven_active") and pnl_pct <= 0.0022:
-                            is_trailing_stop = True
-
-                        is_break_even_guard = is_trailing_stop
-
-                        # User Rule: 5-Minute Peak Plateau Harvester for Crypto (Requires >= 0.50% to clear 0.20% fee)
-                        is_peak_stagnation = bool(
-                            pnl_pct >= 0.0050 and time_at_peak >= 300.0 and (highest_pnl - pnl_pct) <= 0.0025
-                        )
-
-                        # Take Profit: Target +2.20% or explicit TP level crossed
-                        is_tp_price_hit = bool(pos.get("take_profit", 0.0) > 0 and (new_live_price >= pos["take_profit"] if act == "BUY" else new_live_price <= pos["take_profit"]))
-                        is_fee_secured_tp = (pnl_pct >= 0.0220) or is_tp_price_hit
-                        is_milestone = (pnl_pct >= 0.0350)
-                        is_micro_harvest = (pnl_pct >= 0.0120 and pnl_usd >= 0.15)
-                        is_staggered_harvest = False
-                        is_maturity_rebalance = False
-                        is_stale_rotation = False
-                        is_hard_stop = (pnl_pct <= -0.0120) or is_sl_hit
-                    else:
-                        # Forex & Gold Multi-Stage Fee-Secured Trailing Ratchet:
-                        # Tier 1 (Cost Breakeven): At +0.20% gain (spread fully covered), move SL to Entry Price -> 0% Risk!
-                        if highest_pnl >= 0.0020:
-                            pos["cost_breakeven_active"] = True
-                            be_px = round(entry * 1.0002, px_dec) if act == "BUY" else round(entry * 0.9998, px_dec)
-                            pos["stop_loss"] = max(cur_sl, be_px) if act == "BUY" else (min(cur_sl, be_px) if cur_sl > 0 else be_px)
-
-                        # Tier 2 (Fee-Secured Green Lock): At +0.35% gain, lock Stop Loss at +0.15% (spread + profit locked)
-                        if highest_pnl >= 0.0035:
-                            pos["fee_secured_active"] = True
-                            green_px = round(entry * 1.0015, px_dec) if act == "BUY" else round(entry * 0.9985, px_dec)
-                            pos["stop_loss"] = max(float(pos.get("stop_loss", 0.0)), green_px) if act == "BUY" else (min(float(pos.get("stop_loss", 999999.0)), green_px) if float(pos.get("stop_loss", 0.0)) > 0 else green_px)
-
-                        # Tier 3 (Dynamic Trailing Ratchet): As price surges (>= +0.50%), lock dynamic trailing floor behind peak (trailing by 0.20%)
-                        if highest_pnl >= 0.0050:
-                            trailing_floor = highest_pnl - 0.0020
+                        # Dynamic Trailing Ratchet starting from +0.25%:
+                        # Trails tightly behind peak (0.15% trailing buffer). Strictly non-decreasing!
+                        if highest_pnl >= 0.0025:
+                            trailing_floor = highest_pnl - 0.0015
                             pos["dynamic_trailing_floor"] = max(pos.get("dynamic_trailing_floor", 0.0), trailing_floor)
                             trail_px = round(entry * (1.0 + trailing_floor), px_dec) if act == "BUY" else round(entry * (1.0 - trailing_floor), px_dec)
                             pos["stop_loss"] = max(float(pos.get("stop_loss", 0.0)), trail_px) if act == "BUY" else (min(float(pos.get("stop_loss", 999999.0)), trail_px) if float(pos.get("stop_loss", 0.0)) > 0 else trail_px)
@@ -1573,30 +1465,134 @@ class AutonomousTrader:
                         # Check ratchet triggers
                         is_trailing_stop = False
                         is_sl_hit = (new_live_price <= pos["stop_loss"]) if act == "BUY" else (new_live_price >= pos["stop_loss"])
-                        if (pos.get("cost_breakeven_active") or pos.get("fee_secured_active") or pos.get("dynamic_trailing_floor")) and is_sl_hit:
+                        if (pos.get("cost_breakeven_active") or pos.get("dynamic_trailing_floor")) and is_sl_hit:
                             is_trailing_stop = True
                         elif pos.get("dynamic_trailing_floor") and pnl_pct <= pos["dynamic_trailing_floor"]:
                             is_trailing_stop = True
-                        elif pos.get("fee_secured_active") and pnl_pct <= 0.0015:
-                            is_trailing_stop = True
-                        elif pos.get("cost_breakeven_active") and pnl_pct <= 0.0002:
+                        elif pos.get("cost_breakeven_active") and pnl_pct <= 0.0006:
                             is_trailing_stop = True
 
                         is_break_even_guard = is_trailing_stop
 
-                        # User Rule: 5-Minute Peak Plateau Harvester (Requires >=0.50% in Crypto to comfortably clear 0.20% roundtrip Binance fees)
-                        min_stagnation_thresh = 0.0050 if pos_ws == "CRYPTO" else 0.0020
+                        # User Rule: 10-Minute Maximum Stagnation & Best-Rate Exit Engine
+                        # If a position sits for >= 10 minutes (600s) without breaking into full target:
+                        # 1) If in profit (pnl_pct >= 0.0010): exit immediately at best rate to bank green profit!
+                        # 2) If cost-breakeven was ever reached (highest_pnl >= 0.0025): exit at cost/breakeven — zero loss guaranteed!
+                        # 3) If stagnant / negative (pnl_pct <= 0.0): cut position immediately at 10 minutes (do not hold for 30m or 45m)!
+                        is_10m_stagnant = bool(time_held_sec >= 600.0)
+                        is_stale_loss_exit = bool(is_10m_stagnant and pnl_pct <= 0.0)
+                        is_stale_profit_harvest = bool(is_10m_stagnant and (pnl_pct >= 0.0010 or highest_pnl >= 0.0025))
+                        is_stale_rotation = is_stale_loss_exit or is_stale_profit_harvest
+
+                        # 3-Minute Peak Plateau Harvester:
                         is_peak_stagnation = bool(
-                            pnl_pct >= min_stagnation_thresh and time_at_peak >= 300.0 and (highest_pnl - pnl_pct) <= 0.0020
+                            pnl_pct >= 0.0020 and time_at_peak >= 180.0 and (highest_pnl - pnl_pct) <= 0.0015
+                        )
+
+                        # Take Profit: Target +1.50% or explicit TP level crossed
+                        is_tp_price_hit = bool(pos.get("take_profit", 0.0) > 0 and (new_live_price >= pos["take_profit"] if act == "BUY" else new_live_price <= pos["take_profit"]))
+                        is_fee_secured_tp = (pnl_pct >= 0.0150) or is_tp_price_hit
+                        is_milestone = (pnl_pct >= 0.0250)
+                        is_micro_harvest = False
+                        is_staggered_harvest = False
+                        is_maturity_rebalance = False
+                        is_hard_stop = (pnl_pct <= -0.0080) or is_sl_hit
+                    elif pos_ws == "CRYPTO":
+                        # Binance Crypto Spot Multi-Stage Fee-Secured Trailing Ratchet:
+                        # Binance roundtrip fee is 0.20%.
+                        # User Rule: At +0.25% peak gain, ratchet Stop Loss to +0.21% (covers all fees -> Real Risk-Free!)
+                        # The stop loss only moves UP and can NEVER decrease ("pinneed kurayaan paadilla")!
+                        if highest_pnl >= 0.0025:
+                            pos["cost_breakeven_active"] = True
+                            be_px = round(entry * 1.0021, px_dec)
+                            pos["stop_loss"] = max(cur_sl, be_px)
+
+                        # Dynamic Trailing Ratchet above +0.25%:
+                        # Trails tightly behind peak (0.15% buffer). Strictly non-decreasing!
+                        if highest_pnl >= 0.0025:
+                            trailing_floor = highest_pnl - 0.0015
+                            pos["dynamic_trailing_floor"] = max(pos.get("dynamic_trailing_floor", 0.0), trailing_floor)
+                            trail_px = round(entry * (1.0 + trailing_floor), px_dec)
+                            pos["stop_loss"] = max(float(pos.get("stop_loss", 0.0)), trail_px)
+
+                        # Check ratchet triggers
+                        is_trailing_stop = False
+                        is_sl_hit = bool(pos.get("stop_loss", 0.0) > 0 and new_live_price <= pos["stop_loss"])
+                        if (pos.get("cost_breakeven_active") or pos.get("dynamic_trailing_floor")) and is_sl_hit:
+                            is_trailing_stop = True
+                        elif pos.get("dynamic_trailing_floor") and pnl_pct <= pos["dynamic_trailing_floor"]:
+                            is_trailing_stop = True
+                        elif pos.get("cost_breakeven_active") and pnl_pct <= 0.0021:
+                            is_trailing_stop = True
+
+                        is_break_even_guard = is_trailing_stop
+
+                        # User Rule: 10-Minute Maximum Stagnation & Best-Rate Exit Engine
+                        # If position held >= 10 minutes (600s):
+                        # 1) If in profit (pnl_pct >= 0.0025): exit immediately at best rate to bank green!
+                        # 2) If reached +0.25% peak earlier: NEVER allow loss; exit at breakeven!
+                        # 3) If flat or negative (pnl_pct <= 0.0): cut immediately at 10 minutes (no prolonged bleed)!
+                        is_10m_stagnant = bool(time_held_sec >= 600.0)
+                        is_stale_loss_exit = bool(is_10m_stagnant and pnl_pct <= 0.0)
+                        is_stale_profit_harvest = bool(is_10m_stagnant and (pnl_pct >= 0.0025 or highest_pnl >= 0.0025))
+                        is_stale_rotation = is_stale_loss_exit or is_stale_profit_harvest
+
+                        # 3-Minute Peak Plateau Harvester for Crypto:
+                        is_peak_stagnation = bool(
+                            pnl_pct >= 0.0035 and time_at_peak >= 180.0 and (highest_pnl - pnl_pct) <= 0.0015
+                        )
+
+                        # Take Profit: Target +1.80% or explicit TP level crossed
+                        is_tp_price_hit = bool(pos.get("take_profit", 0.0) > 0 and (new_live_price >= pos["take_profit"] if act == "BUY" else new_live_price <= pos["take_profit"]))
+                        is_fee_secured_tp = (pnl_pct >= 0.0180) or is_tp_price_hit
+                        is_milestone = (pnl_pct >= 0.0300)
+                        is_micro_harvest = (pnl_pct >= 0.0040 and pnl_usd >= 0.03)
+                        is_staggered_harvest = False
+                        is_maturity_rebalance = False
+                        is_hard_stop = (pnl_pct <= -0.0100) or is_sl_hit
+                    else:
+                        # Forex & Gold Multi-Stage Fee-Secured Trailing Ratchet:
+                        # User Rule: At +0.25% gain, lock Stop Loss at Entry + 0.05% -> 0% Risk!
+                        if highest_pnl >= 0.0025:
+                            pos["cost_breakeven_active"] = True
+                            be_px = round(entry * 1.0005, px_dec) if act == "BUY" else round(entry * 0.9995, px_dec)
+                            pos["stop_loss"] = max(cur_sl, be_px) if act == "BUY" else (min(cur_sl, be_px) if cur_sl > 0 else be_px)
+
+                        # Dynamic Trailing Ratchet starting from +0.25%:
+                        if highest_pnl >= 0.0025:
+                            trailing_floor = highest_pnl - 0.0015
+                            pos["dynamic_trailing_floor"] = max(pos.get("dynamic_trailing_floor", 0.0), trailing_floor)
+                            trail_px = round(entry * (1.0 + trailing_floor), px_dec) if act == "BUY" else round(entry * (1.0 - trailing_floor), px_dec)
+                            pos["stop_loss"] = max(float(pos.get("stop_loss", 0.0)), trail_px) if act == "BUY" else (min(float(pos.get("stop_loss", 999999.0)), trail_px) if float(pos.get("stop_loss", 0.0)) > 0 else trail_px)
+
+                        # Check ratchet triggers
+                        is_trailing_stop = False
+                        is_sl_hit = (new_live_price <= pos["stop_loss"]) if act == "BUY" else (new_live_price >= pos["stop_loss"])
+                        if (pos.get("cost_breakeven_active") or pos.get("dynamic_trailing_floor")) and is_sl_hit:
+                            is_trailing_stop = True
+                        elif pos.get("dynamic_trailing_floor") and pnl_pct <= pos["dynamic_trailing_floor"]:
+                            is_trailing_stop = True
+                        elif pos.get("cost_breakeven_active") and pnl_pct <= 0.0005:
+                            is_trailing_stop = True
+
+                        is_break_even_guard = is_trailing_stop
+
+                        # User Rule: 10-Minute Maximum Stagnation
+                        is_10m_stagnant = bool(time_held_sec >= 600.0)
+                        is_stale_loss_exit = bool(is_10m_stagnant and pnl_pct <= 0.0)
+                        is_stale_profit_harvest = bool(is_10m_stagnant and (pnl_pct >= 0.0015 or highest_pnl >= 0.0025))
+                        is_stale_rotation = is_stale_loss_exit or is_stale_profit_harvest
+
+                        is_peak_stagnation = bool(
+                            pnl_pct >= 0.0025 and time_at_peak >= 180.0 and (highest_pnl - pnl_pct) <= 0.0015
                         )
 
                         is_tp_price_hit = bool(pos.get("take_profit", 0.0) > 0 and (new_live_price >= pos["take_profit"] if act == "BUY" else new_live_price <= pos["take_profit"]))
                         is_fee_secured_tp = (pnl_pct >= 0.0120) or is_tp_price_hit
                         is_milestone = (pnl_pct >= 0.0180)
-                        is_micro_harvest = (pnl_usd >= 0.50 and pnl_pct >= 0.0060)
+                        is_micro_harvest = (pnl_usd >= 0.50 and pnl_pct >= 0.0040)
                         is_staggered_harvest = False
                         is_maturity_rebalance = False
-                        is_stale_rotation = False
                         is_sl_price_hit = bool(pos.get("stop_loss", 0.0) > 0 and (new_live_price <= pos["stop_loss"] if act == "BUY" else new_live_price >= pos["stop_loss"]))
                         is_hard_stop = (pnl_pct <= -0.0080) or is_sl_price_hit
 
@@ -1690,8 +1686,10 @@ class AutonomousTrader:
                             close_reason = "TRAILING_STOP_LOSS_LOCKED"
                         elif is_fee_secured_tp or is_milestone:
                             close_reason = "FEE_SECURED_TAKE_PROFIT"
+                        elif is_stale_rotation and pnl_usd > 0:
+                            close_reason = "10M_STAGNATION_PROFIT_HARVEST"
                         elif is_stale_rotation and pnl_usd <= 0:
-                            close_reason = "STALE_POSITION_REBALANCE"
+                            close_reason = "10M_STAGNATION_CUT"
                         elif pnl_usd > 0:
                             close_reason = "SCALP_PROFIT_HARVEST"
                         else:
