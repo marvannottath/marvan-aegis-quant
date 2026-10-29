@@ -420,6 +420,10 @@ class DynamicMomentumLock:
                             print(f"[MOMENTUM ROTATION] {state['switch_reason']}")
                             return
                         else:
+                            state["locked_symbol"] = None
+                            state["locked_action"] = "HOLD"
+                            state["stagnant_since"] = None
+                            state["stagnant_minutes"] = 0.0
                             state["switch_reason"] = f"STAGNATION_UNLOCKED: {old_sym} flat for {elapsed_stagnant:.0f}m ({range_pct:.2f}% range) -> Unlocked"
                             self._save_state()
                             return

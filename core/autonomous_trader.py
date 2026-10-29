@@ -308,13 +308,13 @@ class AutonomousTrader:
                     # ── Gate B: Market Session Check ─────────────────────────────
                     _session_state = _mse.get_state(_active_ws)
                     if _session_state in ("CLOSED", "HALTED", "HOLIDAY"):
-                        if step_counter % 12 == 0:
+                        if step_counter % 120 == 0:
                             self._log_action(
                                 asset="MARKET_SESSION",
                                 action="BLOCKED",
                                 price=0.0,
                                 amount_usd=0.0,
-                                reasoning=f"MARKET {_session_state} for {_active_ws} — waiting for open"
+                                reasoning=f"MARKET {_session_state} for {_active_ws} — waiting for open (Crypto is active 24/7)"
                             )
                         continue
                     elif _session_state == "CLOSING_SOON":
@@ -1070,7 +1070,7 @@ class AutonomousTrader:
                                 try:
                                     from core.trade_postmortem_learner import trade_postmortem_learner
                                     diag = trade_postmortem_learner.evaluate_recent_trades()
-                                    if diag.get("is_toxic_hour", False) and score < 75.0:
+                                    if diag.get("is_toxic_hour", False) and opp_score < 75.0:
                                         self._log_action(ticker, "TOXIC_HOUR_AVOIDANCE", current_price, size_usd, f"Toxic liquidity hour {diag.get('current_hour_ist')}:00 IST")
                                         continue
                                     pos_tp = round(pos_tp * diag.get("adaptive_tp_scalar", 1.0), 4 if current_price < 10 else 2)
