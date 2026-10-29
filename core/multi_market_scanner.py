@@ -151,7 +151,10 @@ class MultiMarketScanner:
                         for item in r_24h.json():
                             self._binance_24h_cache[item.get("symbol", "").upper()] = {
                                 "last": float(item.get("lastPrice", 0.0)),
-                                "change_24h": float(item.get("priceChangePercent", 0.0))
+                                "change_24h": float(item.get("priceChangePercent", 0.0)),
+                                "high": float(item.get("highPrice", 0.0)),
+                                "low": float(item.get("lowPrice", 0.0)),
+                                "volume": float(item.get("volume", 0.0))
                             }
                         self._binance_24h_cache_ts = now
                     elif r_24h.status_code in (418, 429):
@@ -221,6 +224,9 @@ class MultiMarketScanner:
                     "category": meta["category"],
                     "price": price,
                     "change_24h": change_24h,
+                    "high": float(stat_24h.get("high", 0.0)),
+                    "low": float(stat_24h.get("low", 0.0)),
+                    "volume": float(stat_24h.get("volume", 0.0)),
                     "rsi": round(rsi, 1) if price is not None else None,
                     "volatility": 0.015,
                     "opportunity_score": opp_score,

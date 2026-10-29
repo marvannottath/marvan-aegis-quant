@@ -799,6 +799,18 @@ class AutonomousTrader:
                             except Exception:
                                 pass
 
+                            # Strict Signal Quality & Conviction Gate:
+                            # Block weak, marginal or deteriorating signals (< 65%)
+                            if opp_score < 65.0:
+                                continue
+
+                            # Volatility & Flatline Confirmation Gate for Crypto:
+                            # Prevent entering dead sideways assets that bleed exchange fees
+                            if _active_ws == "CRYPTO":
+                                c24 = abs(float(item.get("change_24h", 0.0) or 0.0))
+                                if c24 < 0.25 and opp_score < 75.0:
+                                    continue
+
                             # Institutional Relative Volume (RVOL) Gate
                             vol = float(item.get("volume", 0.0) or 0.0)
                             if vol > 0:
@@ -1744,7 +1756,22 @@ class AutonomousTrader:
                                         reason=close_reason_to_use,
                                         skip_exchange_order=True
                                     )
-                                    self.closed_cooldowns[pos_asset] = time.time() + 60.0
+                                    # Anti-Churn Cooldown & Momentum Lock Demotion:
+                                    # If position exited flat or in loss, impose 30-min cooldown and force momentum lock to rotate away!
+                                    is_flat_or_loss = (pnl_usd <= 0.01) or (abs(pnl_pct) <= 0.0020)
+                                    sym_cool = 1800.0 if is_flat_or_loss else 300.0
+                                    self.closed_cooldowns[pos_asset] = time.time() + sym_cool
+                                    if is_flat_or_loss:
+                                        try:
+                                            from core.dynamic_momentum_lock import dynamic_momentum_lock
+                                            dynamic_momentum_lock.demote_and_rotate(
+                                                symbol=pos_asset,
+                                                workspace=_active_ws,
+                                                reason=f"{close_reason_to_use} (pnl={pnl_usd:+.4f})",
+                                                cooldown_seconds=1800.0
+                                            )
+                                        except Exception:
+                                            pass
                                     self.position_age.pop(pos_asset, None)
                                     self.close_in_flight.pop(pos_asset, None)
                                     self.in_flight_tracker.clear_in_flight(pos_asset)
@@ -1827,7 +1854,22 @@ class AutonomousTrader:
                                         reason=close_reason_to_use,
                                         skip_exchange_order=True
                                     )
-                                    self.closed_cooldowns[pos_asset] = time.time() + 60.0
+                                    # Anti-Churn Cooldown & Momentum Lock Demotion:
+                                    # If position exited flat or in loss, impose 30-min cooldown and force momentum lock to rotate away!
+                                    is_flat_or_loss = (pnl_usd <= 0.01) or (abs(pnl_pct) <= 0.0020)
+                                    sym_cool = 1800.0 if is_flat_or_loss else 300.0
+                                    self.closed_cooldowns[pos_asset] = time.time() + sym_cool
+                                    if is_flat_or_loss:
+                                        try:
+                                            from core.dynamic_momentum_lock import dynamic_momentum_lock
+                                            dynamic_momentum_lock.demote_and_rotate(
+                                                symbol=pos_asset,
+                                                workspace=_active_ws,
+                                                reason=f"{close_reason_to_use} (pnl={pnl_usd:+.4f})",
+                                                cooldown_seconds=1800.0
+                                            )
+                                        except Exception:
+                                            pass
                                     self.position_age.pop(pos_asset, None)
                                     self.close_in_flight.pop(pos_asset, None)
                                     self.in_flight_tracker.clear_in_flight(pos_asset)
@@ -1891,8 +1933,23 @@ class AutonomousTrader:
                             skip_exchange_order=False
                         )
                         self._daily_symbol_trade_counts[pos_asset] = self._daily_symbol_trade_counts.get(pos_asset, 0) + 1
-                        # 5-min cooldown for Indian equities to ride swings and avoid instant re-entry churn; 60s for Crypto/Forex
-                        sym_cool = 300.0 if (_active_ws == "INDIA" or "KOTAK" in pool) else 60.0
+                        # Anti-Churn Cooldown & Momentum Lock Demotion:
+                        # If trade exited flat, stagnant or in loss, impose 30-min cooldown and force momentum lock to rotate away!
+                        is_flat_or_loss = (pnl_usd <= 0.01) or (abs(pnl_pct) <= 0.0020)
+                        if is_flat_or_loss:
+                            sym_cool = 1800.0
+                            try:
+                                from core.dynamic_momentum_lock import dynamic_momentum_lock
+                                dynamic_momentum_lock.demote_and_rotate(
+                                    symbol=pos_asset,
+                                    workspace=_active_ws,
+                                    reason=f"{close_reason} (pnl={pnl_usd:+.4f})",
+                                    cooldown_seconds=1800.0
+                                )
+                            except Exception:
+                                pass
+                        else:
+                            sym_cool = 300.0
                         self.closed_cooldowns[pos_asset] = time.time() + sym_cool
                         self.position_age.pop(pos_asset, None)
                         self._log_action(pos_asset, "CLOSE", new_live_price, pos.get("capital_allocated", 500.0), f"Position Closed & Swept ({close_reason})")

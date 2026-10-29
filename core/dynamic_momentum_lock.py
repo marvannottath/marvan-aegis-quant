@@ -26,6 +26,7 @@ def _now_str() -> str:
 class DynamicMomentumLock:
     def __init__(self):
         self.state_file = LOCK_STATE_FILE
+        self._symbol_cooldowns: Dict[str, float] = {}  # symbol -> epoch ts until which symbol cannot be picked
         self._states: Dict[str, Dict[str, Any]] = {
             "INDIA": {
                 "enabled": False,
@@ -35,7 +36,7 @@ class DynamicMomentumLock:
                 "momentum_score": 0.0,
                 "stagnant_since": None,
                 "stagnant_minutes": 0.0,
-                "stagnant_threshold_minutes": 15,
+                "stagnant_threshold_minutes": 10,
                 "last_price": 0.0,
                 "price_history": [],
                 "switch_reason": "",
@@ -49,7 +50,7 @@ class DynamicMomentumLock:
                 "momentum_score": 0.0,
                 "stagnant_since": None,
                 "stagnant_minutes": 0.0,
-                "stagnant_threshold_minutes": 15,
+                "stagnant_threshold_minutes": 10,
                 "last_price": 0.0,
                 "price_history": [],
                 "switch_reason": "",
@@ -63,7 +64,7 @@ class DynamicMomentumLock:
                 "momentum_score": 0.0,
                 "stagnant_since": None,
                 "stagnant_minutes": 0.0,
-                "stagnant_threshold_minutes": 15,
+                "stagnant_threshold_minutes": 10,
                 "last_price": 0.0,
                 "price_history": [],
                 "switch_reason": "",
@@ -86,12 +87,19 @@ class DynamicMomentumLock:
 
     def _save_state(self):
         try:
+            self.state_file.parent.mkdir(parents=True, exist_ok=True)
             tmp = self.state_file.with_suffix(".tmp")
             with open(tmp, "w") as f:
                 json.dump(self._states, f, indent=2)
+                f.flush()
+                os.fsync(f.fileno())
             tmp.replace(self.state_file)
         except Exception as e:
-            print(f"[MOMENTUM LOCK] Save notice: {e}")
+            try:
+                with open(self.state_file, "w") as f:
+                    json.dump(self._states, f, indent=2)
+            except Exception as e2:
+                print(f"[MOMENTUM LOCK] Save notice: {e2}")
 
     def is_active(self, workspace: str = "INDIA") -> bool:
         ws = workspace.upper()
@@ -100,11 +108,15 @@ class DynamicMomentumLock:
     def allows_symbol(self, symbol: str, workspace: str = "INDIA") -> bool:
         """
         Returns True if symbol is allowed to be traded.
-        If momentum lock is disabled, all symbols are allowed.
-        If active, ONLY the locked_symbol is allowed, unless the locked symbol has no active signal (HOLD).
+        If momentum lock is disabled, all symbols are allowed unless in symbol penalty cooldown.
+        If active, ONLY the locked_symbol is allowed, provided it is not in penalty cooldown.
         """
         if not symbol:
             return False
+        sym_upper = str(symbol).upper()
+        if time.time() < self._symbol_cooldowns.get(sym_upper, 0.0):
+            return False  # In penalty/stagnation cooldown
+
         ws = workspace.upper()
         state = self._states.get(ws, {})
         if not state.get("enabled", False):
@@ -112,9 +124,45 @@ class DynamicMomentumLock:
         locked = state.get("locked_symbol")
         if not locked:
             return True
-        if str(symbol).upper() == str(locked).upper():
+        if sym_upper == str(locked).upper():
             return True
         # Strict single-runner focus: do not leak into random non-locked stocks
+        return False
+
+    def demote_and_rotate(
+        self,
+        symbol: str,
+        workspace: str = "INDIA",
+        reason: str = "",
+        cooldown_seconds: float = 1800.0
+    ) -> bool:
+        """
+        Immediately demotes a failing, stagnant, or deteriorating symbol.
+        Places it in a penalty cooldown (default 30 mins) so it cannot be rebought or relocked.
+        If it was the currently locked symbol, clears the lock and triggers rotation to the next runner.
+        """
+        if not symbol:
+            return False
+        sym_upper = str(symbol).upper()
+        self._symbol_cooldowns[sym_upper] = time.time() + cooldown_seconds
+
+        ws = workspace.upper()
+        state = self._states.get(ws)
+        if not state:
+            return False
+
+        current_locked = state.get("locked_symbol")
+        if current_locked and str(current_locked).upper() == sym_upper:
+            state["locked_symbol"] = None
+            state["locked_at"] = None
+            state["stagnant_since"] = None
+            state["stagnant_minutes"] = 0.0
+            state["price_history"] = []
+            state["rotation_count"] = state.get("rotation_count", 0) + 1
+            state["switch_reason"] = f"DEMOTION: {sym_upper} ({reason}) -> Cooldown {cooldown_seconds/60:.0f}m"
+            self._save_state()
+            print(f"[MOMENTUM ROTATION] {state['switch_reason']}")
+            return True
         return False
 
     def get_status(self, workspace: str = "INDIA") -> Dict[str, Any]:
@@ -196,11 +244,17 @@ class DynamicMomentumLock:
                 pass
 
         # Find top candidate with active BUY or SELL trading signal within account margin
+        # Exclude any symbols currently placed on penalty/stagnation cooldown
         valid_candidates = []
         for c in candidate_opportunities:
+            sym_name = str(c.get("symbol") or c.get("ticker") or c.get("asset") or "").upper()
+            if not sym_name:
+                continue
+            if now_ts < self._symbol_cooldowns.get(sym_name, 0.0):
+                continue
             sc = float(c.get("score", 0.0) or c.get("opportunity_score", 0.0))
             act = c.get("ai_action")
-            if sc > 0 and act in ["BUY", "SELL"]:
+            if sc >= 60.0 and act in ["BUY", "SELL"]:
                 px = float(c.get("price", 0.0) or c.get("last_price", 0.0))
                 if ws == "INDIA" and avail_cap > 0 and px > 0:
                     req_margin = px / 5.0
@@ -259,34 +313,49 @@ class DynamicMomentumLock:
             None
         )
 
-        # Update current locked action
+        # Update current locked action & score
         if locked_candidate:
             state["locked_action"] = locked_candidate.get("ai_action", "HOLD")
+            state["momentum_score"] = float(locked_candidate.get("score", 0.0) or locked_candidate.get("opportunity_score", 0.0))
         else:
             state["locked_action"] = "HOLD"
+            state["momentum_score"] = 0.0
 
-        # If currently locked symbol entered HOLD (no action) and an active candidate exists, rotate immediately!
-        if state["locked_action"] not in ["BUY", "SELL"] and valid_candidates:
-            new_top = valid_candidates[0]
-            new_sym = new_top.get("symbol") or new_top.get("ticker") or new_top.get("asset")
-            new_px = float(new_top.get("price", 0.0) or new_top.get("last_price", 0.0))
-            new_score = float(new_top.get("score", 0.0) or new_top.get("opportunity_score", 0.0))
-            new_act = new_top.get("ai_action", "BUY")
+        # SIGNAL DETERIORATION / HOLD ROTATION:
+        # If currently locked symbol entered HOLD or score dropped below 55%, demote & rotate immediately!
+        signal_deteriorated = (state["locked_action"] not in ["BUY", "SELL"]) or (state["momentum_score"] < 55.0)
+        if signal_deteriorated:
             old_sym = current_locked
-            state["locked_symbol"] = new_sym
-            state["locked_action"] = new_act
-            state["locked_at"] = now_dt_str
-            state["locked_price"] = new_px
-            state["last_price"] = new_px
-            state["momentum_score"] = new_score
-            state["stagnant_since"] = None
-            state["stagnant_minutes"] = 0.0
-            state["price_history"] = [{"t": now_ts, "p": new_px}]
-            state["rotation_count"] = state.get("rotation_count", 0) + 1
-            state["switch_reason"] = f"SIGNAL_SHIFT: {old_sym} entered HOLD -> Switched to active runner {new_sym} ({new_act} {new_score:.1f}%)"
-            self._save_state()
-            print(f"[MOMENTUM ROTATION] {state['switch_reason']}")
-            return
+            self._symbol_cooldowns[str(old_sym).upper()] = now_ts + 1200.0  # 20 min cooldown on degraded runner
+            state["locked_symbol"] = None
+            alt_candidates = [
+                c for c in valid_candidates
+                if str(c.get("symbol") or c.get("ticker") or c.get("asset")).upper() != str(old_sym).upper()
+            ]
+            if alt_candidates:
+                new_top = alt_candidates[0]
+                new_sym = new_top.get("symbol") or new_top.get("ticker") or new_top.get("asset")
+                new_px = float(new_top.get("price", 0.0) or new_top.get("last_price", 0.0))
+                new_score = float(new_top.get("score", 0.0) or new_top.get("opportunity_score", 0.0))
+                new_act = new_top.get("ai_action", "BUY")
+                state["locked_symbol"] = new_sym
+                state["locked_action"] = new_act
+                state["locked_at"] = now_dt_str
+                state["locked_price"] = new_px
+                state["last_price"] = new_px
+                state["momentum_score"] = new_score
+                state["stagnant_since"] = None
+                state["stagnant_minutes"] = 0.0
+                state["price_history"] = [{"t": now_ts, "p": new_px}]
+                state["rotation_count"] = state.get("rotation_count", 0) + 1
+                state["switch_reason"] = f"SIGNAL_SHIFT: {old_sym} deteriorated ({state['locked_action']}, {state['momentum_score']:.1f}%) -> Switched to {new_sym} ({new_act} {new_score:.1f}%)"
+                self._save_state()
+                print(f"[MOMENTUM ROTATION] {state['switch_reason']}")
+                return
+            else:
+                state["switch_reason"] = f"SIGNAL_DROP: {old_sym} deteriorated ({state['locked_action']}, {state['momentum_score']:.1f}%) -> Unlocked (Waiting for active runner)"
+                self._save_state()
+                return
 
         cur_px = 0.0
         if locked_candidate:
@@ -305,36 +374,39 @@ class DynamicMomentumLock:
             cutoff = now_ts - (20 * 60)
             hist[:] = [pt for pt in hist if pt["t"] >= cutoff]
 
-            # Calculate price movement range over the last 15 minutes
-            recent_15m = [pt["p"] for pt in hist if pt["t"] >= (now_ts - 15 * 60)]
-            if len(recent_15m) >= 5:
-                min_px = min(recent_15m)
-                max_px = max(recent_15m)
+            # Calculate price movement range over the last 10 minutes
+            recent_10m = [pt["p"] for pt in hist if pt["t"] >= (now_ts - 10 * 60)]
+            if len(recent_10m) >= 4:
+                min_px = min(recent_10m)
+                max_px = max(recent_10m)
                 range_pct = ((max_px - min_px) / min_px) * 100.0 if min_px > 0 else 0.0
 
-                # If movement is flat (< 0.12% movement over 15 minutes), mark stagnant
-                if range_pct < 0.12:
+                # If movement is flat (< 0.15% movement over 10 minutes), mark stagnant
+                if range_pct < 0.15:
                     if not state.get("stagnant_since"):
                         state["stagnant_since"] = now_ts
                     elapsed_stagnant = (now_ts - state["stagnant_since"]) / 60.0
                     state["stagnant_minutes"] = round(elapsed_stagnant, 1)
 
-                    # If stagnant for >= threshold (default 15 minutes), ROTATE!
-                    thresh = state.get("stagnant_threshold_minutes", 15)
+                    # If stagnant for >= threshold (default 10 minutes), ROTATE!
+                    thresh = min(state.get("stagnant_threshold_minutes", 10), 10)
                     if elapsed_stagnant >= thresh:
-                        # Find alternative candidate with better movement
+                        old_sym = current_locked
+                        self._symbol_cooldowns[str(old_sym).upper()] = now_ts + 1800.0  # 30m penalty cooldown for flat stagnant coin!
+                        state["locked_symbol"] = None
                         alt_candidates = [
                             c for c in valid_candidates
-                            if (c.get("symbol") or c.get("ticker") or c.get("asset")) != current_locked
+                            if str(c.get("symbol") or c.get("ticker") or c.get("asset")).upper() != str(old_sym).upper()
                         ]
                         if alt_candidates:
                             new_top = alt_candidates[0]
                             new_sym = new_top.get("symbol") or new_top.get("ticker") or new_top.get("asset")
                             new_px = float(new_top.get("price", 0.0) or new_top.get("last_price", 0.0))
                             new_score = float(new_top.get("score", 0.0) or new_top.get("opportunity_score", 0.0))
+                            new_act = new_top.get("ai_action", "BUY")
 
-                            old_sym = current_locked
                             state["locked_symbol"] = new_sym
+                            state["locked_action"] = new_act
                             state["locked_at"] = now_dt_str
                             state["locked_price"] = new_px
                             state["last_price"] = new_px
@@ -346,6 +418,10 @@ class DynamicMomentumLock:
                             state["switch_reason"] = f"STAGNATION_SHIFT: {old_sym} flat for {elapsed_stagnant:.0f}m ({range_pct:.2f}% range) -> Switched to {new_sym} ({new_score:.1f}%)"
                             self._save_state()
                             print(f"[MOMENTUM ROTATION] {state['switch_reason']}")
+                            return
+                        else:
+                            state["switch_reason"] = f"STAGNATION_UNLOCKED: {old_sym} flat for {elapsed_stagnant:.0f}m ({range_pct:.2f}% range) -> Unlocked"
+                            self._save_state()
                             return
                 else:
                     # Healthy movement detected -> reset stagnation timer
