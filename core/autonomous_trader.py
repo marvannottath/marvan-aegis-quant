@@ -968,7 +968,7 @@ class AutonomousTrader:
                                 # 1. Daily Drawdown Circuit Breaker & Symbol Anti-Chop Cooldown
                                 try:
                                     from core.drawdown_circuit_breaker import drawdown_circuit_breaker
-                                    cb_ok, cb_msg = drawdown_circuit_breaker.check_circuit_breaker(working_cash)
+                                    cb_ok, cb_msg = drawdown_circuit_breaker.check_circuit_breaker(working_cash, workspace=_active_ws)
                                     if not cb_ok:
                                         self._log_action(ticker, "CIRCUIT_BREAKER_ACTIVE", current_price, size_usd, cb_msg)
                                         continue
@@ -1991,9 +1991,9 @@ class AutonomousTrader:
                                 is_win=(pnl_usd > 0),
                                 pnl_usd=pnl_usd
                             )
-                            drawdown_circuit_breaker.record_trade_pnl(pnl_usd, working_cash if 'working_cash' in locals() else 100.0)
+                            drawdown_circuit_breaker.record_trade_pnl(pnl_usd, working_cash if 'working_cash' in locals() else 100.0, workspace=pos_ws)
                             if pnl_usd < 0:
-                                drawdown_circuit_breaker.record_stop_loss(pos_asset, pnl_usd)
+                                drawdown_circuit_breaker.record_stop_loss(pos_asset, pnl_usd, workspace=pos_ws)
                         except Exception:
                             pass
 
