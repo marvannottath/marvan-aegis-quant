@@ -804,6 +804,11 @@ class AutonomousTrader:
                             if opp_score < 65.0:
                                 continue
 
+                            # Anti-Chasing Top-Buying Filter:
+                            # Never buy an asset that has already spiked into overbought territory (RSI > 68)!
+                            if action_signal in ("BUY", "LONG") and rsi > 68.0:
+                                continue
+
                             # Volatility & Flatline Confirmation Gate for Crypto:
                             # Prevent entering dead sideways assets that bleed exchange fees
                             if _active_ws == "CRYPTO":
@@ -1446,25 +1451,27 @@ class AutonomousTrader:
                     cur_sl = float(pos.get("stop_loss", 0.0))
 
                     if pos_ws == "INDIA" or is_zero_brokerage_venue:
-                        # Indian Equities Multi-Stage Fee-Secured Trailing Ratchet:
-                        # User Rule: At +0.25% gain, ratchet Stop Loss to Cost (Entry Price + 0.06% to cover all STT/NSE/GST)
-                        # The stop loss only moves UP and can NEVER decrease ("pinneed kurayaan paadilla")!
-                        if highest_pnl >= 0.0025:
+                        # Indian Equities Fee-Secured Trailing Ratchet:
+                        # Breakeven activation:
+                        # Only activate breakeven stop loss when profit is at least +0.35% (approx ₹4.00 on INFY)
+                        # Covers STT, exchange fees, and ensures zero loss.
+                        if highest_pnl >= 0.0035:
                             pos["cost_breakeven_active"] = True
-                            be_px = round(entry * 1.0006, px_dec) if act == "BUY" else round(entry * 0.9994, px_dec)
+                            be_px = round(entry * 1.0008, px_dec) if act == "BUY" else round(entry * 0.9992, px_dec)
                             pos["stop_loss"] = max(cur_sl, be_px) if act == "BUY" else (min(cur_sl, be_px) if cur_sl > 0 else be_px)
 
-                        # Dynamic Trailing Ratchet starting from +0.25%:
-                        # Trails tightly behind peak (0.15% trailing buffer). Strictly non-decreasing!
-                        if highest_pnl >= 0.0025:
-                            trailing_floor = highest_pnl - 0.0015
+                        # Dynamic Trailing Ratchet:
+                        # Give Indian equities healthy breathing room: 0.30% trailing buffer (approx ₹3.50 on INFY).
+                        # Only start trailing once profit has reached +0.45% so a 0.30% pullback still exits in GREEN profit (+0.15% net)!
+                        if highest_pnl >= 0.0045:
+                            trailing_floor = highest_pnl - 0.0030
                             pos["dynamic_trailing_floor"] = max(pos.get("dynamic_trailing_floor", 0.0), trailing_floor)
                             trail_px = round(entry * (1.0 + trailing_floor), px_dec) if act == "BUY" else round(entry * (1.0 - trailing_floor), px_dec)
                             pos["stop_loss"] = max(float(pos.get("stop_loss", 0.0)), trail_px) if act == "BUY" else (min(float(pos.get("stop_loss", 999999.0)), trail_px) if float(pos.get("stop_loss", 0.0)) > 0 else trail_px)
 
                         # Check ratchet triggers
                         is_trailing_stop = False
-                        is_sl_hit = (new_live_price <= pos["stop_loss"]) if act == "BUY" else (new_live_price >= pos["stop_loss"])
+                        is_sl_hit = bool(float(pos.get("stop_loss", 0.0)) > 0 and (new_live_price <= float(pos.get("stop_loss", 0.0)) if act == "BUY" else new_live_price >= float(pos.get("stop_loss", 0.0))))
                         if (pos.get("cost_breakeven_active") or pos.get("dynamic_trailing_floor")) and is_sl_hit:
                             is_trailing_stop = True
                         elif pos.get("dynamic_trailing_floor") and pnl_pct <= pos["dynamic_trailing_floor"]:
@@ -1474,20 +1481,15 @@ class AutonomousTrader:
 
                         is_break_even_guard = is_trailing_stop
 
-                        # User Rule: 10-Minute Maximum Stagnation & Best-Rate Exit Engine
-                        # If a position sits for >= 10 minutes (600s) without breaking into full target:
-                        # 1) If in profit (pnl_pct >= 0.0010): exit immediately at best rate to bank green profit!
-                        # 2) If cost-breakeven was ever reached (highest_pnl >= 0.0025): exit at cost/breakeven — zero loss guaranteed!
-                        # 3) If stagnant / negative (pnl_pct <= 0.0): cut position immediately at 10 minutes (do not hold for 30m or 45m)!
-                        is_10m_stagnant = bool(time_held_sec >= 600.0)
-                        is_stale_loss_exit = bool(is_10m_stagnant and pnl_pct <= 0.0)
-                        is_stale_profit_harvest = bool(is_10m_stagnant and (pnl_pct >= 0.0010 or highest_pnl >= 0.0025))
+                        # Stagnation rule:
+                        # DO NOT prematurely kill trades at 10 minutes!
+                        # Only trigger stagnation if held >= 25 minutes (1500s) AND price is stagnating
+                        is_long_stagnant = bool(time_held_sec >= 1500.0)
+                        is_stale_loss_exit = bool(is_long_stagnant and pnl_pct < -0.0020)
+                        is_stale_profit_harvest = bool(is_long_stagnant and pnl_pct >= 0.0030)
                         is_stale_rotation = is_stale_loss_exit or is_stale_profit_harvest
 
-                        # 3-Minute Peak Plateau Harvester:
-                        is_peak_stagnation = bool(
-                            pnl_pct >= 0.0020 and time_at_peak >= 180.0 and (highest_pnl - pnl_pct) <= 0.0015
-                        )
+                        is_peak_stagnation = False
 
                         # Take Profit: Target +1.50% or explicit TP level crossed
                         is_tp_price_hit = bool(pos.get("take_profit", 0.0) > 0 and (new_live_price >= pos["take_profit"] if act == "BUY" else new_live_price <= pos["take_profit"]))
@@ -1496,28 +1498,30 @@ class AutonomousTrader:
                         is_micro_harvest = False
                         is_staggered_harvest = False
                         is_maturity_rebalance = False
-                        is_hard_stop = (pnl_pct <= -0.0080) or is_sl_hit
+                        is_hard_stop = (pnl_pct <= -0.0100) or is_sl_hit
                     elif pos_ws == "CRYPTO":
-                        # Binance Crypto Spot Multi-Stage Fee-Secured Trailing Ratchet:
-                        # Binance roundtrip fee is 0.20%.
-                        # User Rule: At +0.25% peak gain, ratchet Stop Loss to +0.21% (covers all fees -> Real Risk-Free!)
-                        # The stop loss only moves UP and can NEVER decrease ("pinneed kurayaan paadilla")!
-                        if highest_pnl >= 0.0025:
+                        # Binance Crypto Spot Multi-Stage Trailing Ratchet:
+                        # Binance roundtrip fee is 0.20% (0.10% buy + 0.10% sell).
+                        # Only activate breakeven stop loss when profit is at least +0.50% (gives room for normal 0.25% noise).
+                        # When at +0.50%, ratchet stop loss to +0.22% (guaranteed fee coverage).
+                        if highest_pnl >= 0.0050:
                             pos["cost_breakeven_active"] = True
-                            be_px = round(entry * 1.0021, px_dec)
+                            be_px = round(entry * 1.0022, px_dec)
                             pos["stop_loss"] = max(cur_sl, be_px)
 
-                        # Dynamic Trailing Ratchet above +0.25%:
-                        # Trails tightly behind peak (0.15% buffer). Strictly non-decreasing!
-                        if highest_pnl >= 0.0025:
-                            trailing_floor = highest_pnl - 0.0015
+                        # Dynamic Trailing Ratchet above +0.80%:
+                        # Healthy crypto trailing buffer: 0.50% below peak!
+                        # At +0.80% peak, trailing floor is +0.30% (positive green even after 0.20% fee)!
+                        # At +1.50% peak, trailing floor is +1.00% (big green win)!
+                        if highest_pnl >= 0.0080:
+                            trailing_floor = highest_pnl - 0.0050
                             pos["dynamic_trailing_floor"] = max(pos.get("dynamic_trailing_floor", 0.0), trailing_floor)
                             trail_px = round(entry * (1.0 + trailing_floor), px_dec)
                             pos["stop_loss"] = max(float(pos.get("stop_loss", 0.0)), trail_px)
 
                         # Check ratchet triggers
                         is_trailing_stop = False
-                        is_sl_hit = bool(pos.get("stop_loss", 0.0) > 0 and new_live_price <= pos["stop_loss"])
+                        is_sl_hit = bool(float(pos.get("stop_loss", 0.0)) > 0 and new_live_price <= float(pos.get("stop_loss", 0.0)))
                         if (pos.get("cost_breakeven_active") or pos.get("dynamic_trailing_floor")) and is_sl_hit:
                             is_trailing_stop = True
                         elif pos.get("dynamic_trailing_floor") and pnl_pct <= pos["dynamic_trailing_floor"]:
@@ -1527,20 +1531,15 @@ class AutonomousTrader:
 
                         is_break_even_guard = is_trailing_stop
 
-                        # User Rule: 10-Minute Maximum Stagnation & Best-Rate Exit Engine
-                        # If position held >= 10 minutes (600s):
-                        # 1) If in profit (pnl_pct >= 0.0025): exit immediately at best rate to bank green!
-                        # 2) If reached +0.25% peak earlier: NEVER allow loss; exit at breakeven!
-                        # 3) If flat or negative (pnl_pct <= 0.0): cut immediately at 10 minutes (no prolonged bleed)!
-                        is_10m_stagnant = bool(time_held_sec >= 600.0)
-                        is_stale_loss_exit = bool(is_10m_stagnant and pnl_pct <= 0.0)
-                        is_stale_profit_harvest = bool(is_10m_stagnant and (pnl_pct >= 0.0025 or highest_pnl >= 0.0025))
+                        # Stagnation rule for Crypto:
+                        # DO NOT force exit at 10 minutes!
+                        # Only exit for stagnation if held >= 30 minutes (1800s) AND price is stagnating
+                        is_long_stagnant = bool(time_held_sec >= 1800.0)
+                        is_stale_loss_exit = bool(is_long_stagnant and pnl_pct < -0.0030)
+                        is_stale_profit_harvest = bool(is_long_stagnant and pnl_pct >= 0.0040)
                         is_stale_rotation = is_stale_loss_exit or is_stale_profit_harvest
 
-                        # 3-Minute Peak Plateau Harvester for Crypto:
-                        is_peak_stagnation = bool(
-                            pnl_pct >= 0.0035 and time_at_peak >= 180.0 and (highest_pnl - pnl_pct) <= 0.0015
-                        )
+                        is_peak_stagnation = False
 
                         # Take Profit: Target +1.80% or explicit TP level crossed
                         is_tp_price_hit = bool(pos.get("take_profit", 0.0) > 0 and (new_live_price >= pos["take_profit"] if act == "BUY" else new_live_price <= pos["take_profit"]))
@@ -1550,7 +1549,7 @@ class AutonomousTrader:
                         is_micro_harvest = False
                         is_staggered_harvest = False
                         is_maturity_rebalance = False
-                        is_hard_stop = (pnl_pct <= -0.0100) or is_sl_hit
+                        is_hard_stop = (pnl_pct <= -0.0120) or is_sl_hit
                     else:
                         # Forex & Gold Multi-Stage Fee-Secured Trailing Ratchet:
                         # User Rule: At +0.25% gain, lock Stop Loss at Entry + 0.05% -> 0% Risk!
@@ -1568,7 +1567,7 @@ class AutonomousTrader:
 
                         # Check ratchet triggers
                         is_trailing_stop = False
-                        is_sl_hit = (new_live_price <= pos["stop_loss"]) if act == "BUY" else (new_live_price >= pos["stop_loss"])
+                        is_sl_hit = bool(float(pos.get("stop_loss", 0.0)) > 0 and (new_live_price <= float(pos.get("stop_loss", 0.0)) if act == "BUY" else new_live_price >= float(pos.get("stop_loss", 0.0))))
                         if (pos.get("cost_breakeven_active") or pos.get("dynamic_trailing_floor")) and is_sl_hit:
                             is_trailing_stop = True
                         elif pos.get("dynamic_trailing_floor") and pnl_pct <= pos["dynamic_trailing_floor"]:
@@ -1578,10 +1577,10 @@ class AutonomousTrader:
 
                         is_break_even_guard = is_trailing_stop
 
-                        # User Rule: 10-Minute Maximum Stagnation
-                        is_10m_stagnant = bool(time_held_sec >= 600.0)
-                        is_stale_loss_exit = bool(is_10m_stagnant and pnl_pct <= 0.0)
-                        is_stale_profit_harvest = bool(is_10m_stagnant and (pnl_pct >= 0.0015 or highest_pnl >= 0.0025))
+                        # User Rule: 20-Minute Maximum Stagnation
+                        is_long_stagnant = bool(time_held_sec >= 1200.0)
+                        is_stale_loss_exit = bool(is_long_stagnant and pnl_pct <= 0.0)
+                        is_stale_profit_harvest = bool(is_long_stagnant and (pnl_pct >= 0.0015 or highest_pnl >= 0.0025))
                         is_stale_rotation = is_stale_loss_exit or is_stale_profit_harvest
 
                         is_peak_stagnation = bool(
@@ -1765,7 +1764,7 @@ class AutonomousTrader:
                                             from core.dynamic_momentum_lock import dynamic_momentum_lock
                                             dynamic_momentum_lock.demote_and_rotate(
                                                 symbol=pos_asset,
-                                                workspace=_active_ws,
+                                                workspace=pos_ws,
                                                 reason=f"{close_reason_to_use} (pnl={pnl_usd:+.4f})",
                                                 cooldown_seconds=1800.0
                                             )
@@ -1863,7 +1862,7 @@ class AutonomousTrader:
                                             from core.dynamic_momentum_lock import dynamic_momentum_lock
                                             dynamic_momentum_lock.demote_and_rotate(
                                                 symbol=pos_asset,
-                                                workspace=_active_ws,
+                                                workspace=pos_ws,
                                                 reason=f"{close_reason_to_use} (pnl={pnl_usd:+.4f})",
                                                 cooldown_seconds=1800.0
                                             )
@@ -1941,7 +1940,7 @@ class AutonomousTrader:
                                 from core.dynamic_momentum_lock import dynamic_momentum_lock
                                 dynamic_momentum_lock.demote_and_rotate(
                                     symbol=pos_asset,
-                                    workspace=_active_ws,
+                                    workspace=pos_ws,
                                     reason=f"{close_reason} (pnl={pnl_usd:+.4f})",
                                     cooldown_seconds=1800.0
                                 )
@@ -1953,7 +1952,7 @@ class AutonomousTrader:
                         self.position_age.pop(pos_asset, None)
                         self._log_action(pos_asset, "CLOSE", new_live_price, pos.get("capital_allocated", 500.0), f"Position Closed & Swept ({close_reason})")
                         
-                        if is_india_sym(pos_asset):
+                        if is_india_sym:
                             try:
                                 from core.daily_circuit_breaker import daily_circuit_breaker
                                 daily_circuit_breaker.record_trade_result(pnl=pnl_usd)
