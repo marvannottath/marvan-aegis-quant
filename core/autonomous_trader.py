@@ -1546,7 +1546,8 @@ class AutonomousTrader:
                         is_tp_price_hit = bool(pos.get("take_profit", 0.0) > 0 and (new_live_price >= pos["take_profit"] if act == "BUY" else new_live_price <= pos["take_profit"]))
                         is_fee_secured_tp = (pnl_pct >= 0.0180) or is_tp_price_hit
                         is_milestone = (pnl_pct >= 0.0300)
-                        is_micro_harvest = (pnl_pct >= 0.0040 and pnl_usd >= 0.03)
+                        # Allow profitable runners to ride trailing stop rather than prematurely cutting at 0.40%
+                        is_micro_harvest = False
                         is_staggered_harvest = False
                         is_maturity_rebalance = False
                         is_hard_stop = (pnl_pct <= -0.0100) or is_sl_hit

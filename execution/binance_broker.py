@@ -1715,8 +1715,9 @@ class BinanceBroker:
         target_set = set(s.upper() for s in symbols) if symbols else None
         results: Dict[str, Dict[str, Any]] = {}
 
-        # Query LIVE_BASE_URL first as Binance public bookTicker is fastest and globally replicated
-        endpoints = [f"{LIVE_BASE_URL}/api/v3/ticker/bookTicker", f"{TESTNET_BASE_URL}/api/v3/ticker/bookTicker"]
+        is_live_env = ("LIVE" in str(environment).upper())
+        # Query LIVE_BASE_URL for live environments; do not let testnet overwrite live exchange prices
+        endpoints = [f"{LIVE_BASE_URL}/api/v3/ticker/bookTicker"] if is_live_env else [f"{LIVE_BASE_URL}/api/v3/ticker/bookTicker", f"{TESTNET_BASE_URL}/api/v3/ticker/bookTicker"]
         for ep in endpoints:
             try:
                 resp = requests.get(ep, timeout=1.5)
@@ -2589,10 +2590,19 @@ class BinanceBroker:
                 self._fills_checked_cache.discard(f"{asset}USDT")
                 continue
             b_info = bulk_data.get(ticker_symbol)
+            cur_price = 0.0
             if b_info and float(b_info.get("last_price", 0)) > 0:
                 cur_price = float(b_info["last_price"])
-            else:
-                cur_price = float(self._entry_price_cache.get(ticker_symbol, 1.0))
+            
+            # Fetch authentic live market ticker if bulk data is missing; never fall back to stale entry cache!
+            if cur_price <= 0:
+                try:
+                    ep_url = LIVE_BASE_URL if ("LIVE" in environment.upper()) else TESTNET_BASE_URL
+                    t_resp = requests.get(f"{ep_url}/api/v3/ticker/price?symbol={ticker_symbol}", timeout=1.5)
+                    if t_resp.status_code == 200:
+                        cur_price = float(t_resp.json().get("price", 0.0))
+                except Exception:
+                    pass
 
             if cur_price <= 0:
                 continue
