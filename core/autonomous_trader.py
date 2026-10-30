@@ -1041,6 +1041,18 @@ class AutonomousTrader:
                                 except Exception:
                                     pass
 
+                                # 3C. Bitcoin Dump Shield & Market Crash Guard (Crypto Only)
+                                # Halts altcoin BUY entries when Bitcoin is dumping violently
+                                try:
+                                    if _active_ws == "CRYPTO":
+                                        from core.btc_dump_guard import btc_dump_guard
+                                        btc_ok, btc_reason, _ = btc_dump_guard.check_altcoin_buy_allowed(ticker, workspace=_active_ws)
+                                        if not btc_ok:
+                                            self._log_action(ticker, "BTC_DUMP_SHIELD_BLOCKED", current_price, size_usd, btc_reason)
+                                            continue
+                                except Exception:
+                                    pass
+
                                 # 4. Level-2 Order Book Imbalance Pressure
                                 try:
                                     from core.order_book_pressure_detector import order_book_pressure_detector

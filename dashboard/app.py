@@ -8494,6 +8494,23 @@ async def get_top_momentum_screener(limit: int = 8):
         return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
 
 
+# -------------------------------------------------------------
+# BTC Dump Shield & Market Crash Guard Endpoint
+# -------------------------------------------------------------
+@app.get("/api/btc-dump-guard/status")
+async def get_btc_dump_guard_status():
+    """
+    Returns real-time Bitcoin momentum health, 1m/5m drop metrics, and altcoin buy clearance status.
+    """
+    try:
+        from core.btc_dump_guard import btc_dump_guard
+        health = btc_dump_guard.evaluate_btc_health()
+        return JSONResponse({"status": "SUCCESS", "btc_guard": health})
+    except Exception as e:
+        return JSONResponse({"status": "ERROR", "message": str(e)}, status_code=500)
+
+
+
 
 
 
