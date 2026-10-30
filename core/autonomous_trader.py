@@ -1019,6 +1019,28 @@ class AutonomousTrader:
                                 except Exception:
                                     pass
 
+                                # 3B. Anti-Candle-Top & Dip-Confirmation Guard
+                                # Strictly blocks buying at the upper wick of a green candle or when overextended from EMA9/VWAP
+                                try:
+                                    from core.anti_top_buying_guard import anti_top_buying_guard
+                                    v_cur_vwap = v_vwap if (_active_ws == "INDIA" and "v_vwap" in locals()) else 0.0
+                                    top_ok, top_reason, top_data = anti_top_buying_guard.check_entry_allowed(
+                                        symbol=ticker,
+                                        side=act,
+                                        current_price=current_price,
+                                        workspace=_active_ws,
+                                        rsi=rsi,
+                                        candle_open=float(item.get("open") or 0.0),
+                                        candle_high=float(item.get("high") or 0.0),
+                                        candle_low=float(item.get("low") or 0.0),
+                                        vwap=v_cur_vwap
+                                    )
+                                    if not top_ok:
+                                        self._log_action(ticker, "TOP_BUY_BLOCKED", current_price, size_usd, top_reason)
+                                        continue
+                                except Exception:
+                                    pass
+
                                 # 4. Level-2 Order Book Imbalance Pressure
                                 try:
                                     from core.order_book_pressure_detector import order_book_pressure_detector
