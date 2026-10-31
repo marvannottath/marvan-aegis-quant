@@ -1,6 +1,6 @@
 """
 Aegis CA-Ready Tax & PnL Accounting Auditor.
-Generates comprehensive regulatory and tax accounting audit reports for:
+Generates comprehensive regulatory and tax accounting audit reports based on actual executed trades for:
   1. Indian Equity & F&O (STCG @ 20% Section 111A, F&O Section 44AB Turnover, STT, Stamp Duty)
   2. Virtual Digital Assets (Crypto VDA @ 30% Flat Tax Section 115BBH, 1% TDS Section 194S)
   3. Forex & Global Commodities accounting
@@ -22,32 +22,46 @@ class TaxAuditEngine:
 
     def generate_tax_audit(self, financial_year: str = "2026-2027") -> Dict[str, Any]:
         """
-        Generate complete CA-ready tax audit summary across all trading desks.
+        Generate complete CA-ready tax audit summary from REAL trade executions.
         """
         try:
             from execution.paper_broker import paper_broker
-            all_trades = [t for pool in paper_broker.pools.values() for t in pool.get("trade_history", [])]
+            all_pools = paper_broker.pools
         except Exception:
-            all_trades = []
+            all_pools = {}
 
-        # Indian Desk Calculations
-        india_gross_profit_inr = 84520.00
-        india_gross_loss_inr = 16210.00
-        india_net_pnl_inr = india_gross_profit_inr - india_gross_loss_inr
-        # Section 44AB F&O Turnover = sum of absolute profits and losses
-        india_fo_turnover_inr = india_gross_profit_inr + india_gross_loss_inr
+        # 1. Real Crypto VDA Calculations
+        crypto_pool = all_pools.get("BINANCE_LIVE_REAL", {})
+        crypto_trades = crypto_pool.get("trade_history", [])
+
+        c_wins = [t for t in crypto_trades if float(t.get("pnl_usd", 0.0)) > 0]
+        c_losses = [t for t in crypto_trades if float(t.get("pnl_usd", 0.0)) < 0]
+
+        crypto_gross_profit_usd = round(sum(float(t.get("pnl_usd", 0.0)) for t in c_wins), 4)
+        crypto_gross_loss_usd = round(abs(sum(float(t.get("pnl_usd", 0.0)) for t in c_losses)), 4)
+        crypto_net_pnl_usd = round(crypto_gross_profit_usd - crypto_gross_loss_usd, 4)
+        crypto_turnover_usd = round(sum(float(t.get("capital_allocated", 0.0)) or (float(t.get("quantity", 0.0)) * float(t.get("entry_price", 0.0))) for t in crypto_trades), 2)
+
+        # Under Indian Tax Section 115BBH: 30% flat tax on gains (losses cannot be offset)
+        vda_tax_liability_usd = round(crypto_gross_profit_usd * 0.30, 4)
+        tds_194s_withheld_usd = round(crypto_turnover_usd * 0.01, 4)
+
+        # 2. Real Indian Desk Calculations
+        india_pool = all_pools.get("KOTAK_NEO_LIVE_POOL", {})
+        india_trades = india_pool.get("trade_history", [])
+
+        i_wins = [t for t in india_trades if float(t.get("pnl_inr", t.get("pnl_usd", 0.0))) > 0]
+        i_losses = [t for t in india_trades if float(t.get("pnl_inr", t.get("pnl_usd", 0.0))) < 0]
+
+        india_gross_profit_inr = round(sum(float(t.get("pnl_inr", t.get("pnl_usd", 0.0))) for t in i_wins), 2)
+        india_gross_loss_inr = round(abs(sum(float(t.get("pnl_inr", t.get("pnl_usd", 0.0))) for t in i_losses)), 2)
+        india_net_pnl_inr = round(india_gross_profit_inr - india_gross_loss_inr, 2)
+        india_fo_turnover_inr = round(india_gross_profit_inr + india_gross_loss_inr, 2)
         stcg_tax_liability_inr = round(max(0.0, india_net_pnl_inr * 0.20), 2)  # 20% STCG
         stt_charges_inr = round(india_fo_turnover_inr * 0.000125, 2)
         sebi_turnover_fees_inr = round(india_fo_turnover_inr * 0.000001, 2)
 
-        # Crypto VDA Calculations
-        crypto_gross_profit_usd = 940.50
-        crypto_gross_loss_usd = 182.20
-        crypto_net_pnl_usd = crypto_gross_profit_usd - crypto_gross_loss_usd
-        crypto_turnover_usd = 18450.00
-        # VDA Section 115BBH: 30% flat tax on gains (losses cannot be set off against other income)
-        vda_tax_liability_usd = round(crypto_gross_profit_usd * 0.30, 2)
-        tds_194s_withheld_usd = round(crypto_turnover_usd * 0.01, 2)  # 1% TDS
+        total_trades = len(crypto_trades) + len(india_trades)
 
         return {
             "status": "SUCCESS",
@@ -59,28 +73,31 @@ class TaxAuditEngine:
                 "gross_losses_inr": india_gross_loss_inr,
                 "net_realized_pnl_inr": india_net_pnl_inr,
                 "section_44ab_turnover_inr": india_fo_turnover_inr,
-                "audit_required": india_fo_turnover_inr > 100000000,  # 10 Cr limit
+                "audit_required": bool(india_fo_turnover_inr > 100000000),
                 "stcg_tax_rate": "20% (Section 111A)",
                 "estimated_tax_inr": stcg_tax_liability_inr,
                 "stt_paid_inr": stt_charges_inr,
-                "sebi_charges_inr": sebi_turnover_fees_inr
+                "sebi_charges_inr": sebi_turnover_fees_inr,
+                "trades_count": len(india_trades),
             },
             "crypto_vda": {
                 "gross_profits_usd": crypto_gross_profit_usd,
                 "gross_losses_usd": crypto_gross_loss_usd,
                 "net_realized_pnl_usd": crypto_net_pnl_usd,
+                "crypto_turnover_usd": crypto_turnover_usd,
                 "vda_tax_rate": "30% Flat (Section 115BBH)",
                 "estimated_vda_tax_usd": vda_tax_liability_usd,
                 "estimated_vda_tax_inr": round(vda_tax_liability_usd * USD_TO_INR_RATE, 2),
                 "tds_section_194s_usd": tds_194s_withheld_usd,
-                "tds_status": "COMPLIANT_1_PERCENT_DEDUCTED"
+                "tds_status": "COMPLIANT_1_PERCENT_DEDUCTED",
+                "trades_count": len(crypto_trades),
             },
             "total_tax_liability_inr": round(stcg_tax_liability_inr + (vda_tax_liability_usd * USD_TO_INR_RATE), 2),
-            "total_trades_audited": max(116, len(all_trades))
+            "total_trades_audited": total_trades,
         }
 
     def export_csv(self) -> str:
-        """Export formatted CSV tax audit ledger for Chartered Accountants."""
+        """Export formatted CSV tax audit ledger with actual executed fills."""
         audit = self.generate_tax_audit()
         output = io.StringIO()
         writer = csv.writer(output)
@@ -88,6 +105,7 @@ class TaxAuditEngine:
         writer.writerow(["Financial Year", audit["financial_year"]])
         writer.writerow(["Generated At", audit["audit_date"]])
         writer.writerow(["Compliance Standard", audit["compliance_standard"]])
+        writer.writerow(["Total Trades Audited", audit["total_trades_audited"]])
         writer.writerow([])
         writer.writerow(["--- INDIAN EQUITY & F&O DESK (CBDT / SEBI) ---"])
         for k, v in audit["india_equity_fo"].items():
@@ -98,6 +116,30 @@ class TaxAuditEngine:
             writer.writerow([k.replace("_", " ").upper(), v])
         writer.writerow([])
         writer.writerow(["TOTAL ESTIMATED TAX LIABILITY (INR)", f"INR {audit['total_tax_liability_inr']:,.2f}"])
+        writer.writerow([])
+
+        # Detailed Trade-by-trade ledger
+        writer.writerow(["--- DETAILED AUDITED FILL LOGS ---"])
+        writer.writerow(["Date", "Symbol", "Side", "Qty", "Entry Price", "Exit Price", "PnL ($)", "Result", "Reason"])
+
+        try:
+            from execution.paper_broker import paper_broker
+            crypto_pool = paper_broker.pools.get("BINANCE_LIVE_REAL", {})
+            for t in reversed(crypto_pool.get("trade_history", [])):
+                writer.writerow([
+                    t.get("timestamp") or t.get("date") or "--",
+                    t.get("symbol") or t.get("asset") or "--",
+                    t.get("side") or t.get("action") or "--",
+                    t.get("quantity") or t.get("units") or "--",
+                    t.get("entry_price") or "--",
+                    t.get("exit_price") or "--",
+                    t.get("pnl_usd") or t.get("net_pnl") or "--",
+                    t.get("result") or "--",
+                    t.get("reason") or "--",
+                ])
+        except Exception:
+            pass
+
         return output.getvalue()
 
 
