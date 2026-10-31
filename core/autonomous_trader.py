@@ -1764,7 +1764,8 @@ class AutonomousTrader:
 
                     # MANDATORY Indian Intraday Auto-Square Off Guard at 15:00 IST
                     # Closes open MIS positions 15 mins before Kotak RMS 15:15 cutoff, completely eliminating broker penalty charges (₹59/order)
-                    is_india_pos = (pos_ws == "INDIA") or ("KOTAK" in pool) or (pos.get("environment") == "KOTAK_NEO_LIVE")
+                    # STRICT: Only applies to Indian equities. Crypto trades 24/7 and must NEVER be auto-squared off by Indian market EOD!
+                    is_india_pos = (pos_ws == "INDIA" or pos.get("environment") == "KOTAK_NEO_LIVE") and not is_crypto_sym
                     is_eod_square_off = False
                     if is_india_pos:
                         now_ist = datetime.now(timezone.utc).astimezone(IST_TZ)
