@@ -60,7 +60,10 @@ export function AnalyticsView() {
   const router = useRouter();
   const { portfolio, workspace, environment, isFinancialMasked } = useTradingContext();
   const [calendarData, setCalendarData] = useState<CalendarData | null>(null);
-  const [selectedMonth, setSelectedMonth] = useState<string>('2026-10');
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Modals state
@@ -240,7 +243,7 @@ export function AnalyticsView() {
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4 text-brand" />
               <h3 className="text-xs font-bold uppercase tracking-wider text-txt-primary">
-                Monthly PnL Calendar Heatmap
+                Monthly PnL Calendar
               </h3>
             </div>
 

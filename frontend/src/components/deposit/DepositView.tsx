@@ -69,8 +69,9 @@ export function DepositView() {
       const list: PaymentRecord[] = [];
       const seenIds = new Set<string>();
 
-      if (histRes.status === 'fulfilled' && Array.isArray(histRes.value)) {
-        histRes.value.forEach((p: any) => {
+      if (histRes.status === 'fulfilled') {
+        const rawPayments = Array.isArray(histRes.value) ? histRes.value : (histRes.value?.data || []);
+        rawPayments.forEach((p: any) => {
           const id = p.payment_id || p.id;
           if (id && !seenIds.has(id)) {
             seenIds.add(id);

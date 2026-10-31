@@ -2974,43 +2974,6 @@ async def get_payment_history():
                 "confirmed_at": ld.get("timestamp")
             })
 
-        if not all_payments:
-            from datetime import datetime, timezone, timedelta
-            IST_TZ = timezone(timedelta(hours=5, minutes=30))
-            now_dt = datetime.now(timezone.utc).astimezone(IST_TZ)
-            all_payments = [
-                {
-                    "payment_id": "ALLOC-BINANCE-LIVE-01",
-                    "user_id": "TRADER_BINANCE",
-                    "amount": 14.70,
-                    "currency": "USDT",
-                    "status": "SUCCEEDED",
-                    "mode": "BINANCE_MAINNET_SPOT",
-                    "allocation_split": {
-                        "trading_capital": 14.70,
-                        "risk_reserve": 0.0,
-                        "vault_reserve": 0.0
-                    },
-                    "created_at": (now_dt - timedelta(hours=14)).strftime("%Y-%m-%d %H:%M:%S IST"),
-                    "confirmed_at": (now_dt - timedelta(hours=14)).strftime("%Y-%m-%d %H:%M:%S IST")
-                },
-                {
-                    "payment_id": "ALLOC-UPSTOX-NSE-01",
-                    "user_id": "TRADER_NSE",
-                    "amount": 100000.00,
-                    "currency": "INR",
-                    "status": "SUCCEEDED",
-                    "mode": "UPSTOX_DIRECT_UPI",
-                    "allocation_split": {
-                        "trading_capital": 85000.00,
-                        "risk_reserve": 10000.00,
-                        "vault_reserve": 5000.00
-                    },
-                    "created_at": (now_dt - timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S IST"),
-                    "confirmed_at": (now_dt - timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S IST")
-                }
-            ]
-
         all_payments.sort(key=lambda p: str(p.get("created_at", "")), reverse=True)
 
         return JSONResponse({

@@ -156,10 +156,10 @@ export function SessionDetailView() {
         <div className="flex items-center gap-3">
           <Link
             href={calendarBackUrl}
-            className="p-2 rounded-lg border border-line bg-panel hover:bg-panel-light text-txt-secondary hover:text-txt-primary transition flex items-center gap-1.5 text-xs font-semibold"
+            className="p-2 rounded-lg border border-line bg-panel hover:bg-panel-light text-txt-secondary hover:text-txt-primary transition flex items-center justify-center text-xs font-semibold"
+            title="Back to Calendar"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span className="hidden sm:inline">Monthly Heatmap</span>
           </Link>
           <div>
             <div className="flex items-center gap-2">

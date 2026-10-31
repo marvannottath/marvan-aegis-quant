@@ -99,7 +99,7 @@ export function SignalsFeed() {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-emerald-50 border border-emerald-200 text-[11px] font-mono text-emerald-800">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span className="font-bold">LIVE STREAMING (3s Auto-Update)</span>
+            <span className="font-bold">LIVE VIP STREAM • Real-Time Engine (Sub-50ms VPS)</span>
             <span className="text-txt-muted text-[10px] hidden sm:inline">• {lastUpdated}</span>
           </div>
 
