@@ -1503,6 +1503,27 @@ class AutonomousTrader:
                             trail_px = round(entry * (1.0 + trailing_floor), px_dec) if act == "BUY" else round(entry * (1.0 - trailing_floor), px_dec)
                             pos["stop_loss"] = max(float(pos.get("stop_loss", 0.0)), trail_px) if act == "BUY" else (min(float(pos.get("stop_loss", 999999.0)), trail_px) if float(pos.get("stop_loss", 0.0)) > 0 else trail_px)
 
+                        # ── STEP TRAILING STOP-LOSS RATCHET (STAIRCASE LOCK) ─ India ──────────
+                        # Every 5% rise in Indian stocks locks in a minimum 5% gain floor permanently!
+                        # At +25% peak → SL locks at +20%; At +30% → SL locks at +25%, and so on.
+                        if highest_pnl >= 0.0500:
+                            step_floor = round(highest_pnl - 0.0500, 6)
+                            prev_step_floor = float(pos.get("step_ratchet_floor", 0.0))
+                            if step_floor > prev_step_floor:
+                                pos["step_ratchet_floor"] = step_floor
+                                step_lock_px = round(entry * (1.0 + step_floor), px_dec) if act == "BUY" else round(entry * (1.0 - step_floor), px_dec)
+                                old_sl = float(pos.get("stop_loss", 0.0))
+                                if (act == "BUY" and step_lock_px > old_sl) or (act == "SELL" and (old_sl <= 0 or step_lock_px < old_sl)):
+                                    pos["stop_loss"] = step_lock_px
+                                    pos["step_ratchet_active"] = True
+                                    self._log_action(
+                                        pos_asset, "STEP_RATCHET_LOCK", new_live_price, pnl_usd,
+                                        f"India Step-Ratchet SL locked at +{step_floor*100:.1f}% "
+                                        f"(peak={highest_pnl*100:.1f}%, SL=₹{step_lock_px:.2f}). "
+                                        f"Every 5% rise locks 5% gain!"
+                                    )
+                        # ─────────────────────────────────────────────────────────────────────
+
                         # Check ratchet triggers
                         is_trailing_stop = False
                         is_sl_hit = bool(float(pos.get("stop_loss", 0.0)) > 0 and (new_live_price <= float(pos.get("stop_loss", 0.0)) if act == "BUY" else new_live_price >= float(pos.get("stop_loss", 0.0))))
@@ -1552,6 +1573,32 @@ class AutonomousTrader:
                             pos["dynamic_trailing_floor"] = max(pos.get("dynamic_trailing_floor", 0.0), trailing_floor)
                             trail_px = round(entry * (1.0 + trailing_floor), px_dec)
                             pos["stop_loss"] = max(float(pos.get("stop_loss", 0.0)), trail_px)
+
+                        # ── STEP TRAILING STOP-LOSS RATCHET (STAIRCASE LOCK) ───────────────────
+                        # "Govaṇippaṭi SL" — Every 5% rise locks in 5% profit permanently!
+                        # When position peaks at 25% → SL auto-locks at 20% (highest_pnl - 5%)
+                        # When position peaks at 30% → SL auto-locks at 25%
+                        # When position peaks at 50% → SL auto-locks at 45%
+                        # This ensures big runners NEVER give back their gains to zero!
+                        # Only activates for large runners (>= +5% profit territory).
+                        if highest_pnl >= 0.0500:
+                            # Step-ratchet: lock SL at (peak − 5%), always advancing upward only
+                            step_floor = round(highest_pnl - 0.0500, 6)  # 5% trailing buffer
+                            prev_step_floor = float(pos.get("step_ratchet_floor", 0.0))
+                            if step_floor > prev_step_floor:
+                                pos["step_ratchet_floor"] = step_floor
+                                step_lock_px = round(entry * (1.0 + step_floor), px_dec)
+                                old_sl = float(pos.get("stop_loss", 0.0))
+                                if step_lock_px > old_sl:
+                                    pos["stop_loss"] = step_lock_px
+                                    pos["step_ratchet_active"] = True
+                                    self._log_action(
+                                        pos_asset, "STEP_RATCHET_LOCK", new_live_price, pnl_usd,
+                                        f"Step-Ratchet SL locked at +{step_floor*100:.1f}% "
+                                        f"(peak={highest_pnl*100:.1f}%, SL=${step_lock_px:.4f}). "
+                                        f"Every 5% rise locks 5% gain!"
+                                    )
+                        # ─────────────────────────────────────────────────────────────────────
 
                         # Check ratchet triggers
                         is_trailing_stop = False
