@@ -62,17 +62,49 @@ class CryptoMarketStreamer:
         """Register callback function to broadcast to connected WebSocket clients."""
         self._broadcast_callback = callback
 
-    def start(self):
-        """Start the background streaming worker."""
+    def start(self, loop=None):
+        """Start the background streaming worker in a thread-safe manner."""
+        if loop:
+            self._loop = loop
+        elif not getattr(self, "_loop", None) or self._loop.is_closed():
+            try:
+                self._loop = asyncio.get_running_loop()
+            except RuntimeError:
+                pass
+
         if not self._is_running:
             self._is_running = True
-            self._task = asyncio.create_task(self._run_loop())
+            if getattr(self, "_loop", None) and self._loop.is_running():
+                try:
+                    cur_loop = asyncio.get_running_loop()
+                    if cur_loop is self._loop:
+                        self._task = self._loop.create_task(self._run_loop())
+                    else:
+                        asyncio.run_coroutine_threadsafe(self._run_loop(), self._loop)
+                except RuntimeError:
+                    asyncio.run_coroutine_threadsafe(self._run_loop(), self._loop)
+            else:
+                # No active loop in current thread: spawn dedicated event loop thread
+                import threading
+                def _thread_runner():
+                    new_loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(new_loop)
+                    self._loop = new_loop
+                    new_loop.run_until_complete(self._run_loop())
+                t = threading.Thread(target=_thread_runner, daemon=True, name="CryptoStreamerThread")
+                t.start()
 
     def stop(self):
         """Stop the background worker."""
         self._is_running = False
         if self._task and not self._task.done():
-            self._task.cancel()
+            if getattr(self, "_loop", None) and self._loop.is_running():
+                self._loop.call_soon_threadsafe(self._task.cancel)
+            else:
+                try:
+                    self._task.cancel()
+                except Exception:
+                    pass
         self._connection_state = "DISCONNECTED"
 
     async def _run_loop(self):
