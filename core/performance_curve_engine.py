@@ -139,11 +139,25 @@ class PerformanceCurveEngine:
             if target_ws and not workspace_manager.is_symbol_allowed(sym, target_ws):
                 continue
             t_env = str(t.get("environment") or t.get("pool", "")).upper()
+            t_src = str(t.get("source") or "").upper()
+            t_reason = str(t.get("close_reason") or "").upper()
+
             if env_mode == "LIVE":
                 if "DEMO" in t_env or "PAPER" in t_env or "TESTNET" in t_env:
                     continue
+                # Strictly require positive confirmation of LIVE provenance
+                is_live_provenance = (
+                    "LIVE" in t_env or "REAL" in t_env or
+                    "LIVE" in t_src or "REAL" in t_src or
+                    "LIVE" in t_reason
+                )
+                if not is_live_provenance:
+                    continue
+                # Micro account live safety check: a trade with > $5 PnL on crypto spot is an old virtual demo artifact
+                if target_ws == "CRYPTO" and abs(float(t.get("pnl_usd", 0.0))) > 5.0:
+                    continue
             else:
-                if "LIVE" in t_env or "REAL" in t_env:
+                if "LIVE" in t_env or "REAL" in t_env or "LIVE" in t_src or "REAL" in t_src or "LIVE" in t_reason:
                     continue
             filtered_trades.append(t)
         trades = filtered_trades
@@ -233,9 +247,9 @@ class PerformanceCurveEngine:
         # Baseline equity at the beginning of all recorded history
         historical_base_equity = round(cur_equity - total_historical_pnl, 2)
 
-        # STRICT LIVE ISOLATION: A real live account ($9-$1000) must NEVER inherit a $10,000 demo baseline
+        # STRICT LIVE ISOLATION: A real live account must NEVER inherit a negative, zero, or inflated baseline
         if env_mode == "LIVE" and cur_equity > 0:
-            if historical_base_equity > (cur_equity * 1.5) or historical_base_equity < (cur_equity * 0.5):
+            if historical_base_equity <= 0 or historical_base_equity > (cur_equity * 1.5) or historical_base_equity < (cur_equity * 0.5):
                 historical_base_equity = cur_equity
 
         # Pre-cutoff accumulation
@@ -252,7 +266,7 @@ class PerformanceCurveEngine:
         # Baseline equity at the start of the timeframe window
         start_equity = round(historical_base_equity + pre_cutoff_pnl, 2)
         if env_mode == "LIVE" and cur_equity > 0:
-            if start_equity > (cur_equity * 1.5) or start_equity < (cur_equity * 0.5):
+            if start_equity <= 0 or start_equity > (cur_equity * 1.5) or start_equity < (cur_equity * 0.5):
                 start_equity = cur_equity
         start_ts = cutoff_dt.strftime("%Y-%m-%d %H:%M:%S") if time_range != "ALL" else (events[0]["timestamp"] if events else now_str)
 
