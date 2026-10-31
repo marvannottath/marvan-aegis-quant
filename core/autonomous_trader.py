@@ -1485,152 +1485,193 @@ class AutonomousTrader:
                     cur_sl = float(pos.get("stop_loss", 0.0))
 
                     if pos_ws == "INDIA" or is_zero_brokerage_venue:
-                        # Indian Equities Fee-Secured Trailing Ratchet:
-                        # Breakeven activation:
-                        # Only activate breakeven stop loss when profit is at least +0.35% (approx ₹4.00 on INFY)
-                        # Covers STT, exchange fees, and ensures zero loss.
+                        # ── PARALLEL BRACKET CORRIDOR ─ Indian Equities ──────────────
+                        # User Rule: Micro-step trailing ratchet with healthy breathing gap (0.60% on equities).
+                        # Stop Loss advances with every tick of profit, while preserving breathing room against intraday noise.
+                        initial_gap_pct = float(pos.get("initial_gap_pct", 0.0060))
+                        if "initial_gap_pct" not in pos:
+                            if cur_sl > 0 and cur_sl < entry:
+                                initial_gap_pct = max(0.0040, min(0.0100, (entry - cur_sl) / entry))
+                            pos["initial_gap_pct"] = initial_gap_pct
+
+                        # Baby-step Micro-Trailing Ratchet:
+                        corridor_sl_pct = highest_pnl - initial_gap_pct
+                        corridor_sl_px = round(entry * (1.0 + corridor_sl_pct), px_dec) if act == "BUY" else round(entry * (1.0 - corridor_sl_pct), px_dec)
+                        if (act == "BUY" and corridor_sl_px > cur_sl) or (act == "SELL" and (cur_sl <= 0 or corridor_sl_px < cur_sl)):
+                            pos["stop_loss"] = corridor_sl_px
+                            cur_sl = corridor_sl_px
+                            pos["corridor_ratchet_active"] = True
+
+                        # Dynamic Take-Profit Target Expansion on strong momentum:
+                        if pnl_pct >= 0.0100:
+                            target_expansion_tp = round(new_live_price * 1.0100, px_dec) if act == "BUY" else round(new_live_price * 0.9900, px_dec)
+                            if (act == "BUY" and target_expansion_tp > float(pos.get("take_profit", 0.0))) or (act == "SELL" and target_expansion_tp < float(pos.get("take_profit", 999999.0))):
+                                pos["take_profit"] = target_expansion_tp
+
+                        # Breakeven activation when profit is at least +0.35% (covers STT and exchange fees)
                         if highest_pnl >= 0.0035:
                             pos["cost_breakeven_active"] = True
                             be_px = round(entry * 1.0008, px_dec) if act == "BUY" else round(entry * 0.9992, px_dec)
-                            pos["stop_loss"] = max(cur_sl, be_px) if act == "BUY" else (min(cur_sl, be_px) if cur_sl > 0 else be_px)
+                            if (act == "BUY" and be_px > cur_sl) or (act == "SELL" and (cur_sl <= 0 or be_px < cur_sl)):
+                                pos["stop_loss"] = be_px
+                                cur_sl = be_px
 
-                        # Dynamic Trailing Ratchet:
-                        # Give Indian equities healthy breathing room: 0.30% trailing buffer (approx ₹3.50 on INFY).
-                        # Only start trailing once profit has reached +0.45% so a 0.30% pullback still exits in GREEN profit (+0.15% net)!
+                        # Dynamic Trailing Ratchet above +0.45%:
                         if highest_pnl >= 0.0045:
                             trailing_floor = highest_pnl - 0.0030
                             pos["dynamic_trailing_floor"] = max(pos.get("dynamic_trailing_floor", 0.0), trailing_floor)
                             trail_px = round(entry * (1.0 + trailing_floor), px_dec) if act == "BUY" else round(entry * (1.0 - trailing_floor), px_dec)
-                            pos["stop_loss"] = max(float(pos.get("stop_loss", 0.0)), trail_px) if act == "BUY" else (min(float(pos.get("stop_loss", 999999.0)), trail_px) if float(pos.get("stop_loss", 0.0)) > 0 else trail_px)
+                            if (act == "BUY" and trail_px > cur_sl) or (act == "SELL" and (cur_sl <= 0 or trail_px < cur_sl)):
+                                pos["stop_loss"] = trail_px
+                                cur_sl = trail_px
 
                         # ── STEP TRAILING STOP-LOSS RATCHET (STAIRCASE LOCK) ─ India ──────────
                         # Every 5% rise in Indian stocks locks in a minimum 5% gain floor permanently!
-                        # At +25% peak → SL locks at +20%; At +30% → SL locks at +25%, and so on.
                         if highest_pnl >= 0.0500:
                             step_floor = round(highest_pnl - 0.0500, 6)
                             prev_step_floor = float(pos.get("step_ratchet_floor", 0.0))
                             if step_floor > prev_step_floor:
                                 pos["step_ratchet_floor"] = step_floor
                                 step_lock_px = round(entry * (1.0 + step_floor), px_dec) if act == "BUY" else round(entry * (1.0 - step_floor), px_dec)
-                                old_sl = float(pos.get("stop_loss", 0.0))
-                                if (act == "BUY" and step_lock_px > old_sl) or (act == "SELL" and (old_sl <= 0 or step_lock_px < old_sl)):
+                                if (act == "BUY" and step_lock_px > cur_sl) or (act == "SELL" and (cur_sl <= 0 or step_lock_px < cur_sl)):
                                     pos["stop_loss"] = step_lock_px
+                                    cur_sl = step_lock_px
                                     pos["step_ratchet_active"] = True
                                     self._log_action(
                                         pos_asset, "STEP_RATCHET_LOCK", new_live_price, pnl_usd,
                                         f"India Step-Ratchet SL locked at +{step_floor*100:.1f}% "
-                                        f"(peak={highest_pnl*100:.1f}%, SL=₹{step_lock_px:.2f}). "
-                                        f"Every 5% rise locks 5% gain!"
+                                        f"(peak={highest_pnl*100:.1f}%, SL=₹{step_lock_px:.2f})."
                                     )
                         # ─────────────────────────────────────────────────────────────────────
 
                         # Check ratchet triggers
                         is_trailing_stop = False
                         is_sl_hit = bool(float(pos.get("stop_loss", 0.0)) > 0 and (new_live_price <= float(pos.get("stop_loss", 0.0)) if act == "BUY" else new_live_price >= float(pos.get("stop_loss", 0.0))))
-                        if (pos.get("cost_breakeven_active") or pos.get("dynamic_trailing_floor")) and is_sl_hit:
+                        if is_sl_hit:
                             is_trailing_stop = True
                         elif pos.get("dynamic_trailing_floor") and pnl_pct <= pos["dynamic_trailing_floor"]:
-                            is_trailing_stop = True
-                        elif pos.get("cost_breakeven_active") and pnl_pct <= 0.0006:
                             is_trailing_stop = True
 
                         is_break_even_guard = is_trailing_stop
 
-                        # Stagnation rule:
-                        # DO NOT prematurely kill trades at 10 minutes!
-                        # Only trigger stagnation if held >= 25 minutes (1500s) AND price is stagnating
-                        is_long_stagnant = bool(time_held_sec >= 1500.0)
-                        is_stale_loss_exit = bool(is_long_stagnant and pnl_pct < -0.0020)
-                        is_stale_profit_harvest = bool(is_long_stagnant and pnl_pct >= 0.0030)
-                        is_stale_rotation = is_stale_loss_exit or is_stale_profit_harvest
+                        # Relaxed Stagnation: Do NOT prematurely kill trades at -0.20% or -0.30%!
+                        # Parallel corridor SL guarantees loss containment.
+                        is_long_stagnant = bool(time_held_sec >= 2400.0)
+                        is_stale_loss_exit = False  # Parallel corridor protects downside!
+                        is_stale_profit_harvest = bool(is_long_stagnant and pnl_pct >= 0.0035)
+                        is_stale_rotation = is_stale_profit_harvest
 
                         is_peak_stagnation = False
 
-                        # Take Profit: Target +1.50% or explicit TP level crossed
+                        # Take Profit: Target or explicit TP level crossed
                         is_tp_price_hit = bool(pos.get("take_profit", 0.0) > 0 and (new_live_price >= pos["take_profit"] if act == "BUY" else new_live_price <= pos["take_profit"]))
                         is_fee_secured_tp = (pnl_pct >= 0.0150) or is_tp_price_hit
                         is_milestone = (pnl_pct >= 0.0250)
                         is_micro_harvest = False
                         is_staggered_harvest = False
                         is_maturity_rebalance = False
-                        is_hard_stop = (pnl_pct <= -0.0100) or is_sl_hit
+                        is_hard_stop = (pnl_pct <= -0.0120) or is_sl_hit
                     elif pos_ws == "CRYPTO":
-                        # Binance Crypto Spot Multi-Stage Trailing Ratchet:
-                        # Binance roundtrip fee is 0.20% (0.10% buy + 0.10% sell).
-                        # Only activate breakeven stop loss when profit is at least +0.50% (gives room for normal 0.25% noise).
-                        # When at +0.50%, ratchet stop loss to +0.22% (guaranteed fee coverage).
+                        # ── PARALLEL BRACKET CORRIDOR (Floating Micro-Step Ratchet) ───
+                        # User Rule: For every micro-step the price climbs (even +0.05% or +0.10%),
+                        # the Stop Loss climbs in parallel to reduce downside risk,
+                        # WHILE maintaining a healthy breathing gap (0.80% - 1.00%) so normal
+                        # 0.20% - 0.30% market noise never triggers a false stop out!
+                        
+                        # 1. Determine Initial Safety Gap (Default 0.90% for crypto spot, covering 0.20% roundtrip fee + noise)
+                        initial_gap_pct = float(pos.get("initial_gap_pct", 0.0090))
+                        if "initial_gap_pct" not in pos:
+                            if cur_sl > 0 and cur_sl < entry:
+                                initial_gap_pct = max(0.0075, min(0.0150, (entry - cur_sl) / entry))
+                            pos["initial_gap_pct"] = initial_gap_pct
+
+                        # 2. Baby-step Micro-Trailing Ratchet:
+                        # As price rises (highest_pnl climbs), Stop Loss advances upward in lockstep!
+                        # At highest_pnl = 0.0000: SL floor = -0.90%
+                        # At highest_pnl = +0.0020 (+0.20%): SL floor = -0.70%
+                        # At highest_pnl = +0.0050 (+0.50%): SL floor = -0.40%
+                        # At highest_pnl = +0.0090 (+0.90%): SL floor = 0.0000 (Exact Breakeven)
+                        # At highest_pnl = +0.0120 (+1.20%): SL floor = +0.0030 (Locked Green Profit!)
+                        corridor_sl_pct = highest_pnl - initial_gap_pct
+                        corridor_sl_px = round(entry * (1.0 + corridor_sl_pct), px_dec)
+                        
+                        # Ensure SL only moves UPWARD, never downward
+                        if corridor_sl_px > cur_sl:
+                            pos["stop_loss"] = corridor_sl_px
+                            cur_sl = corridor_sl_px
+                            pos["corridor_ratchet_active"] = True
+
+                        # 3. Dynamic Take-Profit Target Expansion:
+                        # As price surges towards target, push TP higher so big momentum runners
+                        # are not prematurely cut, letting the trailing corridor exit at the peak!
+                        if pnl_pct >= 0.0120:
+                            target_expansion_tp = round(new_live_price * 1.0120, px_dec)
+                            if target_expansion_tp > float(pos.get("take_profit", 0.0)):
+                                pos["take_profit"] = target_expansion_tp
+
+                        # 4. Standard Breakeven & Fee Protection:
+                        # If price reached >= +0.50%, ensure SL is at least +0.22% (guaranteed fee coverage)
                         if highest_pnl >= 0.0050:
                             pos["cost_breakeven_active"] = True
                             be_px = round(entry * 1.0022, px_dec)
-                            pos["stop_loss"] = max(cur_sl, be_px)
+                            if be_px > cur_sl:
+                                pos["stop_loss"] = be_px
+                                cur_sl = be_px
 
-                        # Dynamic Trailing Ratchet above +0.80%:
-                        # Healthy crypto trailing buffer: 0.50% below peak!
-                        # At +0.80% peak, trailing floor is +0.30% (positive green even after 0.20% fee)!
-                        # At +1.50% peak, trailing floor is +1.00% (big green win)!
+                        # 5. Dynamic Trailing Ratchet above +0.80%:
                         if highest_pnl >= 0.0080:
                             trailing_floor = highest_pnl - 0.0050
                             pos["dynamic_trailing_floor"] = max(pos.get("dynamic_trailing_floor", 0.0), trailing_floor)
                             trail_px = round(entry * (1.0 + trailing_floor), px_dec)
-                            pos["stop_loss"] = max(float(pos.get("stop_loss", 0.0)), trail_px)
+                            if trail_px > cur_sl:
+                                pos["stop_loss"] = trail_px
+                                cur_sl = trail_px
 
-                        # ── STEP TRAILING STOP-LOSS RATCHET (STAIRCASE LOCK) ───────────────────
-                        # "Govaṇippaṭi SL" — Every 5% rise locks in 5% profit permanently!
-                        # When position peaks at 25% → SL auto-locks at 20% (highest_pnl - 5%)
-                        # When position peaks at 30% → SL auto-locks at 25%
-                        # When position peaks at 50% → SL auto-locks at 45%
-                        # This ensures big runners NEVER give back their gains to zero!
-                        # Only activates for large runners (>= +5% profit territory).
+                        # 6. Step Trailing Stop-Loss Ratchet (Staircase Lock for >= +5.0% runners):
                         if highest_pnl >= 0.0500:
-                            # Step-ratchet: lock SL at (peak − 5%), always advancing upward only
-                            step_floor = round(highest_pnl - 0.0500, 6)  # 5% trailing buffer
+                            step_floor = round(highest_pnl - 0.0500, 6)
                             prev_step_floor = float(pos.get("step_ratchet_floor", 0.0))
                             if step_floor > prev_step_floor:
                                 pos["step_ratchet_floor"] = step_floor
                                 step_lock_px = round(entry * (1.0 + step_floor), px_dec)
-                                old_sl = float(pos.get("stop_loss", 0.0))
-                                if step_lock_px > old_sl:
+                                if step_lock_px > cur_sl:
                                     pos["stop_loss"] = step_lock_px
+                                    cur_sl = step_lock_px
                                     pos["step_ratchet_active"] = True
                                     self._log_action(
                                         pos_asset, "STEP_RATCHET_LOCK", new_live_price, pnl_usd,
                                         f"Step-Ratchet SL locked at +{step_floor*100:.1f}% "
-                                        f"(peak={highest_pnl*100:.1f}%, SL=${step_lock_px:.4f}). "
-                                        f"Every 5% rise locks 5% gain!"
+                                        f"(peak={highest_pnl*100:.1f}%, SL=${step_lock_px:.4f})."
                                     )
-                        # ─────────────────────────────────────────────────────────────────────
 
-                        # Check ratchet triggers
+                        # Check ratchet triggers:
                         is_trailing_stop = False
                         is_sl_hit = bool(float(pos.get("stop_loss", 0.0)) > 0 and new_live_price <= float(pos.get("stop_loss", 0.0)))
-                        if (pos.get("cost_breakeven_active") or pos.get("dynamic_trailing_floor")) and is_sl_hit:
+                        if is_sl_hit:
                             is_trailing_stop = True
                         elif pos.get("dynamic_trailing_floor") and pnl_pct <= pos["dynamic_trailing_floor"]:
-                            is_trailing_stop = True
-                        elif pos.get("cost_breakeven_active") and pnl_pct <= 0.0021:
                             is_trailing_stop = True
 
                         is_break_even_guard = is_trailing_stop
 
-                        # Stagnation rule for Crypto:
-                        # DO NOT force exit at 10 minutes!
-                        # Only exit for stagnation if held >= 30 minutes (1800s) AND price is stagnating
-                        is_long_stagnant = bool(time_held_sec >= 1800.0)
-                        is_stale_loss_exit = bool(is_long_stagnant and pnl_pct < -0.0030)
-                        is_stale_profit_harvest = bool(is_long_stagnant and pnl_pct >= 0.0040)
-                        is_stale_rotation = is_stale_loss_exit or is_stale_profit_harvest
+                        # 7. Relaxed Stagnation Guard:
+                        # DO NOT exit at -0.30% prematurely! The Parallel Corridor SL protects the downside.
+                        # Only exit if position is truly dead-flat after 45 minutes (2700s) with no momentum.
+                        is_long_stagnant = bool(time_held_sec >= 2700.0)
+                        is_stale_loss_exit = False  # Never panic exit at -0.30%! Let SL protect the trade!
+                        is_stale_profit_harvest = bool(is_long_stagnant and pnl_pct >= 0.0050)
+                        is_stale_rotation = is_stale_profit_harvest
 
                         is_peak_stagnation = False
 
-                        # Take Profit: Target +1.80% or explicit TP level crossed
+                        # Take Profit: Target or explicit TP level crossed
                         is_tp_price_hit = bool(pos.get("take_profit", 0.0) > 0 and (new_live_price >= pos["take_profit"] if act == "BUY" else new_live_price <= pos["take_profit"]))
                         is_fee_secured_tp = (pnl_pct >= 0.0180) or is_tp_price_hit
                         is_milestone = (pnl_pct >= 0.0300)
-                        # Allow profitable runners to ride trailing stop rather than prematurely cutting at 0.40%
                         is_micro_harvest = False
                         is_staggered_harvest = False
                         is_maturity_rebalance = False
-                        is_hard_stop = (pnl_pct <= -0.0120) or is_sl_hit
+                        is_hard_stop = (pnl_pct <= -0.0150) or is_sl_hit
                     else:
                         # Forex & Gold Multi-Stage Fee-Secured Trailing Ratchet:
                         # User Rule: At +0.25% gain, lock Stop Loss at Entry + 0.05% -> 0% Risk!
