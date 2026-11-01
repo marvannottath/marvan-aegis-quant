@@ -173,10 +173,16 @@ export function AnalyticsView() {
         result.push(serverMap.get(d)!);
       } else {
         const dateStr = `${currYear}-${String(currMonthNum).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        const dayDate = new Date(currYear, currMonthNum - 1, d);
+        const dowNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const dayOfWeek = dowNames[dayDate.getDay()];
+        const isWeekend = dayDate.getDay() === 0 || dayDate.getDay() === 6;
         const isFuture = isThisMonth ? d > today.getDate() : (currYear > today.getFullYear() || (currYear === today.getFullYear() && currMonthNum > (today.getMonth() + 1)));
         result.push({
           date: dateStr,
           day_of_month: d,
+          day_of_week: dayOfWeek,
+          is_weekend: isWeekend,
           trades_count: 0,
           net_pnl_usd: 0,
           net_pnl_inr: 0,
