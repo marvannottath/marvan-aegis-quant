@@ -34,7 +34,14 @@ export function PerformanceCurveChart({
   const isLiveDisconnected = environment === 'LIVE' && (!portfolio || portfolio.broker_connected === false);
 
   const loadCurve = useCallback(async () => {
-    if (!areaSeriesRef.current || isLiveDisconnected) return;
+    if (!areaSeriesRef.current) {
+      setIsLoading(false);
+      return;
+    }
+    if (isLiveDisconnected) {
+      setIsLoading(false);
+      return;
+    }
     try {
       setIsLoading(true);
       const res = await api.getPerformanceCurve(metric, range, environment, workspace);
@@ -74,6 +81,8 @@ export function PerformanceCurveChart({
             }, 60);
           }
         }
+      } else {
+        areaSeriesRef.current.setData([]);
       }
     } catch (err) {
       console.error('Failed to load performance curve:', err);

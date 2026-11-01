@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTradingContext } from '../../context/TradingContext';
@@ -109,30 +109,35 @@ export function AnalyticsView() {
   const isLiveDisconnected = isLive && (!portfolio || portfolio.broker_connected === false || portfolio.total_equity === null);
   const curr = portfolio?.currency_symbol || (workspace === 'INDIA' ? '₹' : '$');
 
-  const loadData = async () => {
+  const loadCalendar = useCallback(async () => {
     try {
       setIsLoading(true);
-      const [cal, tax, fact, tuner] = await Promise.allSettled([
-        api.getPnlCalendar(selectedMonth, workspace, environment),
-        api.getTaxAudit(workspace, environment),
-        api.getFactsheet(workspace, environment),
-        api.getOptimizerStatus(),
-      ]);
-
-      if (cal.status === 'fulfilled') setCalendarData(cal.value?.data || cal.value);
-      if (tax.status === 'fulfilled') setTaxData(tax.value);
-      if (fact.status === 'fulfilled') setFactsheetData(fact.value);
-      if (tuner.status === 'fulfilled') setTunerStatus(tuner.value);
+      const cal = await api.getPnlCalendar(selectedMonth, workspace, environment);
+      if (cal) {
+        setCalendarData(cal?.data || cal);
+      }
     } catch (err) {
-      console.error('Failed to load analytics data:', err);
+      console.error('Failed to load PnL calendar:', err);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [selectedMonth, workspace, environment]);
 
   useEffect(() => {
-    loadData();
-  }, [environment, workspace, selectedMonth]);
+    loadCalendar();
+  }, [loadCalendar]);
+
+  useEffect(() => {
+    Promise.allSettled([
+      api.getTaxAudit(workspace, environment),
+      api.getFactsheet(workspace, environment),
+      api.getOptimizerStatus(),
+    ]).then(([tax, fact, tuner]) => {
+      if (tax.status === 'fulfilled') setTaxData(tax.value);
+      if (fact.status === 'fulfilled') setFactsheetData(fact.value);
+      if (tuner.status === 'fulfilled') setTunerStatus(tuner.value);
+    });
+  }, [workspace, environment]);
 
   const handleRunOptimizer = async () => {
     setIsTuning(true);
@@ -149,7 +154,40 @@ export function AnalyticsView() {
     }
   };
 
-  const days: DayPnl[] = calendarData?.days || [];
+  // Instantly generate all days for the currently selected month so the calendar is ALWAYS complete
+  const days: DayPnl[] = useMemo(() => {
+    const numDays = new Date(currYear, currMonthNum, 0).getDate();
+    const today = new Date();
+    const isThisMonth = currYear === today.getFullYear() && currMonthNum === (today.getMonth() + 1);
+
+    const serverMap = new Map<number, DayPnl>();
+    if (calendarData?.days && Array.isArray(calendarData.days)) {
+      for (const d of calendarData.days) {
+        serverMap.set(d.day_of_month, d);
+      }
+    }
+
+    const result: DayPnl[] = [];
+    for (let d = 1; d <= numDays; d++) {
+      if (serverMap.has(d)) {
+        result.push(serverMap.get(d)!);
+      } else {
+        const dateStr = `${currYear}-${String(currMonthNum).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        const isFuture = isThisMonth ? d > today.getDate() : (currYear > today.getFullYear() || (currYear === today.getFullYear() && currMonthNum > (today.getMonth() + 1)));
+        result.push({
+          date: dateStr,
+          day_of_month: d,
+          trades_count: 0,
+          net_pnl_usd: 0,
+          net_pnl_inr: 0,
+          status: isFuture ? 'FUTURE' : 'NEUTRAL',
+          is_future: isFuture,
+        });
+      }
+    }
+    return result;
+  }, [calendarData, currYear, currMonthNum]);
+
   const monthNetPnl = (workspace === 'INDIA' && (calendarData as any)?.net_pnl_inr !== undefined)
     ? (calendarData as any).net_pnl_inr
     : (calendarData?.net_pnl_usd ?? (calendarData as any)?.kpis?.total_net_pnl_usd ?? 0);
@@ -257,7 +295,10 @@ export function AnalyticsView() {
               >
                 <ChevronLeft className="h-3.5 w-3.5" />
               </button>
-              <span className="px-2 font-bold text-txt-primary select-none">{selectedMonth}</span>
+              <span className="px-2 font-bold text-txt-primary select-none flex items-center gap-1.5">
+                {selectedMonth}
+                {isLoading && <RefreshCw className="h-3 w-3 animate-spin text-brand" />}
+              </span>
               <button
                 onClick={handleNextMonth}
                 disabled={isLoading}
