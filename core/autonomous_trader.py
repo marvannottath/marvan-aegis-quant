@@ -1154,9 +1154,9 @@ class AutonomousTrader:
                                                 live_order_placed = True
                                                 binance_broker.undismiss_spot_position(ticker)
                                                 if not pos_tp or pos_tp <= 0:
-                                                    pos_tp = round(current_price * 1.006, 4 if current_price < 10 else 2)
+                                                    pos_tp = round(current_price * 1.0055, 4 if current_price < 10 else 2)
                                                 if not pos_sl or pos_sl <= 0:
-                                                    pos_sl = round(current_price * 0.992, 4 if current_price < 10 else 2)
+                                                    pos_sl = round(current_price * 0.9940, 4 if current_price < 10 else 2)
                                                 pos_record = {
                                                     "trade_id": f"TRD-BINA-{ticker}-{int(time.time()*1000)}",
                                                     "asset": ticker, "symbol": ticker, "action": act, "side": act,
@@ -1609,18 +1609,19 @@ class AutonomousTrader:
                             if target_expansion_tp > float(pos.get("take_profit", 0.0)):
                                 pos["take_profit"] = target_expansion_tp
 
-                        # 4. Standard Breakeven & Fee Protection:
-                        # If price reached >= +0.50%, ensure SL is at least +0.22% (guaranteed fee coverage)
-                        if highest_pnl >= 0.0050:
+                        # 4. Early Fee-Secured Lock (at +0.30% gain):
+                        # Binance roundtrip fee with BNB is 0.15%.
+                        # As soon as price reaches >= +0.30%, lock SL at Entry + 0.18% (covers fee with 0% loss risk!)
+                        if highest_pnl >= 0.0030:
                             pos["cost_breakeven_active"] = True
-                            be_px = round(entry * 1.0022, px_dec)
+                            be_px = round(entry * 1.0018, px_dec)
                             if be_px > cur_sl:
                                 pos["stop_loss"] = be_px
                                 cur_sl = be_px
 
-                        # 5. Dynamic Trailing Ratchet above +0.80%:
-                        if highest_pnl >= 0.0080:
-                            trailing_floor = highest_pnl - 0.0050
+                        # 5. Dynamic Trailing Ratchet above +0.40%:
+                        if highest_pnl >= 0.0040:
+                            trailing_floor = highest_pnl - 0.0020
                             pos["dynamic_trailing_floor"] = max(pos.get("dynamic_trailing_floor", 0.0), trailing_floor)
                             trail_px = round(entry * (1.0 + trailing_floor), px_dec)
                             if trail_px > cur_sl:
@@ -1655,23 +1656,22 @@ class AutonomousTrader:
                         is_break_even_guard = is_trailing_stop
 
                         # 7. Relaxed Stagnation Guard:
-                        # DO NOT exit at -0.30% prematurely! The Parallel Corridor SL protects the downside.
                         # Only exit if position is truly dead-flat after 45 minutes (2700s) with no momentum.
                         is_long_stagnant = bool(time_held_sec >= 2700.0)
                         is_stale_loss_exit = False  # Never panic exit at -0.30%! Let SL protect the trade!
-                        is_stale_profit_harvest = bool(is_long_stagnant and pnl_pct >= 0.0050)
+                        is_stale_profit_harvest = bool(is_long_stagnant and pnl_pct >= 0.0035)
                         is_stale_rotation = is_stale_profit_harvest
 
                         is_peak_stagnation = False
 
-                        # Take Profit: Target or explicit TP level crossed
+                        # Take Profit: Fast micro-scalp target (+0.50% to +0.65%) to secure profit before price fades!
                         is_tp_price_hit = bool(pos.get("take_profit", 0.0) > 0 and (new_live_price >= pos["take_profit"] if act == "BUY" else new_live_price <= pos["take_profit"]))
-                        is_fee_secured_tp = (pnl_pct >= 0.0180) or is_tp_price_hit
-                        is_milestone = (pnl_pct >= 0.0300)
-                        is_micro_harvest = False
+                        is_micro_harvest = bool(pnl_pct >= 0.0055 and pnl_usd > 0.015)
+                        is_fee_secured_tp = (pnl_pct >= 0.0075) or is_tp_price_hit or is_micro_harvest
+                        is_milestone = (pnl_pct >= 0.0200)
                         is_staggered_harvest = False
                         is_maturity_rebalance = False
-                        is_hard_stop = (pnl_pct <= -0.0150) or is_sl_hit
+                        is_hard_stop = (pnl_pct <= -0.0065) or is_sl_hit
                     else:
                         # Forex & Gold Multi-Stage Fee-Secured Trailing Ratchet:
                         # User Rule: At +0.25% gain, lock Stop Loss at Entry + 0.05% -> 0% Risk!
