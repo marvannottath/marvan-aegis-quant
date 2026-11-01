@@ -8,10 +8,10 @@ export default function PortfolioPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-bold tracking-tight text-txt-primary">
-          Portfolio & Segregated Vault
+          Trading Portfolio
         </h1>
         <p className="text-xs text-txt-muted mt-0.5">
-          9-bucket balance model, cash availability, and profit vault sweeps.
+          9-bucket balance model, cash availability, and margin capital allocation.
         </p>
       </div>
       <VaultPortfolioView />

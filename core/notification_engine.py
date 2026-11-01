@@ -16,6 +16,7 @@ from datetime import datetime, timezone, timedelta
 
 IST_TZ = timezone(timedelta(hours=5, minutes=30))
 CONFIG_FILE = Path(__file__).resolve().parent.parent / "data" / "notification_config.json"
+ALERTS_LOG_FILE = Path(__file__).resolve().parent.parent / "data" / "notifications_log.json"
 
 class NotificationEngine:
     def __init__(self):
@@ -33,6 +34,7 @@ class NotificationEngine:
         self.recent_alerts: List[Dict[str, Any]] = []
         self.last_sweep_alert_time: float = 0.0
         self._load_config()
+        self._load_alerts()
 
     def _load_config(self):
         """Load notification preferences from disk."""
@@ -54,6 +56,41 @@ class NotificationEngine:
                 json.dump(self.config, f, indent=2)
         except Exception as e:
             print(f"[NOTIFICATION] Save config notice: {e}")
+
+    def _load_alerts(self):
+        """Load persistent notifications history."""
+        if ALERTS_LOG_FILE.exists():
+            try:
+                with open(ALERTS_LOG_FILE, "r") as f:
+                    data = json.load(f)
+                    if isinstance(data, list):
+                        self.recent_alerts = data[:50]
+            except Exception as e:
+                print(f"[NOTIFICATION] Load alerts notice: {e}")
+
+    def _save_alerts(self):
+        """Persist notifications history to disk."""
+        ALERTS_LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            with open(ALERTS_LOG_FILE, "w") as f:
+                json.dump(self.recent_alerts[:50], f, indent=2)
+        except Exception as e:
+            print(f"[NOTIFICATION] Save alerts notice: {e}")
+
+    def record_alert(self, alert_type: str, message: str, channel: str = "In-App Telemetry", status: str = "DELIVERED"):
+        """Record an alert directly into the in-app notification center."""
+        now_str = datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S")
+        entry = {
+            "timestamp": now_str,
+            "type": alert_type,
+            "channel": channel,
+            "message": message,
+            "status": status
+        }
+        self.recent_alerts.insert(0, entry)
+        if len(self.recent_alerts) > 50:
+            self.recent_alerts = self.recent_alerts[:50]
+        self._save_alerts()
 
     def update_config(self, new_config: Dict[str, Any]) -> Dict[str, Any]:
         """Update notification settings."""
@@ -145,6 +182,7 @@ class NotificationEngine:
 
     def notify_trade_opened(self, asset: str, action: str, size_usd: float, leverage: float, price: float, opp_score: float = 80.0):
         """Triggered when a new autonomous trade position is entered."""
+        self.record_alert("TRADE_OPEN", f"AI Trade Opened: {action.upper()} {asset} (${size_usd:.2f} @ ${price:,.4f})", channel="In-App Telemetry")
         if not self.config.get("alert_on_trade_open", True):
             return
 
@@ -168,13 +206,19 @@ class NotificationEngine:
 
     def notify_trade_closed(self, asset: str, action: str, pnl_usd: float, pnl_pct: float, exit_price: float, reason: str):
         """Triggered when a trade is closed (TP, SL, Trailing SL, or Rebalance)."""
-        ist_now = datetime.now(timezone.utc).astimezone(IST_TZ)
-        ist_time_str = ist_now.strftime("%d %b %Y, %I:%M:%S %p")
         is_profit = pnl_usd >= 0
-        status_icon = "🟢 PROFIT REALIZED" if is_profit else "🔴 STOP LOSS / EXIT"
-
         pnl_prefix = "+$" if is_profit else "-$"
         pct_prefix = "+" if is_profit else ""
+        type_tag = "TRADE_WIN" if is_profit else "TRADE_LOSS"
+        self.record_alert(
+            type_tag,
+            f"Closed {action.upper()} {asset}: {pnl_prefix}{abs(pnl_usd):.2f} ({pct_prefix}{pnl_pct*100:.2f}%) @ ${exit_price:,.4f} • {reason}",
+            channel="Execution Venue"
+        )
+
+        ist_now = datetime.now(timezone.utc).astimezone(IST_TZ)
+        ist_time_str = ist_now.strftime("%d %b %Y, %I:%M:%S %p")
+        status_icon = "🟢 PROFIT REALIZED" if is_profit else "🔴 STOP LOSS / EXIT"
 
         lines = [
             f"⚡ *MARVAN'S POOL - POSITION CLOSED* ({status_icon}) 💎\n",
@@ -469,6 +513,33 @@ class NotificationEngine:
 
     def get_notification_status(self) -> Dict[str, Any]:
         """Return notification engine status and recent alerts."""
+        if not self.recent_alerts:
+            try:
+                hist_file = Path(__file__).resolve().parent.parent / "data" / "authoritative_trade_history.json"
+                if hist_file.exists():
+                    with open(hist_file, "r") as f:
+                        trades = json.load(f)
+                    seeded = []
+                    for t in reversed(trades[-15:]):
+                        ts = t.get("timestamp", "")
+                        sym = t.get("symbol", t.get("asset", "CRYPTO"))
+                        side = t.get("side", t.get("action", "TRADE"))
+                        net_pnl = float(t.get("net_pnl", t.get("pnl_usd", 0.0)))
+                        res = t.get("result", "WIN" if net_pnl > 0 else "LOSS" if net_pnl < 0 else "FLAT")
+                        pnl_str = f"+${net_pnl:.2f}" if net_pnl >= 0 else f"-${abs(net_pnl):.2f}"
+                        msg = f"{side} {sym} executed • {res} ({pnl_str})"
+                        seeded.append({
+                            "timestamp": ts or datetime.now(timezone.utc).astimezone(IST_TZ).strftime("%Y-%m-%d %H:%M:%S"),
+                            "type": "TRADE_" + res,
+                            "channel": "Binance Venue",
+                            "message": msg,
+                            "status": "SETTLED"
+                        })
+                    self.recent_alerts = seeded
+                    self._save_alerts()
+            except Exception:
+                pass
+
         return {
             "config": self.config,
             "recent_alerts": self.recent_alerts,
