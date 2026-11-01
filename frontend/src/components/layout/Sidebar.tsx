@@ -62,7 +62,7 @@ export function Sidebar() {
       icon: ShieldAlert,
     },
     {
-      name: 'Portfolio & Vault',
+      name: 'Portfolio',
       href: `${prefix}/portfolio`,
       icon: Wallet,
     },
