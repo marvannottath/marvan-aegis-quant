@@ -33,14 +33,12 @@ export function KpiHeaderRow() {
     ? portfolio.free_cash
     : 'UNAVAILABLE';
 
-  const vaultBalance = isLiveDisconnected
+  const realizedPnL = isLiveDisconnected
     ? 'UNAVAILABLE'
     : isLoading
     ? '—'
-    : isLive
-    ? 0.0
-    : portfolio.vault_balance !== null && portfolio.vault_balance !== undefined
-    ? portfolio.vault_balance
+    : portfolio.realized_pnl !== null && portfolio.realized_pnl !== undefined
+    ? portfolio.realized_pnl
     : 0.0;
 
   const tradeableCapital = isLiveDisconnected
@@ -137,15 +135,15 @@ export function KpiHeaderRow() {
         onClick={() => router.push(`${routePrefix}/portfolio`)}
       />
 
-      {/* 4. Secured Profit Vault (Protected Reserve) */}
+      {/* 4. Realized PnL (Session / Closed) */}
       <KpiCard
-        label="Secured Profit Vault"
-        value={vaultBalance}
+        label="Realized PnL"
+        value={realizedPnL}
         currency={isLiveDisconnected ? undefined : curr}
-        context="Locked"
-        trend={typeof vaultBalance === 'number' && vaultBalance > 0 ? 'up' : 'neutral'}
-        tooltip="Quarantined profit reserve protected from drawdowns. Autonomous AI engine is strictly forbidden from risking these funds."
-        onClick={() => scrollToOrNavigate('vault-section', `${routePrefix}/portfolio`)}
+        context={isLiveDisconnected ? undefined : 'Closed'}
+        trend={typeof realizedPnL === 'number' && realizedPnL > 0 ? 'up' : typeof realizedPnL === 'number' && realizedPnL < 0 ? 'down' : 'neutral'}
+        tooltip="Net realized profit/loss across closed positions for the current session"
+        onClick={() => router.push(`${routePrefix}/analytics`)}
       />
 
       {/* 5. Unrealized / Floating PnL */}
