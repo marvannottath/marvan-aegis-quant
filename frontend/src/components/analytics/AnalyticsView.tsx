@@ -251,7 +251,7 @@ export function AnalyticsView() {
 
           {/* Refresh */}
           <button
-            onClick={loadData}
+            onClick={() => loadCalendar()}
             className="p-1.5 rounded-lg border border-line bg-white hover:bg-slate-50 dark:bg-panel dark:hover:bg-panel-light text-txt-muted hover:text-txt-primary transition"
             title="Refresh analytics data"
           >
